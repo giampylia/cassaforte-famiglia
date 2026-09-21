@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="64" height="64" fill="currentColor">
+  <!-- Classical bank building with pediment, pillars, and flag (matching reference photo) -->
+  <!-- Flag on top -->
+  <path d="M48 14 L48 24 L56 20 L48 16" fill="currentColor"/>
+  <rect x="47" y="14" width="2" height="15" fill="currentColor"/>
+  <!-- Triangular Roof / Pediment -->
+  <path d="M50 25 L24 40 L76 40 Z"/>
+  <!-- Architrave / Ceiling bar -->
+  <rect x="22" y="42" width="56" height="5" rx="1.5"/>
+  <!-- 4 Pillars -->
+  <rect x="27" y="49" width="7" height="24" rx="1.5"/>
+  <rect x="39" y="49" width="7" height="24" rx="1.5"/>
+  <rect x="54" y="49" width="7" height="24" rx="1.5"/>
+  <rect x="66" y="49" width="7" height="24" rx="1.5"/>
+  <!-- Base steps -->
+  <rect x="20" y="75" width="60" height="5" rx="1.5"/>
+  <rect x="16" y="82" width="68" height="6" rx="2"/>
+</svg>

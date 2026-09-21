@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+  <title>Cassaforte di Famiglia</title>
+  
+  <!-- PWA & Mobile Meta Tags -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#ebf0f2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Cassaforte">
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg">
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- Top Minimal Navbar (Visibile quando sbloccata) -->
+    <header id="appHeader" class="app-header" style="display: none;">
+      <span class="brand-title">Cassaforte</span>
+      <div class="header-actions">
+        <!-- QR Code Smartphone -->
+        <button id="qrHeaderBtn" class="icon-button-sm" onclick="openQrModal()" title="Inquadra con il telefono" aria-label="QR Code">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+            <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+            <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+            <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+          </svg>
+        </button>
+        <!-- Notification Toggle / Status -->
+        <button id="notifStatusBtn" class="icon-button-sm" onclick="requestNotificationAccess()" title="Notifiche Smartphone" aria-label="Notifiche">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+        </button>
+        <!-- Lock Button -->
+        <button id="lockVaultBtn" class="icon-button-sm" title="Blocca cassaforte" onclick="lockVault()" aria-label="Blocca">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 1. SCHERMATA DI SBLOCCO (CRITTOGRAFIA MASTER PASSWORD) -->
+    <main id="authScreen" class="auth-screen">
+      <div class="auth-icon-well">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          <circle cx="12" cy="16" r="1.5" fill="currentColor"></circle>
+        </svg>
+      </div>
+
+      <h1 class="auth-title">Cassaforte di Famiglia</h1>
+      <p class="auth-subtitle">Inserisci la Master Password per decifrare conti, password, cassaforte e note di casa.</p>
+
+      <form id="authForm" class="auth-form" onsubmit="handleUnlock(event)">
+        <input type="password" id="masterPasswordInput" class="neu-input" placeholder="Password di Famiglia" autocomplete="current-password" required>
+        <button type="submit" class="neu-btn-primary" id="unlockSubmitBtn">Sblocca Cassaforte</button>
+        <div id="authError" class="auth-error"></div>
+      </form>
+
+      <div style="margin-top: 20px; font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        <span>Crittografia End-to-End AES-256 (v3.0 Puro JS)</span>
+      </div>
+
+      <!-- Riquadro QR Code Immediatamente Visibile per Cellulari -->
+      <div style="margin-top: 28px; background: var(--bg-color); border-radius: 28px; box-shadow: var(--neu-raised); padding: 22px 18px; width: 100%; max-width: 380px; text-align: center;">
+        <h3 style="font-size: 0.95rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;">
+          📱 Inquadra con il Cellulare
+        </h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 14px; line-height: 1.4;">
+          Punta la fotocamera del tuo <strong>Android</strong> o dell'<strong>iPhone</strong> di moglie e figlio:
+        </p>
+
+        <!-- QR Code SVG Locale (Zero internet, 100% offline) -->
+        <div style="background: #ffffff; padding: 12px; border-radius: 20px; display: inline-block; box-shadow: var(--neu-inset-sm); margin-bottom: 14px; width: 210px; height: 210px;">
+          <img src="/icons/qrcode.svg" alt="QR Code per Cellulari" width="186" height="186" style="display: block;">
+        </div>
+
+        <div class="entry-row" style="margin-bottom: 12px;">
+          <span class="entry-label">Indirizzo</span>
+          <span class="entry-value" style="font-size: 0.82rem; color: var(--primary-color);">http://192.168.1.8:3002</span>
+          <button type="button" class="btn-copy" onclick="copyToClipboard('http://192.168.1.8:3002')">Copia</button>
+        </div>
+
+        <!-- Istruzioni specifiche per iPhone e Android -->
+        <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.45; text-align: left; background: var(--bg-color); box-shadow: var(--neu-inset-sm); padding: 10px 14px; border-radius: 14px;">
+          <strong>Come salvare come App:</strong><br>
+          🍏 <strong>iPhone (Moglie e Figlio):</strong> in Safari tocca il tasto Condividi (quadrato con freccia in su ⎋) ➔ <em>"Aggiungi alla schermata Home"</em>.<br>
+          🤖 <strong>Android (Tuo):</strong> in Chrome tocca i 3 puntini ⋮ in alto a destra ➔ <em>"Aggiungi a schermata Home"</em>.
+        </div>
+      </div>
+    </main>
+
+    <!-- 2. GRIGLIA ICONE NEUMORFICHE (DASHBOARD 3X3 COME FOTO) -->
+    <main id="vaultScreen" class="vault-screen" style="display: none;">
+      
+      <!-- Piastra Neumorfica con 9 Tasti (stile foto di riferimento) -->
+      <div class="neu-grid-plate">
+        
+        <!-- RIGA 1, TASTO 1: PASSWORD (PW) -->
+        <button type="button" class="neu-tile" onclick="openSection('pw')" aria-label="Password e Credenziali">
+          <div class="neu-tile-icon">
+            <img src="/icons/icon-pw.svg" alt="PW" width="34" height="34">
+          </div>
+          <span class="neu-tile-label">PW</span>
+          <span id="countPw" class="neu-tile-count">0</span>
+        </button>
+
+        <!-- RIGA 1, TASTO 2: BANCA -->
+        <button type="button" class="neu-tile" onclick="openSection('banca')" aria-label="Banca e Conti Correnti">
+          <div class="neu-tile-icon">
+            <img src="/icons/icon-banca.svg" alt="Banca" width="34" height="34">
+          </div>
+          <span class="neu-tile-label">Banca</span>
+          <span id="countBanca" class="neu-tile-count">0</span>
+        </button>
+
+        <!-- RIGA 1, TASTO 3: INFO CASE -->
+        <button type="button" class="neu-tile" onclick="openSection('info_case')" aria-label="Info Case e Utenze">
+          <div class="neu-tile-icon">
+            <img src="/icons/icon-infocase.svg" alt="Info Case" width="34" height="34">
+          </div>
+          <span class="neu-tile-label">Info Case</span>
+          <span id="countInfoCase" class="neu-tile-count">0</span>
+        </button>
+
+        <!-- RIGA 2, TASTO 4: NOTE -->
+        <button type="button" class="neu-tile" onclick="openSection('note')" aria-label="Note e Disposizioni">
+          <div class="neu-tile-icon">
+            <img src="/icons/icon-note.svg" alt="Note" width="34" height="34">
+          </div>
+          <span class="neu-tile-label">Note</span>
+          <span id="countNote" class="neu-tile-count">0</span>
+        </button>
+
+        <!-- RIGA 2, TASTO 5: CASSAFORTE -->
+        <button type="button" class="neu-tile" onclick="openSection('cassaforte')" aria-label="Cassaforte e Valori">
+          <div class="neu-tile-icon">
+            <img src="/icons/icon-cassaforte.svg" alt="Cassaforte" width="34" height="34">
+          </div>
+          <span class="neu-tile-label">Cassaforte</span>
+          <span id="countCassaforte" class="neu-tile-count">0</span>
+        </button>
+
+        <!-- RIGA 2, TASTO 6: MESSAGGI (CON NOTIFICHE SUGLI SMARTPHONE) -->
+        <button type="button" class="neu-tile" onclick="openSection('messaggio')" aria-label="Messaggi e Notifiche">
+          <div class="neu-tile-icon">
+            <img src="/icons/icon-messaggio.svg" alt="Messaggi" width="34" height="34">
+          </div>
+          <span class="neu-tile-label">Messaggi</span>
+          <span id="countMessaggi" class="neu-tile-count">0</span>
+        </button>
+
+        <!-- RIGA 3, TASTO 7: AGGIUNGI RAPIDO -->
+        <button type="button" class="neu-tile" onclick="openAddModal()" aria-label="Aggiungi Informazione">
+          <div class="neu-tile-icon">
+            <img src="/icons/icon-plus.svg" alt="Aggiungi" width="34" height="34">
+          </div>
+          <span class="neu-tile-label">Aggiungi</span>
+        </button>
+
+        <!-- RIGA 3, TASTO 8: SLOT PREDISPOSTO IN UN SECONDO MOMENTO -->
+        <div class="neu-tile-placeholder" onclick="handlePlaceholderClick(8)" title="Tasto pronto per un secondo momento">
+          <div class="placeholder-dot"></div>
+        </div>
+
+        <!-- RIGA 3, TASTO 9: SLOT PREDISPOSTO IN UN SECONDO MOMENTO -->
+        <div class="neu-tile-placeholder" onclick="handlePlaceholderClick(9)" title="Tasto pronto per un secondo momento">
+          <div class="placeholder-dot"></div>
+        </div>
+
+      </div>
+
+      <!-- Quick Actions Bar -->
+      <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 8px;">
+        <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Accesso Comune di Famiglia</span>
+        <button class="entry-action-btn" onclick="exportEncryptedVault()" title="Esporta copia di backup crittografata">
+          ⬇️ Esporta Backup
+        </button>
+      </div>
+    </main>
+
+    <!-- 3. VISTA DETTAGLIO SEZIONE -->
+    <section id="sectionView" class="section-view">
+      <div class="section-header-bar">
+        <button type="button" class="btn-back" onclick="backToGrid()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <span>Home</span>
+        </button>
+        <h2 id="sectionTitle" class="section-title">SEZIONE</h2>
+        <button type="button" class="btn-back" onclick="openAddModalForCurrentSection()" title="Aggiungi">+ Nuova</button>
+      </div>
+
+      <!-- Banner Attiva Notifiche (nella sezione Messaggi) -->
+      <div id="notifBanner" class="entry-row" style="display: none; margin-bottom: 16px; cursor: pointer;" onclick="requestNotificationAccess()">
+        <span style="font-size: 1.2rem;">🔔</span>
+        <div style="flex-grow: 1; text-align: left;">
+          <strong style="font-size: 0.82rem;">Notifiche Smartphone</strong>
+          <div style="font-size: 0.72rem; color: var(--text-muted);">Tocca qui per ricevere gli avvisi su questo cellulare</div>
+        </div>
+        <button type="button" class="btn-copy">Attiva</button>
+      </div>
+
+      <!-- Lista elementi decifrati -->
+      <div id="sectionList" class="section-list">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+  </div>
+
+  <!-- MODALE AGGIUNGI / MODIFICA ELEMENTO -->
+  <div id="modalOverlay" class="modal-overlay" onclick="closeModalOnOverlay(event)">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalHeading">Nuova Informazione</h3>
+        <button type="button" class="entry-action-btn" onclick="closeModal()">✕</button>
+      </div>
+
+      <form id="entryForm" onsubmit="handleSaveEntry(event)">
+        <input type="hidden" id="entryId">
+
+        <!-- Selettore Sezione -->
+        <div class="form-group">
+          <label class="form-label">Sezione</label>
+          <select id="entrySectionSelect" class="neu-input" onchange="adaptFormFields()">
+            <option value="pw">🔑 Password & Credenziali</option>
+            <option value="banca">🏛️ Banca & Conti Correnti</option>
+            <option value="info_case">🏠 Info Case & Utenze</option>
+            <option value="note">📝 Note & Disposizioni</option>
+            <option value="cassaforte">🛡️ Cassaforte & Valori</option>
+            <option value="messaggio">💬 Messaggio con Notifica</option>
+          </select>
+        </div>
+
+        <!-- Titolo / Oggetto -->
+        <div class="form-group">
+          <label id="labelTitle" for="entryTitleInput" class="form-label">Titolo / Oggetto *</label>
+          <input type="text" id="entryTitleInput" class="neu-input" placeholder="Es. SPID, Conto BNL, Enel Cagliari, Codice Cassaforte..." required>
+        </div>
+
+        <!-- 1. CAMPI: PASSWORD (PW) -->
+        <div id="fieldsPw" class="category-fields">
+          <div class="form-group">
+            <label for="entryUsernameInput" class="form-label">Nome Utente / Email</label>
+            <input type="text" id="entryUsernameInput" class="neu-input" placeholder="Es. mario.rossi@email.it">
+          </div>
+          <div class="form-group">
+            <label for="entryPasswordInput" class="form-label">Password / PIN</label>
+            <input type="text" id="entryPasswordInput" class="neu-input" placeholder="Password o codice segreto">
+          </div>
+        </div>
+
+        <!-- 2. CAMPI: BANCA -->
+        <div id="fieldsBanca" class="category-fields" style="display: none;">
+          <div class="form-group">
+            <label for="entryIbanInput" class="form-label">IBAN</label>
+            <input type="text" id="entryIbanInput" class="neu-input" placeholder="IT00X0000000000000000000000">
+          </div>
+          <div class="form-group">
+            <label for="entryIntestatarioInput" class="form-label">Intestatario Conto</label>
+            <input type="text" id="entryIntestatarioInput" class="neu-input" placeholder="Es. Giampiero e Moglie">
+          </div>
+          <div class="form-group">
+            <label for="entrySaldoInput" class="form-label">Modalità di Accesso / Token / PIN</label>
+            <input type="text" id="entrySaldoInput" class="neu-input" placeholder="Es. Token app cellulare, PIN bancomat...">
+          </div>
+        </div>
+
+        <!-- 3. CAMPI: INFO CASE & UTENZE -->
+        <div id="fieldsInfoCase" class="category-fields" style="display: none;">
+          <div class="form-group">
+            <label for="entryCasaIndirizzoInput" class="form-label">Riferimento Casa / Fornitura</label>
+            <input type="text" id="entryCasaIndirizzoInput" class="neu-input" placeholder="Es. Casa Cagliari Via Roma, Luce, Gas...">
+          </div>
+          <div class="form-group">
+            <label for="entryCodiceClienteInput" class="form-label">Codice Cliente / POD / PDR</label>
+            <input type="text" id="entryCodiceClienteInput" class="neu-input" placeholder="Codice utenza o contratto">
+          </div>
+          <div class="form-group">
+            <label for="entryPagamentoInput" class="form-label">Pagamento / RID Bancario</label>
+            <input type="text" id="entryPagamentoInput" class="neu-input" placeholder="Es. Addebito RID automatico su conto">
+          </div>
+        </div>
+
+        <!-- 4. CAMPI: CASSAFORTE FISICA -->
+        <div id="fieldsCassaforte" class="category-fields" style="display: none;">
+          <div class="form-group">
+            <label for="entryCombinazioneInput" class="form-label">Codice Combinazione</label>
+            <input type="text" id="entryCombinazioneInput" class="neu-input" placeholder="Es. 12-34-56 oppure rotazione">
+          </div>
+          <div class="form-group">
+            <label for="entryPosizioneInput" class="form-label">Posizione Cassaforte & Dove sono le Chiavi</label>
+            <input type="text" id="entryPosizioneInput" class="neu-input" placeholder="Es. Dietro il quadro in camera, chiavi nel cassetto...">
+          </div>
+        </div>
+
+        <!-- 5. CAMPI: MESSAGGI (CON NOTIFICHE SMARTPHONE) -->
+        <div id="fieldsMessaggio" class="category-fields" style="display: none;">
+          <div class="form-group">
+            <label for="entryMittenteInput" class="form-label">Mittente</label>
+            <input type="text" id="entryMittenteInput" class="neu-input" placeholder="Es. Giampy, Ty, Miki">
+          </div>
+        </div>
+
+        <!-- Campo Note Generico (Per tutti) -->
+        <div class="form-group">
+          <label for="entryNotesInput" class="form-label">Note & Istruzioni Dettagliate</label>
+          <textarea id="entryNotesInput" class="neu-input" rows="3" placeholder="Scrivi qui istruzioni, contatti importanti, dove trovare documenti originali..."></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="neu-btn-primary" style="box-shadow: var(--neu-raised-sm); color: var(--text-muted);" onclick="closeModal()">Annulla</button>
+          <button type="submit" class="neu-btn-primary" id="saveEntrySubmitBtn">Salva Cifrato</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODALE QR CODE SMARTPHONE -->
+  <div id="qrModalOverlay" class="modal-overlay" onclick="closeQrModalOnOverlay(event)">
+    <div class="modal-card" style="text-align: center;">
+      <div class="modal-header">
+        <h3 style="font-size: 1.1rem; text-transform: uppercase;">📱 Inquadra con il Cellulare</h3>
+        <button type="button" class="entry-action-btn" onclick="closeQrModal()">✕</button>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">
+        Inquadra questo QR Code con la fotocamera del tuo smartphone (connesso al Wi-Fi di casa):
+      </p>
+      
+      <div style="background: #ffffff; padding: 16px; border-radius: 20px; display: inline-block; box-shadow: var(--neu-inset-sm); margin-bottom: 16px;">
+        <img id="qrCodeImg" src="/icons/qrcode.svg" alt="QR Code" width="200" height="200" style="display: block; border-radius: 8px;">
+      </div>
+
+      <div class="entry-row" style="margin-bottom: 14px;">
+        <span class="entry-label">Indirizzo</span>
+        <span class="entry-value" style="font-size: 0.8rem; color: var(--primary-color);">http://192.168.1.8:3002</span>
+        <button type="button" class="btn-copy" onclick="copyToClipboard('http://192.168.1.8:3002')">Copia</button>
+      </div>
+
+      <button type="button" class="neu-btn-primary" onclick="closeQrModal()">Ho Inquadrato</button>
+    </div>
+  </div>
+
+  <!-- Toast Notifica Copiato -->
+  <div id="toastNotice" class="toast-notice">Copiato negli appunti!</div>
+
+  <script src="/app.js?v=5.1"></script>
+</body>
+</html>

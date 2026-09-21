@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="moglieGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f472b6"/>
+      <stop offset="100%" stop-color="#db2777"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#moglieGrad)"/>
+  <!-- Hair back -->
+  <path d="M24 50 C22 30 36 20 50 20 C64 20 78 30 76 50 C76 68 70 76 66 80 C58 76 42 76 34 80 C30 76 24 68 24 50 Z" fill="#78350f"/>
+  <!-- Face -->
+  <circle cx="50" cy="48" r="21" fill="#ffedd5"/>
+  <!-- Hair Front / Style -->
+  <path d="M26 44 C34 30 50 30 74 36 C70 30 62 24 50 24 C36 24 28 32 26 44 Z" fill="#92400e"/>
+  <!-- Eyes -->
+  <circle cx="43" cy="48" r="2.5" fill="#1e293b"/>
+  <circle cx="57" cy="48" r="2.5" fill="#1e293b"/>
+  <path d="M40 44 Q43 42 46 44" stroke="#92400e" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+  <path d="M54 44 Q57 42 60 44" stroke="#92400e" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+  <!-- Smile -->
+  <path d="M44 55 Q50 61 56 55" stroke="#be185d" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- Cheeks -->
+  <circle cx="39" cy="53" r="3.5" fill="#f43f5e" opacity="0.4"/>
+  <circle cx="61" cy="53" r="3.5" fill="#f43f5e" opacity="0.4"/>
+  <!-- Dress -->
+  <path d="M26 90 C26 74 37 69 50 69 C63 69 74 74 74 90 Z" fill="#be185d"/>
+  <!-- Small Heart Necklace -->
+  <path d="M50 72 L48 70 A1.5 1.5 0 0 1 50 68 A1.5 1.5 0 0 1 52 70 Z" fill="#fbcfe8"/>
+</svg>

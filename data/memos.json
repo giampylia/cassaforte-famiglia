@@ -1,0 +1,67 @@
+[
+  {
+    "id": "memo-1",
+    "recipient": "figlio",
+    "title": "Compiti di matematica e merenda! 🥪",
+    "content": "Ciao campione! Ho lasciato una bella fetta di torta alle mele in cucina sotto la campana.",
+    "items": [
+      { "id": "item-1", "text": "Finire esercizi di mate a pag. 45", "done": false },
+      { "id": "item-2", "text": "Preparare lo zaino per la lezione di domani", "done": false },
+      { "id": "item-3", "text": "Mangiare la merenda in cucina", "done": true }
+    ],
+    "category": "compiti",
+    "color": "blue",
+    "pinned": true,
+    "done": false,
+    "author": "Papà",
+    "createdAt": "2026-09-21T10:30:00.000Z",
+    "dueDate": "2026-09-21"
+  },
+  {
+    "id": "memo-2",
+    "recipient": "moglie",
+    "title": "Un pensiero dolce per la tua giornata ❤️",
+    "content": "Buona giornata amore mio! Stasera passo a prendere del pane fresco prima di rientrare. Se serve qualcos'altro per cena, scrivimi o aggiungilo alla lista famiglia. Ti amo!",
+    "items": [],
+    "category": "affetto",
+    "color": "pink",
+    "pinned": true,
+    "done": false,
+    "author": "Giampiero",
+    "createdAt": "2026-09-21T08:15:00.000Z",
+    "dueDate": ""
+  },
+  {
+    "id": "memo-3",
+    "recipient": "famiglia",
+    "title": "Lista Spesa & Casa per il Weekend 🛒",
+    "content": "Aggiungete qui le cose che mancano per la spesa di sabato mattina.",
+    "items": [
+      { "id": "item-4", "text": "Latte parzialmente scremato", "done": true },
+      { "id": "item-5", "text": "Caffè in grani o macinato", "done": false },
+      { "id": "item-6", "text": "Frutta fresca (banane e mele)", "done": false },
+      { "id": "item-7", "text": "Gelato per il film di venerdì", "done": false }
+    ],
+    "category": "spesa",
+    "color": "yellow",
+    "pinned": false,
+    "done": false,
+    "author": "Famiglia",
+    "createdAt": "2026-09-21T09:00:00.000Z",
+    "dueDate": "2026-09-26"
+  },
+  {
+    "id": "memo-4",
+    "recipient": "figlio",
+    "title": "Gita in bicicletta domenica 🚴",
+    "content": "Domenica il meteo sarà fantastico! Pensavo di fare il giro del lago o provare la pista nuova ciclabile. Controlla la catena e le gomme prima del weekend!",
+    "items": [],
+    "category": "idee",
+    "color": "green",
+    "pinned": false,
+    "done": false,
+    "author": "Papà",
+    "createdAt": "2026-09-20T18:00:00.000Z",
+    "dueDate": "2026-09-27"
+  }
+]

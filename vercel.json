@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "public": false,
+  "routes": [
+    {
+      "src": "/api/vault",
+      "dest": "/api/vault.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ]
+}

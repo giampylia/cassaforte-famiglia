@@ -1,0 +1,322 @@
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+const PORT = process.env.PORT || 3000;
+const DATA_FILE = path.join(__dirname, 'data', 'memos.json');
+const VAULT_FILE = path.join(__dirname, 'data', 'vault.json');
+const PUBLIC_DIR = path.join(__dirname, 'public');
+
+function loadVault() {
+  try {
+    if (!fs.existsSync(VAULT_FILE)) return null;
+    const data = fs.readFileSync(VAULT_FILE, 'utf8');
+    return JSON.parse(data || '{}');
+  } catch (err) {
+    return null;
+  }
+}
+
+function saveVault(vaultData) {
+  try {
+    fs.writeFileSync(VAULT_FILE, JSON.stringify(vaultData, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+// MIME types
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+  '.webmanifest': 'application/manifest+json; charset=utf-8'
+};
+
+let activePort = PORT;
+
+// Helper: Trova IP locale sulla rete Wi-Fi / LAN
+function getLocalIP() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      // Salta IPv6 e indirizzi interni (127.0.0.1)
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
+// Helper: Leggi Memos da file
+function loadMemos() {
+  try {
+    if (!fs.existsSync(DATA_FILE)) {
+      fs.writeFileSync(DATA_FILE, '[]', 'utf8');
+      return [];
+    }
+    const data = fs.readFileSync(DATA_FILE, 'utf8');
+    return JSON.parse(data || '[]');
+  } catch (err) {
+    console.error('Errore lettura memos.json:', err.message);
+    return [];
+  }
+}
+
+// Helper: Salva Memos su file
+function saveMemos(memos) {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(memos, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.error('Errore salvataggio memos.json:', err.message);
+    return false;
+  }
+}
+
+// Helper: parse JSON body
+function parseJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+      if (body.length > 2 * 1024 * 1024) { // 2MB max
+        reject(new Error('Payload too large'));
+      }
+    });
+    req.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (err) {
+        reject(err);
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+// Helper risposta JSON
+function sendJSON(res, statusCode, data) {
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  });
+  res.end(JSON.stringify(data));
+}
+
+async function handleRequest(req, res) {
+  // CORS Preflight
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    return res.end();
+  }
+
+  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const pathname = parsedUrl.pathname;
+
+  // --- API ROUTES ---
+  if (pathname.startsWith('/api/')) {
+    // GET /api/info (restituisce IP locale per il QR code)
+    if (pathname === '/api/info' && req.method === 'GET') {
+      const localIP = getLocalIP();
+      return sendJSON(res, 200, {
+        ip: localIP,
+        port: activePort,
+        localUrl: `http://localhost:${activePort}`,
+        networkUrl: `http://${localIP}:${activePort}`
+      });
+    }
+
+    // GET /api/vault (restituisce vault cifrato)
+    if (pathname === '/api/vault' && req.method === 'GET') {
+      const vault = loadVault();
+      return sendJSON(res, 200, vault || {});
+    }
+
+    // POST /api/vault (salva vault cifrato)
+    if (pathname === '/api/vault' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        saveVault(body);
+        return sendJSON(res, 200, { success: true });
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
+    }
+
+    // GET /api/memos
+    if (pathname === '/api/memos' && req.method === 'GET') {
+      let memos = loadMemos();
+      const recipient = parsedUrl.searchParams.get('recipient');
+      if (recipient && recipient !== 'tutti') {
+        memos = memos.filter(m => m.recipient === recipient || m.recipient === 'famiglia');
+      }
+      return sendJSON(res, 200, memos);
+    }
+
+    // POST /api/memos (creazione nuovo memo)
+    if (pathname === '/api/memos' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        if (!body.title || !body.recipient) {
+          return sendJSON(res, 400, { error: 'Titolo e Destinatario sono obbligatori' });
+        }
+
+        const memos = loadMemos();
+        const newMemo = {
+          id: 'memo-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+          recipient: body.recipient, // 'figlio', 'moglie', 'famiglia'
+          title: body.title.trim(),
+          content: (body.content || '').trim(),
+          items: Array.isArray(body.items) ? body.items.map((it, idx) => ({
+            id: it.id || `item-${Date.now()}-${idx}`,
+            text: (it.text || '').trim(),
+            done: Boolean(it.done)
+          })) : [],
+          category: body.category || 'promemoria', // 'affetto', 'compiti', 'spesa', 'importante', 'idee'
+          color: body.color || 'yellow', // 'yellow', 'pink', 'blue', 'green', 'purple'
+          pinned: Boolean(body.pinned),
+          done: Boolean(body.done),
+          author: body.author || 'Papà',
+          createdAt: new Date().toISOString(),
+          dueDate: body.dueDate || ''
+        };
+
+        memos.unshift(newMemo);
+        saveMemos(memos);
+        return sendJSON(res, 201, newMemo);
+      } catch (err) {
+        return sendJSON(res, 400, { error: 'Dati non validi: ' + err.message });
+      }
+    }
+
+    // PUT /api/memos/:id (aggiornamento memo)
+    if (pathname.startsWith('/api/memos/') && req.method === 'PUT') {
+      const id = pathname.replace('/api/memos/', '');
+      try {
+        const body = await parseJsonBody(req);
+        const memos = loadMemos();
+        const index = memos.findIndex(m => m.id === id);
+        if (index === -1) {
+          return sendJSON(res, 404, { error: 'Memo non trovato' });
+        }
+
+        // Aggiorna i campi consentiti
+        memos[index] = {
+          ...memos[index],
+          ...body,
+          id: memos[index].id, // preserva l'ID originale
+          updatedAt: new Date().toISOString()
+        };
+
+        saveMemos(memos);
+        return sendJSON(res, 200, memos[index]);
+      } catch (err) {
+        return sendJSON(res, 400, { error: 'Errore aggiornamento: ' + err.message });
+      }
+    }
+
+    // DELETE /api/memos/:id (eliminazione memo)
+    if (pathname.startsWith('/api/memos/') && req.method === 'DELETE') {
+      const id = pathname.replace('/api/memos/', '');
+      let memos = loadMemos();
+      const initialLength = memos.length;
+      memos = memos.filter(m => m.id !== id);
+
+      if (memos.length === initialLength) {
+        return sendJSON(res, 404, { error: 'Memo non trovato' });
+      }
+
+      saveMemos(memos);
+      return sendJSON(res, 200, { success: true, id });
+    }
+
+    return sendJSON(res, 404, { error: 'Endpoint API non trovato' });
+  }
+
+  // --- STATIC FILES SERVING ---
+  let filePath = path.join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname);
+
+  // Prevenzione Directory Traversal
+  if (!filePath.startsWith(PUBLIC_DIR)) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    return res.end('Accesso Negato');
+  }
+
+  fs.stat(filePath, (err, stats) => {
+    if (err || !stats.isFile()) {
+      // Se il file non esiste, fallback su index.html per SPA/PWA se non è un file con estensione
+      if (!path.extname(pathname)) {
+        filePath = path.join(PUBLIC_DIR, 'index.html');
+      } else {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        return res.end('404 Not Found');
+      }
+    }
+
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+    // Gestione cache: no-cache per html, js, css e service worker così su cellulare è sempre aggiornato
+    const headers = { 'Content-Type': contentType };
+    if (ext === '.html' || ext === '.js' || ext === '.css' || filePath.endsWith('sw.js') || filePath.endsWith('manifest.json')) {
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0';
+      headers['Pragma'] = 'no-cache';
+      headers['Expires'] = '0';
+    } else {
+      headers['Cache-Control'] = 'public, max-age=86400';
+    }
+
+    res.writeHead(200, headers);
+    const readStream = fs.createReadStream(filePath);
+    readStream.pipe(res);
+  });
+}
+
+function startServer(portToTry) {
+  const srv = http.createServer(handleRequest);
+
+  srv.once('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.log(`Porta ${portToTry} occupata, provo ${portToTry + 1}...`);
+      startServer(portToTry + 1);
+    } else {
+      console.error('Errore avvio server:', err);
+    }
+  });
+
+  srv.listen(portToTry, '0.0.0.0', () => {
+    activePort = portToTry;
+    const localIP = getLocalIP();
+    console.log('='.repeat(65));
+    console.log('   🏠 NOTE DI FAMIGLIA (FamilyMemo) - WebApp Online!');
+    console.log('='.repeat(65));
+    console.log(`\n💻 Sul tuo computer:`);
+    console.log(`   👉 http://localhost:${activePort}`);
+    console.log(`\n📱 Sui telefoni di tua moglie e tuo figlio (stesso Wi-Fi):`);
+    console.log(`   👉 http://${localIP}:${activePort}`);
+    console.log(`\n🔗 Link diretti per schermata Home:`);
+    console.log(`   👦 Figlio:  http://${localIP}:${activePort}/#figlio`);
+    console.log(`   👩 Moglie:  http://${localIP}:${activePort}/#moglie`);
+    console.log('='.repeat(65));
+  });
+}
+
+startServer(PORT);
+
+

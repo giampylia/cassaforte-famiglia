@@ -1,0 +1,715 @@
+/* ==========================================================
+   CASSAFORTE DI FAMIGLIA - NEUMORPHIC MINIMALIST DESIGN
+   Ispirato all'interfaccia a 2 colori: #ebf0f2 & #2d4a43
+   ========================================================== */
+
+:root {
+  --bg-color: #ebf0f2;
+  --bg-darker: #e1e7ea;
+  --primary-color: #2d4a43;
+  --primary-hover: #1f3530;
+  --text-muted: #67807a;
+  --text-subtle: #8fa5a0;
+  
+  /* Neumorphic Shadows */
+  --shadow-light: #ffffff;
+  --shadow-dark: #c8d1d6;
+  
+  /* Raised Button */
+  --neu-raised: 7px 7px 14px var(--shadow-dark), -7px -7px 14px var(--shadow-light);
+  --neu-raised-sm: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+  
+  /* Inset / Pressed Well (come nell'immagine di riferimento) */
+  --neu-inset: inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light);
+  --neu-inset-sm: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
+  
+  --radius-button: 26px;
+  --radius-card: 22px;
+  --radius-pill: 999px;
+  
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-color);
+  color: var(--primary-color);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 24px 16px calc(32px + var(--safe-bottom));
+  overflow-x: hidden;
+}
+
+/* App Container */
+.app-container {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Top Minimal Header */
+.app-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding: 0 4px;
+}
+
+.brand-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary-color);
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.icon-button-sm {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--bg-color);
+  box-shadow: var(--neu-raised-sm);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-color);
+  transition: all 0.15s ease;
+}
+
+.icon-button-sm:active {
+  box-shadow: var(--neu-inset-sm);
+}
+
+/* ==========================================================
+   SCHERMATA DI SBLOCCO (MASTER PASSWORD)
+   ========================================================== */
+.auth-screen {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.auth-icon-well {
+  width: 96px;
+  height: 96px;
+  border-radius: 28px;
+  background: var(--bg-color);
+  box-shadow: var(--neu-inset);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  color: var(--primary-color);
+}
+
+.auth-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.auth-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+  max-width: 320px;
+  line-height: 1.4;
+}
+
+.auth-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.neu-input {
+  width: 100%;
+  padding: 16px 20px;
+  border-radius: var(--radius-card);
+  background: var(--bg-color);
+  box-shadow: var(--neu-inset);
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 1.05rem;
+  color: var(--primary-color);
+  text-align: center;
+  letter-spacing: 0.1em;
+  transition: box-shadow 0.2s ease;
+}
+
+.neu-input:focus {
+  box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light);
+}
+
+.neu-btn-primary {
+  width: 100%;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background: var(--bg-color);
+  box-shadow: var(--neu-raised);
+  border: none;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--primary-color);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 8px;
+}
+
+.neu-btn-primary:active {
+  box-shadow: var(--neu-inset);
+}
+
+.auth-error {
+  color: #b91c1c;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 6px;
+  min-height: 20px;
+}
+
+/* ==========================================================
+   GRIGLIA ICONE NEUMORFICHE (STILE IMMAGINE)
+   ========================================================== */
+.vault-screen {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Griglia 3 colonne esattamente come la foto fornita */
+.neu-grid-plate {
+  width: 100%;
+  background: var(--bg-color);
+  border-radius: 36px;
+  box-shadow: 12px 12px 24px var(--shadow-dark), -12px -12px 24px var(--shadow-light);
+  padding: 24px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+/* Singolo Bottone a Pozzetto / Scavato */
+.neu-tile {
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-button);
+  background: var(--bg-color);
+  box-shadow: var(--neu-inset);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  color: var(--primary-color);
+  position: relative;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 12px;
+  user-select: none;
+}
+
+.neu-tile:active {
+  transform: scale(0.96);
+  box-shadow: inset 7px 7px 14px var(--shadow-dark), inset -7px -7px 14px var(--shadow-light);
+}
+
+.neu-tile-icon {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-color);
+  transition: transform 0.2s ease;
+}
+
+.neu-tile-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.neu-tile-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 8px;
+  color: var(--primary-color);
+}
+
+.neu-tile-count {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* Slot segnaposto per tasti futuri (in un secondo momento) */
+.neu-tile-placeholder {
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-button);
+  background: var(--bg-color);
+  box-shadow: var(--neu-inset);
+  opacity: 0.45;
+  cursor: pointer;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-subtle);
+  transition: opacity 0.2s;
+}
+
+.neu-tile-placeholder:hover {
+  opacity: 0.8;
+}
+
+.neu-tile-placeholder .placeholder-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-subtle);
+}
+
+/* ==========================================================
+   VISTA DETTAGLIO SEZIONE (PW, BANCA, INFO CASE)
+   ========================================================== */
+.section-view {
+  width: 100%;
+  display: none;
+  flex-direction: column;
+}
+
+.section-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.btn-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-color);
+  box-shadow: var(--neu-raised-sm);
+  border: none;
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  cursor: pointer;
+}
+
+.btn-back:active {
+  box-shadow: var(--neu-inset-sm);
+}
+
+.section-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.section-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+/* Elemento Lista / Card Incombenza */
+.entry-card {
+  background: var(--bg-color);
+  border-radius: var(--radius-card);
+  box-shadow: var(--neu-raised);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+}
+
+.entry-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.entry-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.entry-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Righe Dettagli con tasto Copia */
+.entry-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-color);
+  box-shadow: var(--neu-inset-sm);
+  padding: 8px 12px;
+  border-radius: 12px;
+  gap: 8px;
+}
+
+.entry-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.entry-value {
+  font-family: monospace;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  word-break: break-all;
+  flex-grow: 1;
+  text-align: right;
+  margin-right: 6px;
+}
+
+.entry-value.masked {
+  letter-spacing: 0.2em;
+}
+
+.btn-copy {
+  background: var(--bg-color);
+  box-shadow: var(--neu-raised-sm);
+  border: none;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn-copy:active {
+  box-shadow: var(--neu-inset-sm);
+}
+
+.entry-notes {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  margin-top: 4px;
+}
+
+.entry-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.entry-action-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.entry-action-btn:hover {
+  color: var(--primary-color);
+}
+
+.entry-action-btn.delete:hover {
+  color: #dc2626;
+}
+
+/* Modale Neumorfico Aggiunta / Modifica */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(235, 240, 242, 0.85);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-color);
+  border-radius: 32px;
+  box-shadow: 14px 14px 28px var(--shadow-dark), -14px -14px 28px var(--shadow-light);
+  padding: 28px 24px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.modal-header h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.form-group {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+/* Toast Notifica Copiato */
+.toast-notice {
+  position: fixed;
+  bottom: calc(24px + var(--safe-bottom));
+  background: var(--primary-color);
+  color: var(--bg-color);
+  padding: 10px 20px;
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  box-shadow: 0 4px 12px rgba(45, 74, 67, 0.3);
+  z-index: 200;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.2s ease;
+  pointer-events: none;
+}
+
+.toast-notice.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Responsività */
+@media (max-width: 380px) {
+  .neu-grid-plate {
+    gap: 12px;
+    padding: 16px;
+  }
+  
+  .neu-tile-icon {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .neu-tile-label {
+    font-size: 0.65rem;
+  }
+}
+
+/* ==========================================================
+   MESSAGGI INTERNI DI FAMIGLIA (COMPOSITORE RAPIDO & 1-CLICK)
+   ========================================================== */
+.msg-composer {
+  background: var(--bg-color);
+  border-radius: var(--radius-card);
+  box-shadow: var(--neu-raised);
+  padding: 20px;
+  margin-bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.msg-composer-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sender-selector {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.sender-chip {
+  flex: 1;
+  background: var(--bg-color);
+  box-shadow: var(--neu-raised-sm);
+  border: 2px solid transparent;
+  padding: 8px 6px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.sender-chip.active {
+  box-shadow: var(--neu-inset-sm);
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.msg-textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--bg-color);
+  box-shadow: var(--neu-inset);
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--primary-color);
+  resize: none;
+  min-height: 80px;
+}
+
+.msg-textarea:focus {
+  box-shadow: inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light);
+}
+
+.btn-send-message {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius-card);
+  background: var(--bg-color);
+  box-shadow: var(--neu-raised);
+  border: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary-color);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+
+.btn-send-message:active {
+  box-shadow: var(--neu-inset);
+  transform: scale(0.98);
+}
+
+.msg-item-card {
+  background: var(--bg-color);
+  border-radius: var(--radius-card);
+  box-shadow: var(--neu-raised);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+
+.msg-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.msg-item-sender {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.msg-item-date {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.msg-item-body {
+  font-size: 0.92rem;
+  color: var(--primary-color);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.msg-item-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+

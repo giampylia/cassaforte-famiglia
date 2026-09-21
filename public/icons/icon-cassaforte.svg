@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="64" height="64" fill="currentColor">
+  <!-- Minimalist Safe / Cassaforte Door with Combination Wheel -->
+  <!-- Outer Body -->
+  <rect x="18" y="18" width="64" height="64" rx="14" fill="currentColor"/>
+  <!-- Inner Safe Door Inset -->
+  <rect x="25" y="25" width="50" height="50" rx="9" fill="#ebf0f2"/>
+  <!-- Combination Dial in Center -->
+  <circle cx="50" cy="50" r="14" fill="currentColor"/>
+  <circle cx="50" cy="50" r="10" fill="#ebf0f2"/>
+  <circle cx="50" cy="50" r="4" fill="currentColor"/>
+  <line x1="50" y1="38" x2="50" y2="42" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Door Handle -->
+  <rect x="66" y="46" width="4" height="8" rx="2" fill="currentColor"/>
+  <!-- Hinges -->
+  <rect x="22" y="32" width="3" height="6" rx="1.5" fill="currentColor"/>
+  <rect x="22" y="62" width="3" height="6" rx="1.5" fill="currentColor"/>
+</svg>

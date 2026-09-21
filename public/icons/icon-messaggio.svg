@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="64" height="64" fill="currentColor">
+  <!-- Minimalist Message Speech Bubble with Heart (matching top-left icon in reference image) -->
+  <path d="M22 22 C22 17.5 25.5 14 30 14 L70 14 C74.5 14 78 17.5 78 22 L78 56 C78 60.5 74.5 64 70 64 L56 64 L50 74 L44 64 L30 64 C25.5 64 22 60.5 22 56 Z" fill="currentColor"/>
+  <!-- Heart cutout -->
+  <path d="M50 49 C50 49 40 42 40 34 C40 30 43 27 47 28 C49 28.5 50 30.5 50 30.5 C50 30.5 51 28.5 53 28 C57 27 60 30 60 34 C60 42 50 49 50 49 Z" fill="#ebf0f2"/>
+</svg>
