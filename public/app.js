@@ -12,6 +12,8 @@ const STATE = {
   activeSection: 'grid',
   entries: [],
   currentSender: 'Giampy',
+  currentRecipient: 'Tutti',
+  phonebook: { Giampy: '', Ty: '', Miki: '' },
   encryptedVault: null,
   autoLockTimer: null,
   notificationsEnabled: false
@@ -321,6 +323,11 @@ async function requestNotificationAccess() {
 }
 
 async function loadVaultFromStorage() {
+  const cachedPhonebook = localStorage.getItem('famylia_phonebook');
+  if (cachedPhonebook) {
+    try { STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, JSON.parse(cachedPhonebook)); } catch (e) {}
+  }
+
   try {
     const res = await fetch('/api/vault');
     if (res.ok) {
@@ -347,13 +354,13 @@ function updateAuthScreenUI() {
   const btn = document.getElementById('unlockSubmitBtn');
 
   if (!STATE.encryptedVault) {
-    if (title) title.textContent = 'Imposta Cassaforte';
-    if (subtitle) subtitle.textContent = 'Scegli la Master Password di famiglia che conoscerete solo tu, tua moglie e tuo figlio.';
-    if (btn) btn.textContent = 'Crea Cassaforte Cifrata';
+    if (title) title.textContent = 'Imposta Famylia';
+    if (subtitle) subtitle.textContent = 'Scegli la Master Password di Famylia che conosceranno solo Giampy, Ty e Miki.';
+    if (btn) btn.textContent = 'Crea Famylia Cifrata';
   } else {
-    if (title) title.textContent = 'Cassaforte di Famiglia';
-    if (subtitle) subtitle.textContent = 'Inserisci la Master Password per accedere alle informazioni vitali.';
-    if (btn) btn.textContent = 'Sblocca Cassaforte';
+    if (title) title.textContent = 'Famylia';
+    if (subtitle) subtitle.textContent = 'Inserisci la Master Password per accedere a Famylia.';
+    if (btn) btn.textContent = 'Sblocca Famylia';
   }
 }
 
@@ -452,6 +459,10 @@ async function handleUnlock(e) {
           STATE.entries = parsed;
         } else if (parsed && typeof parsed === 'object') {
           STATE.entries = parsed.entries || [];
+          if (parsed.phonebook) {
+            STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
+            localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
+          }
         }
       } catch (e) {
         STATE.entries = [];
@@ -463,7 +474,7 @@ async function handleUnlock(e) {
   } catch (err) {
     if (errorEl) errorEl.textContent = 'Errore durante la decifratura: ' + err.message;
     btn.disabled = false;
-    btn.textContent = 'Sblocca Cassaforte';
+    btn.textContent = 'Sblocca Famylia';
   }
 }
 
@@ -476,7 +487,7 @@ function unlockSuccess() {
   resetAutoLockTimer();
   updateTileCounts();
   updateAppIconBadge();
-  showToast('Cassaforte sbloccata');
+  showToast('Famylia sbloccata');
 
   // Chiedi permessi notifiche in modo non invasivo se non ancora concessi
   if ('Notification' in window && Notification.permission === 'default') {
@@ -498,7 +509,7 @@ function lockVault() {
   document.getElementById('authScreen').style.display = 'flex';
 
   updateAuthScreenUI();
-  showToast('Cassaforte bloccata');
+  showToast('Famylia bloccata');
 }
 
 function resetAutoLockTimer() {
@@ -523,7 +534,11 @@ async function saveEncryptedVault(existingSalt = null) {
   const saltBuffer = existingSalt || (STATE.encryptedVault ? base64ToBuffer(STATE.encryptedVault.salt) : getRandomBytes(16));
   
   const encryptedCheck = await encryptData(VERIFICATION_STRING, STATE.masterKey);
-  const encryptedEntries = await encryptData(JSON.stringify(STATE.entries), STATE.masterKey);
+  const vaultPayload = {
+    entries: STATE.entries,
+    phonebook: STATE.phonebook
+  };
+  const encryptedEntries = await encryptData(JSON.stringify(vaultPayload), STATE.masterKey);
 
   const payload = {
     salt: bufferToBase64(saltBuffer),
@@ -534,6 +549,9 @@ async function saveEncryptedVault(existingSalt = null) {
 
   STATE.encryptedVault = payload;
   localStorage.setItem('family_vault_encrypted', JSON.stringify(payload));
+  if (STATE.phonebook) {
+    localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
+  }
 
   try {
     await fetch('/api/vault', {
@@ -621,8 +639,54 @@ function selectSender(name) {
   STATE.currentSender = name;
   const chips = document.querySelectorAll('.sender-chip');
   chips.forEach(chip => {
-    chip.classList.toggle('active', chip.textContent.includes(name));
+    chip.classList.toggle('active', chip.dataset.person === name);
   });
+}
+
+function selectRecipient(name) {
+  STATE.currentRecipient = name;
+  const chips = document.querySelectorAll('.dest-chip');
+  chips.forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.person === name);
+  });
+}
+
+function togglePhonebookCollapse() {
+  const content = document.getElementById('phonebookContent');
+  const icon = document.getElementById('phonebookToggleIcon');
+  if (!content) return;
+  const isHidden = content.style.display === 'none';
+  content.style.display = isHidden ? 'block' : 'none';
+  if (icon) {
+    icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+  }
+}
+
+async function savePhonebook() {
+  const inputGiampy = document.getElementById('phoneGiampy');
+  const inputTy = document.getElementById('phoneTy');
+  const inputMiki = document.getElementById('phoneMiki');
+
+  if (!STATE.phonebook) {
+    STATE.phonebook = { Giampy: '', Ty: '', Miki: '' };
+  }
+
+  if (inputGiampy) STATE.phonebook.Giampy = inputGiampy.value.trim();
+  if (inputTy) STATE.phonebook.Ty = inputTy.value.trim();
+  if (inputMiki) STATE.phonebook.Miki = inputMiki.value.trim();
+
+  await saveEncryptedVault();
+  showToast('Rubrica salvata e protetta! 📞');
+  renderSectionList();
+}
+
+function callPerson(name) {
+  const phone = STATE.phonebook && STATE.phonebook[name];
+  if (!phone) {
+    showToast(`Inserisci prima il numero di ${name} nella rubrica!`);
+    return;
+  }
+  window.location.href = `tel:${phone}`;
 }
 
 async function sendQuickFamilyMessage() {
@@ -636,11 +700,15 @@ async function sendQuickFamilyMessage() {
     return;
   }
 
+  const sender = STATE.currentSender || 'Giampy';
+  const recipient = STATE.currentRecipient || 'Tutti';
+
   const newEntry = {
     id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
     section: 'messaggio',
-    title: `Messaggio da ${STATE.currentSender}`,
-    mittente: STATE.currentSender,
+    title: `Messaggio da ${sender} a ${recipient}`,
+    mittente: sender,
+    destinatario: recipient,
     notes: text,
     createdAt: new Date().toISOString()
   };
@@ -651,11 +719,11 @@ async function sendQuickFamilyMessage() {
   await saveEncryptedVault();
 
   // 1. Notifica su smartphone & Badge sull'icona
-  triggerPhoneNotification(`💬 Messaggio da ${STATE.currentSender}`, text);
+  triggerPhoneNotification(`💬 Da ${sender} a ${recipient}`, text);
 
   // 2. Aggiorna interfaccia
   renderSectionList();
-  showToast('Messaggio inviato e notificato! 🔔');
+  showToast('Messaggio inviato! 🔔');
 }
 
 function triggerPhoneNotification(title, body) {
@@ -709,9 +777,9 @@ function updateAppIconBadge(count) {
 
   // Indicatore nel titolo del browser
   if (msgCount > 0) {
-    document.title = `(${msgCount}) Cassaforte`;
+    document.title = `(${msgCount}) Famylia`;
   } else {
-    document.title = `Cassaforte`;
+    document.title = `Famylia`;
   }
 }
 
@@ -725,23 +793,86 @@ function renderSectionList() {
 
   const items = STATE.entries.filter(e => e.section === STATE.activeSection);
 
-  // Se siamo nella sezione MESSAGGI: mostra direttamente il compositore in-page con il tasto INVIA
-  let composerHTML = '';
+  // Se siamo nella sezione MESSAGGI: mostra Rubrica Telefonica + Compositore DA/A
+  let extraHTML = '';
   if (STATE.activeSection === 'messaggio') {
-    composerHTML = `
+    const pb = STATE.phonebook || { Giampy: '', Ty: '', Miki: '' };
+    const curSender = STATE.currentSender || 'Giampy';
+    const curDest = STATE.currentRecipient || 'Tutti';
+
+    extraHTML = `
+      <!-- RUBRICA TELEFONICA FAMYLIA -->
+      <div class="rubrica-phone-card">
+        <div class="rubrica-phone-header" onclick="togglePhonebookCollapse()" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+            </svg>
+            <span style="font-weight: 700; font-size: 1rem;">Rubrica Telefonica Famylia</span>
+          </div>
+          <span id="phonebookToggleIcon" style="transition: transform 0.2s ease;">▼</span>
+        </div>
+
+        <div id="phonebookContent" style="margin-top: 14px;">
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+            Inserisci i numeri di cellulare di Giampy, Ty e Miki. Vengono salvati crittografati nella cassaforte.
+          </p>
+
+          <div class="phone-entry-row">
+            <div class="phone-person-name">👨 Giampy</div>
+            <input type="tel" id="phoneGiampy" class="phone-input" placeholder="Es. 3331234567" value="${escapeAttr(pb.Giampy || '')}">
+            <button type="button" class="btn-call" onclick="callPerson('Giampy')" title="Chiama Giampy">📞 Chiama</button>
+          </div>
+
+          <div class="phone-entry-row">
+            <div class="phone-person-name">👩 Ty</div>
+            <input type="tel" id="phoneTy" class="phone-input" placeholder="Es. 3331234567" value="${escapeAttr(pb.Ty || '')}">
+            <button type="button" class="btn-call" onclick="callPerson('Ty')" title="Chiama Ty">📞 Chiama</button>
+          </div>
+
+          <div class="phone-entry-row">
+            <div class="phone-person-name">👦 Miki</div>
+            <input type="tel" id="phoneMiki" class="phone-input" placeholder="Es. 3331234567" value="${escapeAttr(pb.Miki || '')}">
+            <button type="button" class="btn-call" onclick="callPerson('Miki')" title="Chiama Miki">📞 Chiama</button>
+          </div>
+
+          <div style="margin-top: 14px; text-align: right;">
+            <button type="button" class="btn-save-phonebook" onclick="savePhonebook()" style="padding: 9px 18px; border-radius: 10px; background: var(--color-primary); color: #fff; font-weight: 700; font-size: 0.85rem; border: none; cursor: pointer; box-shadow: var(--shadow-sm);">
+              💾 Salva Numeri
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMPOSITORE MESSAGGIO CON SCELTA MITTENTE E DESTINATARIO -->
       <div class="msg-composer">
         <div class="msg-composer-title">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-          <span>Scrivi Messaggio di Famiglia</span>
+          <span>Scrivi Messaggio Famylia</span>
         </div>
 
-        <div class="sender-selector">
-          <button type="button" class="sender-chip ${STATE.currentSender === 'Giampy' ? 'active' : ''}" onclick="selectSender('Giampy')">👨 Giampy (Papà)</button>
-          <button type="button" class="sender-chip ${STATE.currentSender === 'Ty' ? 'active' : ''}" onclick="selectSender('Ty')">👩 Ty (Mamma)</button>
-          <button type="button" class="sender-chip ${STATE.currentSender === 'Miki' ? 'active' : ''}" onclick="selectSender('Miki')">👦 Miki (Figlio)</button>
+        <!-- SELETTORE DA (CHI SCRIVE) -->
+        <div class="selector-group">
+          <span class="selector-label">DA (Chi scrive):</span>
+          <div class="sender-selector">
+            <button type="button" data-person="Giampy" class="sender-chip ${curSender === 'Giampy' ? 'active' : ''}" onclick="selectSender('Giampy')">👨 Giampy</button>
+            <button type="button" data-person="Ty" class="sender-chip ${curSender === 'Ty' ? 'active' : ''}" onclick="selectSender('Ty')">👩 Ty</button>
+            <button type="button" data-person="Miki" class="sender-chip ${curSender === 'Miki' ? 'active' : ''}" onclick="selectSender('Miki')">👦 Miki</button>
+          </div>
         </div>
 
-        <textarea id="quickMsgText" class="msg-textarea" placeholder="Scrivi qui il messaggio per la famiglia..." rows="3"></textarea>
+        <!-- SELETTORE A (A CHI INVIARE) -->
+        <div class="selector-group">
+          <span class="selector-label">A (A chi inviare):</span>
+          <div class="dest-selector">
+            <button type="button" data-person="Tutti" class="dest-chip ${curDest === 'Tutti' ? 'active' : ''}" onclick="selectRecipient('Tutti')">👨‍👩‍👧 Tutti</button>
+            <button type="button" data-person="Ty" class="dest-chip ${curDest === 'Ty' ? 'active' : ''}" onclick="selectRecipient('Ty')">👩 Ty</button>
+            <button type="button" data-person="Miki" class="dest-chip ${curDest === 'Miki' ? 'active' : ''}" onclick="selectRecipient('Miki')">👦 Miki</button>
+            <button type="button" data-person="Giampy" class="dest-chip ${curDest === 'Giampy' ? 'active' : ''}" onclick="selectRecipient('Giampy')">👨 Giampy</button>
+          </div>
+        </div>
+
+        <textarea id="quickMsgText" class="msg-textarea" placeholder="Scrivi qui il messaggio..." rows="3"></textarea>
 
         <button type="button" class="btn-send-message" onclick="sendQuickFamilyMessage()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -752,7 +883,7 @@ function renderSectionList() {
   }
 
   if (items.length === 0) {
-    container.innerHTML = composerHTML + `
+    container.innerHTML = extraHTML + `
       <div style="text-align: center; padding: 24px 16px; color: var(--text-muted);">
         <p style="font-size: 0.9rem; margin-bottom: 12px;">Nessun messaggio presente.</p>
       </div>
@@ -760,18 +891,32 @@ function renderSectionList() {
     return;
   }
 
-  container.innerHTML = composerHTML + items.map(item => createEntryCardHTML(item)).join('');
+  container.innerHTML = extraHTML + items.map(item => createEntryCardHTML(item)).join('');
+}
+
+function getPersonIcon(name) {
+  if (!name) return '👤';
+  if (name.includes('Ty')) return '👩';
+  if (name.includes('Miki')) return '👦';
+  if (name.includes('Giampy')) return '👨';
+  if (name.includes('Tutti')) return '👨‍👩‍👧';
+  return '👤';
 }
 
 function createEntryCardHTML(item) {
   if (item.section === 'messaggio') {
-    const senderIcon = (item.mittente && (item.mittente.includes('Ty') || item.mittente === 'Mamma')) ? '👩' : ((item.mittente && (item.mittente.includes('Miki') || item.mittente === 'Figlio')) ? '👦' : '👨');
+    const senderIcon = getPersonIcon(item.mittente);
+    const destIcon = getPersonIcon(item.destinatario);
     const dateStr = item.createdAt ? formatTimeAgo(item.createdAt) : '';
+    const mittenteText = item.mittente || 'Giampy';
+    const destText = item.destinatario || 'Tutti';
 
     return `
       <article class="msg-item-card" id="card-${item.id}">
         <div class="msg-item-header">
-          <span class="msg-item-sender">${senderIcon} ${escapeHTML(item.mittente || 'Giampy')}</span>
+          <span class="msg-item-sender">
+            ${senderIcon} <strong>${escapeHTML(mittenteText)}</strong> ➔ ${destIcon} <strong>${escapeHTML(destText)}</strong>
+          </span>
           <span class="msg-item-date">${escapeHTML(dateStr)}</span>
         </div>
         <p class="msg-item-body">${escapeHTML(item.notes || item.title)}</p>

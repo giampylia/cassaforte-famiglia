@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
-  <title>Cassaforte di Famiglia</title>
+  <title>Famylia</title>
   
   <!-- PWA & Mobile Meta Tags -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#ebf0f2">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Cassaforte">
+  <meta name="apple-mobile-web-app-title" content="Famylia">
   <link rel="apple-touch-icon" href="/icons/icon-192.svg">
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg">
 
@@ -21,7 +21,7 @@
 
     <!-- Top Minimal Navbar (Visibile quando sbloccata) -->
     <header id="appHeader" class="app-header" style="display: none;">
-      <span class="brand-title">Cassaforte</span>
+      <span class="brand-title">Famylia</span>
       <div class="header-actions">
         <!-- QR Code Smartphone -->
         <button id="qrHeaderBtn" class="icon-button-sm" onclick="openQrModal()" title="Inquadra con il telefono" aria-label="QR Code">
@@ -40,7 +40,7 @@
           </svg>
         </button>
         <!-- Lock Button -->
-        <button id="lockVaultBtn" class="icon-button-sm" title="Blocca cassaforte" onclick="lockVault()" aria-label="Blocca">
+        <button id="lockVaultBtn" class="icon-button-sm" title="Blocca" onclick="lockVault()" aria-label="Blocca">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
@@ -59,12 +59,12 @@
         </svg>
       </div>
 
-      <h1 class="auth-title">Cassaforte di Famiglia</h1>
-      <p class="auth-subtitle">Inserisci la Master Password per decifrare conti, password, cassaforte e note di casa.</p>
+      <h1 class="auth-title">Famylia</h1>
+      <p class="auth-subtitle">Inserisci la Master Password per accedere a Famylia.</p>
 
       <form id="authForm" class="auth-form" onsubmit="handleUnlock(event)">
-        <input type="password" id="masterPasswordInput" class="neu-input" placeholder="Password di Famiglia" autocomplete="current-password" required>
-        <button type="submit" class="neu-btn-primary" id="unlockSubmitBtn">Sblocca Cassaforte</button>
+        <input type="password" id="masterPasswordInput" class="neu-input" placeholder="Password Famylia" autocomplete="current-password" required>
+        <button type="submit" class="neu-btn-primary" id="unlockSubmitBtn">Sblocca Famylia</button>
         <div id="authError" class="auth-error"></div>
       </form>
 
@@ -96,8 +96,8 @@
         <!-- Istruzioni specifiche per iPhone e Android -->
         <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.45; text-align: left; background: var(--bg-color); box-shadow: var(--neu-inset-sm); padding: 10px 14px; border-radius: 14px;">
           <strong>Come salvare come App:</strong><br>
-          🍏 <strong>iPhone (Moglie e Figlio):</strong> in Safari tocca il tasto Condividi (quadrato con freccia in su ⎋) ➔ <em>"Aggiungi alla schermata Home"</em>.<br>
-          🤖 <strong>Android (Tuo):</strong> in Chrome tocca i 3 puntini ⋮ in alto a destra ➔ <em>"Aggiungi a schermata Home"</em>.
+          🍏 <strong>iPhone (Ty e Miki):</strong> in Safari tocca il tasto Condividi (quadrato con freccia in su ⎋) ➔ <em>"Aggiungi alla schermata Home"</em>.<br>
+          🤖 <strong>Android (Giampy):</strong> in Chrome tocca i 3 puntini ⋮ in alto a destra ➔ <em>"Aggiungi a schermata Home"</em>.
         </div>
       </div>
     </main>
@@ -270,7 +270,7 @@
           </div>
           <div class="form-group">
             <label for="entryIntestatarioInput" class="form-label">Intestatario Conto</label>
-            <input type="text" id="entryIntestatarioInput" class="neu-input" placeholder="Es. Giampiero e Moglie">
+            <input type="text" id="entryIntestatarioInput" class="neu-input" placeholder="Es. Giampy e Ty">
           </div>
           <div class="form-group">
             <label for="entrySaldoInput" class="form-label">Modalità di Accesso / Token / PIN</label>

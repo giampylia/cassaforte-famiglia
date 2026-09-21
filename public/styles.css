@@ -596,6 +596,20 @@ body {
   gap: 8px;
 }
 
+.selector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.selector-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
 .sender-selector {
   display: flex;
   gap: 8px;
@@ -621,6 +635,91 @@ body {
   box-shadow: var(--neu-inset-sm);
   color: var(--primary-color);
   border-color: var(--primary-color);
+}
+
+/* Rubrica Telefonica Famylia */
+.rubrica-phone-card {
+  background: var(--bg-color);
+  border-radius: var(--radius-card);
+  box-shadow: var(--neu-raised);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rubrica-phone-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rubrica-phone-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rubrica-phone-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.phone-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-color);
+  box-shadow: var(--neu-inset-sm);
+  padding: 8px 12px;
+  border-radius: 14px;
+}
+
+.phone-person-name {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  min-width: 75px;
+}
+
+.phone-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.88rem;
+  color: var(--primary-color);
+}
+
+.btn-call {
+  background: var(--bg-color);
+  box-shadow: var(--neu-raised-sm);
+  border: none;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  text-decoration: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-call:active {
+  box-shadow: var(--neu-inset-sm);
 }
 
 .msg-textarea {
