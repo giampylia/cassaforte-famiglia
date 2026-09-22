@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anteprima Icone Famylia</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090d16;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 20px 16px 40px;
+      text-align: center;
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 8px; color: #ffffff; }
+    p { font-size: 0.9rem; color: #94a3b8; margin-bottom: 24px; line-height: 1.4; }
+    .hero-img {
+      max-width: 100%;
+      width: 440px;
+      border-radius: 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.1);
+      margin: 0 auto 30px;
+      display: block;
+    }
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .option-card {
+      background: #131b2e;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .option-num {
+      display: inline-block;
+      width: 28px;
+      height: 28px;
+      line-height: 28px;
+      border-radius: 50%;
+      background: #3b82f6;
+      color: white;
+      font-weight: bold;
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+    }
+    .option-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+    }
+    .option-desc {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      line-height: 1.3;
+    }
+    .back-btn {
+      display: inline-block;
+      margin-top: 30px;
+      padding: 12px 24px;
+      background: #10b981;
+      color: #ffffff;
+      text-decoration: none;
+      font-weight: bold;
+      border-radius: 30px;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎨 Nuova Icona Widget Famylia</h1>
+  <p>Ecco le 4 proposte di design. Guarda l'immagine sottostante e scegli il tuo numero preferito:</p>
+
+  <img src="/icons/preview_all.jpg" alt="Anteprima 4 Icone Famylia" class="hero-img">
+
+  <div class="options-grid">
+    <div class="option-card">
+      <span class="option-num" style="background: #10b981;">1</span>
+      <div class="option-title" style="color: #34d399;">Scudo & Cuore</div>
+      <div class="option-desc">Neon smeraldo e ciano. Protezione, focolare e amore. (Consigliata)</div>
+    </div>
+
+    <div class="option-card">
+      <span class="option-num" style="background: #f43f5e;">2</span>
+      <div class="option-title" style="color: #fb7185;">Famiglia Calda</div>
+      <div class="option-desc">Focolare e 3 familiari abbracciati nei colori del tramonto.</div>
+    </div>
+
+    <div class="option-card">
+      <span class="option-num" style="background: #eab308; color: #000;">3</span>
+      <div class="option-title" style="color: #fef08a;">Oro Luxury 'F'</div>
+      <div class="option-desc">Nero lucido con monogramma F e lucchetto in oro massiccio.</div>
+    </div>
+
+    <div class="option-card">
+      <span class="option-num" style="background: #06b6d4;">4</span>
+      <div class="option-title" style="color: #67e8f9;">Cyber Vault</div>
+      <div class="option-desc">Stile smart home futuristico con anello rotante e casetta illuminata.</div>
+    </div>
+  </div>
+
+  <a href="/" class="back-btn">⬅ Torna a Famylia</a>
+</body>
+</html>
