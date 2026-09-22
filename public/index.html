@@ -19,7 +19,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/icons/favicon.png?v=3">
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg?v=3">
 
-  <link rel="stylesheet" href="/styles.css?v=6.8">
+  <link rel="stylesheet" href="/styles.css?v=6.9">
 </head>
 <body>
   <div class="app-container">
@@ -259,6 +259,20 @@
           <span class="dash-tile-sub"><span id="countDebiti">0</span> rate / voci</span>
         </button>
 
+        <!-- TASTO 8: PARKING (AUTO & BLUETOOTH) -->
+        <button type="button" class="dash-tile" onclick="openSection('parking')" aria-label="Posizione Auto e Parcheggio">
+          <div class="dash-tile-icon" style="color: #38bdf8;">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3 3 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path>
+              <circle cx="7" cy="17" r="2"></circle>
+              <path d="M9 17h6"></path>
+              <circle cx="17" cy="17" r="2"></circle>
+            </svg>
+          </div>
+          <span class="dash-tile-title">Parking</span>
+          <span class="dash-tile-sub" id="subParking">Auto & GPS</span>
+        </button>
+
         <!-- CONTENITORE TASTI DINAMICI CREATI DALL'UTENTE -->
         <div id="dynamicCustomTilesContainer" style="display: contents;"></div>
 
@@ -388,6 +402,7 @@
             <option value="note">📝 Note & Disposizioni</option>
             <option value="cassaforte">🛡️ Cassaforte & Valori</option>
             <option value="debiti">💳 Debiti & Finanziamenti</option>
+            <option value="parking">🚗 Parking & Posizione Auto</option>
             <option value="messaggio">💬 Messaggio con Notifica</option>
           </select>
         </div>
@@ -581,6 +596,6 @@
   <!-- Toast Notifica Copiato -->
   <div id="toastNotice" class="toast-notice">Copiato negli appunti!</div>
 
-  <script src="/app.js?v=6.8"></script>
+  <script src="/app.js?v=6.9"></script>
 </body>
 </html>
