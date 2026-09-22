@@ -1508,9 +1508,26 @@ function renderSectionList() {
   }
 
   if (items.length === 0) {
+    const emptyLabels = {
+      debiti: 'Nessun debito o finanziamento inserito.',
+      cassaforte: 'Nessun valore o combinazione inserita in cassaforte.',
+      pw: 'Nessuna password salvata.',
+      banca: 'Nessun conto bancario salvato.',
+      info_case: 'Nessuna informazione casa o utenza salvata.',
+      note: 'Nessuna nota presente.',
+      messaggio: 'Nessun messaggio presente.'
+    };
+    const emptyText = emptyLabels[STATE.activeSection] || 'Nessun dato presente in questa sezione.';
+
     container.innerHTML = extraHTML + `
-      <div style="text-align: center; padding: 24px 16px; color: var(--text-muted);">
-        <p style="font-size: 0.9rem; margin-bottom: 12px;">Nessun messaggio presente.</p>
+      <div style="text-align: center; padding: 28px 16px; color: var(--text-muted);">
+        <p style="font-size: 0.95rem; margin-bottom: 8px; color: #ffffff; font-weight: 600;">${emptyText}</p>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">Tocca <strong>+ Nuova</strong> in alto a destra per aggiungere una voce.</p>
+        ${STATE.activeSection !== 'messaggio' ? `
+          <button type="button" class="neu-btn-primary" onclick="openAddModalForCurrentSection('${STATE.activeSection}')" style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; font-size: 0.85rem; margin: 0 auto;">
+            <span>➕ Aggiungi Informazione</span>
+          </button>
+        ` : ''}
       </div>
     `;
     return;
