@@ -1,4 +1,4 @@
-const CACHE_NAME = 'famylia-v7';
+const CACHE_NAME = 'famylia-v8';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -7,19 +7,27 @@ const ASSETS_TO_CACHE = [
   '/manifest.json',
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
-  '/icons/icon-key.svg',
-  '/icons/icon-bank.svg',
-  '/icons/icon-home.svg',
+  '/icons/icon-banca.svg',
   '/icons/icon-cassaforte.svg',
+  '/icons/icon-infocase.svg',
+  '/icons/icon-messaggio.svg',
   '/icons/icon-note.svg',
-  '/icons/icon-chat.svg'
+  '/icons/icon-plus.svg',
+  '/icons/icon-pw.svg',
+  '/icons/qrcode.svg'
 ];
 
-// 1. Installazione SW & Cache immediata dei file dell'app
+// 1. Installazione SW & Cache immediata dei file dell'app (resiliente ad eventuali 404)
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      return Promise.all(
+        ASSETS_TO_CACHE.map((url) => {
+          return cache.add(url).catch((err) => {
+            console.warn('[SW] Cache non riuscita per:', url, err);
+          });
+        })
+      );
     }).then(() => self.skipWaiting())
   );
 });

@@ -209,6 +209,15 @@ async function handleRequest(req, res) {
       return sendJSON(res, 200, { publicKey: vapid.publicKey });
     }
 
+    // GET /api/push-status (diagnostica registrazioni attive)
+    if (pathname === '/api/push-status' && req.method === 'GET') {
+      const subs = loadSubscriptions();
+      return sendJSON(res, 200, {
+        count: subs.length,
+        devices: subs.map(s => ({ user: s.user, device: s.device, updatedAt: s.updatedAt }))
+      });
+    }
+
     // POST /api/push-subscribe (registrazione endpoint smartphone)
     if (pathname === '/api/push-subscribe' && req.method === 'POST') {
       try {

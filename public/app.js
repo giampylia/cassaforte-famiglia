@@ -288,17 +288,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   initServiceWorker();
   initCustomBackground();
   checkNotificationStatus();
-  checkPushSubscriptionStatus();
   await loadVaultFromStorage();
   updateAuthScreenUI();
   initAutoSync();
+  await tryAutoUnlock();
+  checkPushSubscriptionStatus();
 });
 
 function initServiceWorker() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').then((reg) => {
-      // Registrazione completata
-    }).catch(() => {});
+      // Se c'è un worker in attesa, forziamo l'aggiornamento
+      if (reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    }).catch((err) => {
+      console.warn('[SW] Errore registrazione:', err);
+    });
   }
 }
 
@@ -332,24 +338,60 @@ async function checkPushSubscriptionStatus() {
     const sub = await reg.pushManager.getSubscription();
     if (sub) {
       updatePushStatusUI(true);
+      // Mantieni sincronizzato il server con la sottoscrizione attuale
+      fetch('/api/push-subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscription: sub,
+          user: STATE.currentSender || 'Famiglia',
+          device: /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone' : (/Android/.test(navigator.userAgent) ? 'Android' : 'Computer')
+        })
+      }).catch(() => {});
     }
   } catch (e) {}
 }
 
 async function subscribeToPushNotifications() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    alert('Le notifiche push su questo browser non sono supportate oppure devi prima salvare l\'app sulla schermata Home (Safari: Condividi -> Aggiungi alla schermata Home).');
+  const btn = document.getElementById('btnEnablePush');
+  if (btn) {
+    btn.innerHTML = '⏳ Attivazione in corso...';
+    btn.disabled = true;
+  }
+
+  if (!('serviceWorker' in navigator)) {
+    alert('I Service Worker non sono supportati in questo browser.');
+    if (btn) { btn.disabled = false; updatePushStatusUI(false); }
+    return false;
+  }
+
+  if (!('PushManager' in window)) {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+      alert('Su iPhone per attivare le Notifiche Push devi prima salvare l\'app sulla schermata Home:\n1. In Safari tocca il tasto Condividi (⎋ in basso)\n2. Tocca "Aggiungi alla schermata Home"\n3. Apri Famylia dalla nuova icona creata!');
+    } else {
+      alert('Le notifiche push non sono supportate da questo browser.');
+    }
+    if (btn) { btn.disabled = false; updatePushStatusUI(false); }
     return false;
   }
 
   try {
-    const perm = await Notification.requestPermission();
+    let perm = Notification.permission;
     if (perm !== 'granted') {
-      showToast('Permesso notifiche non concesso nel browser.');
+      perm = await Notification.requestPermission();
+    }
+    if (perm !== 'granted') {
+      showToast('⚠️ Permesso notifiche non concesso nel browser.');
+      if (btn) { btn.disabled = false; updatePushStatusUI(false); }
       return false;
     }
 
-    const reg = await navigator.serviceWorker.ready;
+    let reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      reg = await navigator.serviceWorker.register('/sw.js');
+    }
+    await navigator.serviceWorker.ready;
 
     // Recupera la chiave pubblica VAPID dal server
     const keyRes = await fetch('/api/push-public-key');
@@ -365,6 +407,11 @@ async function subscribeToPushNotifications() {
       });
     }
 
+    let devName = 'Computer';
+    if (/iPhone/.test(navigator.userAgent)) devName = 'iPhone';
+    else if (/iPad/.test(navigator.userAgent)) devName = 'iPad';
+    else if (/Android/.test(navigator.userAgent)) devName = 'Android';
+
     // Registra questo smartphone sul server per ricevere le notifiche
     const subRes = await fetch('/api/push-subscribe', {
       method: 'POST',
@@ -372,21 +419,26 @@ async function subscribeToPushNotifications() {
       body: JSON.stringify({
         subscription: sub,
         user: STATE.currentSender || 'Famiglia',
-        device: navigator.userAgent
+        device: devName
       })
     });
 
-    if (subRes.ok) {
+    const resData = await subRes.json();
+    if (subRes.ok && resData.success) {
       STATE.notificationsEnabled = true;
       updatePushStatusUI(true);
-      showToast('🔔 Notifiche Push attivate su questo smartphone!');
+      showToast('🔔 Notifiche attivate con successo su questo telefono!');
       return true;
     } else {
-      throw new Error('Errore durante la registrazione sul server');
+      throw new Error(resData.error || 'Errore durante la registrazione sul server');
     }
   } catch (err) {
     console.error('Errore attivazione push:', err);
     showToast('Errore attivazione: ' + err.message);
+    if (btn) {
+      btn.disabled = false;
+      updatePushStatusUI(false);
+    }
     return false;
   }
 }
@@ -404,7 +456,11 @@ async function sendTestPushNotification() {
     });
     const data = await res.json();
     if (data.success) {
-      showToast(`Notifica inviata con successo! (${data.sent} dispositivi) 🚀`);
+      if (data.sent > 0) {
+        showToast(`✅ Notifica inviata a ${data.sent} dispositivo/i! Controlla se vibra.`);
+      } else {
+        showToast('⚠️ 0 telefoni registrati. Clicca prima su "Attiva su questo Telefono"!');
+      }
     } else {
       showToast('Errore invio: ' + (data.error || 'sconosciuto'));
     }
@@ -416,12 +472,15 @@ async function sendTestPushNotification() {
 function updatePushStatusUI(isActive) {
   const btn = document.getElementById('btnEnablePush');
   if (btn) {
+    btn.disabled = false;
     if (isActive) {
       btn.innerHTML = '🔔 Notifiche Attive ✅';
       btn.style.background = 'rgba(46, 204, 113, 0.25)';
       btn.style.borderColor = 'rgba(46, 204, 113, 0.6)';
     } else {
       btn.innerHTML = 'Attiva su questo Telefono';
+      btn.style.background = '';
+      btn.style.borderColor = '';
     }
   }
 }
@@ -555,6 +614,9 @@ async function handleUnlock(e) {
 
   if (!password) return;
 
+  const rememberCb = document.getElementById('rememberSessionCheckbox');
+  const shouldRemember = rememberCb ? rememberCb.checked : true;
+
   btn.disabled = true;
   btn.textContent = 'Verifica in corso...';
 
@@ -617,6 +679,13 @@ async function handleUnlock(e) {
 
       STATE.entries = initialEntries;
       await saveEncryptedVault(salt);
+
+      if (shouldRemember) {
+        try { localStorage.setItem('famylia_auto_pass', btoa(unescape(encodeURIComponent(password)))); } catch (e) {}
+      } else {
+        localStorage.removeItem('famylia_auto_pass');
+      }
+
       unlockSuccess();
     } else {
       const salt = base64ToBuffer(STATE.encryptedVault.salt);
@@ -630,7 +699,7 @@ async function handleUnlock(e) {
       } catch (err) {
         if (errorEl) errorEl.textContent = 'Password non corretta. Riprova.';
         btn.disabled = false;
-        btn.textContent = 'Sblocca Cassaforte';
+        btn.textContent = 'Sblocca Famylia';
         return;
       }
 
@@ -651,12 +720,65 @@ async function handleUnlock(e) {
       }
 
       STATE.masterKey = key;
+
+      if (shouldRemember) {
+        try { localStorage.setItem('famylia_auto_pass', btoa(unescape(encodeURIComponent(password)))); } catch (e) {}
+      } else {
+        localStorage.removeItem('famylia_auto_pass');
+      }
+
       unlockSuccess();
     }
   } catch (err) {
     if (errorEl) errorEl.textContent = 'Errore durante la decifratura: ' + err.message;
     btn.disabled = false;
     btn.textContent = 'Sblocca Famylia';
+  }
+}
+
+async function tryAutoUnlock() {
+  const saved = localStorage.getItem('famylia_auto_pass');
+  if (!saved || !STATE.encryptedVault) return;
+
+  try {
+    const password = decodeURIComponent(escape(atob(saved)));
+    if (!password) return;
+
+    const btn = document.getElementById('unlockSubmitBtn');
+    if (btn) btn.textContent = 'Accesso automatico...';
+
+    const salt = base64ToBuffer(STATE.encryptedVault.salt);
+    const key = await deriveKey(password, new Uint8Array(salt));
+
+    const checkToken = await decryptData(STATE.encryptedVault.check, key);
+    if (checkToken !== VERIFICATION_STRING) {
+      localStorage.removeItem('famylia_auto_pass');
+      updateAuthScreenUI();
+      return;
+    }
+
+    const decryptedJson = await decryptData(STATE.encryptedVault.data, key);
+    try {
+      const parsed = JSON.parse(decryptedJson || '[]');
+      if (Array.isArray(parsed)) {
+        STATE.entries = parsed;
+      } else if (parsed && typeof parsed === 'object') {
+        STATE.entries = parsed.entries || [];
+        if (parsed.phonebook) {
+          STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
+          localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
+        }
+      }
+    } catch (e) {
+      STATE.entries = [];
+    }
+
+    STATE.masterKey = key;
+    unlockSuccess();
+  } catch (e) {
+    console.warn('Auto-unlock error:', e);
+    localStorage.removeItem('famylia_auto_pass');
+    updateAuthScreenUI();
   }
 }
 
@@ -684,6 +806,9 @@ function lockVault() {
   STATE.masterKey = null;
   STATE.entries = [];
   
+  // Se l'utente preme esplicitamente "Blocca", cancella l'accesso automatico
+  localStorage.removeItem('famylia_auto_pass');
+
   document.getElementById('masterPasswordInput').value = '';
   document.getElementById('vaultScreen').style.display = 'none';
   document.getElementById('sectionView').style.display = 'none';

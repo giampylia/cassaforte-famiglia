@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.svg">
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg">
 
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=6.0">
 </head>
 <body>
   <div class="app-container">
@@ -64,17 +64,27 @@
 
       <form id="authForm" class="auth-form" onsubmit="handleUnlock(event)">
         <input type="password" id="masterPasswordInput" class="neu-input" placeholder="Password Famylia" autocomplete="current-password" required>
+        <div style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin: 10px 0 16px 0; width: 100%;">
+          <input type="checkbox" id="rememberSessionCheckbox" checked style="width: 18px; height: 18px; accent-color: #2ecc71; cursor: pointer;">
+          <label for="rememberSessionCheckbox" style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;">
+            Resta sempre collegato su questo telefono
+          </label>
+        </div>
         <button type="submit" class="neu-btn-primary" id="unlockSubmitBtn">Sblocca Famylia</button>
         <div id="authError" class="auth-error"></div>
       </form>
+
+      <button type="button" onclick="openQrModal()" class="mobile-only-qr-btn" style="margin-top: 14px; font-size: 0.82rem; color: #a0aec0; background: none; border: none; cursor: pointer; text-decoration: underline; display: none;">
+        📱 Mostra QR Code per altri telefoni
+      </button>
 
       <div style="margin-top: 20px; font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
         <span>Crittografia End-to-End AES-256 (v3.0 Puro JS)</span>
       </div>
 
-      <!-- Riquadro QR Code Immediatamente Visibile per Cellulari -->
-      <div style="margin-top: 28px; background: var(--bg-color); border-radius: 28px; box-shadow: var(--neu-raised); padding: 22px 18px; width: 100%; max-width: 380px; text-align: center;">
+      <!-- Riquadro QR Code Visibile su Computer / Tablet -->
+      <div class="auth-qr-section" style="margin-top: 28px; background: var(--bg-card-solid); border: 1px solid var(--border-light); border-radius: 28px; padding: 22px 18px; width: 100%; max-width: 380px; text-align: center;">
         <h3 style="font-size: 0.95rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;">
           📱 Inquadra con il Cellulare
         </h3>
@@ -370,7 +380,7 @@
   </div>
 
   <!-- MODALE QR CODE SMARTPHONE -->
-  <div id="qrModalOverlay" class="modal-overlay" onclick="closeQrModalOnOverlay(event)">
+  <div id="qrModalOverlay" class="modal-overlay" style="display: none;" onclick="closeQrModalOnOverlay(event)">
     <div class="modal-card" style="text-align: center;">
       <div class="modal-header">
         <h3 style="font-size: 1.1rem; text-transform: uppercase;">📱 Inquadra con il Cellulare</h3>
@@ -397,6 +407,6 @@
   <!-- Toast Notifica Copiato -->
   <div id="toastNotice" class="toast-notice">Copiato negli appunti!</div>
 
-  <script src="/app.js?v=5.1"></script>
+  <script src="/app.js?v=6.0"></script>
 </body>
 </html>
