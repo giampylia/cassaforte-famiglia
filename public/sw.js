@@ -1,10 +1,15 @@
-const CACHE_NAME = 'famylia-v9';
+const CACHE_NAME = 'famylia-v10';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/styles.css',
   '/app.js',
   '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/icon-maskable-192.png',
+  '/icons/icon-maskable-512.png',
+  '/icons/apple-touch-icon.png',
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
   '/icons/icon-banca.svg',
@@ -91,8 +96,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: payload.body || 'Nuovo messaggio di famiglia',
-    icon: '/icons/icon-192.svg',
-    badge: '/icons/icon-192.svg',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
     vibrate: [250, 100, 250, 100, 250],
     tag: 'famylia-msg-' + Date.now(),
     renotify: true,
