@@ -19,7 +19,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/icons/favicon.png?v=3">
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg?v=3">
 
-  <link rel="stylesheet" href="/styles.css?v=7.1">
+  <link rel="stylesheet" href="/styles.css?v=7.2">
 </head>
 <body>
   <div class="app-container">
@@ -656,28 +656,40 @@
 
       <!-- CONTENUTO TAB ANDROID -->
       <div id="parkingTabAndroid" style="display: none;">
-        <div style="font-size: 0.82rem; color: #e2e8f0; line-height: 1.5; margin-bottom: 14px;">
-          Su Android non devi pensare a nulla: quando spegni il motore e scendi, lo smartphone rileva la disconnessione e memorizza la posizione.
+        <!-- SPIEGAZIONE CONNESSO VS DISCONNESSO -->
+        <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px; margin-bottom: 14px; font-size: 0.8rem; line-height: 1.45;">
+          <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">❓ Perché quando si DISCONNETTE e non quando è CONNESSO?</div>
+          <div style="color: #cbd5e1;">
+            • <strong>Quando è CONNESSO</strong>: hai appena acceso l'auto e stai <em>partendo</em> per il viaggio (non sei parcheggiato!).<br>
+            • <strong>Quando si DISCONNETTE</strong>: hai finito il viaggio, hai <em>spento il motore</em> e la radio dell'auto si è spenta: è esattamente lì che l'auto resta ferma e va registrata la posizione!
+          </div>
+        </div>
+
+        <div style="font-size: 0.82rem; color: #e2e8f0; line-height: 1.5; margin-bottom: 12px;">
+          Sul tuo <strong>ZTE</strong> (o qualsiasi telefono Android con Google) hai 2 opzioni semplicissime a zero clic:
         </div>
 
         <div class="parking-step-list">
           <div class="parking-step-item">
-            <div class="step-num">1</div>
+            <div class="step-num">A</div>
             <div class="step-content">
-              <strong>Funzione Nativa Google Maps</strong>:<br>
-              <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">
-                Google Maps su Android ha già la funzione integrata: quando scendi e si stacca il Bluetooth auto, memorizza da solo la posizione nelle notifiche.
+              <strong style="color: #34d399;">Opzione 1: Google Maps (Già installato di serie sul tuo ZTE)</strong><br>
+              <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px; line-height: 1.4;">
+                Google Maps fa già tutto da solo su ZTE:<br>
+                1. Apri Google Maps ➔ Impostazioni ➔ Notifiche ➔ <strong>"Posizione parcheggio" attiva</strong>.<br>
+                2. Nelle impostazioni dello ZTE: App ➔ Maps ➔ Posizione ➔ <em>"Consenti sempre"</em>.<br>
+                Quando spegni il motore dell'auto, ricevi subito la notifica con l'icona dell'auto e il luogo esatto!
               </div>
             </div>
           </div>
           <div class="parking-step-item">
-            <div class="step-num">2</div>
+            <div class="step-num">B</div>
             <div class="step-content">
-              <strong>Routine Automatica Famylia (Samsung / MacroDroid)</strong>:<br>
-              <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">
-                Apri <strong>Modalità e Routine</strong> ➔ Routine ➔ "+":<br>
-                • <em>Se</em>: Bluetooth disconnesso da [Auto]<br>
-                • <em>Allora</em>: Invia richiesta HTTP al tuo link:
+              <strong style="color: #38bdf8;">Opzione 2: Collegamento automatico a Famylia con MacroDroid</strong><br>
+              <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px; line-height: 1.4;">
+                Dato che "Routine" è esclusiva Samsung, su ZTE si usa <strong>MacroDroid</strong> (gratis dal Play Store):<br>
+                • <em>Trigger</em>: Bluetooth ➔ Disconnessione dispositivo [Vivavoce Auto]<br>
+                • <em>Azione</em>: Apri Sito / Richiesta Web HTTP con il tuo link:
               </div>
               <div class="entry-row" style="margin-top: 8px; margin-bottom: 0;">
                 <span class="entry-value" style="font-size: 0.72rem; color: #34d399;" id="androidWebhookLink">https://famylia.onrender.com/api/auto-park?user=Giampy</span>
@@ -697,6 +709,6 @@
   <!-- Toast Notifica Copiato -->
   <div id="toastNotice" class="toast-notice">Copiato negli appunti!</div>
 
-  <script src="/app.js?v=7.1"></script>
+  <script src="/app.js?v=7.2"></script>
 </body>
 </html>
