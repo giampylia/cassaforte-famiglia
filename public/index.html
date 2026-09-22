@@ -19,14 +19,17 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/icons/favicon.png?v=3">
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg?v=3">
 
-  <link rel="stylesheet" href="/styles.css?v=6.7">
+  <link rel="stylesheet" href="/styles.css?v=6.8">
 </head>
 <body>
   <div class="app-container">
 
     <!-- Top Minimal Navbar (Visibile quando sbloccata) -->
     <header id="appHeader" class="app-header" style="display: none;">
-      <span class="brand-title">Famylia</span>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span class="brand-title">Famylia</span>
+        <div id="currentUserBadge" class="current-user-badge">👨 Giampy</div>
+      </div>
       <div class="header-actions">
         <!-- QR Code Smartphone -->
         <button id="qrHeaderBtn" class="icon-button-sm" onclick="openQrModal()" title="Inquadra con il telefono" aria-label="QR Code">
@@ -67,18 +70,40 @@
       </div>
 
       <h1 class="auth-title">Famylia</h1>
-      <p class="auth-subtitle">Inserisci la Master Password per accedere a Famylia.</p>
+      <p class="auth-subtitle" id="authSubtitle">Inserisci il tuo PIN personale (Giampy, Ty o Miki).</p>
+
+      <div class="family-pins-hint" style="display: flex; gap: 6px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap;">
+        <span class="pin-hint-chip">👨 Giampy</span>
+        <span class="pin-hint-chip">👩 Ty</span>
+        <span class="pin-hint-chip">👦 Miki</span>
+      </div>
 
       <form id="authForm" class="auth-form" onsubmit="handleUnlock(event)">
-        <input type="password" id="masterPasswordInput" class="neu-input" placeholder="Password Famylia" autocomplete="current-password" required>
+        <input type="password" id="masterPasswordInput" class="neu-input" placeholder="Il tuo PIN personale" autocomplete="current-password" required maxlength="30">
         <div style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin: 10px 0 16px 0; width: 100%;">
           <input type="checkbox" id="rememberSessionCheckbox" checked style="width: 18px; height: 18px; accent-color: #2ecc71; cursor: pointer;">
           <label for="rememberSessionCheckbox" style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;">
             Resta sempre collegato su questo telefono
           </label>
         </div>
-        <button type="submit" class="neu-btn-primary" id="unlockSubmitBtn">Sblocca Famylia</button>
+        <button type="submit" class="neu-btn-primary" id="unlockSubmitBtn">Accedi a Famylia</button>
         <div id="authError" class="auth-error"></div>
+
+        <!-- Box Migrazione Vecchia Password se necessario -->
+        <div id="migrationBox" style="display: none; margin-top: 14px; background: rgba(58, 134, 255, 0.12); border: 1px solid rgba(58, 134, 255, 0.4); border-radius: 16px; padding: 14px; text-align: left;">
+          <p id="migrationText" style="font-size: 0.8rem; color: #ffffff; margin-bottom: 8px; line-height: 1.4;">
+            La cassaforte su cloud usa ancora la vecchia password. Inseriscila una sola volta per aggiornare ai nuovi PIN:
+          </p>
+          <input type="password" id="legacyPasswordInput" class="neu-input" placeholder="Vecchia password Famylia" style="margin-bottom: 8px;">
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="neu-btn-primary" onclick="handleMigrateWithLegacyPassword()" style="flex: 1; font-size: 0.8rem; padding: 8px;">
+              🔄 Converti
+            </button>
+            <button type="button" class="neu-btn-primary" onclick="handleForceNewPinVault()" style="flex: 1; font-size: 0.8rem; padding: 8px; background: rgba(255, 255, 255, 0.1);">
+              ⚡ Nuovo Vault
+            </button>
+          </div>
+        </div>
       </form>
 
       <button type="button" onclick="openQrModal()" class="mobile-only-qr-btn" style="margin-top: 14px; font-size: 0.82rem; color: #a0aec0; background: none; border: none; cursor: pointer; text-decoration: underline; display: none;">
@@ -432,8 +457,8 @@
         <!-- 5. CAMPI: MESSAGGI (CON NOTIFICHE SMARTPHONE) -->
         <div id="fieldsMessaggio" class="category-fields" style="display: none;">
           <div class="form-group">
-            <label for="entryMittenteInput" class="form-label">Mittente</label>
-            <input type="text" id="entryMittenteInput" class="neu-input" placeholder="Es. Giampy, Ty, Miki">
+            <label for="entryMittenteInput" class="form-label">Mittente (Verificato dal PIN)</label>
+            <input type="text" id="entryMittenteInput" class="neu-input" readonly style="opacity: 0.9; background: rgba(46, 204, 113, 0.12); border-color: rgba(46, 204, 113, 0.45); font-weight: 700; color: #ffffff;" placeholder="Mittente autenticato">
           </div>
         </div>
 
@@ -556,6 +581,6 @@
   <!-- Toast Notifica Copiato -->
   <div id="toastNotice" class="toast-notice">Copiato negli appunti!</div>
 
-  <script src="/app.js?v=6.7"></script>
+  <script src="/app.js?v=6.8"></script>
 </body>
 </html>

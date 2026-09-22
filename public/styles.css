@@ -869,6 +869,40 @@ body.has-custom-bg {
 /* ==========================================================
    COMPOSITORE MESSAGGI CON SELETTORE DA & A
    ========================================================== */
+.current-user-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(46, 204, 113, 0.2);
+  border: 1px solid var(--accent-green);
+  border-radius: 14px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #ffffff;
+  backdrop-filter: blur(8px);
+}
+
+.pin-hint-chip {
+  background: rgba(14, 18, 25, 0.75);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.sender-fixed-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(46, 204, 113, 0.15);
+  border: 1px solid rgba(46, 204, 113, 0.45);
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+
 .msg-composer {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
