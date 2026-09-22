@@ -1,30 +1,88 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <linearGradient id="bgGrad512" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#3b82f6"/>
-      <stop offset="50%" stop-color="#6366f1"/>
-      <stop offset="100%" stop-color="#ec4899"/>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="50%" stop-color="#090d16"/>
+      <stop offset="100%" stop-color="#020617"/>
     </linearGradient>
-    <filter id="shadow512" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-opacity="0.25"/>
+
+    <!-- Emerald Glow -->
+    <radialGradient id="ambientGlow1" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Neon Shield Gradient -->
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="50%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+
+    <!-- Heart Cyan Gradient -->
+    <linearGradient id="heartGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+
+    <!-- Glass Surface Gradient -->
+    <linearGradient id="glassBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.05"/>
+    </linearGradient>
+
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
     </filter>
   </defs>
-  <rect width="512" height="512" rx="110" fill="url(#bgGrad512)"/>
-  <!-- Note Sheet -->
-  <g filter="url(#shadow512)">
-    <rect x="96" y="86" width="320" height="340" rx="36" fill="#ffffff"/>
-    <path d="M320 86 L416 182 L342 182 C330 182 320 172 320 160 Z" fill="#e2e8f0"/>
+
+  <!-- iOS / Android Squircle Base (Curvatura standard r=115) -->
+  <rect width="512" height="512" rx="115" fill="url(#bgGrad1)"/>
+  
+  <!-- Sfumatura Ambientale Centrale -->
+  <circle cx="256" cy="240" r="200" fill="url(#ambientGlow1)"/>
+
+  <!-- Bordo Sottile Satinato -->
+  <rect x="4" y="4" width="504" height="504" rx="112" fill="none" stroke="url(#glassBorder)" stroke-width="3"/>
+
+  <!-- Scudo di Protezione Famiglia (Shield) -->
+  <g filter="url(#softGlow)">
+    <path d="M256 90 
+             C330 90 400 120 400 210 
+             C400 325 285 395 256 422 
+             C227 395 112 325 112 210 
+             C112 120 182 90 256 90 Z" 
+          fill="none" 
+          stroke="url(#shieldGrad)" 
+          stroke-width="18" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"/>
   </g>
-  <!-- Pin -->
-  <circle cx="256" cy="122" r="16" fill="#ef4444"/>
-  <!-- Note Lines -->
-  <rect x="140" y="190" width="150" height="18" rx="9" fill="#3b82f6"/>
-  <rect x="140" y="232" width="232" height="15" rx="7.5" fill="#cbd5e1"/>
-  <rect x="140" y="270" width="200" height="15" rx="7.5" fill="#cbd5e1"/>
-  <rect x="140" y="308" width="216" height="15" rx="7.5" fill="#cbd5e1"/>
-  <!-- Heart Accent -->
-  <path d="M360 330 C360 316 344 306 331 319 C318 306 302 316 302 330 C302 352 331 371 331 371 C331 371 360 352 360 330 Z" fill="#ec4899"/>
-  <!-- Checkmark -->
-  <circle cx="172" cy="358" r="26" fill="#10b981"/>
-  <path d="M159 358 L168 367 L185 350" stroke="#ffffff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Sagoma Tetto Casa Protetta & Cuore Centrale Intrecciato -->
+  <g transform="translate(256, 255)">
+    <!-- Tetto Casa / Focolare -->
+    <path d="M -90 -30 L 0 -105 L 90 -30" 
+          fill="none" 
+          stroke="#ffffff" 
+          stroke-width="14" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"
+          opacity="0.95"/>
+
+    <!-- Cuore Caldo e Luminoso al Centro -->
+    <path d="M 0 50 
+             C -60 10 -80 -35 -45 -65 
+             C -20 -80 0 -45 0 -45 
+             C 0 -45 20 -80 45 -65 
+             C 80 -35 60 10 0 50 Z" 
+          fill="url(#heartGrad)"/>
+
+    <!-- I 3 Punti Luminosi Famiglia (Giampy, Ty, Miki) -->
+    <circle cx="-35" cy="-25" r="7" fill="#ffffff" opacity="0.95"/>
+    <circle cx="0" cy="-45" r="8" fill="#ffffff"/>
+    <circle cx="35" cy="-25" r="7" fill="#ffffff" opacity="0.95"/>
+  </g>
 </svg>
