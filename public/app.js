@@ -686,6 +686,7 @@ async function handleUnlock(e) {
         localStorage.removeItem('famylia_auto_pass');
       }
 
+      STATE.currentPassword = password;
       unlockSuccess();
     } else {
       const salt = base64ToBuffer(STATE.encryptedVault.salt);
@@ -727,6 +728,7 @@ async function handleUnlock(e) {
         localStorage.removeItem('famylia_auto_pass');
       }
 
+      STATE.currentPassword = password;
       unlockSuccess();
     }
   } catch (err) {
@@ -774,6 +776,7 @@ async function tryAutoUnlock() {
     }
 
     STATE.masterKey = key;
+    STATE.currentPassword = password;
     unlockSuccess();
   } catch (e) {
     console.warn('Auto-unlock error:', e);
@@ -791,6 +794,7 @@ function unlockSuccess() {
   resetAutoLockTimer();
   updateTileCounts();
   updateAppIconBadge();
+  updateSessionDescUI();
   showToast('Famylia sbloccata');
 
   // Chiedi permessi notifiche in modo non invasivo se non ancora concessi
@@ -801,14 +805,50 @@ function unlockSuccess() {
   }
 }
 
+function handleDashboardRememberToggle(e) {
+  const isChecked = e.target.checked;
+  const descEl = document.getElementById('sessionStatusDesc');
+  if (isChecked) {
+    if (STATE.currentPassword) {
+      try {
+        localStorage.setItem('famylia_auto_pass', btoa(unescape(encodeURIComponent(STATE.currentPassword))));
+      } catch (err) {}
+    }
+    if (descEl) descEl.textContent = 'Accesso immediato senza password attivo';
+    showToast('⚡ Accesso automatico ATTIVATO su questo telefono!');
+  } else {
+    localStorage.removeItem('famylia_auto_pass');
+    if (descEl) descEl.textContent = 'Richiederà la password alla prossima apertura';
+    showToast('🔒 Accesso automatico DISATTIVATO.');
+  }
+}
+
+function updateSessionDescUI() {
+  const toggle = document.getElementById('dashboardRememberToggle');
+  const descEl = document.getElementById('sessionStatusDesc');
+  const hasSaved = !!localStorage.getItem('famylia_auto_pass');
+  if (toggle) toggle.checked = hasSaved;
+  if (descEl) {
+    descEl.textContent = hasSaved
+      ? 'Accesso immediato senza password attivo'
+      : 'Richiederà la password alla prossima apertura';
+  }
+}
+
+function logoutVault() {
+  // Rimuovi esplicitamente l'accesso automatico
+  localStorage.removeItem('famylia_auto_pass');
+  STATE.currentPassword = null;
+  lockVault();
+  showToast('Disconnesso da Famylia. Inserisci la password per accedere.');
+}
+
 function lockVault() {
   STATE.isUnlocked = false;
   STATE.masterKey = null;
+  STATE.currentPassword = null;
   STATE.entries = [];
   
-  // Se l'utente preme esplicitamente "Blocca", cancella l'accesso automatico
-  localStorage.removeItem('famylia_auto_pass');
-
   document.getElementById('masterPasswordInput').value = '';
   document.getElementById('vaultScreen').style.display = 'none';
   document.getElementById('sectionView').style.display = 'none';
