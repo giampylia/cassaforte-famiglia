@@ -497,7 +497,8 @@ function initCustomBackground() {
 }
 
 function applyCustomBackground(dataUrl) {
-  document.body.style.backgroundImage = `linear-gradient(rgba(14, 18, 23, 0.82), rgba(14, 18, 23, 0.92)), url('${dataUrl}')`;
+  // Sfondo visibile e luminoso: gradient leggerissimo per contrasto del testo bianco lasciando la foto chiara e vivida
+  document.body.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.28)), url('${dataUrl}')`;
   document.body.style.backgroundSize = 'cover';
   document.body.style.backgroundPosition = 'center';
   document.body.style.backgroundAttachment = 'fixed';

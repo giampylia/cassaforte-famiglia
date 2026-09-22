@@ -102,28 +102,30 @@ body.has-custom-bg {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: var(--bg-tile);
-  border: 1px solid var(--border-subtle);
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #ffffff !important;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .icon-button-sm:active {
   transform: scale(0.92);
-  background: var(--bg-tile-active);
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #ffffff;
 }
 
 .btn-header-logout {
   padding: 6px 13px;
   border-radius: var(--radius-pill);
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.45);
-  color: #fca5a5;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #ffffff !important;
   font-size: 0.8rem;
   font-weight: 700;
   display: flex;
@@ -131,13 +133,19 @@ body.has-custom-bg {
   gap: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.btn-header-logout svg {
+  stroke: #ffffff !important;
 }
 
 .btn-header-logout:active {
   transform: scale(0.94);
   background: rgba(239, 68, 68, 0.35);
-  color: #ffffff;
+  border-color: #ff6b6b;
 }
 
 /* ==========================================================
@@ -247,10 +255,10 @@ body.has-custom-bg {
 /* 1. Master Panel Superiore */
 .dash-master-card {
   width: 100%;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: var(--radius-card);
-  padding: 22px 20px;
+  padding: 20px 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -258,23 +266,34 @@ body.has-custom-bg {
   text-align: center;
   margin-bottom: 14px;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(14px);
-  transition: transform 0.12s ease, background 0.15s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.dash-master-card:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.45);
 }
 
 .dash-master-card:active {
   transform: scale(0.98);
-  background: rgba(30, 38, 50, 0.95);
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #ffffff;
 }
 
 .dash-master-icon {
-  color: var(--accent-blue);
+  color: #ffffff !important;
   margin-bottom: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 4px 8px rgba(58, 134, 255, 0.3));
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+}
+
+.dash-master-icon svg {
+  stroke: #ffffff !important;
 }
 
 .dash-master-label {
@@ -282,28 +301,31 @@ body.has-custom-bg {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #ffffff;
+  color: #ffffff !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
 }
 
 .dash-master-sub {
   font-size: 0.74rem;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.9) !important;
   margin-top: 3px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
 /* 2. Banner Notifiche Push Smartphone */
 .push-alert-card {
   width: 100%;
-  background: rgba(22, 28, 38, 0.85);
-  border: 1px solid rgba(58, 134, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: var(--radius-card);
   padding: 12px 14px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .push-alert-info {
@@ -315,13 +337,15 @@ body.has-custom-bg {
 .push-alert-title {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
 .push-alert-desc {
   font-size: 0.72rem;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.9) !important;
   line-height: 1.35;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
 }
 
 .push-alert-buttons {
@@ -331,9 +355,9 @@ body.has-custom-bg {
 
 .btn-push-action {
   flex: 1;
-  background: rgba(58, 134, 255, 0.2);
-  border: 1px solid var(--accent-blue);
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #ffffff !important;
   padding: 8px 10px;
   border-radius: 10px;
   font-size: 0.78rem;
@@ -341,33 +365,37 @@ body.has-custom-bg {
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: center;
+  backdrop-filter: blur(8px);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 .btn-push-action:active {
-  background: var(--accent-blue);
+  background: rgba(255, 255, 255, 0.25);
+  border-color: #ffffff;
 }
 
 .btn-push-action.secondary {
   flex: 0 0 68px;
-  background: rgba(255, 255, 255, 0.06);
-  border-color: var(--border-subtle);
-  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff !important;
 }
 
 /* Card Switch Resta Sempre Collegato */
 .session-card {
   width: 100%;
-  background: rgba(22, 28, 38, 0.85);
-  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: var(--radius-card);
   padding: 12px 16px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .session-info {
@@ -380,16 +408,22 @@ body.has-custom-bg {
 .session-title {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #ffffff !important;
   display: flex;
   align-items: center;
   gap: 6px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.session-title svg {
+  stroke: #ffffff !important;
 }
 
 .session-desc {
   font-size: 0.72rem;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.9) !important;
   line-height: 1.3;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
 }
 
 /* Switch Toggle Styling */
@@ -449,8 +483,8 @@ body.has-custom-bg {
 }
 
 .dash-tile {
-  background: var(--bg-tile);
-  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: var(--radius-tile);
   padding: 16px 6px 12px;
   display: flex;
@@ -459,16 +493,22 @@ body.has-custom-bg {
   justify-content: center;
   text-align: center;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
   user-select: none;
 }
 
+.dash-tile:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
 .dash-tile:active {
   transform: scale(0.95);
-  background: var(--bg-tile-active);
-  border-color: var(--border-light);
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #ffffff;
 }
 
 .dash-tile-icon {
@@ -476,30 +516,40 @@ body.has-custom-bg {
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #ffffff !important;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
 }
 
-.icon-blue { color: var(--accent-blue); }
-.icon-yellow { color: var(--accent-yellow); }
-.icon-cyan { color: var(--accent-cyan); }
-.icon-amber { color: var(--accent-amber); }
-.icon-green { color: var(--accent-green); }
-.icon-purple { color: var(--accent-purple); }
+.dash-tile-icon svg {
+  stroke: #ffffff !important;
+}
+
+.icon-blue,
+.icon-yellow,
+.icon-cyan,
+.icon-amber,
+.icon-green,
+.icon-purple {
+  color: #ffffff !important;
+}
 
 .dash-tile-title {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #ffffff !important;
   margin-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
 }
 
 .dash-tile-sub {
   font-size: 0.68rem;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.9) !important;
   font-weight: 500;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
 /* 4. Barra Inferiore con Tasti Pillola */
@@ -514,10 +564,10 @@ body.has-custom-bg {
 .pill-btn {
   flex: 1;
   height: 42px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: var(--radius-pill);
-  color: #ffffff;
+  color: #ffffff !important;
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.05em;
@@ -527,30 +577,39 @@ body.has-custom-bg {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  backdrop-filter: blur(10px);
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.12s ease, background 0.12s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.pill-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.45);
 }
 
 .pill-btn:active {
   transform: scale(0.97);
-  background: var(--bg-tile-active);
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #ffffff;
 }
 
 .pill-btn.secondary {
   flex: 0 0 68px;
-  background: rgba(255, 255, 255, 0.05);
-  border-color: var(--border-subtle);
-  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff !important;
 }
 
 .pill-btn.danger {
-  border-color: rgba(235, 87, 87, 0.4);
-  color: #ff6b6b;
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff !important;
 }
 
 .pill-btn.danger:active {
-  background: rgba(235, 87, 87, 0.2);
+  background: rgba(239, 68, 68, 0.35);
+  border-color: #ff6b6b;
 }
 
 /* ==========================================================
@@ -582,23 +641,26 @@ body.has-custom-bg {
 }
 
 .btn-back {
-  background: var(--bg-tile);
-  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   padding: 8px 14px;
   border-radius: 12px;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #ffffff !important;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
   transition: all 0.15s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .btn-back:active {
   transform: scale(0.96);
-  background: var(--bg-tile-active);
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #ffffff;
 }
 
 .section-list {
