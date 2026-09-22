@@ -1,30 +1,36 @@
 /* ==========================================================
-   CASSAFORTE DI FAMIGLIA - NEUMORPHIC MINIMALIST DESIGN
-   Ispirato all'interfaccia a 2 colori: #ebf0f2 & #2d4a43
+   FAMYLIA - SMART HOME / DARK DASHBOARD DESIGN
+   Ispirato all'interfaccia Dark ad Alto Contrasto (Screenshot Utente)
+   Supporto Sfondo Personalizzabile & Notifiche Push Reali
    ========================================================== */
 
 :root {
-  --bg-color: #ebf0f2;
-  --bg-darker: #e1e7ea;
-  --primary-color: #2d4a43;
-  --primary-hover: #1f3530;
-  --text-muted: #67807a;
-  --text-subtle: #8fa5a0;
+  --bg-color: #0b0f15;
+  --bg-card: rgba(22, 28, 38, 0.88);
+  --bg-card-solid: #161c26;
+  --bg-tile: rgba(27, 34, 46, 0.9);
+  --bg-tile-active: rgba(38, 48, 64, 0.98);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.16);
   
-  /* Neumorphic Shadows */
-  --shadow-light: #ffffff;
-  --shadow-dark: #c8d1d6;
+  --primary-color: #ffffff;
+  --text-muted: #8b949e;
+  --text-subtle: #6e7681;
   
-  /* Raised Button */
-  --neu-raised: 7px 7px 14px var(--shadow-dark), -7px -7px 14px var(--shadow-light);
-  --neu-raised-sm: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+  /* Icon Accent Colors (ispirati allo screenshot) */
+  --accent-blue: #3a86ff;
+  --accent-yellow: #e5a93b;
+  --accent-green: #2ec4b6;
+  --accent-cyan: #00b4d8;
+  --accent-amber: #f77f00;
+  --accent-purple: #a370f7;
+  --accent-lime: #80ed99;
   
-  /* Inset / Pressed Well (come nell'immagine di riferimento) */
-  --neu-inset: inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light);
-  --neu-inset-sm: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
-  
-  --radius-button: 26px;
-  --radius-card: 22px;
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
+
+  --radius-card: 18px;
+  --radius-tile: 16px;
   --radius-pill: 999px;
   
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -41,66 +47,75 @@
 body {
   font-family: var(--font-family);
   background-color: var(--bg-color);
+  background-image: radial-gradient(circle at 50% 10%, rgba(58, 134, 255, 0.07) 0%, transparent 70%);
   color: var(--primary-color);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 24px 16px calc(32px + var(--safe-bottom));
+  padding: 20px 16px calc(32px + var(--safe-bottom));
   overflow-x: hidden;
+  transition: background-image 0.25s ease;
+}
+
+body.has-custom-bg {
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
 }
 
 /* App Container */
 .app-container {
   width: 100%;
-  max-width: 480px;
+  max-width: 440px;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-/* Top Minimal Header */
+/* Top App Header (stile screenshot: Menu ☰ | Titolo | Icone) */
 .app-header {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
   padding: 0 4px;
 }
 
 .brand-title {
   font-size: 1.15rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--primary-color);
+  color: #ffffff;
 }
 
 .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
 }
 
 .icon-button-sm {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  background: var(--bg-color);
-  box-shadow: var(--neu-raised-sm);
-  border: none;
+  background: var(--bg-tile);
+  border: 1px solid var(--border-subtle);
+  color: #ffffff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--primary-color);
   transition: all 0.15s ease;
+  backdrop-filter: blur(8px);
 }
 
 .icon-button-sm:active {
-  box-shadow: var(--neu-inset-sm);
+  transform: scale(0.92);
+  background: var(--bg-tile-active);
 }
 
 /* ==========================================================
@@ -112,95 +127,93 @@ body {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 40px 20px;
+  padding: 36px 16px;
 }
 
 .auth-icon-well {
-  width: 96px;
-  height: 96px;
-  border-radius: 28px;
-  background: var(--bg-color);
-  box-shadow: var(--neu-inset);
+  width: 88px;
+  height: 88px;
+  border-radius: 26px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24px;
-  color: var(--primary-color);
+  margin-bottom: 20px;
+  color: var(--accent-blue);
+  box-shadow: 0 8px 24px rgba(58, 134, 255, 0.2);
 }
 
 .auth-title {
-  font-size: 1.4rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 800;
   letter-spacing: 0.04em;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  color: #ffffff;
 }
 
 .auth-subtitle {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   color: var(--text-muted);
-  margin-bottom: 32px;
+  margin-bottom: 28px;
   max-width: 320px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .auth-form {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .neu-input {
   width: 100%;
-  padding: 16px 20px;
-  border-radius: var(--radius-card);
-  background: var(--bg-color);
-  box-shadow: var(--neu-inset);
-  border: none;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(18, 24, 34, 0.85);
+  border: 1px solid var(--border-subtle);
+  color: #ffffff;
   outline: none;
   font-family: inherit;
-  font-size: 1.05rem;
-  color: var(--primary-color);
-  text-align: center;
-  letter-spacing: 0.1em;
-  transition: box-shadow 0.2s ease;
+  font-size: 0.95rem;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .neu-input:focus {
-  box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light);
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(58, 134, 255, 0.25);
 }
 
 .neu-btn-primary {
   width: 100%;
-  padding: 16px;
-  border-radius: var(--radius-card);
-  background: var(--bg-color);
-  box-shadow: var(--neu-raised);
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--accent-blue);
   border: none;
-  font-family: inherit;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: var(--primary-color);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  transition: all 0.15s ease;
-  margin-top: 8px;
+  box-shadow: 0 4px 16px rgba(58, 134, 255, 0.35);
+  transition: transform 0.12s ease, background 0.15s ease;
 }
 
 .neu-btn-primary:active {
-  box-shadow: var(--neu-inset);
+  transform: scale(0.98);
+  background: #2563eb;
 }
 
 .auth-error {
-  color: #b91c1c;
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-top: 6px;
-  min-height: 20px;
+  color: #ff6b6b;
+  font-size: 0.82rem;
+  min-height: 18px;
 }
 
 /* ==========================================================
-   GRIGLIA ICONE NEUMORFICHE (STILE IMMAGINE)
+   DASHBOARD SMART HOME (STILE SCREENSHOT)
    ========================================================== */
 .vault-screen {
   width: 100%;
@@ -209,110 +222,236 @@ body {
   align-items: center;
 }
 
-/* Griglia 3 colonne esattamente come la foto fornita */
-.neu-grid-plate {
+/* 1. Master Panel Superiore */
+.dash-master-card {
   width: 100%;
-  background: var(--bg-color);
-  border-radius: 36px;
-  box-shadow: 12px 12px 24px var(--shadow-dark), -12px -12px 24px var(--shadow-light);
-  padding: 24px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-  margin-bottom: 24px;
-}
-
-/* Singolo Bottone a Pozzetto / Scavato */
-.neu-tile {
-  aspect-ratio: 1 / 1;
-  border-radius: var(--radius-button);
-  background: var(--bg-color);
-  box-shadow: var(--neu-inset);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  padding: 22px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  text-align: center;
+  margin-bottom: 14px;
   cursor: pointer;
-  border: none;
-  color: var(--primary-color);
-  position: relative;
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 12px;
-  user-select: none;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(14px);
+  transition: transform 0.12s ease, background 0.15s ease;
 }
 
-.neu-tile:active {
-  transform: scale(0.96);
-  box-shadow: inset 7px 7px 14px var(--shadow-dark), inset -7px -7px 14px var(--shadow-light);
+.dash-master-card:active {
+  transform: scale(0.98);
+  background: rgba(30, 38, 50, 0.95);
 }
 
-.neu-tile-icon {
-  width: 38px;
-  height: 38px;
+.dash-master-icon {
+  color: var(--accent-blue);
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--primary-color);
-  transition: transform 0.2s ease;
+  filter: drop-shadow(0 4px 8px rgba(58, 134, 255, 0.3));
 }
 
-.neu-tile-icon svg {
-  width: 100%;
-  height: 100%;
-}
-
-.neu-tile-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+.dash-master-label {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-top: 8px;
-  color: var(--primary-color);
+  color: #ffffff;
 }
 
-.neu-tile-count {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  font-size: 0.65rem;
+.dash-master-sub {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+/* 2. Banner Notifiche Push Smartphone */
+.push-alert-card {
+  width: 100%;
+  background: rgba(22, 28, 38, 0.85);
+  border: 1px solid rgba(58, 134, 255, 0.3);
+  border-radius: var(--radius-card);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(10px);
+}
+
+.push-alert-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.push-alert-title {
+  font-size: 0.82rem;
   font-weight: 700;
+  color: #ffffff;
+}
+
+.push-alert-desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.push-alert-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-push-action {
+  flex: 1;
+  background: rgba(58, 134, 255, 0.2);
+  border: 1px solid var(--accent-blue);
+  color: #ffffff;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.btn-push-action:active {
+  background: var(--accent-blue);
+}
+
+.btn-push-action.secondary {
+  flex: 0 0 68px;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-subtle);
   color: var(--text-muted);
 }
 
-/* Slot segnaposto per tasti futuri (in un secondo momento) */
-.neu-tile-placeholder {
-  aspect-ratio: 1 / 1;
-  border-radius: var(--radius-button);
-  background: var(--bg-color);
-  box-shadow: var(--neu-inset);
-  opacity: 0.45;
-  cursor: pointer;
-  border: none;
+/* 3. Griglia Tasti a 3 Colonne */
+.dash-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.dash-tile {
+  background: var(--bg-tile);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-tile);
+  padding: 16px 6px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-subtle);
-  transition: opacity 0.2s;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+  transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+  user-select: none;
 }
 
-.neu-tile-placeholder:hover {
-  opacity: 0.8;
+.dash-tile:active {
+  transform: scale(0.95);
+  background: var(--bg-tile-active);
+  border-color: var(--border-light);
 }
 
-.neu-tile-placeholder .placeholder-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--text-subtle);
+.dash-tile-icon {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-blue { color: var(--accent-blue); }
+.icon-yellow { color: var(--accent-yellow); }
+.icon-cyan { color: var(--accent-cyan); }
+.icon-amber { color: var(--accent-amber); }
+.icon-green { color: var(--accent-green); }
+.icon-purple { color: var(--accent-purple); }
+
+.dash-tile-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.dash-tile-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* 4. Barra Inferiore con Tasti Pillola */
+.dash-bottom-bar {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  padding-bottom: 10px;
+}
+
+.pill-btn {
+  flex: 1;
+  height: 42px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-pill);
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.pill-btn:active {
+  transform: scale(0.97);
+  background: var(--bg-tile-active);
+}
+
+.pill-btn.secondary {
+  flex: 0 0 68px;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-subtle);
+  color: var(--text-muted);
+}
+
+.pill-btn.danger {
+  border-color: rgba(235, 87, 87, 0.4);
+  color: #ff6b6b;
+}
+
+.pill-btn.danger:active {
+  background: rgba(235, 87, 87, 0.2);
 }
 
 /* ==========================================================
-   VISTA DETTAGLIO SEZIONE (PW, BANCA, INFO CASE)
+   VISTA DETTAGLIO SEZIONE & LISTA ELEMENTI
    ========================================================== */
 .section-view {
   width: 100%;
-  display: none;
+  display: flex;
   flex-direction: column;
 }
 
@@ -320,277 +459,218 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
-  width: 100%;
-}
-
-.btn-back {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg-color);
-  box-shadow: var(--neu-raised-sm);
-  border: none;
-  padding: 10px 16px;
-  border-radius: var(--radius-pill);
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--primary-color);
-  cursor: pointer;
-}
-
-.btn-back:active {
-  box-shadow: var(--neu-inset-sm);
+  margin-bottom: 18px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 8px 0;
 }
 
 .section-title {
   font-size: 1.15rem;
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  color: #ffffff;
+}
+
+.btn-back {
+  background: var(--bg-tile);
+  border: 1px solid var(--border-subtle);
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-back:active {
+  transform: scale(0.96);
+  background: var(--bg-tile-active);
 }
 
 .section-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
-  margin-bottom: 24px;
 }
 
-/* Elemento Lista / Card Incombenza */
 .entry-card {
-  background: var(--bg-color);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
-  box-shadow: var(--neu-raised);
-  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  position: relative;
+  backdrop-filter: blur(10px);
 }
 
-.entry-card-header {
+.entry-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
 
 .entry-title {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  color: var(--primary-color);
+  color: #ffffff;
 }
 
-.entry-subtitle {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-/* Righe Dettagli con tasto Copia */
 .entry-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--bg-color);
-  box-shadow: var(--neu-inset-sm);
-  padding: 8px 12px;
+  background: rgba(14, 18, 25, 0.7);
+  border: 1px solid var(--border-subtle);
+  padding: 10px 12px;
   border-radius: 12px;
   gap: 8px;
 }
 
 .entry-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
 }
 
 .entry-value {
-  font-family: monospace;
   font-size: 0.88rem;
   font-weight: 600;
-  color: var(--primary-color);
+  color: #ffffff;
   word-break: break-all;
-  flex-grow: 1;
+  flex: 1;
   text-align: right;
-  margin-right: 6px;
-}
-
-.entry-value.masked {
-  letter-spacing: 0.2em;
 }
 
 .btn-copy {
-  background: var(--bg-color);
-  box-shadow: var(--neu-raised-sm);
-  border: none;
-  padding: 4px 10px;
+  background: rgba(58, 134, 255, 0.2);
+  border: 1px solid var(--accent-blue);
+  color: #ffffff;
+  padding: 5px 10px;
   border-radius: 8px;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  color: var(--primary-color);
   cursor: pointer;
-  flex-shrink: 0;
+  transition: all 0.15s ease;
 }
 
 .btn-copy:active {
-  box-shadow: var(--neu-inset-sm);
-}
-
-.entry-notes {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  line-height: 1.4;
-  white-space: pre-wrap;
-  margin-top: 4px;
-}
-
-.entry-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 6px;
+  background: var(--accent-blue);
 }
 
 .entry-action-btn {
   background: transparent;
-  border: none;
-  font-size: 0.8rem;
-  font-weight: 600;
+  border: 1px solid var(--border-subtle);
   color: var(--text-muted);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
   cursor: pointer;
-  padding: 4px 8px;
 }
 
-.entry-action-btn:hover {
-  color: var(--primary-color);
-}
-
-.entry-action-btn.delete:hover {
-  color: #dc2626;
-}
-
-/* Modale Neumorfico Aggiunta / Modifica */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(235, 240, 242, 0.85);
-  backdrop-filter: blur(8px);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 20px;
-}
-
-.modal-card {
-  width: 100%;
-  max-width: 440px;
-  background: var(--bg-color);
-  border-radius: 32px;
-  box-shadow: 14px 14px 28px var(--shadow-dark), -14px -14px 28px var(--shadow-light);
-  padding: 28px 24px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.modal-header h3 {
-  font-size: 1.15rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.form-group {
-  margin-bottom: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-label {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.modal-footer {
-  display: flex;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-/* Toast Notifica Copiato */
-.toast-notice {
-  position: fixed;
-  bottom: calc(24px + var(--safe-bottom));
-  background: var(--primary-color);
-  color: var(--bg-color);
-  padding: 10px 20px;
-  border-radius: var(--radius-pill);
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  box-shadow: 0 4px 12px rgba(45, 74, 67, 0.3);
-  z-index: 200;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: all 0.2s ease;
-  pointer-events: none;
-}
-
-.toast-notice.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Responsività */
-@media (max-width: 380px) {
-  .neu-grid-plate {
-    gap: 12px;
-    padding: 16px;
-  }
-  
-  .neu-tile-icon {
-    width: 30px;
-    height: 30px;
-  }
-  
-  .neu-tile-label {
-    font-size: 0.65rem;
-  }
+.entry-action-btn.delete {
+  border-color: rgba(235, 87, 87, 0.3);
+  color: #ff6b6b;
 }
 
 /* ==========================================================
-   MESSAGGI INTERNI DI FAMIGLIA (COMPOSITORE RAPIDO & 1-CLICK)
+   RUBRICA TELEFONICA FAMYLIA
    ========================================================== */
-.msg-composer {
-  background: var(--bg-color);
+.rubrica-phone-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
-  box-shadow: var(--neu-raised);
-  padding: 20px;
-  margin-bottom: 22px;
+  box-shadow: var(--shadow-sm);
+  padding: 18px;
+  margin-bottom: 18px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  backdrop-filter: blur(12px);
+}
+
+.phone-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(14, 18, 25, 0.75);
+  border: 1px solid var(--border-subtle);
+  padding: 8px 12px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.phone-person-name {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #ffffff;
+  min-width: 80px;
+}
+
+.phone-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: #ffffff;
+}
+
+.btn-call {
+  background: rgba(46, 204, 113, 0.2);
+  border: 1px solid var(--accent-green);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #ffffff;
+  text-decoration: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-call:active {
+  background: var(--accent-green);
+}
+
+/* ==========================================================
+   COMPOSITORE MESSAGGI CON SELETTORE DA & A
+   ========================================================== */
+.msg-composer {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+  padding: 18px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  backdrop-filter: blur(12px);
 }
 
 .msg-composer-title {
   font-size: 0.88rem;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--primary-color);
+  color: #ffffff;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -604,178 +684,90 @@ body {
 
 .selector-label {
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
 }
 
-.sender-selector {
+.sender-selector, .dest-selector {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
 }
 
-.sender-chip {
+.sender-chip, .dest-chip {
   flex: 1;
-  background: var(--bg-color);
-  box-shadow: var(--neu-raised-sm);
-  border: 2px solid transparent;
-  padding: 8px 6px;
-  border-radius: 12px;
-  font-size: 0.8rem;
+  background: rgba(14, 18, 25, 0.7);
+  border: 1px solid var(--border-subtle);
+  padding: 8px 4px;
+  border-radius: 10px;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-muted);
   cursor: pointer;
   text-align: center;
-  transition: all 0.15s ease;
+  transition: all 0.12s ease;
 }
 
-.sender-chip.active {
-  box-shadow: var(--neu-inset-sm);
-  color: var(--primary-color);
-  border-color: var(--primary-color);
-}
-
-/* Rubrica Telefonica Famylia */
-.rubrica-phone-card {
-  background: var(--bg-color);
-  border-radius: var(--radius-card);
-  box-shadow: var(--neu-raised);
-  padding: 18px 20px;
-  margin-bottom: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.rubrica-phone-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  user-select: none;
-}
-
-.rubrica-phone-title {
-  font-size: 0.88rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--primary-color);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.rubrica-phone-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-top: 6px;
-}
-
-.phone-entry-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg-color);
-  box-shadow: var(--neu-inset-sm);
-  padding: 8px 12px;
-  border-radius: 14px;
-}
-
-.phone-person-name {
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: var(--primary-color);
-  min-width: 75px;
-}
-
-.phone-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-family: inherit;
-  font-size: 0.88rem;
-  color: var(--primary-color);
-}
-
-.btn-call {
-  background: var(--bg-color);
-  box-shadow: var(--neu-raised-sm);
-  border: none;
-  padding: 5px 10px;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--primary-color);
-  text-decoration: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.btn-call:active {
-  box-shadow: var(--neu-inset-sm);
+.sender-chip.active, .dest-chip.active {
+  background: rgba(58, 134, 255, 0.25);
+  border-color: var(--accent-blue);
+  color: #ffffff;
 }
 
 .msg-textarea {
   width: 100%;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: var(--bg-color);
-  box-shadow: var(--neu-inset);
-  border: none;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(14, 18, 25, 0.8);
+  border: 1px solid var(--border-subtle);
   outline: none;
   font-family: inherit;
-  font-size: 0.95rem;
-  color: var(--primary-color);
+  font-size: 0.92rem;
+  color: #ffffff;
   resize: none;
-  min-height: 80px;
+  min-height: 75px;
 }
 
 .msg-textarea:focus {
-  box-shadow: inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light);
+  border-color: var(--accent-blue);
 }
 
 .btn-send-message {
   width: 100%;
-  padding: 14px;
-  border-radius: var(--radius-card);
-  background: var(--bg-color);
-  box-shadow: var(--neu-raised);
+  padding: 13px;
+  border-radius: 12px;
+  background: var(--accent-blue);
   border: none;
-  font-family: inherit;
-  font-size: 0.95rem;
+  color: #ffffff;
+  font-size: 0.9rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--primary-color);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: all 0.15s ease;
+  box-shadow: 0 4px 14px rgba(58, 134, 255, 0.35);
 }
 
 .btn-send-message:active {
-  box-shadow: var(--neu-inset);
   transform: scale(0.98);
 }
 
+/* Messaggi Inviati */
 .msg-item-card {
-  background: var(--bg-color);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
-  box-shadow: var(--neu-raised);
-  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  position: relative;
+  backdrop-filter: blur(10px);
 }
 
 .msg-item-header {
@@ -785,12 +777,9 @@ body {
 }
 
 .msg-item-sender {
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--primary-color);
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #ffffff;
 }
 
 .msg-item-date {
@@ -799,8 +788,8 @@ body {
 }
 
 .msg-item-body {
-  font-size: 0.92rem;
-  color: var(--primary-color);
+  font-size: 0.9rem;
+  color: #f0f6fc;
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
@@ -809,6 +798,91 @@ body {
 .msg-item-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 4px;
 }
 
+/* ==========================================================
+   MODALI & TOAST
+   ========================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+
+.modal-content {
+  background: var(--bg-card-solid);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px 20px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.modal-header h3 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.form-group {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.toast-notice {
+  position: fixed;
+  bottom: calc(20px + var(--safe-bottom));
+  background: #1f2937;
+  border: 1px solid var(--border-light);
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+  z-index: 250;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.2s ease;
+  pointer-events: none;
+  max-width: 90%;
+  text-align: center;
+}
+
+.toast-notice.show {
+  opacity: 1;
+  transform: translateY(0);
+}

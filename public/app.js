@@ -286,7 +286,9 @@ async function decryptData(cipherData, keyBytes) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   initServiceWorker();
+  initCustomBackground();
   checkNotificationStatus();
+  checkPushSubscriptionStatus();
   await loadVaultFromStorage();
   updateAuthScreenUI();
   initAutoSync();
@@ -294,7 +296,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function initServiceWorker() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      // Registrazione completata
+    }).catch(() => {});
   }
 }
 
@@ -304,22 +308,200 @@ function checkNotificationStatus() {
   }
 }
 
-async function requestNotificationAccess() {
-  if (!('Notification' in window)) {
-    return;
+// ==========================================
+// GESTIONE NOTIFICHE PUSH REAL-TIME (SERVER VAPID)
+// ==========================================
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
   }
+  return outputArray;
+}
+
+async function checkPushSubscriptionStatus() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      updatePushStatusUI(true);
+    }
+  } catch (e) {}
+}
+
+async function subscribeToPushNotifications() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    alert('Le notifiche push su questo browser non sono supportate oppure devi prima salvare l\'app sulla schermata Home (Safari: Condividi -> Aggiungi alla schermata Home).');
+    return false;
+  }
+
   try {
     const perm = await Notification.requestPermission();
-    if (perm === 'granted') {
-      STATE.notificationsEnabled = true;
-      showToast('Notifiche attivate! 🔔');
-      const banner = document.getElementById('notifBanner');
-      if (banner) banner.style.display = 'none';
-      updateAppIconBadge();
+    if (perm !== 'granted') {
+      showToast('Permesso notifiche non concesso nel browser.');
+      return false;
     }
-  } catch (e) {
-    console.warn('Errore permessi notifiche:', e);
+
+    const reg = await navigator.serviceWorker.ready;
+
+    // Recupera la chiave pubblica VAPID dal server
+    const keyRes = await fetch('/api/push-public-key');
+    if (!keyRes.ok) throw new Error('Impossibile ottenere la chiave push dal server');
+    const keyData = await keyRes.json();
+    const vapidKey = keyData.publicKey;
+
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey)
+      });
+    }
+
+    // Registra questo smartphone sul server per ricevere le notifiche
+    const subRes = await fetch('/api/push-subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subscription: sub,
+        user: STATE.currentSender || 'Famiglia',
+        device: navigator.userAgent
+      })
+    });
+
+    if (subRes.ok) {
+      STATE.notificationsEnabled = true;
+      updatePushStatusUI(true);
+      showToast('🔔 Notifiche Push attivate su questo smartphone!');
+      return true;
+    } else {
+      throw new Error('Errore durante la registrazione sul server');
+    }
+  } catch (err) {
+    console.error('Errore attivazione push:', err);
+    showToast('Errore attivazione: ' + err.message);
+    return false;
   }
+}
+
+async function sendTestPushNotification() {
+  try {
+    showToast('Invio notifica push di prova...');
+    const res = await fetch('/api/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: '🔔 Prova Notifica Famylia',
+        body: 'Le notifiche push funzionano al 100% su questo smartphone!'
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Notifica inviata con successo! (${data.sent} dispositivi) 🚀`);
+    } else {
+      showToast('Errore invio: ' + (data.error || 'sconosciuto'));
+    }
+  } catch (err) {
+    showToast('Errore: ' + err.message);
+  }
+}
+
+function updatePushStatusUI(isActive) {
+  const btn = document.getElementById('btnEnablePush');
+  if (btn) {
+    if (isActive) {
+      btn.innerHTML = '🔔 Notifiche Attive ✅';
+      btn.style.background = 'rgba(46, 204, 113, 0.25)';
+      btn.style.borderColor = 'rgba(46, 204, 113, 0.6)';
+    } else {
+      btn.innerHTML = 'Attiva su questo Telefono';
+    }
+  }
+}
+
+// ==========================================
+// GESTIONE SFONDO PERSONALIZZABILE
+// ==========================================
+
+function initCustomBackground() {
+  const savedBg = localStorage.getItem('famylia_custom_bg');
+  if (savedBg) {
+    applyCustomBackground(savedBg);
+  }
+}
+
+function applyCustomBackground(dataUrl) {
+  document.body.style.backgroundImage = `linear-gradient(rgba(14, 18, 23, 0.82), rgba(14, 18, 23, 0.92)), url('${dataUrl}')`;
+  document.body.style.backgroundSize = 'cover';
+  document.body.style.backgroundPosition = 'center';
+  document.body.style.backgroundAttachment = 'fixed';
+  document.body.classList.add('has-custom-bg');
+}
+
+function triggerBgUpload() {
+  const fileInput = document.getElementById('bgImageInput');
+  if (fileInput) fileInput.click();
+}
+
+function handleBgUpload(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    showToast('Seleziona un file immagine valido (JPG, PNG, WebP)');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const dataUrl = e.target.result;
+    compressAndSaveBg(dataUrl);
+  };
+  reader.readAsDataURL(file);
+}
+
+function compressAndSaveBg(dataUrl) {
+  const img = new Image();
+  img.onload = function() {
+    const canvas = document.createElement('canvas');
+    const MAX_DIM = 1280;
+    let width = img.width;
+    let height = img.height;
+    if (width > height && width > MAX_DIM) {
+      height = Math.round((height * MAX_DIM) / width);
+      width = MAX_DIM;
+    } else if (height > MAX_DIM) {
+      width = Math.round((width * MAX_DIM) / height);
+      height = MAX_DIM;
+    }
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, width, height);
+    const compressedUrl = canvas.toDataURL('image/jpeg', 0.82);
+    try {
+      localStorage.setItem('famylia_custom_bg', compressedUrl);
+      applyCustomBackground(compressedUrl);
+      showToast('Sfondo personalizzato applicato! 🖼️');
+    } catch (e) {
+      showToast('Immagine troppo pesante per il dispositivo');
+    }
+  };
+  img.src = dataUrl;
+}
+
+function resetCustomBackground() {
+  localStorage.removeItem('famylia_custom_bg');
+  document.body.style.backgroundImage = '';
+  document.body.classList.remove('has-custom-bg');
+  showToast('Ripristinato lo sfondo originale');
 }
 
 async function loadVaultFromStorage() {
@@ -718,12 +900,30 @@ async function sendQuickFamilyMessage() {
 
   await saveEncryptedVault();
 
-  // 1. Notifica su smartphone & Badge sull'icona
+  // 1. Invia notifica Push remota a TUTTI gli smartphone registrati della famiglia tramite il server
+  try {
+    fetch('/api/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `💬 Da ${sender} a ${recipient}`,
+        body: text,
+        sender: sender,
+        recipient: recipient
+      })
+    }).then(res => res.json()).then(data => {
+      console.log('[Push] Risposta invio push:', data);
+    }).catch(err => {
+      console.warn('[Push] Errore chiamata push:', err);
+    });
+  } catch (e) {}
+
+  // 2. Notifica locale e badge
   triggerPhoneNotification(`💬 Da ${sender} a ${recipient}`, text);
 
-  // 2. Aggiorna interfaccia
+  // 3. Aggiorna interfaccia
   renderSectionList();
-  showToast('Messaggio inviato! 🔔');
+  showToast('Messaggio inviato e notificato! 🔔');
 }
 
 function triggerPhoneNotification(title, body) {

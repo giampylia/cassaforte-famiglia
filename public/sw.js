@@ -1,4 +1,4 @@
-const CACHE_NAME = 'famylia-v6';
+const CACHE_NAME = 'famylia-v7';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -71,7 +71,7 @@ self.addEventListener('fetch', (event) => {
 
 // 4. Gestione Notifiche Push (quando arrivano messaggi da altri familiari)
 self.addEventListener('push', (event) => {
-  let payload = { title: 'Famylia', body: 'Nuovo messaggio o aggiornamento registrato.' };
+  let payload = { title: 'Famylia', body: 'Nuovo messaggio in bacheca' };
   
   if (event.data) {
     try {
@@ -82,16 +82,15 @@ self.addEventListener('push', (event) => {
   }
 
   const options = {
-    body: payload.body,
+    body: payload.body || 'Nuovo messaggio di famiglia',
     icon: '/icons/icon-192.svg',
     badge: '/icons/icon-192.svg',
-    vibrate: [200, 100, 200],
+    vibrate: [250, 100, 250, 100, 250],
+    tag: 'famylia-msg-' + Date.now(),
+    renotify: true,
     data: {
-      url: '/'
-    },
-    actions: [
-      { action: 'open', title: 'Apri Famylia' }
-    ]
+      url: payload.url || '/'
+    }
   };
 
   event.waitUntil(

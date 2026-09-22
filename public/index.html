@@ -102,93 +102,134 @@
       </div>
     </main>
 
-    <!-- 2. GRIGLIA ICONE NEUMORFICHE (DASHBOARD 3X3 COME FOTO) -->
+    <!-- 2. GRIGLIA DASHBOARD STILE SMART HOME (DARK & HIGH CONTRAST) -->
     <main id="vaultScreen" class="vault-screen" style="display: none;">
       
-      <!-- Piastra Neumorfica con 9 Tasti (stile foto di riferimento) -->
-      <div class="neu-grid-plate">
+      <!-- Card Superiore: MASTER -->
+      <div class="dash-master-card" onclick="openSection('messaggio')">
+        <div class="dash-master-icon">
+          <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </div>
+        <span class="dash-master-label">FAMYLIA MASTER</span>
+        <span class="dash-master-sub">Cassaforte & Notifiche Famiglia Attive</span>
+      </div>
+
+      <!-- Banner Attivazione Notifiche Push Reali -->
+      <div class="push-alert-card" id="pushAlertCard">
+        <div class="push-alert-info">
+          <div class="push-alert-title">🔔 Notifiche Push Smartphone</div>
+          <div class="push-alert-desc">Ricevi gli avvisi a schermo spento quando qualcuno scrive</div>
+        </div>
+        <div class="push-alert-buttons">
+          <button type="button" class="btn-push-action" id="btnEnablePush" onclick="subscribeToPushNotifications()">Attiva su questo Telefono</button>
+          <button type="button" class="btn-push-action secondary" onclick="sendTestPushNotification()" title="Invia notifica di prova">⚡ Prova</button>
+        </div>
+      </div>
+
+      <!-- Griglia a 3 Colonne (Stile Smart Home Screenshot) -->
+      <div class="dash-grid">
         
-        <!-- RIGA 1, TASTO 1: PASSWORD (PW) -->
-        <button type="button" class="neu-tile" onclick="openSection('pw')" aria-label="Password e Credenziali">
-          <div class="neu-tile-icon">
-            <img src="/icons/icon-pw.svg" alt="PW" width="34" height="34">
+        <!-- TASTO 1: PASSWORD -->
+        <button type="button" class="dash-tile" onclick="openSection('pw')" aria-label="Password e Credenziali">
+          <div class="dash-tile-icon icon-blue">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 2l-2 2m-1.5 1.5L16 7l-1.5-1.5M19 5l-2.5 2.5m-3.5 3.5a5 5 0 1 1-7.07 7.07 5 5 0 0 1 7.07-7.07z"></path></svg>
           </div>
-          <span class="neu-tile-label">PW</span>
-          <span id="countPw" class="neu-tile-count">0</span>
+          <span class="dash-tile-title">Password</span>
+          <span class="dash-tile-sub"><span id="countPw">0</span> salvate</span>
         </button>
 
-        <!-- RIGA 1, TASTO 2: BANCA -->
-        <button type="button" class="neu-tile" onclick="openSection('banca')" aria-label="Banca e Conti Correnti">
-          <div class="neu-tile-icon">
-            <img src="/icons/icon-banca.svg" alt="Banca" width="34" height="34">
+        <!-- TASTO 2: BANCA -->
+        <button type="button" class="dash-tile" onclick="openSection('banca')" aria-label="Banca e Conti Correnti">
+          <div class="dash-tile-icon icon-yellow">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="5" width="18" height="14" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line></svg>
           </div>
-          <span class="neu-tile-label">Banca</span>
-          <span id="countBanca" class="neu-tile-count">0</span>
+          <span class="dash-tile-title">Banca</span>
+          <span class="dash-tile-sub"><span id="countBanca">0</span> conti</span>
         </button>
 
-        <!-- RIGA 1, TASTO 3: INFO CASE -->
-        <button type="button" class="neu-tile" onclick="openSection('info_case')" aria-label="Info Case e Utenze">
-          <div class="neu-tile-icon">
-            <img src="/icons/icon-infocase.svg" alt="Info Case" width="34" height="34">
+        <!-- TASTO 3: INFO CASE -->
+        <button type="button" class="dash-tile" onclick="openSection('info_case')" aria-label="Info Case e Utenze">
+          <div class="dash-tile-icon icon-cyan">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
           </div>
-          <span class="neu-tile-label">Info Case</span>
-          <span id="countInfoCase" class="neu-tile-count">0</span>
+          <span class="dash-tile-title">Info Case</span>
+          <span class="dash-tile-sub"><span id="countInfoCase">0</span> utenze</span>
         </button>
 
-        <!-- RIGA 2, TASTO 4: NOTE -->
-        <button type="button" class="neu-tile" onclick="openSection('note')" aria-label="Note e Disposizioni">
-          <div class="neu-tile-icon">
-            <img src="/icons/icon-note.svg" alt="Note" width="34" height="34">
+        <!-- TASTO 4: NOTE -->
+        <button type="button" class="dash-tile" onclick="openSection('note')" aria-label="Note e Disposizioni">
+          <div class="dash-tile-icon icon-amber">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
           </div>
-          <span class="neu-tile-label">Note</span>
-          <span id="countNote" class="neu-tile-count">0</span>
+          <span class="dash-tile-title">Note</span>
+          <span class="dash-tile-sub"><span id="countNote">0</span> memo</span>
         </button>
 
-        <!-- RIGA 2, TASTO 5: CASSAFORTE -->
-        <button type="button" class="neu-tile" onclick="openSection('cassaforte')" aria-label="Cassaforte e Valori">
-          <div class="neu-tile-icon">
-            <img src="/icons/icon-cassaforte.svg" alt="Cassaforte" width="34" height="34">
+        <!-- TASTO 5: CASSAFORTE -->
+        <button type="button" class="dash-tile" onclick="openSection('cassaforte')" aria-label="Cassaforte e Valori">
+          <div class="dash-tile-icon icon-green">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="9" x2="12" y2="12"></line></svg>
           </div>
-          <span class="neu-tile-label">Cassaforte</span>
-          <span id="countCassaforte" class="neu-tile-count">0</span>
+          <span class="dash-tile-title">Cassaforte</span>
+          <span class="dash-tile-sub"><span id="countCassaforte">0</span> valori</span>
         </button>
 
-        <!-- RIGA 2, TASTO 6: MESSAGGI (CON NOTIFICHE SUGLI SMARTPHONE) -->
-        <button type="button" class="neu-tile" onclick="openSection('messaggio')" aria-label="Messaggi e Notifiche">
-          <div class="neu-tile-icon">
-            <img src="/icons/icon-messaggio.svg" alt="Messaggi" width="34" height="34">
+        <!-- TASTO 6: MESSAGGI -->
+        <button type="button" class="dash-tile" onclick="openSection('messaggio')" aria-label="Messaggi e Notifiche">
+          <div class="dash-tile-icon icon-purple">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
           </div>
-          <span class="neu-tile-label">Messaggi</span>
-          <span id="countMessaggi" class="neu-tile-count">0</span>
+          <span class="dash-tile-title">Messaggi</span>
+          <span class="dash-tile-sub"><span id="countMessaggi">0</span> attivi</span>
         </button>
 
-        <!-- RIGA 3, TASTO 7: AGGIUNGI RAPIDO -->
-        <button type="button" class="neu-tile" onclick="openAddModal()" aria-label="Aggiungi Informazione">
-          <div class="neu-tile-icon">
-            <img src="/icons/icon-plus.svg" alt="Aggiungi" width="34" height="34">
+        <!-- TASTO 7: AGGIUNGI RAPIDO -->
+        <button type="button" class="dash-tile" onclick="openAddModal()" aria-label="Aggiungi Informazione">
+          <div class="dash-tile-icon icon-cyan">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           </div>
-          <span class="neu-tile-label">Aggiungi</span>
+          <span class="dash-tile-title">Aggiungi</span>
+          <span class="dash-tile-sub">Nuova voce</span>
         </button>
 
-        <!-- RIGA 3, TASTO 8: SLOT PREDISPOSTO IN UN SECONDO MOMENTO -->
-        <div class="neu-tile-placeholder" onclick="handlePlaceholderClick(8)" title="Tasto pronto per un secondo momento">
-          <div class="placeholder-dot"></div>
-        </div>
+        <!-- TASTO 8: RUBRICA FAMYLIA -->
+        <button type="button" class="dash-tile" onclick="openSection('messaggio')" aria-label="Rubrica Telefonica">
+          <div class="dash-tile-icon icon-green">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+          </div>
+          <span class="dash-tile-title">Rubrica</span>
+          <span class="dash-tile-sub">Giampy, Ty, Miki</span>
+        </button>
 
-        <!-- RIGA 3, TASTO 9: SLOT PREDISPOSTO IN UN SECONDO MOMENTO -->
-        <div class="neu-tile-placeholder" onclick="handlePlaceholderClick(9)" title="Tasto pronto per un secondo momento">
-          <div class="placeholder-dot"></div>
-        </div>
+        <!-- TASTO 9: BACKUP CIFRATO -->
+        <button type="button" class="dash-tile" onclick="exportEncryptedVault()" aria-label="Esporta Backup">
+          <div class="dash-tile-icon icon-blue">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          </div>
+          <span class="dash-tile-title">Backup</span>
+          <span class="dash-tile-sub">Esporta file</span>
+        </button>
 
       </div>
 
-      <!-- Quick Actions Bar -->
-      <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 8px;">
-        <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Accesso Comune di Famiglia</span>
-        <button class="entry-action-btn" onclick="exportEncryptedVault()" title="Esporta copia di backup crittografata">
-          ⬇️ Esporta Backup
+      <!-- Barra Inferiore con Tasti Pillola (Stile MUTE/UNMUTE Screenshot) -->
+      <div class="dash-bottom-bar">
+        <button type="button" class="pill-btn" onclick="triggerBgUpload()">
+          🖼️ CAMBIA SFONDO
+        </button>
+        <button type="button" class="pill-btn secondary" onclick="resetCustomBackground()" title="Ripristina sfondo originale">
+          ↺ RESET
+        </button>
+        <button type="button" class="pill-btn danger" onclick="lockVault()">
+          🔒 BLOCCA
         </button>
       </div>
+
+      <!-- Input file nascosto per selezionare l'immagine di sfondo -->
+      <input type="file" id="bgImageInput" accept="image/*" style="display:none;" onchange="handleBgUpload(event)">
     </main>
 
     <!-- 3. VISTA DETTAGLIO SEZIONE -->

@@ -27,6 +27,51 @@ function saveVault(vaultData) {
   }
 }
 
+// --- WEB PUSH NOTIFICATIONS CONFIGURATION ---
+const webpush = require('web-push');
+const VAPID_FILE = path.join(__dirname, 'data', 'vapid.json');
+const SUBS_FILE = path.join(__dirname, 'data', 'subscriptions.json');
+
+let vapid = {
+  publicKey: "BEBapV0Fizqvs0ZP5QyqltL2JxVpiyCWuAAdChJFhCQOXEn8ke3r75Z6SIbinUsZK0J7u2CL12QlrqqCh71_xOQ",
+  privateKey: "gphMXDuW55G9yYQz_qociW7FB-_MZXYgQDFJmkMfP9I",
+  email: "giampylia@gmail.com"
+};
+
+try {
+  if (fs.existsSync(VAPID_FILE)) {
+    vapid = JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8'));
+  }
+} catch (e) {}
+
+try {
+  webpush.setVapidDetails(
+    `mailto:${vapid.email}`,
+    vapid.publicKey,
+    vapid.privateKey
+  );
+} catch (err) {
+  console.error('Errore configurazione VAPID:', err.message);
+}
+
+function loadSubscriptions() {
+  try {
+    if (!fs.existsSync(SUBS_FILE)) return [];
+    return JSON.parse(fs.readFileSync(SUBS_FILE, 'utf8') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveSubscriptions(subs) {
+  try {
+    fs.writeFileSync(SUBS_FILE, JSON.stringify(subs, null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 // MIME types
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -154,6 +199,80 @@ async function handleRequest(req, res) {
         const body = await parseJsonBody(req);
         saveVault(body);
         return sendJSON(res, 200, { success: true });
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
+    }
+
+    // GET /api/push-public-key (chiave pubblica VAPID)
+    if (pathname === '/api/push-public-key' && req.method === 'GET') {
+      return sendJSON(res, 200, { publicKey: vapid.publicKey });
+    }
+
+    // POST /api/push-subscribe (registrazione endpoint smartphone)
+    if (pathname === '/api/push-subscribe' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        if (!body.subscription || !body.subscription.endpoint) {
+          return sendJSON(res, 400, { error: 'Sottoscrizione non valida' });
+        }
+        const subs = loadSubscriptions();
+        const index = subs.findIndex(s => s.subscription.endpoint === body.subscription.endpoint);
+        const entry = {
+          subscription: body.subscription,
+          user: body.user || 'Famiglia',
+          device: body.device || '',
+          updatedAt: new Date().toISOString()
+        };
+        if (index >= 0) {
+          subs[index] = entry;
+        } else {
+          subs.push(entry);
+        }
+        saveSubscriptions(subs);
+        console.log(`[Push] Dispositivo registrato per ${entry.user}. Totale: ${subs.length}`);
+        return sendJSON(res, 200, { success: true, count: subs.length });
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
+    }
+
+    // POST /api/send-push (invia notifica a tutti gli smartphone registrati)
+    if (pathname === '/api/send-push' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        const title = body.title || 'Famylia';
+        const msgText = body.body || 'Nuovo messaggio di famiglia';
+        const subs = loadSubscriptions();
+
+        const payload = JSON.stringify({
+          title: title,
+          body: msgText,
+          icon: '/icons/icon-192.svg',
+          badge: '/icons/icon-192.svg',
+          url: '/'
+        });
+
+        const activeSubs = [];
+        let sentCount = 0;
+
+        await Promise.all(subs.map(async (subItem) => {
+          try {
+            await webpush.sendNotification(subItem.subscription, payload);
+            activeSubs.push(subItem);
+            sentCount++;
+          } catch (err) {
+            console.warn('[Push] Errore invio:', err.statusCode, err.message);
+            // Se l'endpoint è scaduto (410 Gone o 404), viene rimosso
+            if (err.statusCode !== 410 && err.statusCode !== 404) {
+              activeSubs.push(subItem);
+            }
+          }
+        }));
+
+        saveSubscriptions(activeSubs);
+        console.log(`[Push] Inviate ${sentCount}/${subs.length} notifiche push.`);
+        return sendJSON(res, 200, { success: true, sent: sentCount, total: activeSubs.length });
       } catch (err) {
         return sendJSON(res, 400, { error: err.message });
       }
