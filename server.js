@@ -20,6 +20,16 @@ function loadVault() {
 
 function saveVault(vaultData) {
   try {
+    if (!vaultData || !vaultData.salt || !vaultData.data || !vaultData.check) {
+      console.warn('[Vault] Payload vault non valido, salvataggio rifiutato');
+      return false;
+    }
+    // Salva un backup del vault precedente prima di sovrascrivere
+    if (fs.existsSync(VAULT_FILE)) {
+      try {
+        fs.copyFileSync(VAULT_FILE, path.join(__dirname, 'data', 'vault.backup.json'));
+      } catch (bErr) {}
+    }
     fs.writeFileSync(VAULT_FILE, JSON.stringify(vaultData, null, 2), 'utf8');
     return true;
   } catch (err) {

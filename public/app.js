@@ -710,15 +710,37 @@ async function handleUnlock(e) {
       STATE.currentPassword = password;
       unlockSuccess();
     } else {
-      const salt = base64ToBuffer(STATE.encryptedVault.salt);
-      const key = await deriveKey(password, new Uint8Array(salt));
+      let salt = base64ToBuffer(STATE.encryptedVault.salt);
+      let key = await deriveKey(password, new Uint8Array(salt));
 
+      let checkToken = null;
       try {
-        const checkToken = await decryptData(STATE.encryptedVault.check, key);
-        if (checkToken !== VERIFICATION_STRING) {
-          throw new Error('Token non corrispondente');
-        }
-      } catch (err) {
+        checkToken = await decryptData(STATE.encryptedVault.check, key);
+      } catch (err) {}
+
+      if (checkToken !== VERIFICATION_STRING) {
+        // Se fallisce, verifica se la cache locale era disallineata rispetto al server cloud
+        try {
+          const freshRes = await fetch('/api/vault?t=' + Date.now(), { cache: 'no-store' });
+          if (freshRes.ok) {
+            const freshVault = await freshRes.json();
+            if (freshVault && freshVault.salt) {
+              const freshSalt = base64ToBuffer(freshVault.salt);
+              const freshKey = await deriveKey(password, new Uint8Array(freshSalt));
+              const freshCheck = await decryptData(freshVault.check, freshKey);
+              if (freshCheck === VERIFICATION_STRING) {
+                STATE.encryptedVault = freshVault;
+                localStorage.setItem('family_vault_encrypted', JSON.stringify(freshVault));
+                salt = freshSalt;
+                key = freshKey;
+                checkToken = freshCheck;
+              }
+            }
+          }
+        } catch (recoveryErr) {}
+      }
+
+      if (checkToken !== VERIFICATION_STRING) {
         if (errorEl) errorEl.textContent = 'Password non corretta. Riprova.';
         btn.disabled = false;
         btn.textContent = 'Sblocca Famylia';
@@ -773,10 +795,35 @@ async function tryAutoUnlock() {
     const btn = document.getElementById('unlockSubmitBtn');
     if (btn) btn.textContent = 'Accesso automatico...';
 
-    const salt = base64ToBuffer(STATE.encryptedVault.salt);
-    const key = await deriveKey(password, new Uint8Array(salt));
+    let salt = base64ToBuffer(STATE.encryptedVault.salt);
+    let key = await deriveKey(password, new Uint8Array(salt));
 
-    const checkToken = await decryptData(STATE.encryptedVault.check, key);
+    let checkToken = null;
+    try {
+      checkToken = await decryptData(STATE.encryptedVault.check, key);
+    } catch (e) {}
+
+    if (checkToken !== VERIFICATION_STRING) {
+      try {
+        const freshRes = await fetch('/api/vault?t=' + Date.now(), { cache: 'no-store' });
+        if (freshRes.ok) {
+          const freshVault = await freshRes.json();
+          if (freshVault && freshVault.salt) {
+            const freshSalt = base64ToBuffer(freshVault.salt);
+            const freshKey = await deriveKey(password, new Uint8Array(freshSalt));
+            const freshCheck = await decryptData(freshVault.check, freshKey);
+            if (freshCheck === VERIFICATION_STRING) {
+              STATE.encryptedVault = freshVault;
+              localStorage.setItem('family_vault_encrypted', JSON.stringify(freshVault));
+              salt = freshSalt;
+              key = freshKey;
+              checkToken = freshCheck;
+            }
+          }
+        }
+      } catch (err) {}
+    }
+
     if (checkToken !== VERIFICATION_STRING) {
       localStorage.removeItem('famylia_auto_pass');
       updateAuthScreenUI();
@@ -862,11 +909,13 @@ function updateSessionDescUI() {
   }
 }
 
-function logoutVault() {
-  // Rimuovi esplicitamente l'accesso automatico
+async function logoutVault() {
   localStorage.removeItem('famylia_auto_pass');
+  localStorage.removeItem('family_vault_encrypted');
   STATE.currentPassword = null;
   lockVault();
+  await loadVaultFromStorage();
+  updateAuthScreenUI();
   showToast('Disconnesso da Famylia. Inserisci la password per accedere.');
 }
 
