@@ -19,7 +19,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/icons/favicon.png?v=3">
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg?v=3">
 
-  <link rel="stylesheet" href="/styles.css?v=7.3">
+  <link rel="stylesheet" href="/styles.css?v=7.4">
 </head>
 <body>
   <div class="app-container">
@@ -31,6 +31,15 @@
         <div id="currentUserBadge" class="current-user-badge">👨 Giampy</div>
       </div>
       <div class="header-actions">
+        <!-- Voice Assistant Button in Header -->
+        <button id="voiceHeaderBtn" class="icon-button-sm btn-voice-header" onclick="openVoiceAssistantModal()" title="Assistente Vocale Universale" aria-label="Microfono">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+        </button>
         <!-- QR Code Smartphone -->
         <button id="qrHeaderBtn" class="icon-button-sm" onclick="openQrModal()" title="Inquadra con il telefono" aria-label="QR Code">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -143,6 +152,23 @@
         </div>
         <span class="dash-master-label">FAMYLIA MASTER</span>
         <span class="dash-master-sub">Cassaforte & Notifiche Famiglia Attive</span>
+      </div>
+
+      <!-- TASTO VOCALE PROMINENTE HOME PAGE: ASSISTENTE VOCALE FAMYLIA -->
+      <div class="voice-assistant-bar" onclick="openVoiceAssistantModal()" role="button" aria-label="Attiva Assistente Vocale">
+        <div class="voice-bar-mic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+        </div>
+        <div class="voice-bar-info">
+          <div class="voice-bar-title">🎙️ Dettatura Vocale Intelligente</div>
+          <div class="voice-bar-sub">Tocca e pronuncia: Parking, Debiti, Banca, Password, Note...</div>
+        </div>
+        <div class="voice-bar-action">PARLA</div>
       </div>
 
       <!-- Banner Attivazione Notifiche Push Reali -->
@@ -372,7 +398,10 @@
     <div class="modal-card">
       <div class="modal-header">
         <h3 id="modalHeading">Nuova Informazione</h3>
-        <button type="button" class="entry-action-btn" onclick="closeModal()">✕</button>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button type="button" class="entry-action-btn" onclick="startModalVoiceDictation()" title="Dettatura vocale con microfono" aria-label="Dettatura Vocale" style="color: #38bdf8;">🎙️</button>
+          <button type="button" class="entry-action-btn" onclick="closeModal()">✕</button>
+        </div>
       </div>
 
       <form id="entryForm" onsubmit="handleSaveEntry(event)">
@@ -495,6 +524,21 @@
         <div class="form-group">
           <label for="entryNotesInput" class="form-label">Note & Istruzioni Dettagliate</label>
           <textarea id="entryNotesInput" class="neu-input" rows="3" placeholder="Scrivi qui istruzioni, contatti importanti, dove trovare documenti originali..."></textarea>
+        </div>
+
+        <!-- Privacy Note: Visibilità Personale vs Pubblica Famiglia -->
+        <div id="fieldsNotePrivacy" class="form-group" style="display: none;">
+          <label class="form-label" style="display: flex; align-items: center; justify-content: space-between;">
+            <span>Privacy & Visibilità Nota</span>
+            <span id="notePrivacyStatusLabel" style="font-size: 0.75rem; color: #fbbf24; font-weight: 700;">🔒 Solo Tu (Personale)</span>
+          </label>
+          <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; cursor: pointer;" onclick="document.getElementById('entryNoteIsPublic').click()">
+            <input type="checkbox" id="entryNoteIsPublic" style="width: 18px; height: 18px; accent-color: #38bdf8; cursor: pointer;" onchange="updateNotePrivacyFormLabel(event)">
+            <div style="font-size: 0.82rem; line-height: 1.35;">
+              <strong style="color: #ffffff;">🌐 Rendi Pubblica (visibile a tutta la famiglia)</strong>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Se non spuntata, la nota resta privata e la vedi solo tu.</div>
+            </div>
+          </div>
         </div>
 
         <div class="modal-footer">
@@ -692,9 +736,77 @@
     </div>
   </div>
 
+  <!-- MODALE ASSISTENTE VOCALE UNIVERSALE (FAMYLIA AI VOICE) -->
+  <div id="voiceAssistantModal" class="modal-overlay" style="display: none;" onclick="closeVoiceAssistantModalOnOverlay(event)">
+    <div class="modal-card voice-modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.3rem;">🎙️</span>
+          <h3 style="margin: 0; font-size: 1.1rem; letter-spacing: 0.5px;">Assistente Vocale Famylia</h3>
+        </div>
+        <button type="button" class="entry-action-btn" onclick="closeVoiceAssistantModal()">✕</button>
+      </div>
+
+      <!-- Animazione Onde Sonore / Microfono Centrale -->
+      <div class="voice-center-area">
+        <button type="button" id="voiceMicPulseBtn" class="voice-pulse-circle listening" onclick="toggleVoiceListening()" aria-label="Microfono">
+          <svg class="mic-svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+        </button>
+        <div class="voice-status-text" id="voiceStatusText">In ascolto... Parla liberamente</div>
+        <div class="voice-soundwaves" id="voiceSoundwaves">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <!-- Trascrizione in tempo reale -->
+      <div class="voice-transcript-box" id="voiceTranscriptBox">
+        <div class="voice-transcript-placeholder" id="voiceTranscriptPlaceholder">
+          Es: "Parking", oppure "Debiti mutuo 65000 scadenza zero banca intesa salva", oppure "Note lista spesa latte uova salva"...
+        </div>
+        <p id="voiceLiveTranscript" class="voice-live-text"></p>
+      </div>
+
+      <!-- Box Dettagli Riconosciuti in Tempo Reale -->
+      <div id="voiceDetectedSummary" class="voice-detected-card" style="display: none;">
+        <div class="voice-detected-header">
+          <span id="voiceDetectedIcon">📝</span>
+          <strong id="voiceDetectedSectionTitle">SEZIONE RICONOSCIUTA</strong>
+          <span id="voiceDetectedBadge" class="voice-action-badge">Pronto</span>
+        </div>
+        <div id="voiceDetectedFields" class="voice-detected-fields-list">
+          <!-- Dynamic field cards -->
+        </div>
+      </div>
+
+      <!-- Pillole Suggerimenti Rapidi -->
+      <div class="voice-pills-label">Oppure tocca una sezione e detta direttamente:</div>
+      <div class="voice-quick-pills">
+        <button type="button" class="voice-pill" onclick="quickVoiceSection('parking')">🚗 Parking</button>
+        <button type="button" class="voice-pill" onclick="quickVoiceSection('debiti')">💳 Debiti</button>
+        <button type="button" class="voice-pill" onclick="quickVoiceSection('note')">📝 Note</button>
+        <button type="button" class="voice-pill" onclick="quickVoiceSection('pw')">🔑 Password</button>
+        <button type="button" class="voice-pill" onclick="quickVoiceSection('banca')">🏛️ Banca</button>
+        <button type="button" class="voice-pill" onclick="quickVoiceSection('info_case')">🏠 Info Casa</button>
+        <button type="button" class="voice-pill" onclick="quickVoiceSection('cassaforte')">🛡️ Cassaforte</button>
+        <button type="button" class="voice-pill" onclick="quickVoiceSection('messaggio')">💬 Messaggi</button>
+      </div>
+
+      <!-- Azioni Modal: Conferma & Salva Vocale / Annulla -->
+      <div class="modal-footer" style="margin-top: 14px; gap: 8px;">
+        <button type="button" class="neu-btn-primary" style="box-shadow: var(--neu-raised-sm); color: var(--text-muted); flex: 1;" onclick="closeVoiceAssistantModal()">Chiudi</button>
+        <button type="button" class="neu-btn-primary" id="btnVoiceConfirmSave" style="flex: 2; background: linear-gradient(135deg, #10b981 0%, #059669 100%); display: none;" onclick="confirmVoiceSave()">💾 Conferma & Salva</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notifica Copiato -->
   <div id="toastNotice" class="toast-notice">Copiato negli appunti!</div>
 
-  <script src="/app.js?v=7.3"></script>
+  <script src="/app.js?v=7.4"></script>
 </body>
 </html>

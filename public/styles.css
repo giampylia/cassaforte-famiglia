@@ -1346,3 +1346,343 @@ body.has-custom-bg {
   color: #e2e8f0;
 }
 
+/* ==========================================================================
+   ASSISTENTE VOCALE UNIVERSALE (AI VOICE ENGINE) & NOTE PRIVACY
+   ========================================================================== */
+
+/* 1. Header Voice Button */
+.btn-voice-header {
+  color: #38bdf8;
+  position: relative;
+}
+
+.btn-voice-header:hover {
+  background: rgba(56, 189, 248, 0.18);
+  transform: scale(1.05);
+}
+
+/* 2. Prominent Home Page Voice Bar */
+.voice-assistant-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.16) 0%, rgba(59, 130, 246, 0.12) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 18px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.25s ease;
+  backdrop-filter: blur(12px);
+}
+
+.voice-assistant-bar:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 8px 26px rgba(14, 165, 233, 0.28);
+}
+
+.voice-bar-mic {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.5);
+  animation: voiceMicSoftPulse 2.8s infinite;
+}
+
+@keyframes voiceMicSoftPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 4px 14px rgba(2, 132, 199, 0.5); }
+  50% { transform: scale(1.06); box-shadow: 0 0 22px rgba(56, 189, 248, 0.8); }
+}
+
+.voice-bar-info {
+  flex: 1;
+}
+
+.voice-bar-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-bar-sub {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.voice-bar-action {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #ffffff;
+  background: rgba(56, 189, 248, 0.25);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  padding: 6px 12px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* 3. Voice Modal Card & Animations */
+.voice-modal-card {
+  max-width: 480px;
+  text-align: center;
+}
+
+.voice-center-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 18px 0 14px 0;
+}
+
+.voice-pulse-circle {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.25s ease;
+  position: relative;
+  box-shadow: 0 4px 20px rgba(2, 132, 199, 0.45);
+}
+
+.voice-pulse-circle.listening {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.6);
+  animation: voiceListeningRipple 1.4s infinite ease-out;
+}
+
+@keyframes voiceListeningRipple {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 24px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.voice-status-text {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin-top: 14px;
+}
+
+/* Soundwaves animation */
+.voice-soundwaves {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 24px;
+  margin-top: 8px;
+}
+
+.voice-soundwaves span {
+  width: 4px;
+  background: #38bdf8;
+  border-radius: 3px;
+  height: 6px;
+  transition: height 0.15s ease;
+}
+
+.voice-pulse-circle.listening ~ .voice-soundwaves span {
+  animation: soundwaveBounce 1.2s infinite ease-in-out;
+}
+
+.voice-pulse-circle.listening ~ .voice-soundwaves span:nth-child(1) { animation-delay: 0.1s; height: 12px; }
+.voice-pulse-circle.listening ~ .voice-soundwaves span:nth-child(2) { animation-delay: 0.3s; height: 22px; }
+.voice-pulse-circle.listening ~ .voice-soundwaves span:nth-child(3) { animation-delay: 0.15s; height: 16px; }
+.voice-pulse-circle.listening ~ .voice-soundwaves span:nth-child(4) { animation-delay: 0.4s; height: 20px; }
+.voice-pulse-circle.listening ~ .voice-soundwaves span:nth-child(5) { animation-delay: 0.25s; height: 10px; }
+
+@keyframes soundwaveBounce {
+  0%, 100% { height: 6px; }
+  50% { height: 24px; }
+}
+
+/* 4. Live Transcript Box */
+.voice-transcript-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 14px;
+  margin: 10px 0 16px 0;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.voice-transcript-placeholder {
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.45;
+  font-style: italic;
+}
+
+.voice-live-text {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.45;
+}
+
+/* 5. Detected Fields Summary Card */
+.voice-detected-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.voice-detected-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: #38bdf8;
+}
+
+.voice-action-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 12px;
+  padding: 2px 8px;
+  text-transform: uppercase;
+}
+
+.voice-detected-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.voice-detected-field-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.voice-field-label {
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+}
+
+.voice-field-val {
+  color: #ffffff;
+  font-weight: 700;
+  max-width: 65%;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 6. Quick Voice Pills */
+.voice-pills-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-align: left;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.voice-quick-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.voice-pill {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.voice-pill:hover, .voice-pill.active {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* 7. Note Privacy Badges & Buttons */
+.note-privacy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  letter-spacing: 0.3px;
+}
+
+.note-privacy-badge.private {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.note-privacy-badge.public {
+  background: rgba(14, 165, 233, 0.18);
+  color: #38bdf8;
+  border: 1px solid rgba(14, 165, 233, 0.4);
+}
+
+.btn-privacy-toggle {
+  font-size: 0.75rem;
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.btn-privacy-toggle:hover {
+  background: rgba(56, 189, 248, 0.15);
+}
+

@@ -1145,7 +1145,7 @@ function updateTileCounts() {
   const countPw = STATE.entries.filter(e => e.section === 'pw').length;
   const countBanca = STATE.entries.filter(e => e.section === 'banca').length;
   const countInfo = STATE.entries.filter(e => e.section === 'info_case').length;
-  const countNote = STATE.entries.filter(e => e.section === 'note').length;
+  const countNote = STATE.entries.filter(e => e.section === 'note' && (e.isPublic === true || !e.owner || e.owner === STATE.currentUser)).length;
   const countCassaforte = STATE.entries.filter(e => e.section === 'cassaforte').length;
   const countMessaggi = STATE.entries.filter(e => e.section === 'messaggio').length;
   const countDebiti = STATE.entries.filter(e => e.section === 'debiti').length;
@@ -2103,7 +2103,13 @@ function renderSectionList() {
     return;
   }
 
-  const items = STATE.entries.filter(e => e.section === STATE.activeSection);
+  const items = STATE.entries.filter(e => {
+    if (e.section !== STATE.activeSection) return false;
+    if (STATE.activeSection === 'note') {
+      return e.isPublic === true || !e.owner || e.owner === STATE.currentUser;
+    }
+    return true;
+  });
 
   // Se siamo nella sezione MESSAGGI: mostra Rubrica Telefonica + Compositore DA/A
   let extraHTML = '';
@@ -2390,10 +2396,19 @@ function createEntryCardHTML(item) {
     `;
   }
 
+  let notePrivacyBadgeHTML = '';
+  if (item.section === 'note') {
+    const isPub = !!item.isPublic;
+    notePrivacyBadgeHTML = isPub
+      ? `<span class="note-privacy-badge public" title="Visibile a tutta la famiglia">🌐 Nota Pubblica</span>`
+      : `<span class="note-privacy-badge private" title="Visibile solo a te">🔒 Personale (${escapeHTML(item.owner || STATE.currentUser || 'Tu')})</span>`;
+  }
+
   return `
     <article class="entry-card" id="card-${item.id}">
-      <div class="entry-card-header">
+      <div class="entry-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
         <h3 class="entry-title">${escapeHTML(item.title)}</h3>
+        ${notePrivacyBadgeHTML}
       </div>
 
       ${detailsHTML}
@@ -2401,11 +2416,33 @@ function createEntryCardHTML(item) {
       ${item.notes ? `<p class="entry-notes">${escapeHTML(item.notes)}</p>` : ''}
 
       <div class="entry-actions">
+        ${item.section === 'note' ? `
+          <button type="button" class="entry-action-btn btn-privacy-toggle" onclick="toggleNotePrivacy('${item.id}')" title="Cambia visibilità della nota">
+            ${item.isPublic ? '🔒 Rendi Personale' : '🌐 Rendi Pubblica'}
+          </button>
+        ` : ''}
         <button type="button" class="entry-action-btn" onclick="openEditModal('${item.id}')">Modifica</button>
         <button type="button" class="entry-action-btn delete" onclick="deleteEntry('${item.id}')">Elimina</button>
       </div>
     </article>
   `;
+}
+
+async function toggleNotePrivacy(id) {
+  const item = STATE.entries.find(e => e.id === id);
+  if (!item) return;
+
+  item.isPublic = !item.isPublic;
+  if (!item.owner) {
+    item.owner = STATE.currentUser || 'Giampy';
+  }
+  item.updatedAt = new Date().toISOString();
+
+  await saveEncryptedVault();
+  renderSectionList();
+  updateTileCounts();
+
+  showToast(item.isPublic ? '🌐 Nota resa PUBBLICA per tutta la famiglia' : '🔒 Nota resa PERSONALE (visibile solo a te)');
 }
 
 function formatTimeAgo(isoString) {
@@ -2470,6 +2507,16 @@ function openAddModalForCurrentSection(section = 'pw') {
   if (mittenteInput) {
     mittenteInput.value = STATE.currentUser || 'Giampy';
   }
+
+  // Reset Note privacy
+  const chkNotePub = document.getElementById('entryNoteIsPublic');
+  const lblNotePub = document.getElementById('notePrivacyStatusLabel');
+  if (chkNotePub) chkNotePub.checked = false;
+  if (lblNotePub) {
+    lblNotePub.textContent = `🔒 Solo Tu (${STATE.currentUser || 'Personale'})`;
+    lblNotePub.style.color = '#fbbf24';
+  }
+
   adaptFormFields();
   modal.style.display = 'flex';
 }
@@ -2484,6 +2531,19 @@ function openEditModal(id) {
   populateSectionSelectDropdown();
   document.getElementById('entrySectionSelect').value = item.section;
   document.getElementById('entryTitleInput').value = item.title || '';
+
+  // Note privacy
+  const chkNotePub = document.getElementById('entryNoteIsPublic');
+  const lblNotePub = document.getElementById('notePrivacyStatusLabel');
+  if (item.section === 'note') {
+    if (chkNotePub) chkNotePub.checked = !!item.isPublic;
+    if (lblNotePub) {
+      lblNotePub.textContent = item.isPublic ? '🌐 Pubblica (Tutta la Famiglia)' : `🔒 Solo Tu (${item.owner || STATE.currentUser || 'Personale'})`;
+      lblNotePub.style.color = item.isPublic ? '#38bdf8' : '#fbbf24';
+    }
+  } else {
+    if (chkNotePub) chkNotePub.checked = false;
+  }
 
   // Password fields
   document.getElementById('entryUsernameInput').value = item.username || '';
@@ -2546,6 +2606,9 @@ function adaptFormFields() {
   const fieldsDebiti = document.getElementById('fieldsDebiti');
   if (fieldsDebiti) fieldsDebiti.style.display = section === 'debiti' ? 'block' : 'none';
 
+  const fieldsNotePrivacy = document.getElementById('fieldsNotePrivacy');
+  if (fieldsNotePrivacy) fieldsNotePrivacy.style.display = section === 'note' ? 'block' : 'none';
+
   const isCustom = !['pw', 'banca', 'info_case', 'cassaforte', 'messaggio', 'note', 'debiti'].includes(section);
   const fieldsCustom = document.getElementById('fieldsCustom');
   if (fieldsCustom) fieldsCustom.style.display = isCustom ? 'block' : 'none';
@@ -2567,6 +2630,20 @@ function adaptFormFields() {
   }
 }
 
+function updateNotePrivacyFormLabel(e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  const chk = document.getElementById('entryNoteIsPublic');
+  const lbl = document.getElementById('notePrivacyStatusLabel');
+  if (!chk || !lbl) return;
+  if (chk.checked) {
+    lbl.textContent = '🌐 Pubblica (Tutta la Famiglia)';
+    lbl.style.color = '#38bdf8';
+  } else {
+    lbl.textContent = `🔒 Solo Tu (${STATE.currentUser || 'Personale'})`;
+    lbl.style.color = '#fbbf24';
+  }
+}
+
 async function handleSaveEntry(e) {
   e.preventDefault();
   const id = document.getElementById('entryId').value;
@@ -2582,7 +2659,12 @@ async function handleSaveEntry(e) {
     updatedAt: new Date().toISOString()
   };
 
-  if (section === 'pw') {
+  if (section === 'note') {
+    const chkPub = document.getElementById('entryNoteIsPublic');
+    entryData.isPublic = chkPub ? chkPub.checked : false;
+    const existingNote = id ? STATE.entries.find(e => e.id === id) : null;
+    entryData.owner = (existingNote && existingNote.owner) ? existingNote.owner : (STATE.currentUser || 'Giampy');
+  } else if (section === 'pw') {
     entryData.username = document.getElementById('entryUsernameInput').value.trim();
     entryData.password = document.getElementById('entryPasswordInput').value.trim();
   } else if (section === 'banca') {
@@ -2797,3 +2879,641 @@ function escapeAttr(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// ==========================================
+// 10. ASSISTENTE VOCALE UNIVERSALE (FAMYLIA AI VOICE ENGINE)
+// ==========================================
+
+let voiceRecognition = null;
+let isVoiceListening = false;
+let currentVoiceTranscript = '';
+let detectedVoiceAction = null;
+let currentVoicePreselectedSection = null;
+let voiceAutoSaveTimer = null;
+
+function initVoiceAssistant() {
+  if (voiceRecognition) return;
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    console.warn('[Voice] Web Speech API non supportata dal browser.');
+    return;
+  }
+
+  try {
+    voiceRecognition = new SpeechRecognition();
+    voiceRecognition.continuous = true;
+    voiceRecognition.interimResults = true;
+    voiceRecognition.lang = 'it-IT';
+
+    voiceRecognition.onstart = () => {
+      isVoiceListening = true;
+      updateVoiceUIState(true);
+      const st = document.getElementById('voiceStatusText');
+      if (st && !currentVoiceTranscript) {
+        st.textContent = currentVoicePreselectedSection
+          ? `In ascolto per ${getSectionDisplayName(currentVoicePreselectedSection)}... Parla ora`
+          : 'In ascolto... Parla liberamente';
+      }
+    };
+
+    voiceRecognition.onresult = (event) => {
+      let interim = '';
+      let finalTranscript = '';
+
+      for (let i = 0; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript + ' ';
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+
+      const fullText = (finalTranscript + interim).trim();
+      currentVoiceTranscript = fullText;
+
+      const liveEl = document.getElementById('voiceLiveTranscript');
+      const placeholderEl = document.getElementById('voiceTranscriptPlaceholder');
+      if (liveEl) liveEl.textContent = fullText;
+      if (placeholderEl) placeholderEl.style.display = fullText ? 'none' : 'block';
+
+      // Elaborazione vocale intelligente
+      parseVoiceCommand(fullText);
+    };
+
+    voiceRecognition.onerror = (event) => {
+      console.warn('[Voice] Errore:', event.error);
+      const st = document.getElementById('voiceStatusText');
+      if (st) {
+        if (event.error === 'not-allowed') {
+          st.textContent = '⚠️ Permesso microfono negato nel browser.';
+        } else if (event.error === 'no-speech') {
+          st.textContent = 'Nessuna voce rilevata. Tocca il microfono per parlare.';
+        } else {
+          st.textContent = `Avviso microfono: ${event.error}`;
+        }
+      }
+    };
+
+    voiceRecognition.onend = () => {
+      const modal = document.getElementById('voiceAssistantModal');
+      const isModalOpen = modal && modal.style.display !== 'none';
+
+      if (isVoiceListening && isModalOpen) {
+        try {
+          voiceRecognition.start();
+          return;
+        } catch (e) {}
+      }
+      isVoiceListening = false;
+      updateVoiceUIState(false);
+    };
+  } catch (err) {
+    console.warn('[Voice] Inizializzazione fallita:', err);
+  }
+}
+
+function openVoiceAssistantModal(preselectedSection = null) {
+  currentVoicePreselectedSection = preselectedSection;
+  detectedVoiceAction = null;
+  currentVoiceTranscript = '';
+  if (voiceAutoSaveTimer) {
+    clearTimeout(voiceAutoSaveTimer);
+    voiceAutoSaveTimer = null;
+  }
+
+  const modal = document.getElementById('voiceAssistantModal');
+  if (!modal) return;
+
+  const liveEl = document.getElementById('voiceLiveTranscript');
+  const placeholderEl = document.getElementById('voiceTranscriptPlaceholder');
+  const summaryEl = document.getElementById('voiceDetectedSummary');
+  const btnSave = document.getElementById('btnVoiceConfirmSave');
+  const st = document.getElementById('voiceStatusText');
+
+  if (liveEl) liveEl.textContent = '';
+  if (placeholderEl) placeholderEl.style.display = 'block';
+  if (summaryEl) summaryEl.style.display = 'none';
+  if (btnSave) btnSave.style.display = 'none';
+
+  if (preselectedSection) {
+    if (st) st.textContent = `In ascolto per ${getSectionDisplayName(preselectedSection)}...`;
+    highlightVoicePill(preselectedSection);
+  } else {
+    if (st) st.textContent = 'In ascolto... Parla liberamente';
+    clearVoicePillHighlight();
+  }
+
+  modal.style.display = 'flex';
+  startVoiceListening();
+}
+
+function closeVoiceAssistantModal() {
+  const modal = document.getElementById('voiceAssistantModal');
+  if (modal) modal.style.display = 'none';
+  if (voiceAutoSaveTimer) {
+    clearTimeout(voiceAutoSaveTimer);
+    voiceAutoSaveTimer = null;
+  }
+  stopVoiceListening();
+}
+
+function closeVoiceAssistantModalOnOverlay(e) {
+  if (e.target.id === 'voiceAssistantModal') closeVoiceAssistantModal();
+}
+
+function toggleVoiceListening() {
+  if (isVoiceListening) {
+    stopVoiceListening();
+  } else {
+    startVoiceListening();
+  }
+}
+
+function startVoiceListening() {
+  if (!voiceRecognition) initVoiceAssistant();
+  if (!voiceRecognition) {
+    alert('Il tuo browser non supporta il riconoscimento vocale. Usa Google Chrome su Android o PC/Mac.');
+    return;
+  }
+
+  try {
+    voiceRecognition.start();
+    isVoiceListening = true;
+    updateVoiceUIState(true);
+  } catch (e) {
+    // Spesso già avviato
+    isVoiceListening = true;
+    updateVoiceUIState(true);
+  }
+}
+
+function stopVoiceListening() {
+  if (voiceRecognition) {
+    try {
+      voiceRecognition.stop();
+    } catch (e) {}
+  }
+  isVoiceListening = false;
+  updateVoiceUIState(false);
+}
+
+function updateVoiceUIState(listening) {
+  const btn = document.getElementById('voiceMicPulseBtn');
+  const waves = document.getElementById('voiceSoundwaves');
+  const st = document.getElementById('voiceStatusText');
+
+  if (btn) {
+    if (listening) {
+      btn.classList.add('listening');
+    } else {
+      btn.classList.remove('listening');
+    }
+  }
+
+  if (waves) {
+    waves.style.opacity = listening ? '1' : '0.2';
+  }
+
+  if (st && !currentVoiceTranscript) {
+    st.textContent = listening ? 'In ascolto... Parla liberamente' : 'Microfono in pausa. Tocca per parlare';
+  }
+}
+
+function quickVoiceSection(secId) {
+  currentVoicePreselectedSection = secId;
+  highlightVoicePill(secId);
+  const st = document.getElementById('voiceStatusText');
+  if (st) st.textContent = `Sezione ${getSectionDisplayName(secId)}: detta i dettagli...`;
+
+  if (secId === 'parking') {
+    // Parcheggio istantaneo
+    parseVoiceCommand('parcheggio');
+    return;
+  }
+
+  if (!isVoiceListening) {
+    startVoiceListening();
+  }
+}
+
+function highlightVoicePill(secId) {
+  document.querySelectorAll('.voice-quick-pills .voice-pill').forEach(btn => {
+    const clickAttr = btn.getAttribute('onclick') || '';
+    const isTarget = clickAttr.indexOf("'" + secId + "'") !== -1;
+    btn.classList.toggle('active', !!isTarget);
+  });
+}
+
+function clearVoicePillHighlight() {
+  document.querySelectorAll('.voice-quick-pills .voice-pill').forEach(btn => {
+    btn.classList.remove('active');
+  });
+}
+
+function startModalVoiceDictation() {
+  const secEl = document.getElementById('entrySectionSelect');
+  const currentSec = (secEl && secEl.value) ? secEl.value : 'note';
+  openVoiceAssistantModal(currentSec);
+}
+
+function getSectionDisplayName(sec) {
+  const map = {
+    parking: '🚗 Parking Auto & GPS',
+    debiti: '💳 Debiti & Finanziamenti',
+    note: '📝 Note & Disposizioni',
+    pw: '🔑 Password & Credenziali',
+    banca: '🏛️ Banca & Conti Correnti',
+    info_case: '🏠 Info Casa & Utenze',
+    cassaforte: '🛡️ Cassaforte & Valori',
+    messaggio: '💬 Messaggi Famiglia'
+  };
+  if (map[sec]) return map[sec];
+  const custom = (STATE.customSections || []).find(s => s.id === sec);
+  return custom ? `${custom.icon || '📑'} ${custom.name}` : (sec || 'Nota');
+}
+
+function getSectionIcon(sec) {
+  const map = {
+    parking: '🚗',
+    debiti: '💳',
+    note: '📝',
+    pw: '🔑',
+    banca: '🏛️',
+    info_case: '🏠',
+    cassaforte: '🛡️',
+    messaggio: '💬'
+  };
+  if (map[sec]) return map[sec];
+  const custom = (STATE.customSections || []).find(s => s.id === sec);
+  return custom ? (custom.icon || '📑') : '📑';
+}
+
+// ------------------------------------------
+// PARSER VOCALE INTELLIGENTE
+// ------------------------------------------
+
+function parseVoiceCommand(text) {
+  if (!text || text.trim().length === 0) return;
+
+  const raw = text.trim();
+  const lower = raw.toLowerCase();
+
+  // Verifica parola chiave di salvataggio
+  const shouldSave = /\b(salva|salvare|memorizza|registra|conferma|fine)\b/i.test(lower);
+  const cleanLower = lower.replace(/\b(salva|salvare|memorizza|registra|conferma|fine)\b/gi, '').trim();
+
+  let section = currentVoicePreselectedSection;
+
+  // Se non preselezionata, individua la sezione dalla prima parola pronunciata
+  if (!section) {
+    const secPatterns = [
+      { id: 'parking', regex: /\b(parking|parcheggio|macchina|auto|veicolo)\b/i },
+      { id: 'debiti', regex: /\b(debiti|debito|finanziamento|mutuo|finanziamenti)\b/i },
+      { id: 'pw', regex: /\b(password|credenziali|credenziale|chiave|login|spid)\b/i },
+      { id: 'banca', regex: /\b(banca|conto|iban|bonifico|bancario)\b/i },
+      { id: 'info_case', regex: /\b(casa|case|utenza|utenze|bolletta|bollette|luce|gas|enel)\b/i },
+      { id: 'cassaforte', regex: /\b(cassaforte|valori|combinazione|chiavi)\b/i },
+      { id: 'messaggio', regex: /\b(messaggio|messaggi|avviso|comunica)\b/i },
+      { id: 'note', regex: /\b(note|nota|promemoria|disposizione|appunto|appunti)\b/i }
+    ];
+
+    let earliestIdx = Infinity;
+    let bestSec = null;
+
+    for (const p of secPatterns) {
+      const m = cleanLower.match(p.regex);
+      if (m && m.index < earliestIdx) {
+        earliestIdx = m.index;
+        bestSec = p.id;
+      }
+    }
+
+    // Sezioni personalizzate
+    for (const cs of (STATE.customSections || [])) {
+      const idx = cleanLower.indexOf(cs.name.toLowerCase());
+      if (idx !== -1 && idx < earliestIdx) {
+        earliestIdx = idx;
+        bestSec = cs.id;
+      }
+    }
+
+    section = bestSec || 'note';
+  }
+
+  highlightVoicePill(section);
+
+  // Helper per separare segmenti basati su parole chiave
+  function extractSegments(str, keywords) {
+    const pattern = new RegExp(`\\b(${keywords.join('|')})\\b`, 'gi');
+    const matches = [];
+    let match;
+    while ((match = pattern.exec(str)) !== null) {
+      matches.push({
+        key: match[0].toLowerCase(),
+        index: match.index,
+        end: pattern.lastIndex
+      });
+    }
+
+    const segments = {};
+    if (matches.length === 0) {
+      segments._initial = str.trim();
+      return segments;
+    }
+
+    if (matches[0].index > 0) {
+      segments._initial = str.slice(0, matches[0].index).trim();
+    }
+
+    for (let i = 0; i < matches.length; i++) {
+      const current = matches[i];
+      const nextIndex = i + 1 < matches.length ? matches[i + 1].index : str.length;
+      const val = str.slice(current.end, nextIndex).trim();
+      segments[current.key] = val;
+    }
+    return segments;
+  }
+
+  // Rimuovi trigger di sezione iniziale
+  let textAfterSection = cleanLower;
+  const secTriggers = ['parking', 'parcheggio', 'debiti', 'debito', 'note', 'nota', 'password', 'banca', 'info case', 'info casa', 'cassaforte', 'messaggi', 'messaggio'];
+  for (const t of secTriggers) {
+    if (textAfterSection.startsWith(t)) {
+      textAfterSection = textAfterSection.slice(t.length).trim();
+      break;
+    }
+  }
+
+  const action = {
+    section,
+    title: '',
+    notes: '',
+    shouldSave,
+    fields: {}
+  };
+
+  if (section === 'parking') {
+    action.title = 'Posizione Auto GPS';
+    action.shouldSave = shouldSave || cleanLower.includes('parking') || cleanLower.includes('parcheggio');
+    action.fields = {
+      'Azione': 'Salvataggio istantaneo coordinate GPS veicolo',
+      'Stato': 'Pronto alla memorizzazione'
+    };
+  } else if (section === 'debiti') {
+    const segs = extractSegments(textAfterSection, ['nome', 'titolo', 'debito', 'importo', 'rata', 'somma', 'cifra', 'scadenza', 'data', 'banca', 'creditore', 'note', 'istruzioni']);
+    action.title = segs.nome || segs.titolo || segs.debito || segs._initial || 'Finanziamento';
+    action.rata = segs.importo || segs.rata || segs.somma || segs.cifra || '';
+    action.scadenza = segs.scadenza || segs.data || '';
+    action.creditore = segs.banca || segs.creditore || '';
+    action.notes = segs.note || segs.istruzioni || '';
+
+    // Cerca numeri per rata se non specificata con parola chiave
+    if (!action.rata) {
+      const numMatch = textAfterSection.match(/(\d+([.,]\d+)?(\s*mila|\s*euro)?|\b\d+\b)/i);
+      if (numMatch && numMatch.index > 0) {
+        if (!action.title || action.title === textAfterSection) {
+          action.title = textAfterSection.slice(0, numMatch.index).trim();
+        }
+        action.rata = numMatch[0];
+      }
+    }
+
+    if (action.rata && action.title.includes(action.rata)) {
+      action.title = action.title.replace(action.rata, '').trim();
+    }
+
+    action.fields = {
+      'Nome Debito': action.title || 'Mutuo / Finanziamento',
+      'Importo / Rata': action.rata || '(Non specificato)',
+      'Scadenza': action.scadenza || 'Nessuna',
+      'Creditore': action.creditore || '(Banca / Privato)',
+      'Note': action.notes || '(Vuoto)'
+    };
+  } else if (section === 'note') {
+    const isPub = /\b(pubblica|pubbliche|tutti|famiglia)\b/i.test(cleanLower);
+    action.isPublic = isPub;
+
+    const segs = extractSegments(textAfterSection, ['titolo', 'oggetto', 'note', 'nota', 'istruzioni', 'testo', 'dettagli', 'dettaglio']);
+    action.title = segs.titolo || segs.oggetto || segs._initial || 'Promemoria';
+    action.notes = segs.note || segs.nota || segs.istruzioni || segs.testo || segs.dettagli || segs.dettaglio || (segs._initial && segs._initial !== action.title ? segs._initial : '');
+
+    if (!action.notes && segs._initial) {
+      const words = segs._initial.split(' ');
+      if (words.length > 3) {
+        action.title = words.slice(0, 3).join(' ');
+        action.notes = words.slice(3).join(' ');
+      }
+    }
+
+    action.fields = {
+      'Titolo Nota': action.title || 'Nota Famiglia',
+      'Privacy': action.isPublic ? '🌐 Pubblica (Tutta la Famiglia)' : '🔒 Solo Personale',
+      'Istruzioni': action.notes || '(Nessuna nota aggiuntiva)'
+    };
+  } else if (section === 'pw') {
+    const segs = extractSegments(textAfterSection, ['titolo', 'servizio', 'sito', 'utente', 'username', 'email', 'password', 'pin', 'codice', 'note']);
+    action.title = segs.titolo || segs.servizio || segs.sito || segs._initial || 'Account';
+    action.username = segs.utente || segs.username || segs.email || '';
+    action.password = segs.password || segs.pin || segs.codice || '';
+    action.notes = segs.note || '';
+
+    action.fields = {
+      'Servizio': action.title,
+      'Nome Utente': action.username || '(Non specificato)',
+      'Password': action.password ? '••••••••' : '(Nessuna)',
+      'Note': action.notes || ''
+    };
+  } else if (section === 'banca') {
+    const segs = extractSegments(textAfterSection, ['titolo', 'banca', 'conto', 'iban', 'intestato', 'intestatario', 'accesso', 'token', 'saldo', 'note']);
+    action.title = segs.titolo || segs.banca || segs.conto || segs._initial || 'Conto Bancario';
+    action.iban = segs.iban || '';
+    action.intestatario = segs.intestato || segs.intestatario || '';
+    action.saldo = segs.accesso || segs.token || segs.saldo || '';
+    action.notes = segs.note || '';
+
+    action.fields = {
+      'Banca / Conto': action.title,
+      'IBAN': action.iban || '(Non specificato)',
+      'Intestatario': action.intestatario || '(Non specificato)',
+      'Note / Accesso': action.notes || action.saldo || ''
+    };
+  } else if (section === 'info_case') {
+    const segs = extractSegments(textAfterSection, ['titolo', 'casa', 'utenza', 'fornitura', 'indirizzo', 'via', 'codice', 'cliente', 'pod', 'pdr', 'pagamento', 'rid', 'note']);
+    action.title = segs.titolo || segs.casa || segs.utenza || segs.fornitura || segs._initial || 'Utenza';
+    action.indirizzo = segs.indirizzo || segs.via || '';
+    action.codiceCliente = segs.codice || segs.cliente || segs.pod || segs.pdr || '';
+    action.pagamento = segs.pagamento || segs.rid || '';
+    action.notes = segs.note || '';
+
+    action.fields = {
+      'Fornitura': action.title,
+      'Indirizzo': action.indirizzo || '',
+      'Codice POD/PDR': action.codiceCliente || '',
+      'Pagamento': action.pagamento || '',
+      'Note': action.notes || ''
+    };
+  } else if (section === 'cassaforte') {
+    const segs = extractSegments(textAfterSection, ['titolo', 'nome', 'combinazione', 'codice', 'posizione', 'dove', 'chiavi', 'note']);
+    action.title = segs.titolo || segs.nome || segs._initial || 'Cassaforte';
+    action.combinazione = segs.combinazione || segs.codice || '';
+    action.posizione = segs.posizione || segs.dove || segs.chiavi || '';
+    action.notes = segs.note || '';
+
+    action.fields = {
+      'Cassaforte': action.title,
+      'Codice': action.combinazione || '',
+      'Posizione': action.posizione || '',
+      'Note': action.notes || ''
+    };
+  } else if (section === 'messaggio') {
+    const segs = extractSegments(textAfterSection, ['a', 'per', 'destinatario', 'testo', 'messaggio']);
+    action.destinatario = segs.a || segs.per || segs.destinatario || 'Tutti';
+    action.notes = segs.testo || segs.messaggio || segs._initial || '';
+    action.title = action.notes.length > 25 ? action.notes.slice(0, 22) + '...' : action.notes;
+
+    action.fields = {
+      'Destinatario': action.destinatario,
+      'Messaggio': action.notes
+    };
+  } else {
+    // Sezione personalizzata
+    const segs = extractSegments(textAfterSection, ['titolo', 'valore', 'importo', 'codice', 'riferimento', 'contatto', 'note']);
+    action.title = segs.titolo || segs._initial || 'Dato';
+    action.valore = segs.valore || segs.importo || segs.codice || '';
+    action.riferimento = segs.riferimento || segs.contatto || '';
+    action.notes = segs.note || '';
+
+    action.fields = {
+      'Titolo': action.title,
+      'Valore': action.valore || '',
+      'Riferimento': action.riferimento || '',
+      'Note': action.notes || ''
+    };
+  }
+
+  // Capitalizza titolo
+  if (action.title) {
+    action.title = action.title.charAt(0).toUpperCase() + action.title.slice(1);
+  }
+
+  detectedVoiceAction = action;
+  renderVoiceDetectedSummary(action);
+
+  // Se l'utente ha detto salva / memorizza, salva automaticamente
+  if (shouldSave) {
+    stopVoiceListening();
+    const st = document.getElementById('voiceStatusText');
+    if (st) st.textContent = 'Salvataggio in corso...';
+
+    if (voiceAutoSaveTimer) clearTimeout(voiceAutoSaveTimer);
+    voiceAutoSaveTimer = setTimeout(() => {
+      confirmVoiceSave();
+    }, 500);
+  }
+}
+
+function renderVoiceDetectedSummary(action) {
+  const summaryEl = document.getElementById('voiceDetectedSummary');
+  const iconEl = document.getElementById('voiceDetectedIcon');
+  const titleEl = document.getElementById('voiceDetectedSectionTitle');
+  const fieldsContainer = document.getElementById('voiceDetectedFields');
+  const btnSave = document.getElementById('btnVoiceConfirmSave');
+
+  if (!summaryEl || !action) return;
+
+  if (iconEl) iconEl.textContent = getSectionIcon(action.section);
+  if (titleEl) titleEl.textContent = getSectionDisplayName(action.section).toUpperCase();
+
+  if (fieldsContainer && action.fields) {
+    fieldsContainer.innerHTML = Object.entries(action.fields).map(([k, v]) => `
+      <div class="voice-detected-field-item">
+        <span class="voice-field-label">${escapeHTML(k)}</span>
+        <span class="voice-field-val">${escapeHTML(v || '-')}</span>
+      </div>
+    `).join('');
+  }
+
+  summaryEl.style.display = 'block';
+  if (btnSave) btnSave.style.display = 'inline-flex';
+}
+
+async function confirmVoiceSave() {
+  if (!detectedVoiceAction) {
+    showToast('Nessuna informazione rilevata da salvare');
+    return;
+  }
+
+  stopVoiceListening();
+
+  if (detectedVoiceAction.section === 'parking') {
+    closeVoiceAssistantModal();
+    showToast('🚗 Rilevamento GPS auto in corso...');
+    await saveManualParking(false, 'voce');
+    return;
+  }
+
+  const act = detectedVoiceAction;
+  const entryData = {
+    id: `ent-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+    section: act.section,
+    title: act.title || 'Nuova Voce Vocale',
+    notes: act.notes || '',
+    updatedAt: new Date().toISOString()
+  };
+
+  if (act.section === 'note') {
+    entryData.isPublic = !!act.isPublic;
+    entryData.owner = STATE.currentUser || 'Giampy';
+  } else if (act.section === 'pw') {
+    entryData.username = act.username || '';
+    entryData.password = act.password || '';
+  } else if (act.section === 'banca') {
+    entryData.iban = act.iban || '';
+    entryData.intestatario = act.intestatario || '';
+    entryData.saldo = act.saldo || '';
+  } else if (act.section === 'info_case') {
+    entryData.indirizzo = act.indirizzo || '';
+    entryData.codiceCliente = act.codiceCliente || '';
+    entryData.pagamento = act.pagamento || '';
+  } else if (act.section === 'cassaforte') {
+    entryData.combinazione = act.combinazione || '';
+    entryData.posizione = act.posizione || '';
+  } else if (act.section === 'messaggio') {
+    entryData.mittente = STATE.currentUser || 'Giampy';
+    entryData.destinatario = act.destinatario || 'Tutti';
+    triggerPhoneNotification(`💬 Messaggio da ${entryData.mittente}`, entryData.notes || entryData.title);
+  } else if (act.section === 'debiti') {
+    entryData.rata = act.rata || '';
+    entryData.scadenza = act.scadenza || '';
+    entryData.creditore = act.creditore || '';
+  } else {
+    entryData.valore = act.valore || '';
+    entryData.riferimento = act.riferimento || '';
+  }
+
+  STATE.entries.unshift(entryData);
+  await saveEncryptedVault();
+
+  closeVoiceAssistantModal();
+  closeModal();
+
+  if (STATE.activeSection !== 'grid') {
+    renderSectionList();
+  } else {
+    updateTileCounts();
+  }
+
+  updateAppIconBadge();
+  showToast(`✅ "${entryData.title}" salvato vocalmente in ${getSectionDisplayName(entryData.section)}!`);
+
+  // Sintesi vocale di conferma
+  if ('speechSynthesis' in window) {
+    try {
+      const u = new SpeechSynthesisUtterance('Salvato nella cassaforte');
+      u.lang = 'it-IT';
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+}
+
