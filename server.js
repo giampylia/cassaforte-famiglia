@@ -309,6 +309,19 @@ async function handleRequest(req, res) {
       return sendJSON(res, 200, vault || {});
     }
 
+    // GET /api/vault-backup (diagnostica e recupero backup)
+    if (pathname === '/api/vault-backup' && req.method === 'GET') {
+      const backupPath = path.join(__dirname, 'data', 'vault.backup.json');
+      if (fs.existsSync(backupPath)) {
+        try {
+          return sendJSON(res, 200, JSON.parse(fs.readFileSync(backupPath, 'utf8')));
+        } catch (e) {
+          return sendJSON(res, 500, { error: e.message });
+        }
+      }
+      return sendJSON(res, 404, { error: 'Nessun file backup presente sul server' });
+    }
+
     // POST /api/vault (salva vault cifrato)
     if (pathname === '/api/vault' && req.method === 'POST') {
       try {
