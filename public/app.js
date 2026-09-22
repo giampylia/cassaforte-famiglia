@@ -10,6 +10,7 @@ const STATE = {
   masterKey: null,
   isUnlocked: false,
   currentUser: 'Giampy', // 'Giampy', 'Ty', 'Miki'
+  currentPin: '240961',
   activeSection: 'grid',
   entries: [],
   customSections: [],
@@ -18,7 +19,8 @@ const STATE = {
   phonebook: { Giampy: '', Ty: '', Miki: '' },
   encryptedVault: null,
   autoLockTimer: null,
-  notificationsEnabled: false
+  notificationsEnabled: false,
+  serverParking: { active: null, history: [] }
 };
 
 const FAMILY_CREDENTIALS = {
@@ -303,6 +305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await tryAutoUnlock();
   checkPushSubscriptionStatus();
   checkUrlParkingAction();
+  fetchServerParking(true);
 });
 
 function initServiceWorker() {
@@ -1182,6 +1185,7 @@ function unlockSuccess() {
 
   resetAutoLockTimer();
   updateTileCounts();
+  fetchServerParking(true);
   updateAppIconBadge();
   updateSessionDescUI();
   showToast(`Benvenuto ${userCred.name} in Famylia! 🛡️`);
@@ -1345,12 +1349,13 @@ function updateTileCounts() {
   if (elMessaggi) elMessaggi.textContent = countMessaggi;
   if (elDebiti) elDebiti.textContent = countDebiti;
 
+  const serverActive = STATE.serverParking && STATE.serverParking.active;
   const userParkingEntries = STATE.entries.filter(e => e.section === 'parking' && (e.utente === STATE.currentUser || e.owner === STATE.currentUser));
+  const latestParking = serverActive || (userParkingEntries.length > 0 ? userParkingEntries[0] : null);
   const elParking = document.getElementById('subParking');
   if (elParking) {
-    if (userParkingEntries.length > 0) {
-      const latest = userParkingEntries[0];
-      const placeShort = latest.addressShort || latest.address || 'Posizione salvata';
+    if (latestParking) {
+      const placeShort = latestParking.addressShort || latestParking.address || 'Parcheggiata';
       elParking.textContent = placeShort.length > 16 ? placeShort.slice(0, 14) + '...' : placeShort;
     } else {
       elParking.textContent = 'Auto & GPS';
@@ -1424,6 +1429,9 @@ function populateSectionSelectDropdown() {
 
 function openSection(sectionKey) {
   STATE.activeSection = sectionKey;
+  if (sectionKey === 'parking') {
+    fetchServerParking(true);
+  }
   document.getElementById('vaultScreen').style.display = 'none';
   document.getElementById('sectionView').style.display = 'flex';
 
@@ -1736,11 +1744,58 @@ function updateAppIconBadge(count) {
 
 let ACTIVE_BT_DEVICE = null;
 
+async function fetchServerParking(silent = false) {
+  try {
+    const user = STATE.currentUser || 'Giampy';
+    const pin = STATE.currentPin || (user === 'Giampy' ? '240961' : (user === 'Ty' ? '040663' : '240696'));
+    const res = await fetch(`/api/parking?user=${encodeURIComponent(user)}&pin=${encodeURIComponent(pin)}`);
+    if (res.ok) {
+      const data = await res.json();
+      STATE.serverParking = data;
+      if (STATE.activeSection === 'parking') {
+        const container = document.getElementById('sectionList');
+        if (container) renderParkingSection(container);
+      } else {
+        updateTileCounts();
+      }
+    }
+  } catch (err) {
+    if (!silent) console.warn('[Parking] Errore fetchServerParking:', err);
+  }
+}
+
 function renderParkingSection(container) {
   // RIGOROSO ISOLAMENTO PERSONALE: ognuno vede solo ed esclusivamente il proprio parcheggio
-  const myParkings = STATE.entries.filter(e => e.section === 'parking' && (e.utente === STATE.currentUser || e.owner === STATE.currentUser));
-  const activeParking = myParkings.length > 0 ? myParkings[0] : null;
   const userCred = Object.values(FAMILY_CREDENTIALS).find(c => c.id === STATE.currentUser) || { name: STATE.currentUser || 'Giampy', icon: '👨' };
+  
+  const serverActive = (STATE.serverParking && STATE.serverParking.active) || null;
+  const serverHistory = (STATE.serverParking && STATE.serverParking.history) || [];
+  const localParkings = STATE.entries.filter(e => e.section === 'parking' && (e.utente === STATE.currentUser || e.owner === STATE.currentUser));
+
+  // Determina il parcheggio attivo più recente
+  let activeParking = null;
+  if (serverActive && localParkings.length > 0) {
+    const sTime = new Date(serverActive.timestamp).getTime();
+    const lTime = new Date(localParkings[0].timestamp).getTime();
+    activeParking = sTime >= lTime ? serverActive : localParkings[0];
+  } else {
+    activeParking = serverActive || (localParkings.length > 0 ? localParkings[0] : null);
+  }
+
+  // Costruisci storico senza duplicati
+  const seenIds = new Set();
+  if (activeParking && activeParking.id) seenIds.add(activeParking.id);
+  const myHistory = [];
+  [...serverHistory, ...localParkings].forEach(item => {
+    if (item && item.id && !seenIds.has(item.id)) {
+      seenIds.add(item.id);
+      myHistory.push(item);
+    }
+  });
+  myHistory.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  const originUrl = window.location.origin;
+  const webhookUrl = `${originUrl}/api/auto-park?user=${encodeURIComponent(STATE.currentUser || 'Giampy')}`;
 
   container.innerHTML = `
     <!-- SCHEDA PRINCIPALE PARCHEGGIO ATTUALE -->
@@ -1755,11 +1810,12 @@ function renderParkingSection(container) {
 
       ${activeParking ? `
         <div class="parking-address-box">
-          <div class="parking-address-title">${escapeHTML(activeParking.address || 'Posizione salvata')}</div>
+          <div class="parking-address-title">${escapeHTML(activeParking.addressShort || activeParking.address || 'Posizione salvata')}</div>
+          <div style="font-size: 0.82rem; color: #94a3b8; margin-bottom: 8px; line-height: 1.35;">${escapeHTML(activeParking.address || '')}</div>
           <div class="parking-meta-row">
             <span>🕒 ${formatTimeAgo(activeParking.timestamp)} (${formatTimeAndDate(activeParking.timestamp)})</span>
             <span>🎯 Precisione: ±${activeParking.accuracy || 5}m</span>
-            ${activeParking.trigger ? `<span>⚡ ${escapeHTML(activeParking.trigger === 'bluetooth_auto' ? 'Bluetooth Auto Spento' : (activeParking.trigger === 'url_automation' ? 'Automazione iPhone' : 'Salvataggio manuale'))}</span>` : ''}
+            <span>⚡ ${activeParking.trigger === 'bluetooth_auto' ? 'Spegnimento Motore (Bluetooth Auto)' : (activeParking.trigger === 'ios_shortcut' ? 'Automazione iPhone' : 'Salvataggio rapido')}</span>
           </div>
           ${activeParking.notes ? `<div style="margin-top: 8px; font-size: 0.82rem; color: #ffffff; background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">📝 <strong>Nota:</strong> ${escapeHTML(activeParking.notes)}</div>` : ''}
         </div>
@@ -1780,50 +1836,45 @@ function renderParkingSection(container) {
         </div>
       ` : `
         <div style="text-align: center; padding: 16px 0 8px 0; color: var(--text-muted); font-size: 0.85rem; line-height: 1.45;">
-          Tocca il pulsante verde qui sotto quando parcheggi, oppure collega il Bluetooth dell'auto per il salvataggio automatico allo spegnimento.
+          Nessuna posizione memorizzata per <strong>${escapeHTML(userCred.name)}</strong>.<br>
+          Quando spegni il motore e scendi dall'auto, la posizione viene registrata qui <strong>in automatico</strong>.
         </div>
       `}
 
+      <!-- PULSANTE MANUALE RAPIDO DI BACKUP -->
       <button type="button" class="btn-park-now" onclick="saveManualParking()" id="btnSaveParkingNow">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-        <span id="btnSaveParkingText">📍 Salva Posizione Parcheggio ORA</span>
+        <span id="btnSaveParkingText">📍 Salva Posizione ORA (Backup 1-Click)</span>
       </button>
     </div>
 
-    <!-- SCHEDA BLUETOOTH & AUTOMAZIONE AUTO -->
-    <div class="parking-bt-card">
-      <div style="font-weight: 800; font-size: 0.92rem; color: #ffffff; display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"></path></svg>
-        <span>Rilevamento Spegnimento Quadro Auto</span>
+    <!-- SCHEDA SPIEGAZIONE AUTOMAZIONE SENZA MANI -->
+    <div class="parking-automation-card">
+      <div class="parking-aut-header">
+        <span style="font-size: 1.4rem;">⚡</span>
+        <div>
+          <div style="font-weight: 800; font-size: 0.92rem; color: #ffffff;">Rilevamento 100% Senza Mani (Zero-Click)</div>
+          <div style="font-size: 0.74rem; color: #38bdf8;">Non devi mai aprire l'app quando sali in macchina</div>
+        </div>
       </div>
-      <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.45; margin-bottom: 12px;">
-        Quando spegni il motore e lo smartphone si scollega dal Bluetooth dell'auto, Famylia memorizza in automatico data, ora e via esatta.
+      <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.45; margin: 10px 0 12px 0;">
+        Al volante sei di fretta: il tuo telefono si collega al vivavoce Bluetooth da solo. Quando spegni il motore e scendi, lo smartphone memorizza la posizione a schermo spento in borsa o in tasca.
       </p>
-
-      <!-- Android / Web Bluetooth -->
-      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; margin-bottom: 10px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-size: 0.82rem; font-weight: 700; color: #ffffff;">🤖 Android (Chrome) / Computer</div>
-            <div style="font-size: 0.72rem; color: ${ACTIVE_BT_DEVICE ? 'var(--accent-green)' : 'var(--text-muted)'}; margin-top: 2px;" id="btStatusLabel">
-              ${ACTIVE_BT_DEVICE ? `🟢 Connesso a ${escapeHTML(ACTIVE_BT_DEVICE.name || 'Bluetooth Auto')}` : '⚪ Nessun Bluetooth connesso'}
-            </div>
-          </div>
-          <button type="button" class="neu-btn-primary" style="padding: 7px 12px; font-size: 0.75rem;" onclick="connectCarBluetooth()">
-            🔗 Collega Auto
-          </button>
-        </div>
+      
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button type="button" class="neu-btn-primary" style="flex: 1; padding: 10px; font-size: 0.78rem; background: rgba(56, 189, 248, 0.15); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" onclick="showParkingAutomationModal('ios')">
+          🍏 Guida iPhone (Ty & Miki)
+        </button>
+        <button type="button" class="neu-btn-primary" style="flex: 1; padding: 10px; font-size: 0.78rem; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #34d399;" onclick="showParkingAutomationModal('android')">
+          🤖 Guida Android (Giampy)
+        </button>
       </div>
 
-      <!-- iPhone / Apple Shortcuts -->
-      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px;">
-        <div style="font-size: 0.82rem; font-weight: 700; color: #ffffff; margin-bottom: 4px;">🍏 iPhone (Ty & Miki - Safari)</div>
-        <div style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 8px;">
-          Su iPhone apri l'app <strong>Comandi Rapidi</strong> ➔ <strong>Automazione</strong> ➔ <strong>Bluetooth</strong> (quando si disconnette dall'auto) ➔ <strong>Apri URL</strong>:
-        </div>
+      <div style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.12); border-radius: 10px;">
+        <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px;">Tuo link personale di registrazione automatica:</div>
         <div class="entry-row" style="margin-bottom: 0;">
-          <span class="entry-value" style="font-size: 0.72rem; color: #38bdf8;">https://famylia.onrender.com/?action=park</span>
-          <button type="button" class="btn-copy" onclick="copyToClipboard('https://famylia.onrender.com/?action=park')">Copia</button>
+          <span class="entry-value" style="font-size: 0.72rem; color: #38bdf8;">${webhookUrl}</span>
+          <button type="button" class="btn-copy" onclick="copyToClipboard('${webhookUrl}')">Copia</button>
         </div>
       </div>
     </div>
@@ -1833,33 +1884,33 @@ function renderParkingSection(container) {
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <div style="font-weight: 800; font-size: 0.88rem; color: #ffffff; display: flex; align-items: center; gap: 6px;">
           <span>📜 Storico Parcheggi di ${escapeHTML(userCred.name)}</span>
-          <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">(${myParkings.length})</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">(${myHistory.length})</span>
         </div>
-        ${myParkings.length > 0 ? `
+        ${myHistory.length > 0 ? `
           <button type="button" style="background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; text-decoration: underline;" onclick="clearParkingHistory()">
             Svuota storico
           </button>
         ` : ''}
       </div>
 
-      ${myParkings.length === 0 ? `
+      ${myHistory.length === 0 ? `
         <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 14px 0;">
           Nessun parcheggio registrato ancora per ${escapeHTML(userCred.name)}.
         </p>
       ` : `
         <div class="parking-history-list">
-          ${myParkings.map((p, idx) => `
+          ${myHistory.map((p, idx) => `
             <div class="parking-history-item">
               <div style="flex: 1;">
                 <div style="font-size: 0.84rem; font-weight: 700; color: #ffffff;">${escapeHTML(p.addressShort || p.address)}</div>
                 <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 2px;">
-                  ${formatTimeAndDate(p.timestamp)} ${idx === 0 ? '<strong style="color: var(--accent-green);">(Attuale)</strong>' : ''}
+                  ${formatTimeAndDate(p.timestamp)}
                 </div>
                 ${p.notes ? `<div style="font-size: 0.74rem; color: #cbd5e1; margin-top: 2px;">📝 ${escapeHTML(p.notes)}</div>` : ''}
               </div>
               <div style="display: flex; gap: 6px; align-items: center;">
                 <button type="button" class="btn-copy" onclick="openMapsNavigation(${p.lat}, ${p.lng})" title="Apri navigatore">🧭 Mappa</button>
-                <button type="button" class="entry-action-btn delete" onclick="deleteEntry('${p.id}')" title="Elimina voce">✕</button>
+                <button type="button" class="entry-action-btn delete" onclick="deleteLocalOrServerParking('${p.id}')" title="Elimina voce">✕</button>
               </div>
             </div>
           `).join('')}
@@ -1871,7 +1922,7 @@ function renderParkingSection(container) {
 
 async function connectCarBluetooth() {
   if (!navigator.bluetooth) {
-    alert("Il tuo browser non supporta la connessione Bluetooth diretta via Web.\\n\\nSe usi iPhone, usa la guida 'Automazione iPhone' con l'app Comandi Rapidi per rilevare lo spegnimento in automatico!");
+    showParkingAutomationModal('ios');
     return;
   }
 
@@ -1976,8 +2027,26 @@ async function saveManualParking(silent = false, triggerType = 'manuale') {
         STATE.entries.unshift(newEntry);
         await saveEncryptedVault();
 
+        // Sincronizza anche con il server per webhook e notifiche cross-device
+        try {
+          await fetch('/api/auto-park', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user: STATE.currentUser,
+              pin: STATE.currentPin,
+              lat: lat,
+              lng: lng,
+              accuracy: accuracy,
+              trigger: triggerType,
+              notes: ''
+            })
+          });
+          await fetchServerParking(true);
+        } catch (srvErr) {}
+
         if (btn) btn.disabled = false;
-        if (btnTxt) btnTxt.textContent = "📍 Salva Posizione Parcheggio ORA";
+        if (btnTxt) btnTxt.textContent = "📍 Salva Posizione ORA (Backup 1-Click)";
 
         triggerPhoneNotification("🚗 Auto Parcheggiata!", `Posizione: ${addressShort}`);
         showToast(`🚗 Auto parcheggiata in: ${addressShort}!`);
@@ -1989,13 +2058,13 @@ async function saveManualParking(silent = false, triggerType = 'manuale') {
         }
       } catch (err) {
         if (btn) btn.disabled = false;
-        if (btnTxt) btnTxt.textContent = "📍 Salva Posizione Parcheggio ORA";
+        if (btnTxt) btnTxt.textContent = "📍 Salva Posizione ORA (Backup 1-Click)";
         showToast("Errore salvataggio: " + err.message);
       }
     },
     (err) => {
       if (btn) btn.disabled = false;
-      if (btnTxt) btnTxt.textContent = "📍 Salva Posizione Parcheggio ORA";
+      if (btnTxt) btnTxt.textContent = "📍 Salva Posizione ORA (Backup 1-Click)";
       let msg = "Impossibile rilevare la posizione.";
       if (err.code === 1) msg = "Accesso GPS negato. Autorizza la posizione nelle impostazioni del browser/telefono.";
       else if (err.code === 2) msg = "Posizione non disponibile (segnale GPS assente).";
@@ -2016,13 +2085,25 @@ function openMapsNavigation(lat, lng) {
 }
 
 async function addNoteToActiveParking(id) {
-  const item = STATE.entries.find(e => e.id === id);
-  if (!item) return;
-  const currentNote = item.notes || '';
+  const serverActive = STATE.serverParking && STATE.serverParking.active;
+  const localItem = STATE.entries.find(e => e.id === id);
+  const currentNote = (serverActive && serverActive.notes) || (localItem && localItem.notes) || '';
   const note = prompt("Aggiungi nota al parcheggio (es. Piano -2, Posto 45, Scadenza ticket ore 18:30):", currentNote);
   if (note !== null) {
-    item.notes = note.trim();
-    await saveEncryptedVault();
+    const trimmed = note.trim();
+    try {
+      await fetch('/api/parking/note', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: STATE.currentUser, pin: STATE.currentPin, note: trimmed })
+      });
+    } catch (e) {}
+
+    if (serverActive) serverActive.notes = trimmed;
+    if (localItem) {
+      localItem.notes = trimmed;
+      await saveEncryptedVault();
+    }
     renderSectionList();
     showToast("Nota parcheggio salvata!");
   }
@@ -2030,8 +2111,21 @@ async function addNoteToActiveParking(id) {
 
 async function releaseCurrentParking(id) {
   if (!confirm("Hai ripreso l'auto? Rimuovere la posizione dal parcheggio attivo?")) return;
-  STATE.entries = STATE.entries.filter(e => e.id !== id);
-  await saveEncryptedVault();
+  try {
+    await fetch('/api/parking/release', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: STATE.currentUser, pin: STATE.currentPin })
+    });
+  } catch (e) {}
+
+  if (id) {
+    STATE.entries = STATE.entries.filter(e => e.id !== id);
+    await saveEncryptedVault();
+  }
+  if (STATE.serverParking) {
+    STATE.serverParking.active = null;
+  }
   renderSectionList();
   updateTileCounts();
   showToast("Posizione auto rimossa.");
@@ -2039,11 +2133,109 @@ async function releaseCurrentParking(id) {
 
 async function clearParkingHistory() {
   if (!confirm("Vuoi cancellare tutto lo storico dei tuoi parcheggi precedenti?")) return;
+  try {
+    await fetch('/api/parking/clear-history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: STATE.currentUser, pin: STATE.currentPin })
+    });
+  } catch (e) {}
+
   STATE.entries = STATE.entries.filter(e => !(e.section === 'parking' && (e.utente === STATE.currentUser || e.owner === STATE.currentUser)));
   await saveEncryptedVault();
+  if (STATE.serverParking) {
+    STATE.serverParking.history = [];
+  }
   renderSectionList();
   updateTileCounts();
   showToast("Storico parcheggi svuotato.");
+}
+
+async function deleteLocalOrServerParking(id) {
+  if (!confirm("Vuoi eliminare questa voce dallo storico?")) return;
+  STATE.entries = STATE.entries.filter(e => e.id !== id);
+  await saveEncryptedVault();
+
+  if (STATE.serverParking && STATE.serverParking.history) {
+    STATE.serverParking.history = STATE.serverParking.history.filter(h => h.id !== id);
+  }
+  if (STATE.serverParking && STATE.serverParking.active && STATE.serverParking.active.id === id) {
+    STATE.serverParking.active = null;
+    try {
+      await fetch('/api/parking/release', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: STATE.currentUser, pin: STATE.currentPin })
+      });
+    } catch (e) {}
+  }
+  renderSectionList();
+  updateTileCounts();
+  showToast("Elemento rimosso.");
+}
+
+function showParkingAutomationModal(tab = 'ios') {
+  const modal = document.getElementById('parkingAutomationModalOverlay');
+  if (!modal) return;
+  switchParkingModalTab(tab);
+  modal.style.display = 'flex';
+}
+
+function closeParkingAutomationModal() {
+  const modal = document.getElementById('parkingAutomationModalOverlay');
+  if (modal) modal.style.display = 'none';
+}
+
+function closeParkingAutomationModalOnOverlay(event) {
+  if (event.target && event.target.id === 'parkingAutomationModalOverlay') {
+    closeParkingAutomationModal();
+  }
+}
+
+function switchParkingModalTab(tab) {
+  const tabIOS = document.getElementById('parkingTabIOS');
+  const tabAndroid = document.getElementById('parkingTabAndroid');
+  const btnIOS = document.getElementById('btnTabIOS');
+  const btnAndroid = document.getElementById('btnTabAndroid');
+
+  if (tab === 'ios') {
+    if (tabIOS) tabIOS.style.display = 'block';
+    if (tabAndroid) tabAndroid.style.display = 'none';
+    if (btnIOS) btnIOS.classList.add('active');
+    if (btnAndroid) btnAndroid.classList.remove('active');
+  } else {
+    if (tabIOS) tabIOS.style.display = 'none';
+    if (tabAndroid) tabAndroid.style.display = 'block';
+    if (btnIOS) btnIOS.classList.remove('active');
+    if (btnAndroid) btnAndroid.classList.add('active');
+  }
+
+  const user = STATE.currentUser || 'Giampy';
+  const host = window.location.origin;
+
+  const iosLink = document.getElementById('iosWebhookLink');
+  if (iosLink) {
+    iosLink.textContent = `${host}/api/auto-park?user=${encodeURIComponent(user)}`;
+  }
+
+  const androidLink = document.getElementById('androidWebhookLink');
+  if (androidLink) {
+    androidLink.textContent = `${host}/api/auto-park?user=${encodeURIComponent(user)}`;
+  }
+}
+
+function copyIosWebhook() {
+  const user = STATE.currentUser || 'Giampy';
+  const host = window.location.origin;
+  const link = `${host}/api/auto-park?user=${encodeURIComponent(user)}`;
+  copyToClipboard(link);
+}
+
+function copyAndroidWebhook() {
+  const user = STATE.currentUser || 'Giampy';
+  const host = window.location.origin;
+  const link = `${host}/api/auto-park?user=${encodeURIComponent(user)}`;
+  copyToClipboard(link);
 }
 
 function formatTimeAndDate(isoString) {

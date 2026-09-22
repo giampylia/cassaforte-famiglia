@@ -19,7 +19,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/icons/favicon.png?v=3">
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg?v=3">
 
-  <link rel="stylesheet" href="/styles.css?v=6.9">
+  <link rel="stylesheet" href="/styles.css?v=7.1">
 </head>
 <body>
   <div class="app-container">
@@ -593,9 +593,110 @@
     </div>
   </div>
 
+  <!-- MODALE GUIDA AUTOMAZIONE PARCHEGGIO 100% AUTOMATICA -->
+  <div id="parkingAutomationModalOverlay" class="modal-overlay" style="display: none;" onclick="closeParkingAutomationModalOnOverlay(event)">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.4rem;">🚗⚡</span>
+          <h3 id="parkingModalHeading" style="margin: 0; font-size: 1.1rem;">Parcheggio 100% Senza Mani</h3>
+        </div>
+        <button type="button" class="entry-action-btn" onclick="closeParkingAutomationModal()">✕</button>
+      </div>
+
+      <div style="display: flex; gap: 6px; margin: 12px 0 16px 0;">
+        <button type="button" id="btnTabIOS" class="tab-btn active" style="flex: 1; padding: 10px; font-weight: 700; border-radius: 10px;" onclick="switchParkingModalTab('ios')">🍏 iPhone (Ty & Miki)</button>
+        <button type="button" id="btnTabAndroid" class="tab-btn" style="flex: 1; padding: 10px; font-weight: 700; border-radius: 10px;" onclick="switchParkingModalTab('android')">🤖 Android (Giampy)</button>
+      </div>
+
+      <!-- CONTENUTO TAB IPHONE -->
+      <div id="parkingTabIOS">
+        <div style="font-size: 0.82rem; color: #e2e8f0; line-height: 1.5; margin-bottom: 14px;">
+          Su iPhone non serve aprire l'app quando sali in macchina: l'app di sistema <strong>Comandi Rapidi</strong> lavora in background a schermo spento in borsa o in tasca ogni volta che spegni il motore.
+        </div>
+
+        <div class="parking-step-list">
+          <div class="parking-step-item">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <strong>Apri Comandi Rapidi</strong> su iPhone ➔ tocca in basso <strong>Automazione</strong> ➔ tocca <strong>"+"</strong> in alto a destra.
+            </div>
+          </div>
+          <div class="parking-step-item">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              Scegli <strong>Bluetooth</strong>:
+              <div style="margin-top: 4px; font-size: 0.78rem; color: #94a3b8;">
+                • <em>Dispositivo</em>: seleziona il Bluetooth vivavoce dell'auto<br>
+                • Seleziona: <strong>"Si disconnette"</strong><br>
+                • Seleziona: <strong>"Esegui immediatamente"</strong> (senza chiedere)
+              </div>
+            </div>
+          </div>
+          <div class="parking-step-item">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              Tocca <strong>Avanti</strong> ➔ Nuova automazione vuota ➔ Aggiungi:
+              <div style="margin-top: 4px; font-size: 0.78rem; color: #94a3b8;">
+                1. <strong>Ottieni posizione attuale</strong> (precisione: Migliore)<br>
+                2. <strong>Ottieni contenuti dell'URL</strong> con il tuo link:
+              </div>
+              <div class="entry-row" style="margin-top: 8px; margin-bottom: 0;">
+                <span class="entry-value" style="font-size: 0.72rem; color: #38bdf8;" id="iosWebhookLink">https://famylia.onrender.com/api/auto-park?user=Ty</span>
+                <button type="button" class="btn-copy" onclick="copyIosWebhook()">Copia</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px; padding: 12px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; font-size: 0.78rem; color: #cbd5e1; line-height: 1.45;">
+          💡 <strong>Alternativa nativa Apple Maps</strong>: Vai in <em>Impostazioni iPhone ➔ Mappe ➔ attiva "Mostra posizione parcheggio"</em>. iOS memorizza l'auto da solo nell'app Mappe ogni volta che spegni il Bluetooth!
+        </div>
+      </div>
+
+      <!-- CONTENUTO TAB ANDROID -->
+      <div id="parkingTabAndroid" style="display: none;">
+        <div style="font-size: 0.82rem; color: #e2e8f0; line-height: 1.5; margin-bottom: 14px;">
+          Su Android non devi pensare a nulla: quando spegni il motore e scendi, lo smartphone rileva la disconnessione e memorizza la posizione.
+        </div>
+
+        <div class="parking-step-list">
+          <div class="parking-step-item">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <strong>Funzione Nativa Google Maps</strong>:<br>
+              <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">
+                Google Maps su Android ha già la funzione integrata: quando scendi e si stacca il Bluetooth auto, memorizza da solo la posizione nelle notifiche.
+              </div>
+            </div>
+          </div>
+          <div class="parking-step-item">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <strong>Routine Automatica Famylia (Samsung / MacroDroid)</strong>:<br>
+              <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">
+                Apri <strong>Modalità e Routine</strong> ➔ Routine ➔ "+":<br>
+                • <em>Se</em>: Bluetooth disconnesso da [Auto]<br>
+                • <em>Allora</em>: Invia richiesta HTTP al tuo link:
+              </div>
+              <div class="entry-row" style="margin-top: 8px; margin-bottom: 0;">
+                <span class="entry-value" style="font-size: 0.72rem; color: #34d399;" id="androidWebhookLink">https://famylia.onrender.com/api/auto-park?user=Giampy</span>
+                <button type="button" class="btn-copy" onclick="copyAndroidWebhook()">Copia</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top: 18px;">
+        <button type="button" class="neu-btn-primary" style="width: 100%;" onclick="closeParkingAutomationModal()">Ho Capito</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notifica Copiato -->
   <div id="toastNotice" class="toast-notice">Copiato negli appunti!</div>
 
-  <script src="/app.js?v=6.9"></script>
+  <script src="/app.js?v=7.1"></script>
 </body>
 </html>

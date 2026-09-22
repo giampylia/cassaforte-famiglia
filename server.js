@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -6,7 +7,109 @@ const os = require('os');
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data', 'memos.json');
 const VAULT_FILE = path.join(__dirname, 'data', 'vault.json');
+const PARKING_FILE = path.join(__dirname, 'data', 'parking.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
+
+function loadParking() {
+  try {
+    if (!fs.existsSync(PARKING_FILE)) {
+      const initial = {
+        Giampy: { active: null, history: [] },
+        Ty: { active: null, history: [] },
+        Miki: { active: null, history: [] }
+      };
+      fs.writeFileSync(PARKING_FILE, JSON.stringify(initial, null, 2), 'utf8');
+      return initial;
+    }
+    const data = fs.readFileSync(PARKING_FILE, 'utf8');
+    return JSON.parse(data || '{}');
+  } catch (err) {
+    console.error('Errore lettura parking.json:', err.message);
+    return {
+      Giampy: { active: null, history: [] },
+      Ty: { active: null, history: [] },
+      Miki: { active: null, history: [] }
+    };
+  }
+}
+
+function saveParking(data) {
+  try {
+    fs.writeFileSync(PARKING_FILE, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.error('Errore salvataggio parking.json:', err.message);
+    return false;
+  }
+}
+
+function resolveUser(paramUser, paramPin) {
+  const u = (paramUser || '').toString().toLowerCase().trim();
+  const p = (paramPin || '').toString().trim();
+  if (p === '240961' || u === 'giampy' || u === 'papà' || u === 'papa') return 'Giampy';
+  if (p === '040663' || u === 'ty' || u === 'mamma') return 'Ty';
+  if (p === '240696' || u === 'miki' || u === 'figlio') return 'Miki';
+  if (paramUser && (paramUser === 'Giampy' || paramUser === 'Ty' || paramUser === 'Miki')) return paramUser;
+  return null;
+}
+
+function reverseGeocodeServer(lat, lng) {
+  return new Promise((resolve) => {
+    const latNum = parseFloat(lat);
+    const lngNum = parseFloat(lng);
+    const fallback = {
+      address: `Coordinate GPS (${latNum.toFixed(5)}, ${lngNum.toFixed(5)})`,
+      addressShort: `GPS (${latNum.toFixed(4)}, ${lngNum.toFixed(4)})`
+    };
+
+    if (isNaN(latNum) || isNaN(lngNum)) {
+      return resolve({ address: 'Posizione non specificata', addressShort: 'Posizione GPS' });
+    }
+
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latNum}&lon=${lngNum}`;
+    const req = https.get(url, {
+      headers: {
+        'User-Agent': 'FamyliaApp/1.0 (contact: giampylia@gmail.com)',
+        'Accept': 'application/json'
+      },
+      timeout: 4000
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (json && json.address) {
+            const a = json.address;
+            const road = a.road || a.pedestrian || a.street || '';
+            const house = a.house_number ? ' ' + a.house_number : '';
+            const city = a.city || a.town || a.village || a.suburb || '';
+            if (road) {
+              return resolve({
+                addressShort: road + house,
+                address: `${road}${house}${city ? ', ' + city : ''}`
+              });
+            } else if (json.display_name) {
+              const parts = json.display_name.split(',');
+              return resolve({
+                addressShort: parts[0],
+                address: parts.slice(0, 3).join(',')
+              });
+            }
+          }
+        } catch (e) {}
+        resolve(fallback);
+      });
+    });
+
+    req.on('error', () => resolve(fallback));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(fallback);
+    });
+  });
+}
+
 
 function loadVault() {
   try {
@@ -385,6 +488,198 @@ async function handleRequest(req, res) {
 
       saveMemos(memos);
       return sendJSON(res, 200, { success: true, id });
+    }
+
+    // GET or POST /api/auto-park (Webhook background automatico / disconnessione Bluetooth)
+    if (pathname === '/api/auto-park' && (req.method === 'GET' || req.method === 'POST')) {
+      try {
+        let body = {};
+        if (req.method === 'POST') {
+          try { body = await parseJsonBody(req); } catch (e) {}
+        }
+
+        const rawUser = parsedUrl.searchParams.get('user') || body.user;
+        const rawPin = parsedUrl.searchParams.get('pin') || body.pin;
+        const user = resolveUser(rawUser, rawPin);
+
+        if (!user) {
+          return sendJSON(res, 400, {
+            error: 'Utente o PIN non valido. Specifica ?user=Giampy (o Ty / Miki) oppure ?pin=240961 (o 040663 / 240696)'
+          });
+        }
+
+        const rawLat = parsedUrl.searchParams.get('lat') || body.lat;
+        const rawLng = parsedUrl.searchParams.get('lng') || parsedUrl.searchParams.get('lon') || body.lng || body.lon;
+
+        if (!rawLat || !rawLng) {
+          return sendJSON(res, 400, { error: 'Coordinate lat e lng mancanti.' });
+        }
+
+        const lat = parseFloat(rawLat);
+        const lng = parseFloat(rawLng);
+        if (isNaN(lat) || isNaN(lng)) {
+          return sendJSON(res, 400, { error: 'Coordinate lat e lng numeriche non valide.' });
+        }
+
+        const accuracy = Math.round(parseFloat(parsedUrl.searchParams.get('accuracy') || body.accuracy || 5));
+        const trigger = parsedUrl.searchParams.get('trigger') || body.trigger || 'bluetooth_auto';
+        const notes = (parsedUrl.searchParams.get('notes') || body.notes || '').trim();
+
+        const geo = await reverseGeocodeServer(lat, lng);
+        const parkingStore = loadParking();
+        if (!parkingStore[user]) {
+          parkingStore[user] = { active: null, history: [] };
+        }
+        if (!Array.isArray(parkingStore[user].history)) {
+          parkingStore[user].history = [];
+        }
+
+        // Se c'era già un parcheggio attivo, archivialo nello storico
+        if (parkingStore[user].active) {
+          parkingStore[user].history.unshift(parkingStore[user].active);
+          if (parkingStore[user].history.length > 50) {
+            parkingStore[user].history = parkingStore[user].history.slice(0, 50);
+          }
+        }
+
+        const newParking = {
+          id: 'park-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+          section: 'parking',
+          user: user,
+          owner: user,
+          lat: lat,
+          lng: lng,
+          accuracy: accuracy,
+          address: geo.address,
+          addressShort: geo.addressShort,
+          timestamp: new Date().toISOString(),
+          trigger: trigger,
+          notes: notes
+        };
+
+        parkingStore[user].active = newParking;
+        saveParking(parkingStore);
+        console.log(`[Parking] Auto parcheggiata salvata per ${user}: ${geo.addressShort} (trigger: ${trigger})`);
+
+        // Invia notifica Push immediata al telefono di quell'utente
+        try {
+          const subs = loadSubscriptions();
+          const timeStr = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+          const payload = JSON.stringify({
+            title: `🚗 Auto Parcheggiata (${user})`,
+            body: `📍 ${geo.addressShort} (${timeStr})`,
+            icon: '/icons/icon-192.svg',
+            badge: '/icons/icon-192.svg',
+            url: '/?section=parking'
+          });
+          subs.filter(s => s.user === user || s.user === 'Famiglia').forEach(subItem => {
+            webpush.sendNotification(subItem.subscription, payload).catch(() => {});
+          });
+        } catch (pushErr) {}
+
+        if (parsedUrl.searchParams.get('format') === 'html') {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          return res.end(`
+            <!DOCTYPE html>
+            <html lang="it">
+            <head><meta charset="utf-8"><title>Auto Parcheggiata</title><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+            <body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif; background:#0f172a; color:#fff; text-align:center; padding:40px 20px;">
+              <div style="font-size:3.5rem; margin-bottom:12px;">🚗</div>
+              <h2 style="color:#10b981; margin:0 0 10px 0; font-size:1.4rem;">Posizione Auto Salvata!</h2>
+              <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:16px; padding:20px; max-width:360px; margin:0 auto 24px auto;">
+                <div style="font-weight:700; font-size:1.15rem; color:#f8fafc; margin-bottom:6px;">${geo.addressShort}</div>
+                <div style="font-size:0.85rem; color:#94a3b8; line-height:1.4;">${geo.address}</div>
+                <div style="margin-top:12px; font-size:0.8rem; color:#10b981; font-weight:600;">Auto di ${user}</div>
+              </div>
+              <a href="/" style="display:inline-block; background:#10b981; color:#0f172a; font-weight:700; padding:12px 28px; border-radius:12px; text-decoration:none;">Apri Famylia</a>
+            </body>
+            </html>
+          `);
+        }
+
+        return sendJSON(res, 200, {
+          success: true,
+          user: user,
+          active: newParking
+        });
+      } catch (err) {
+        console.error('[Parking] Errore auto-park:', err);
+        return sendJSON(res, 500, { error: err.message });
+      }
+    }
+
+    // GET /api/parking (restituisce parcheggio attivo e storico dell'utente autenticato)
+    if (pathname === '/api/parking' && req.method === 'GET') {
+      const user = resolveUser(parsedUrl.searchParams.get('user'), parsedUrl.searchParams.get('pin'));
+      if (!user) {
+        return sendJSON(res, 400, { error: 'Utente o PIN obbligatorio per visualizzare il parcheggio personale.' });
+      }
+      const parkingStore = loadParking();
+      const userData = parkingStore[user] || { active: null, history: [] };
+      return sendJSON(res, 200, {
+        user: user,
+        active: userData.active || null,
+        history: userData.history || []
+      });
+    }
+
+    // POST /api/parking/release (rimuove il parcheggio attivo - "Ho ripreso l'auto")
+    if (pathname === '/api/parking/release' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        const user = resolveUser(body.user, body.pin);
+        if (!user) {
+          return sendJSON(res, 400, { error: 'Utente o PIN non valido.' });
+        }
+        const parkingStore = loadParking();
+        if (parkingStore[user] && parkingStore[user].active) {
+          parkingStore[user].active.releasedAt = new Date().toISOString();
+          parkingStore[user].history.unshift(parkingStore[user].active);
+          parkingStore[user].active = null;
+          saveParking(parkingStore);
+        }
+        return sendJSON(res, 200, { success: true });
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
+    }
+
+    // POST /api/parking/clear-history (svuota storico parcheggi dell'utente)
+    if (pathname === '/api/parking/clear-history' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        const user = resolveUser(body.user, body.pin);
+        if (!user) {
+          return sendJSON(res, 400, { error: 'Utente o PIN non valido.' });
+        }
+        const parkingStore = loadParking();
+        if (parkingStore[user]) {
+          parkingStore[user].history = [];
+          saveParking(parkingStore);
+        }
+        return sendJSON(res, 200, { success: true });
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
+    }
+
+    // POST /api/parking/note (aggiorna la nota del parcheggio attivo)
+    if (pathname === '/api/parking/note' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        const user = resolveUser(body.user, body.pin);
+        if (!user) {
+          return sendJSON(res, 400, { error: 'Utente o PIN non valido.' });
+        }
+        const parkingStore = loadParking();
+        if (parkingStore[user] && parkingStore[user].active) {
+          parkingStore[user].active.notes = (body.note || '').trim();
+          saveParking(parkingStore);
+        }
+        return sendJSON(res, 200, { success: true });
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
     }
 
     return sendJSON(res, 404, { error: 'Endpoint API non trovato' });
