@@ -571,24 +571,27 @@ async function loadVaultFromStorage() {
     try { STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, JSON.parse(cachedPhonebook)); } catch (e) {}
   }
 
-  try {
-    const res = await fetch('/api/vault');
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.ciphertext) {
-        STATE.encryptedVault = data;
-        localStorage.setItem('family_vault_encrypted', JSON.stringify(data));
-        return;
-      }
-    }
-  } catch (e) {}
-
   const local = localStorage.getItem('family_vault_encrypted');
   if (local) {
     try {
       STATE.encryptedVault = JSON.parse(local);
     } catch (e) {}
   }
+
+  try {
+    const res = await fetch('/api/vault?t=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.salt && (data.data || data.ciphertext)) {
+        STATE.encryptedVault = data;
+        localStorage.setItem('family_vault_encrypted', JSON.stringify(data));
+        return;
+      }
+    }
+  } catch (e) {}
 }
 
 function updateAuthScreenUI() {
@@ -623,6 +626,22 @@ async function handleUnlock(e) {
   btn.textContent = 'Verifica in corso...';
 
   try {
+    if (!STATE.encryptedVault) {
+      try {
+        const retryRes = await fetch('/api/vault?t=' + Date.now(), {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        });
+        if (retryRes.ok) {
+          const retryData = await retryRes.json();
+          if (retryData && retryData.salt && (retryData.data || retryData.ciphertext)) {
+            STATE.encryptedVault = retryData;
+            localStorage.setItem('family_vault_encrypted', JSON.stringify(retryData));
+          }
+        }
+      } catch (err) {}
+    }
+
     if (!STATE.encryptedVault) {
       const salt = getRandomBytes(16);
       const key = await deriveKey(password, salt);
@@ -1170,7 +1189,7 @@ function togglePhonebookCollapse() {
   }
 }
 
-async function savePhonebook() {
+async function savePhonebook(showToastMsg = true) {
   const inputGiampy = document.getElementById('phoneGiampy');
   const inputTy = document.getElementById('phoneTy');
   const inputMiki = document.getElementById('phoneMiki');
@@ -1179,13 +1198,25 @@ async function savePhonebook() {
     STATE.phonebook = { Giampy: '', Ty: '', Miki: '' };
   }
 
-  if (inputGiampy) STATE.phonebook.Giampy = inputGiampy.value.trim();
-  if (inputTy) STATE.phonebook.Ty = inputTy.value.trim();
-  if (inputMiki) STATE.phonebook.Miki = inputMiki.value.trim();
+  const gVal = inputGiampy ? inputGiampy.value.trim() : (STATE.phonebook.Giampy || '');
+  const tVal = inputTy ? inputTy.value.trim() : (STATE.phonebook.Ty || '');
+  const mVal = inputMiki ? inputMiki.value.trim() : (STATE.phonebook.Miki || '');
 
-  await saveEncryptedVault();
-  showToast('Rubrica salvata e protetta! 📞');
-  renderSectionList();
+  const changed = (gVal !== (STATE.phonebook.Giampy || '') ||
+                   tVal !== (STATE.phonebook.Ty || '') ||
+                   mVal !== (STATE.phonebook.Miki || ''));
+
+  STATE.phonebook.Giampy = gVal;
+  STATE.phonebook.Ty = tVal;
+  STATE.phonebook.Miki = mVal;
+  localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
+
+  if (changed || showToastMsg) {
+    await saveEncryptedVault();
+    if (showToastMsg) {
+      showToast('Rubrica salvata e sincronizzata! 📞');
+    }
+  }
 }
 
 function callPerson(name) {
@@ -1346,24 +1377,24 @@ function renderSectionList() {
 
           <div class="phone-entry-row">
             <div class="phone-person-name">👨 Giampy</div>
-            <input type="tel" id="phoneGiampy" class="phone-input" placeholder="Es. 3331234567" value="${escapeAttr(pb.Giampy || '')}">
+            <input type="tel" id="phoneGiampy" class="phone-input" placeholder="Es. 3331234567" value="${escapeAttr(pb.Giampy || '')}" onchange="savePhonebook(false)" onblur="savePhonebook(false)">
             <button type="button" class="btn-call" onclick="callPerson('Giampy')" title="Chiama Giampy">📞 Chiama</button>
           </div>
 
           <div class="phone-entry-row">
             <div class="phone-person-name">👩 Ty</div>
-            <input type="tel" id="phoneTy" class="phone-input" placeholder="Es. 3331234567" value="${escapeAttr(pb.Ty || '')}">
+            <input type="tel" id="phoneTy" class="phone-input" placeholder="Es. 3331234567" value="${escapeAttr(pb.Ty || '')}" onchange="savePhonebook(false)" onblur="savePhonebook(false)">
             <button type="button" class="btn-call" onclick="callPerson('Ty')" title="Chiama Ty">📞 Chiama</button>
           </div>
 
           <div class="phone-entry-row">
             <div class="phone-person-name">👦 Miki</div>
-            <input type="tel" id="phoneMiki" class="phone-input" placeholder="Es. 3331234567" value="${escapeAttr(pb.Miki || '')}">
+            <input type="tel" id="phoneMiki" class="phone-input" placeholder="Es. 3331234567" value="${escapeAttr(pb.Miki || '')}" onchange="savePhonebook(false)" onblur="savePhonebook(false)">
             <button type="button" class="btn-call" onclick="callPerson('Miki')" title="Chiama Miki">📞 Chiama</button>
           </div>
 
           <div style="margin-top: 14px; text-align: right;">
-            <button type="button" class="btn-save-phonebook" onclick="savePhonebook()" style="padding: 9px 18px; border-radius: 10px; background: var(--color-primary); color: #fff; font-weight: 700; font-size: 0.85rem; border: none; cursor: pointer; box-shadow: var(--shadow-sm);">
+            <button type="button" class="btn-save-phonebook" onclick="savePhonebook(true)" style="padding: 9px 18px; border-radius: 10px; background: var(--color-primary); color: #fff; font-weight: 700; font-size: 0.85rem; border: none; cursor: pointer; box-shadow: var(--shadow-sm);">
               💾 Salva Numeri
             </button>
           </div>
@@ -1844,7 +1875,10 @@ async function checkForRemoteUpdates() {
   if (!STATE.isUnlocked || !STATE.masterKey) return;
 
   try {
-    const res = await fetch('/api/vault');
+    const res = await fetch('/api/vault?t=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+    });
     if (!res.ok) return;
     const remoteVault = await res.json();
     if (!remoteVault || !remoteVault.updatedAt) return;
@@ -1856,8 +1890,15 @@ async function checkForRemoteUpdates() {
     const decryptedJson = await decryptData(remoteVault.data, STATE.masterKey);
     const parsed = JSON.parse(decryptedJson || '[]');
     const newEntries = Array.isArray(parsed) ? parsed : (parsed.entries || []);
-    if (parsed && typeof parsed === 'object' && parsed.customSections) {
-      STATE.customSections = parsed.customSections;
+    
+    if (parsed && typeof parsed === 'object') {
+      if (parsed.customSections) {
+        STATE.customSections = parsed.customSections;
+      }
+      if (parsed.phonebook) {
+        STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
+        localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
+      }
     }
 
     const oldMsgIds = new Set(STATE.entries.filter(e => e.section === 'messaggio').map(e => e.id));
@@ -1870,13 +1911,19 @@ async function checkForRemoteUpdates() {
     updateTileCounts();
     updateAppIconBadge();
 
+    // Se l'utente è attualmente in una schermata di dettaglio, aggiorna la vista per mostrare i dati freschi
+    if (STATE.activeSection && STATE.activeSection !== 'grid') {
+      const activeEl = document.activeElement;
+      const isUserTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+      if (!isUserTyping) {
+        renderSectionList();
+      }
+    }
+
     // Se un altro membro della famiglia ha scritto un nuovo messaggio, fai suonare la notifica
     if (newlyAdded.length > 0) {
       const latest = newlyAdded[0];
       triggerPhoneNotification(`💬 Messaggio da ${latest.mittente || 'Famiglia'}`, latest.notes || latest.title);
-      if (STATE.activeSection === 'messaggio') {
-        renderSectionList();
-      }
     }
   } catch (e) {}
 }
