@@ -19,7 +19,7 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/icons/favicon.png?v=3">
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg?v=3">
 
-  <link rel="stylesheet" href="/styles.css?v=7.2">
+  <link rel="stylesheet" href="/styles.css?v=7.3">
 </head>
 <body>
   <div class="app-container">
@@ -89,21 +89,7 @@
         <button type="submit" class="neu-btn-primary" id="unlockSubmitBtn">Accedi a Famylia</button>
         <div id="authError" class="auth-error"></div>
 
-        <!-- Box Migrazione Vecchia Password se necessario -->
-        <div id="migrationBox" style="display: none; margin-top: 14px; background: rgba(58, 134, 255, 0.12); border: 1px solid rgba(58, 134, 255, 0.4); border-radius: 16px; padding: 14px; text-align: left;">
-          <p id="migrationText" style="font-size: 0.8rem; color: #ffffff; margin-bottom: 8px; line-height: 1.4;">
-            La cassaforte su cloud usa ancora la vecchia password. Inseriscila una sola volta per aggiornare ai nuovi PIN:
-          </p>
-          <input type="password" id="legacyPasswordInput" class="neu-input" placeholder="Vecchia password Famylia" style="margin-bottom: 8px;">
-          <div style="display: flex; gap: 8px;">
-            <button type="button" class="neu-btn-primary" onclick="handleMigrateWithLegacyPassword()" style="flex: 1; font-size: 0.8rem; padding: 8px;">
-              🔄 Converti
-            </button>
-            <button type="button" class="neu-btn-primary" onclick="handleForceNewPinVault()" style="flex: 1; font-size: 0.8rem; padding: 8px; background: rgba(255, 255, 255, 0.1);">
-              ⚡ Nuovo Vault
-            </button>
-          </div>
-        </div>
+
       </form>
 
       <button type="button" onclick="openQrModal()" class="mobile-only-qr-btn" style="margin-top: 14px; font-size: 0.82rem; color: #a0aec0; background: none; border: none; cursor: pointer; text-decoration: underline; display: none;">
@@ -709,6 +695,6 @@
   <!-- Toast Notifica Copiato -->
   <div id="toastNotice" class="toast-notice">Copiato negli appunti!</div>
 
-  <script src="/app.js?v=7.2"></script>
+  <script src="/app.js?v=7.3"></script>
 </body>
 </html>

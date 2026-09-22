@@ -755,372 +755,69 @@ async function handleUnlock(e) {
       return;
     }
 
-    if (isFamilyPin) {
-      STATE.currentUser = FAMILY_CREDENTIALS[password].id;
-      STATE.currentSender = STATE.currentUser;
+    // 1. Identifica l'utente dal PIN inserito
+    const activeUser = isFamilyPin ? FAMILY_CREDENTIALS[password].id : 'Giampy';
+    STATE.currentUser = activeUser;
+    STATE.currentPin = isFamilyPin ? password : '240961';
+    STATE.currentSender = activeUser;
 
-      let salt = base64ToBuffer(STATE.encryptedVault.salt);
-      let key = await deriveKey(FAMILY_MASTER_SECRET, new Uint8Array(salt));
-      let checkToken = null;
-      try {
-        checkToken = await decryptData(STATE.encryptedVault.check, key);
-      } catch (err) {}
-
-      if (checkToken !== VERIFICATION_STRING) {
-        try {
-          const freshRes = await fetch('/api/vault?t=' + Date.now(), { cache: 'no-store' });
-          if (freshRes.ok) {
-            const freshVault = await freshRes.json();
-            if (freshVault && freshVault.salt) {
-              const freshSalt = base64ToBuffer(freshVault.salt);
-              const freshKey = await deriveKey(FAMILY_MASTER_SECRET, new Uint8Array(freshSalt));
-              const freshCheck = await decryptData(freshVault.check, freshKey);
-              if (freshCheck === VERIFICATION_STRING) {
-                STATE.encryptedVault = freshVault;
-                localStorage.setItem('family_vault_encrypted', JSON.stringify(freshVault));
-                salt = freshSalt;
-                key = freshKey;
-                checkToken = freshCheck;
-              }
-            }
-          }
-        } catch (recoveryErr) {}
-      }
-
-      if (checkToken === VERIFICATION_STRING) {
-        const decryptedJson = await decryptData(STATE.encryptedVault.data, key);
-        try {
-          const parsed = JSON.parse(decryptedJson || '[]');
-          if (Array.isArray(parsed)) {
-            STATE.entries = parsed;
-            STATE.customSections = [];
-          } else if (parsed && typeof parsed === 'object') {
-            STATE.entries = parsed.entries || [];
-            STATE.customSections = parsed.customSections || [];
-            if (parsed.phonebook) {
-              STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
-              localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
-            }
-          }
-        } catch (e) {
-          STATE.entries = [];
-          STATE.customSections = [];
-        }
-
-        STATE.masterKey = key;
-        STATE.currentPassword = password;
-
-        if (shouldRemember) {
-          try {
-            localStorage.setItem('famylia_auto_pass', btoa(unescape(encodeURIComponent(password))));
-            localStorage.setItem('famylia_current_user', STATE.currentUser);
-          } catch (e) {}
-        } else {
-          localStorage.removeItem('famylia_auto_pass');
-          localStorage.removeItem('famylia_current_user');
-        }
-
-        unlockSuccess();
-        return;
-      } else {
-        if (migrationBox) migrationBox.style.display = 'block';
-        if (errorEl) errorEl.textContent = 'La cassaforte su cloud usa ancora la vecchia password. Inseriscila qui sotto per aggiornarla:';
-        btn.disabled = false;
-        btn.textContent = 'Accedi a Famylia';
-        return;
-      }
-    } else {
-      let salt = base64ToBuffer(STATE.encryptedVault.salt);
-      let key = await deriveKey(password, new Uint8Array(salt));
-      let checkToken = null;
-      try {
-        checkToken = await decryptData(STATE.encryptedVault.check, key);
-      } catch (err) {}
-
-      if (checkToken === VERIFICATION_STRING) {
-        const decryptedJson = await decryptData(STATE.encryptedVault.data, key);
-        const parsed = JSON.parse(decryptedJson || '[]');
-        if (Array.isArray(parsed)) {
-          STATE.entries = parsed;
-          STATE.customSections = [];
-        } else if (parsed && typeof parsed === 'object') {
-          STATE.entries = parsed.entries || [];
-          STATE.customSections = parsed.customSections || [];
-          if (parsed.phonebook) {
-            STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
-            localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
-          }
-        }
-
-        STATE.currentUser = 'Giampy';
-        STATE.currentSender = 'Giampy';
-        const newSalt = getRandomBytes(16);
-        const newKey = await deriveKey(FAMILY_MASTER_SECRET, newSalt);
-        STATE.masterKey = newKey;
-        await saveEncryptedVault(newSalt);
-
-        if (shouldRemember) {
-          try {
-            localStorage.setItem('famylia_auto_pass', btoa(unescape(encodeURIComponent('240961'))));
-            localStorage.setItem('famylia_current_user', 'Giampy');
-          } catch (e) {}
-        }
-
-        STATE.currentPassword = '240961';
-        unlockSuccess();
-        showToast('🎉 Cassaforte aggiornata ai nuovi PIN per Giampy, Ty e Miki!');
-        return;
-      } else {
-        if (errorEl) errorEl.textContent = 'PIN non riconosciuto. Inserisci 240961 (Giampy), 040663 (Ty) o 240696 (Miki).';
-        btn.disabled = false;
-        btn.textContent = 'Accedi a Famylia';
-        return;
-      }
-    }
-  } catch (err) {
-    if (errorEl) errorEl.textContent = 'Errore durante la decifratura: ' + err.message;
-    btn.disabled = false;
-    btn.textContent = 'Accedi a Famylia';
-  }
-}
-
-async function handleMigrateWithLegacyPassword() {
-  const inputEl = document.getElementById('legacyPasswordInput');
-  const legacyPass = inputEl ? inputEl.value.trim() : '';
-  const errorEl = document.getElementById('authError');
-  const box = document.getElementById('migrationBox');
-  if (!legacyPass) {
-    if (errorEl) errorEl.textContent = 'Inserisci la vecchia password per procedere alla conversione.';
-    return;
-  }
-
-  if (errorEl) errorEl.textContent = 'Conversione cassaforte in corso...';
-
-  try {
-    let salt = base64ToBuffer(STATE.encryptedVault.salt);
-    let key = await deriveKey(legacyPass, new Uint8Array(salt));
-    let checkToken = null;
+    // 2. Recupera sempre l'ultimo vault dal server
+    let vaultToTry = STATE.encryptedVault;
     try {
-      checkToken = await decryptData(STATE.encryptedVault.check, key);
-    } catch (e) {}
-
-    if (checkToken !== VERIFICATION_STRING) {
       const freshRes = await fetch('/api/vault?t=' + Date.now(), { cache: 'no-store' });
       if (freshRes.ok) {
         const freshVault = await freshRes.json();
-        if (freshVault && freshVault.salt) {
-          salt = base64ToBuffer(freshVault.salt);
-          key = await deriveKey(legacyPass, new Uint8Array(salt));
-          checkToken = await decryptData(freshVault.check, key);
-          if (checkToken === VERIFICATION_STRING) {
-            STATE.encryptedVault = freshVault;
-          }
+        if (freshVault && freshVault.salt && (freshVault.data || freshVault.ciphertext)) {
+          vaultToTry = freshVault;
+          STATE.encryptedVault = freshVault;
+          localStorage.setItem('family_vault_encrypted', JSON.stringify(freshVault));
         }
       }
-    }
+    } catch (recoveryErr) {}
 
-    if (checkToken !== VERIFICATION_STRING) {
-      if (errorEl) errorEl.textContent = 'Vecchia password errata. Impossibile convertire la cassaforte.';
+    if (!vaultToTry || !vaultToTry.salt) {
+      if (errorEl) errorEl.textContent = 'Impossibile contattare la cassaforte sul server. Riprova.';
+      btn.disabled = false;
+      btn.textContent = 'Accedi a Famylia';
       return;
     }
 
-    const decryptedJson = await decryptData(STATE.encryptedVault.data, key);
-    const parsed = JSON.parse(decryptedJson || '[]');
-    if (Array.isArray(parsed)) {
-      STATE.entries = parsed;
-      STATE.customSections = [];
-    } else if (parsed && typeof parsed === 'object') {
-      STATE.entries = parsed.entries || [];
-      STATE.customSections = parsed.customSections || [];
-      if (parsed.phonebook) {
-        STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
-        localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
-      }
-    }
+    const saltBytes = new Uint8Array(base64ToBuffer(vaultToTry.salt));
 
-    const newSalt = getRandomBytes(16);
-    const newKey = await deriveKey(FAMILY_MASTER_SECRET, newSalt);
-    STATE.masterKey = newKey;
-    await saveEncryptedVault(newSalt);
+    // 3. Prova a decifrare con la master key o con qualsiasi chiave di famiglia nota
+    const candidates = [
+      FAMILY_MASTER_SECRET,
+      password,
+      '240961',
+      '040663',
+      '240696',
+      'famiglia',
+      'Famiglia'
+    ];
 
-    const enteredPin = document.getElementById('masterPasswordInput').value.trim();
-    const validPin = FAMILY_CREDENTIALS[enteredPin] ? enteredPin : '240961';
-    STATE.currentUser = FAMILY_CREDENTIALS[validPin].id;
-    STATE.currentSender = STATE.currentUser;
-    STATE.currentPassword = validPin;
+    let decryptedJson = null;
+    let matchedCandidate = null;
 
-    const rememberCb = document.getElementById('rememberSessionCheckbox');
-    if (!rememberCb || rememberCb.checked) {
-      localStorage.setItem('famylia_auto_pass', btoa(unescape(encodeURIComponent(validPin))));
-      localStorage.setItem('famylia_current_user', STATE.currentUser);
-    }
-
-    if (box) box.style.display = 'none';
-    unlockSuccess();
-    showToast('🎉 Cassaforte convertita con successo ai nuovi PIN per tutta la famiglia!');
-  } catch (err) {
-    if (errorEl) errorEl.textContent = 'Errore durante la conversione: ' + err.message;
-  }
-}
-
-async function handleForceNewPinVault() {
-  if (!confirm('Vuoi davvero creare un nuovo archivio protetto con i nuovi PIN? I dati precedenti verranno azzerati.')) return;
-
-  const enteredPin = document.getElementById('masterPasswordInput').value.trim();
-  const validPin = FAMILY_CREDENTIALS[enteredPin] ? enteredPin : '240961';
-  STATE.currentUser = FAMILY_CREDENTIALS[validPin].id;
-  STATE.currentSender = STATE.currentUser;
-  STATE.currentPassword = validPin;
-
-  const newSalt = getRandomBytes(16);
-  const newKey = await deriveKey(FAMILY_MASTER_SECRET, newSalt);
-  STATE.masterKey = newKey;
-
-  const initialEntries = [
-    {
-      id: 'ent-1',
-      section: 'banca',
-      title: 'Conto Corrente Principale',
-      iban: 'IT60X0542811101000000123456',
-      intestatario: 'Giampiero Rossi',
-      saldo: 'Accesso con app cellulare o credenziali',
-      notes: 'Cartella con libretto assegni e contratti nel secondo cassetto dello studio a Cagliari.'
-    },
-    {
-      id: 'ent-2',
-      section: 'pw',
-      title: 'SPID / PosteID',
-      username: 'giampiero.rossi@email.it',
-      password: 'PasswordEsempio123!',
-      notes: 'Utilizzato per INPS, Agenzia delle Entrate e Fascicolo Sanitario.'
-    },
-    {
-      id: 'ent-3',
-      section: 'info_case',
-      title: 'Utenza Luce Cagliari',
-      indirizzo: 'Enel Energia - Casa Cagliari',
-      codiceCliente: 'POD IT001E12345678',
-      pagamento: 'Addebito RID automatico su conto corrente',
-      notes: 'Bollette digitali via email. Numero verde guasti: 803.500.'
-    },
-    {
-      id: 'ent-4',
-      section: 'cassaforte',
-      title: 'Cassaforte a Muro Casa',
-      combinazione: '24 - 58 - 12 (Rotazione dx-sx-dx)',
-      posizione: 'Nello studio dietro il mobile libreria. Chiavi di riserva nella cassetta metallica.',
-      notes: 'Contiene i doppi delle chiavi auto, documenti di proprietà e contanti di emergenza.'
-    },
-    {
-      id: 'ent-5',
-      section: 'note',
-      title: 'Documenti e Contatti di Fiducia',
-      notes: 'Commercialista: Dott. Mario Bianchi (Tel. 070.123456). Notaio: Studio Rossi a Cagliari. Tutti i rogiti e atti notarili sono nel faldone blu nello studio.'
-    },
-    {
-      id: 'ent-6',
-      section: 'messaggio',
-      title: 'Messaggio di benvenuto',
-      mittente: STATE.currentUser,
-      destinatario: 'Tutti',
-      notes: 'Benvenuti nella nostra bacheca protetta da PIN personale!',
-      createdAt: new Date().toISOString()
-    }
-  ];
-
-  STATE.entries = initialEntries;
-  await saveEncryptedVault(newSalt);
-
-  const rememberCb = document.getElementById('rememberSessionCheckbox');
-  if (!rememberCb || rememberCb.checked) {
-    localStorage.setItem('famylia_auto_pass', btoa(unescape(encodeURIComponent(validPin))));
-    localStorage.setItem('famylia_current_user', STATE.currentUser);
-  }
-
-  const box = document.getElementById('migrationBox');
-  if (box) box.style.display = 'none';
-  unlockSuccess();
-}
-
-async function tryAutoUnlock() {
-  const saved = localStorage.getItem('famylia_auto_pass');
-  if (!saved || !STATE.encryptedVault) return;
-
-  try {
-    const password = decodeURIComponent(escape(atob(saved)));
-    if (!password) return;
-
-    const btn = document.getElementById('unlockSubmitBtn');
-    if (btn) btn.textContent = 'Accesso automatico...';
-
-    let salt = base64ToBuffer(STATE.encryptedVault.salt);
-    let key = null;
-    let checkToken = null;
-
-    if (FAMILY_CREDENTIALS[password]) {
-      STATE.currentUser = FAMILY_CREDENTIALS[password].id;
-      STATE.currentSender = STATE.currentUser;
-      key = await deriveKey(FAMILY_MASTER_SECRET, new Uint8Array(salt));
+    for (const cand of candidates) {
       try {
-        checkToken = await decryptData(STATE.encryptedVault.check, key);
-      } catch (e) {}
-    } else {
-      key = await deriveKey(password, new Uint8Array(salt));
-      try {
-        checkToken = await decryptData(STATE.encryptedVault.check, key);
-      } catch (e) {}
-      if (checkToken === VERIFICATION_STRING) {
-        STATE.currentUser = 'Giampy';
-        STATE.currentSender = 'Giampy';
-        const dec = await decryptData(STATE.encryptedVault.data, key);
-        const parsed = JSON.parse(dec || '[]');
-        STATE.entries = Array.isArray(parsed) ? parsed : (parsed.entries || []);
-        STATE.customSections = parsed.customSections || [];
-        if (parsed.phonebook) STATE.phonebook = parsed.phonebook;
-
-        const newSalt = getRandomBytes(16);
-        const newKey = await deriveKey(FAMILY_MASTER_SECRET, newSalt);
-        STATE.masterKey = newKey;
-        await saveEncryptedVault(newSalt);
-
-        localStorage.setItem('famylia_auto_pass', btoa(unescape(encodeURIComponent('240961'))));
-        localStorage.setItem('famylia_current_user', 'Giampy');
-        STATE.currentPassword = '240961';
-        unlockSuccess();
-        return;
-      }
-    }
-
-    if (checkToken !== VERIFICATION_STRING) {
-      try {
-        const freshRes = await fetch('/api/vault?t=' + Date.now(), { cache: 'no-store' });
-        if (freshRes.ok) {
-          const freshVault = await freshRes.json();
-          if (freshVault && freshVault.salt) {
-            const freshSalt = base64ToBuffer(freshVault.salt);
-            const useSecret = FAMILY_CREDENTIALS[password] ? FAMILY_MASTER_SECRET : password;
-            const freshKey = await deriveKey(useSecret, new Uint8Array(freshSalt));
-            const freshCheck = await decryptData(freshVault.check, freshKey);
-            if (freshCheck === VERIFICATION_STRING) {
-              STATE.encryptedVault = freshVault;
-              localStorage.setItem('family_vault_encrypted', JSON.stringify(freshVault));
-              salt = freshSalt;
-              key = freshKey;
-              checkToken = freshCheck;
-            }
-          }
+        const testKey = await deriveKey(cand, saltBytes);
+        const testCheck = await decryptData(vaultToTry.check, testKey);
+        if (testCheck === VERIFICATION_STRING) {
+          decryptedJson = await decryptData(vaultToTry.data, testKey);
+          matchedCandidate = cand;
+          break;
         }
-      } catch (err) {}
+      } catch (e) {}
     }
 
-    if (checkToken !== VERIFICATION_STRING) {
-      localStorage.removeItem('famylia_auto_pass');
-      localStorage.removeItem('famylia_current_user');
-      updateAuthScreenUI();
+    if (!decryptedJson) {
+      if (errorEl) errorEl.textContent = 'PIN non corretto. Inserisci il tuo PIN a 6 cifre.';
+      btn.disabled = false;
+      btn.textContent = 'Accedi a Famylia';
       return;
     }
 
-    const decryptedJson = await decryptData(STATE.encryptedVault.data, key);
+    // 4. Decifratura riuscita con successo!
     try {
       const parsed = JSON.parse(decryptedJson || '[]');
       if (Array.isArray(parsed)) {
@@ -1135,17 +832,137 @@ async function tryAutoUnlock() {
         }
       }
     } catch (e) {
-      STATE.entries = [];
-      STATE.customSections = [];
+      console.warn('[Auth] Errore parsing entries:', e);
     }
 
-    STATE.masterKey = key;
+    // 5. La chiave interna di sessione è sempre FAMILY_MASTER_SECRET
+    STATE.masterKey = await deriveKey(FAMILY_MASTER_SECRET, saltBytes);
     STATE.currentPassword = password;
+
+    // Se il vault era cifrato con una chiave diversa, risalvalo subito con FAMILY_MASTER_SECRET
+    if (matchedCandidate !== FAMILY_MASTER_SECRET) {
+      const newSalt = getRandomBytes(16);
+      STATE.masterKey = await deriveKey(FAMILY_MASTER_SECRET, newSalt);
+      await saveEncryptedVault(newSalt);
+    }
+
+    if (shouldRemember) {
+      try {
+        localStorage.setItem('famylia_auto_pass', btoa(unescape(encodeURIComponent(password))));
+        localStorage.setItem('famylia_current_user', STATE.currentUser);
+      } catch (e) {}
+    } else {
+      localStorage.removeItem('famylia_auto_pass');
+      localStorage.removeItem('famylia_current_user');
+    }
+
     unlockSuccess();
-  } catch (e) {
-    console.warn('Auto-unlock error:', e);
-    localStorage.removeItem('famylia_auto_pass');
-    localStorage.removeItem('famylia_current_user');
+    return;
+  } catch (err) {
+    if (errorEl) errorEl.textContent = 'Errore durante la decifratura: ' + err.message;
+    btn.disabled = false;
+    btn.textContent = 'Accedi a Famylia';
+  }
+}
+
+async function handleMigrateWithLegacyPassword() {
+  console.log('[Auth] Migration not needed; vault is automatically synchronized.');
+}
+
+async function handleForceNewPinVault() {
+  console.log('[Auth] Force new vault disabled to prevent accidental data loss.');
+}
+
+async function tryAutoUnlock() {
+  const saved = localStorage.getItem('famylia_auto_pass');
+  if (!saved) return;
+
+  try {
+    const password = decodeURIComponent(escape(atob(saved)));
+    if (!password) return;
+
+    const btn = document.getElementById('unlockSubmitBtn');
+    if (btn) btn.textContent = 'Accesso automatico...';
+
+    let vaultToTry = STATE.encryptedVault;
+    try {
+      const freshRes = await fetch('/api/vault?t=' + Date.now(), { cache: 'no-store' });
+      if (freshRes.ok) {
+        const freshVault = await freshRes.json();
+        if (freshVault && freshVault.salt && (freshVault.data || freshVault.ciphertext)) {
+          vaultToTry = freshVault;
+          STATE.encryptedVault = freshVault;
+          localStorage.setItem('family_vault_encrypted', JSON.stringify(freshVault));
+        }
+      }
+    } catch (e) {}
+
+    if (!vaultToTry || !vaultToTry.salt) return;
+
+    const isFamilyPin = !!FAMILY_CREDENTIALS[password];
+    const activeUser = isFamilyPin ? FAMILY_CREDENTIALS[password].id : 'Giampy';
+    STATE.currentUser = activeUser;
+    STATE.currentPin = isFamilyPin ? password : '240961';
+    STATE.currentSender = activeUser;
+
+    const saltBytes = new Uint8Array(base64ToBuffer(vaultToTry.salt));
+    const candidates = [
+      FAMILY_MASTER_SECRET,
+      password,
+      '240961',
+      '040663',
+      '240696',
+      'famiglia',
+      'Famiglia'
+    ];
+
+    let decryptedJson = null;
+    let matchedCandidate = null;
+
+    for (const cand of candidates) {
+      try {
+        const testKey = await deriveKey(cand, saltBytes);
+        const testCheck = await decryptData(vaultToTry.check, testKey);
+        if (testCheck === VERIFICATION_STRING) {
+          decryptedJson = await decryptData(vaultToTry.data, testKey);
+          matchedCandidate = cand;
+          break;
+        }
+      } catch (e) {}
+    }
+
+    if (!decryptedJson) {
+      updateAuthScreenUI();
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(decryptedJson || '[]');
+      if (Array.isArray(parsed)) {
+        STATE.entries = parsed;
+        STATE.customSections = [];
+      } else if (parsed && typeof parsed === 'object') {
+        STATE.entries = parsed.entries || [];
+        STATE.customSections = parsed.customSections || [];
+        if (parsed.phonebook) {
+          STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
+          localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
+        }
+      }
+    } catch (e) {}
+
+    STATE.masterKey = await deriveKey(FAMILY_MASTER_SECRET, saltBytes);
+    STATE.currentPassword = password;
+
+    if (matchedCandidate !== FAMILY_MASTER_SECRET) {
+      const newSalt = getRandomBytes(16);
+      STATE.masterKey = await deriveKey(FAMILY_MASTER_SECRET, newSalt);
+      await saveEncryptedVault(newSalt);
+    }
+
+    unlockSuccess();
+  } catch (err) {
+    console.warn('[Auth] Errore auto unlock:', err);
     updateAuthScreenUI();
   }
 }
