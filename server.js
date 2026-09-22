@@ -111,13 +111,23 @@ function reverseGeocodeServer(lat, lng) {
 }
 
 
+let inMemoryVault = null;
+
 function loadVault() {
+  if (inMemoryVault && inMemoryVault.salt && inMemoryVault.data) {
+    return inMemoryVault;
+  }
   try {
     if (!fs.existsSync(VAULT_FILE)) return null;
     const data = fs.readFileSync(VAULT_FILE, 'utf8');
-    return JSON.parse(data || '{}');
-  } catch (err) {
+    const parsed = JSON.parse(data || '{}');
+    if (parsed && parsed.salt && parsed.data) {
+      inMemoryVault = parsed;
+      return parsed;
+    }
     return null;
+  } catch (err) {
+    return inMemoryVault;
   }
 }
 
@@ -127,10 +137,24 @@ function saveVault(vaultData) {
       console.warn('[Vault] Payload vault non valido, salvataggio rifiutato');
       return false;
     }
+
+    inMemoryVault = vaultData;
+
     // Salva un backup del vault precedente prima di sovrascrivere
     if (fs.existsSync(VAULT_FILE)) {
       try {
-        fs.copyFileSync(VAULT_FILE, path.join(__dirname, 'data', 'vault.backup.json'));
+        const backupDir = path.join(__dirname, 'data', 'backups');
+        if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+        const backupFile = path.join(backupDir, `vault_${Date.now()}.json`);
+        fs.copyFileSync(VAULT_FILE, backupFile);
+
+        // Mantieni solo gli ultimi 20 backup
+        const files = fs.readdirSync(backupDir).filter(f => f.startsWith('vault_')).sort();
+        if (files.length > 20) {
+          for (let i = 0; i < files.length - 20; i++) {
+            try { fs.unlinkSync(path.join(backupDir, files[i])); } catch (e) {}
+          }
+        }
       } catch (bErr) {}
     }
     fs.writeFileSync(VAULT_FILE, JSON.stringify(vaultData, null, 2), 'utf8');

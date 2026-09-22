@@ -658,125 +658,40 @@ async function handleUnlock(e) {
   btn.textContent = 'Verifica in corso...';
 
   try {
-    if (!STATE.encryptedVault) {
-      try {
-        const retryRes = await fetch('/api/vault?t=' + Date.now(), {
-          cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
-        });
-        if (retryRes.ok) {
-          const retryData = await retryRes.json();
-          if (retryData && retryData.salt && (retryData.data || retryData.ciphertext)) {
-            STATE.encryptedVault = retryData;
-            localStorage.setItem('family_vault_encrypted', JSON.stringify(retryData));
-          }
-        }
-      } catch (err) {}
-    }
-
-    const isFamilyPin = !!FAMILY_CREDENTIALS[password];
-
-    if (!STATE.encryptedVault) {
-      const activeUser = isFamilyPin ? FAMILY_CREDENTIALS[password].id : 'Giampy';
-      STATE.currentUser = activeUser;
-      STATE.currentSender = activeUser;
-
-      const salt = getRandomBytes(16);
-      const key = await deriveKey(FAMILY_MASTER_SECRET, salt);
-      STATE.masterKey = key;
-
-      const initialEntries = [
-        {
-          id: 'ent-1',
-          section: 'banca',
-          title: 'Conto Corrente Principale',
-          iban: 'IT60X0542811101000000123456',
-          intestatario: 'Giampiero Rossi',
-          saldo: 'Accesso con app cellulare o credenziali',
-          notes: 'Cartella con libretto assegni e contratti nel secondo cassetto dello studio a Cagliari.'
-        },
-        {
-          id: 'ent-2',
-          section: 'pw',
-          title: 'SPID / PosteID',
-          username: 'giampiero.rossi@email.it',
-          password: 'PasswordEsempio123!',
-          notes: 'Utilizzato per INPS, Agenzia delle Entrate e Fascicolo Sanitario.'
-        },
-        {
-          id: 'ent-3',
-          section: 'info_case',
-          title: 'Utenza Luce Cagliari',
-          indirizzo: 'Enel Energia - Casa Cagliari',
-          codiceCliente: 'POD IT001E12345678',
-          pagamento: 'Addebito RID automatico su conto corrente',
-          notes: 'Bollette digitali via email. Numero verde guasti: 803.500.'
-        },
-        {
-          id: 'ent-4',
-          section: 'cassaforte',
-          title: 'Cassaforte a Muro Casa',
-          combinazione: '24 - 58 - 12 (Rotazione dx-sx-dx)',
-          posizione: 'Nello studio dietro il mobile libreria. Chiavi di riserva nella cassetta metallica.',
-          notes: 'Contiene i doppi delle chiavi auto, documenti di proprietà e contanti di emergenza.'
-        },
-        {
-          id: 'ent-5',
-          section: 'note',
-          title: 'Documenti e Contatti di Fiducia',
-          notes: 'Commercialista: Dott. Mario Bianchi (Tel. 070.123456). Notaio: Studio Rossi a Cagliari. Tutti i rogiti e atti notarili sono nel faldone blu nello studio.'
-        },
-        {
-          id: 'ent-6',
-          section: 'messaggio',
-          title: 'Messaggio di benvenuto',
-          mittente: activeUser,
-          destinatario: 'Tutti',
-          notes: 'Questa è la nostra bacheca messaggi di famiglia. Se scrivi un messaggio qui e premi INVIA, apparirà subito la notifica con il badge sull\'icona dell\'app!',
-          createdAt: new Date().toISOString()
-        }
-      ];
-
-      STATE.entries = initialEntries;
-      await saveEncryptedVault(salt);
-
-      if (shouldRemember) {
-        try {
-          localStorage.setItem('famylia_auto_pass', btoa(unescape(encodeURIComponent(password))));
-          localStorage.setItem('famylia_current_user', activeUser);
-        } catch (e) {}
-      } else {
-        localStorage.removeItem('famylia_auto_pass');
-        localStorage.removeItem('famylia_current_user');
-      }
-
-      STATE.currentPassword = password;
-      unlockSuccess();
-      return;
-    }
-
     // 1. Identifica l'utente dal PIN inserito
+    const isFamilyPin = !!FAMILY_CREDENTIALS[password];
     const activeUser = isFamilyPin ? FAMILY_CREDENTIALS[password].id : 'Giampy';
     STATE.currentUser = activeUser;
     STATE.currentPin = isFamilyPin ? password : '240961';
     STATE.currentSender = activeUser;
 
-    // 2. Recupera sempre l'ultimo vault dal server
+    // 2. Scarica SEMPRE il vault più recente dal server cloud (con retry)
     let vaultToTry = STATE.encryptedVault;
-    try {
-      const freshRes = await fetch('/api/vault?t=' + Date.now(), { cache: 'no-store' });
-      if (freshRes.ok) {
-        const freshVault = await freshRes.json();
-        if (freshVault && freshVault.salt && (freshVault.data || freshVault.ciphertext)) {
-          vaultToTry = freshVault;
-          STATE.encryptedVault = freshVault;
-          localStorage.setItem('family_vault_encrypted', JSON.stringify(freshVault));
+    let attempts = 0;
+    while ((!vaultToTry || !vaultToTry.salt) && attempts < 3) {
+      attempts++;
+      try {
+        const freshRes = await fetch('/api/vault?t=' + Date.now(), {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        });
+        if (freshRes.ok) {
+          const freshVault = await freshRes.json();
+          if (freshVault && freshVault.salt && (freshVault.data || freshVault.ciphertext)) {
+            vaultToTry = freshVault;
+            STATE.encryptedVault = freshVault;
+            localStorage.setItem('family_vault_encrypted', JSON.stringify(freshVault));
+            break;
+          }
         }
+      } catch (recoveryErr) {}
+      if (!vaultToTry) {
+        await new Promise(r => setTimeout(r, 300));
       }
-    } catch (recoveryErr) {}
+    }
 
     if (!vaultToTry || !vaultToTry.salt) {
-      if (errorEl) errorEl.textContent = 'Impossibile contattare la cassaforte sul server. Riprova.';
+      if (errorEl) errorEl.textContent = 'Impossibile scaricare la cassaforte dal cloud. Verifica la connessione e riprova.';
       btn.disabled = false;
       btn.textContent = 'Accedi a Famylia';
       return;
@@ -796,7 +711,6 @@ async function handleUnlock(e) {
     ];
 
     let decryptedJson = null;
-    let matchedCandidate = null;
 
     for (const cand of candidates) {
       try {
@@ -804,7 +718,6 @@ async function handleUnlock(e) {
         const testCheck = await decryptData(vaultToTry.check, testKey);
         if (testCheck === VERIFICATION_STRING) {
           decryptedJson = await decryptData(vaultToTry.data, testKey);
-          matchedCandidate = cand;
           break;
         }
       } catch (e) {}
@@ -826,6 +739,9 @@ async function handleUnlock(e) {
       } else if (parsed && typeof parsed === 'object') {
         STATE.entries = parsed.entries || [];
         STATE.customSections = parsed.customSections || [];
+        if (parsed.deletedIds && Array.isArray(parsed.deletedIds)) {
+          STATE.deletedIds = parsed.deletedIds;
+        }
         if (parsed.phonebook) {
           STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
           localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
@@ -838,13 +754,6 @@ async function handleUnlock(e) {
     // 5. La chiave interna di sessione è sempre FAMILY_MASTER_SECRET
     STATE.masterKey = await deriveKey(FAMILY_MASTER_SECRET, saltBytes);
     STATE.currentPassword = password;
-
-    // Se il vault era cifrato con una chiave diversa, risalvalo subito con FAMILY_MASTER_SECRET
-    if (matchedCandidate !== FAMILY_MASTER_SECRET) {
-      const newSalt = getRandomBytes(16);
-      STATE.masterKey = await deriveKey(FAMILY_MASTER_SECRET, newSalt);
-      await saveEncryptedVault(newSalt);
-    }
 
     if (shouldRemember) {
       try {
@@ -885,17 +794,28 @@ async function tryAutoUnlock() {
     if (btn) btn.textContent = 'Accesso automatico...';
 
     let vaultToTry = STATE.encryptedVault;
-    try {
-      const freshRes = await fetch('/api/vault?t=' + Date.now(), { cache: 'no-store' });
-      if (freshRes.ok) {
-        const freshVault = await freshRes.json();
-        if (freshVault && freshVault.salt && (freshVault.data || freshVault.ciphertext)) {
-          vaultToTry = freshVault;
-          STATE.encryptedVault = freshVault;
-          localStorage.setItem('family_vault_encrypted', JSON.stringify(freshVault));
+    let attempts = 0;
+    while ((!vaultToTry || !vaultToTry.salt) && attempts < 3) {
+      attempts++;
+      try {
+        const freshRes = await fetch('/api/vault?t=' + Date.now(), {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        });
+        if (freshRes.ok) {
+          const freshVault = await freshRes.json();
+          if (freshVault && freshVault.salt && (freshVault.data || freshVault.ciphertext)) {
+            vaultToTry = freshVault;
+            STATE.encryptedVault = freshVault;
+            localStorage.setItem('family_vault_encrypted', JSON.stringify(freshVault));
+            break;
+          }
         }
+      } catch (e) {}
+      if (!vaultToTry) {
+        await new Promise(r => setTimeout(r, 300));
       }
-    } catch (e) {}
+    }
 
     if (!vaultToTry || !vaultToTry.salt) return;
 
@@ -917,7 +837,6 @@ async function tryAutoUnlock() {
     ];
 
     let decryptedJson = null;
-    let matchedCandidate = null;
 
     for (const cand of candidates) {
       try {
@@ -925,7 +844,6 @@ async function tryAutoUnlock() {
         const testCheck = await decryptData(vaultToTry.check, testKey);
         if (testCheck === VERIFICATION_STRING) {
           decryptedJson = await decryptData(vaultToTry.data, testKey);
-          matchedCandidate = cand;
           break;
         }
       } catch (e) {}
@@ -944,6 +862,9 @@ async function tryAutoUnlock() {
       } else if (parsed && typeof parsed === 'object') {
         STATE.entries = parsed.entries || [];
         STATE.customSections = parsed.customSections || [];
+        if (parsed.deletedIds && Array.isArray(parsed.deletedIds)) {
+          STATE.deletedIds = parsed.deletedIds;
+        }
         if (parsed.phonebook) {
           STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
           localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
@@ -953,12 +874,6 @@ async function tryAutoUnlock() {
 
     STATE.masterKey = await deriveKey(FAMILY_MASTER_SECRET, saltBytes);
     STATE.currentPassword = password;
-
-    if (matchedCandidate !== FAMILY_MASTER_SECRET) {
-      const newSalt = getRandomBytes(16);
-      STATE.masterKey = await deriveKey(FAMILY_MASTER_SECRET, newSalt);
-      await saveEncryptedVault(newSalt);
-    }
 
     unlockSuccess();
   } catch (err) {
@@ -1102,13 +1017,72 @@ document.addEventListener('click', resetAutoLockTimer, { passive: true });
 async function saveEncryptedVault(existingSalt = null) {
   if (!STATE.masterKey) return;
 
+  STATE.deletedIds = STATE.deletedIds || [];
+
+  // 1. Unione intelligente prima del salvataggio: scarica l'ultimo stato dal cloud
+  // per non perdere eventuali voci create da un altro smartphone/PC nel frattempo
+  try {
+    const freshRes = await fetch('/api/vault?t=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+    });
+    if (freshRes.ok) {
+      const remoteVault = await freshRes.json();
+      if (remoteVault && remoteVault.salt && (remoteVault.data || remoteVault.ciphertext)) {
+        const rSalt = base64ToBuffer(remoteVault.salt);
+        const rKey = await deriveKey(FAMILY_MASTER_SECRET, rSalt);
+        const rJson = await decryptData(remoteVault.data, rKey);
+        const rParsed = JSON.parse(rJson || '[]');
+        const rEntries = Array.isArray(rParsed) ? rParsed : (rParsed.entries || []);
+
+        if (rParsed && typeof rParsed === 'object' && Array.isArray(rParsed.deletedIds)) {
+          for (var i = 0; i < rParsed.deletedIds.length; i++) {
+            var did = rParsed.deletedIds[i];
+            if (STATE.deletedIds.indexOf(did) === -1) {
+              STATE.deletedIds.push(did);
+            }
+          }
+        }
+
+        const localIds = new Set(STATE.entries.map(function(e) { return e.id; }));
+        for (var j = 0; j < rEntries.length; j++) {
+          var re = rEntries[j];
+          if (!localIds.has(re.id) && STATE.deletedIds.indexOf(re.id) === -1) {
+            STATE.entries.push(re);
+          }
+        }
+
+        if (rParsed && typeof rParsed === 'object') {
+          if (rParsed.phonebook) {
+            STATE.phonebook = Object.assign({}, rParsed.phonebook, STATE.phonebook);
+          }
+          if (rParsed.customSections && Array.isArray(rParsed.customSections)) {
+            const localCustomIds = new Set((STATE.customSections || []).map(function(s) { return s.id; }));
+            for (var k = 0; k < rParsed.customSections.length; k++) {
+              var cs = rParsed.customSections[k];
+              if (!localCustomIds.has(cs.id)) {
+                STATE.customSections.push(cs);
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (mErr) {
+    console.warn('[Sync] Pre-save cloud merge warning:', mErr);
+  }
+
   const saltBuffer = existingSalt || (STATE.encryptedVault ? base64ToBuffer(STATE.encryptedVault.salt) : getRandomBytes(16));
   
+  // Garantisci che la chiave attiva corrisponda sempre al saltBuffer salvato
+  STATE.masterKey = await deriveKey(FAMILY_MASTER_SECRET, saltBuffer);
+
   const encryptedCheck = await encryptData(VERIFICATION_STRING, STATE.masterKey);
   const vaultPayload = {
     entries: STATE.entries,
     phonebook: STATE.phonebook,
-    customSections: STATE.customSections || []
+    customSections: STATE.customSections || [],
+    deletedIds: STATE.deletedIds || []
   };
   const encryptedEntries = await encryptData(JSON.stringify(vaultPayload), STATE.masterKey);
 
@@ -2726,6 +2700,12 @@ async function handleSaveEntry(e) {
 async function deleteEntry(id) {
   if (!confirm('Vuoi davvero eliminare questa voce?')) return;
 
+  STATE.deletedIds = STATE.deletedIds || [];
+  if (STATE.deletedIds.indexOf(id) === -1) {
+    STATE.deletedIds.push(id);
+    if (STATE.deletedIds.length > 50) STATE.deletedIds.shift();
+  }
+
   STATE.entries = STATE.entries.filter(e => e.id !== id);
   await saveEncryptedVault();
   renderSectionList();
@@ -2749,7 +2729,7 @@ function initAutoSync() {
 }
 
 async function checkForRemoteUpdates() {
-  if (!STATE.isUnlocked || !STATE.masterKey) return;
+  if (!STATE.isUnlocked) return;
 
   try {
     const res = await fetch('/api/vault?t=' + Date.now(), {
@@ -2758,17 +2738,30 @@ async function checkForRemoteUpdates() {
     });
     if (!res.ok) return;
     const remoteVault = await res.json();
-    if (!remoteVault || !remoteVault.updatedAt) return;
+    if (!remoteVault || !remoteVault.updatedAt || !remoteVault.salt || !remoteVault.data) return;
 
     if (STATE.encryptedVault && remoteVault.updatedAt === STATE.encryptedVault.updatedAt) {
       return; // Nessun nuovo dato
     }
 
-    const decryptedJson = await decryptData(remoteVault.data, STATE.masterKey);
+    const rSalt = base64ToBuffer(remoteVault.salt);
+    const rKey = await deriveKey(FAMILY_MASTER_SECRET, rSalt);
+    const decryptedJson = await decryptData(remoteVault.data, rKey);
+    STATE.masterKey = rKey;
+
     const parsed = JSON.parse(decryptedJson || '[]');
     const newEntries = Array.isArray(parsed) ? parsed : (parsed.entries || []);
     
+    STATE.deletedIds = STATE.deletedIds || [];
     if (parsed && typeof parsed === 'object') {
+      if (parsed.deletedIds && Array.isArray(parsed.deletedIds)) {
+        for (var i = 0; i < parsed.deletedIds.length; i++) {
+          var did = parsed.deletedIds[i];
+          if (STATE.deletedIds.indexOf(did) === -1) {
+            STATE.deletedIds.push(did);
+          }
+        }
+      }
       if (parsed.customSections) {
         STATE.customSections = parsed.customSections;
       }
@@ -2811,7 +2804,9 @@ async function checkForRemoteUpdates() {
         triggerPhoneNotification(`💬 Messaggio da ${latest.mittente || 'Famiglia'}`, latest.notes || latest.title);
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn('[Sync] Errore verifica aggiornamenti remoti:', e);
+  }
 }
 
 // ==========================================
