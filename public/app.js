@@ -11,6 +11,7 @@ const STATE = {
   isUnlocked: false,
   activeSection: 'grid',
   entries: [],
+  customSections: [],
   currentSender: 'Giampy',
   currentRecipient: 'Tutti',
   phonebook: { Giampy: '', Ty: '', Miki: '' },
@@ -710,8 +711,10 @@ async function handleUnlock(e) {
         const parsed = JSON.parse(decryptedJson || '[]');
         if (Array.isArray(parsed)) {
           STATE.entries = parsed;
+          STATE.customSections = [];
         } else if (parsed && typeof parsed === 'object') {
           STATE.entries = parsed.entries || [];
+          STATE.customSections = parsed.customSections || [];
           if (parsed.phonebook) {
             STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
             localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
@@ -719,6 +722,7 @@ async function handleUnlock(e) {
         }
       } catch (e) {
         STATE.entries = [];
+        STATE.customSections = [];
       }
 
       STATE.masterKey = key;
@@ -765,8 +769,10 @@ async function tryAutoUnlock() {
       const parsed = JSON.parse(decryptedJson || '[]');
       if (Array.isArray(parsed)) {
         STATE.entries = parsed;
+        STATE.customSections = [];
       } else if (parsed && typeof parsed === 'object') {
         STATE.entries = parsed.entries || [];
+        STATE.customSections = parsed.customSections || [];
         if (parsed.phonebook) {
           STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
           localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
@@ -774,6 +780,7 @@ async function tryAutoUnlock() {
       }
     } catch (e) {
       STATE.entries = [];
+      STATE.customSections = [];
     }
 
     STATE.masterKey = key;
@@ -884,7 +891,8 @@ async function saveEncryptedVault(existingSalt = null) {
   const encryptedCheck = await encryptData(VERIFICATION_STRING, STATE.masterKey);
   const vaultPayload = {
     entries: STATE.entries,
-    phonebook: STATE.phonebook
+    phonebook: STATE.phonebook,
+    customSections: STATE.customSections || []
   };
   const encryptedEntries = await encryptData(JSON.stringify(vaultPayload), STATE.masterKey);
 
@@ -924,6 +932,7 @@ function updateTileCounts() {
   const countNote = STATE.entries.filter(e => e.section === 'note').length;
   const countCassaforte = STATE.entries.filter(e => e.section === 'cassaforte').length;
   const countMessaggi = STATE.entries.filter(e => e.section === 'messaggio').length;
+  const countDebiti = STATE.entries.filter(e => e.section === 'debiti').length;
 
   const elPw = document.getElementById('countPw');
   const elBanca = document.getElementById('countBanca');
@@ -931,6 +940,7 @@ function updateTileCounts() {
   const elNote = document.getElementById('countNote');
   const elCassaforte = document.getElementById('countCassaforte');
   const elMessaggi = document.getElementById('countMessaggi');
+  const elDebiti = document.getElementById('countDebiti');
 
   if (elPw) elPw.textContent = countPw;
   if (elBanca) elBanca.textContent = countBanca;
@@ -938,6 +948,70 @@ function updateTileCounts() {
   if (elNote) elNote.textContent = countNote;
   if (elCassaforte) elCassaforte.textContent = countCassaforte;
   if (elMessaggi) elMessaggi.textContent = countMessaggi;
+  if (elDebiti) elDebiti.textContent = countDebiti;
+
+  renderDynamicTiles();
+  populateSectionSelectDropdown();
+}
+
+function renderDynamicTiles() {
+  const container = document.getElementById('dynamicCustomTilesContainer');
+  if (!container) return;
+
+  if (!STATE.customSections || STATE.customSections.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = STATE.customSections.map(sec => {
+    const count = STATE.entries.filter(e => e.section === sec.id).length;
+    const iconDisplay = sec.icon ? `<span style="font-size: 26px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">${escapeHTML(sec.icon)}</span>` : `
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+      </svg>
+    `;
+
+    return `
+      <button type="button" class="dash-tile" onclick="openSection('${escapeAttr(sec.id)}')" aria-label="${escapeAttr(sec.name)}">
+        <div class="dash-tile-icon">
+          ${iconDisplay}
+        </div>
+        <span class="dash-tile-title">${escapeHTML(sec.name)}</span>
+        <span class="dash-tile-sub">${count} voci</span>
+      </button>
+    `;
+  }).join('');
+}
+
+function populateSectionSelectDropdown() {
+  const select = document.getElementById('entrySectionSelect');
+  if (!select) return;
+
+  const currentVal = select.value;
+  const standardOptions = [
+    { val: 'pw', label: '🔑 Password & Credenziali' },
+    { val: 'banca', label: '🏛️ Banca & Conti Correnti' },
+    { val: 'info_case', label: '🏠 Info Case & Utenze' },
+    { val: 'note', label: '📝 Note & Disposizioni' },
+    { val: 'cassaforte', label: '🛡️ Cassaforte & Valori' },
+    { val: 'messaggio', label: '💬 Messaggio con Notifica' },
+    { val: 'debiti', label: '💳 Debiti & Finanziamenti' }
+  ];
+
+  let html = standardOptions.map(opt => `<option value="${opt.val}">${opt.label}</option>`).join('');
+
+  if (STATE.customSections && STATE.customSections.length > 0) {
+    html += STATE.customSections.map(sec => {
+      const icon = sec.icon || '📁';
+      return `<option value="${escapeAttr(sec.id)}">${icon} ${escapeHTML(sec.name)}</option>`;
+    }).join('');
+  }
+
+  select.innerHTML = html;
+  if (currentVal) {
+    select.value = currentVal;
+  }
 }
 
 function openSection(sectionKey) {
@@ -951,10 +1025,23 @@ function openSection(sectionKey) {
     info_case: 'Info Case',
     note: 'Note',
     cassaforte: 'Cassaforte',
-    messaggio: 'Messaggi'
+    messaggio: 'Messaggi',
+    debiti: 'Debiti'
   };
 
-  document.getElementById('sectionTitle').textContent = titleMap[sectionKey] || 'Dettagli';
+  let title = titleMap[sectionKey];
+  const isCustom = !title;
+  if (isCustom) {
+    const customSec = (STATE.customSections || []).find(s => s.id === sectionKey);
+    title = customSec ? (customSec.icon ? `${customSec.icon} ${customSec.name}` : customSec.name) : 'Dettagli';
+  }
+
+  document.getElementById('sectionTitle').textContent = title || 'Dettagli';
+
+  const btnDeleteCustom = document.getElementById('btnDeleteCustomSection');
+  if (btnDeleteCustom) {
+    btnDeleteCustom.style.display = isCustom ? 'inline-flex' : 'none';
+  }
 
   const notifBanner = document.getElementById('notifBanner');
   if (notifBanner) {
@@ -966,6 +1053,79 @@ function openSection(sectionKey) {
   }
 
   renderSectionList();
+}
+
+async function handleDeleteCurrentCustomSection() {
+  const customSec = (STATE.customSections || []).find(s => s.id === STATE.activeSection);
+  if (!customSec) return;
+
+  if (!confirm(`Vuoi davvero eliminare il tasto "${customSec.name}" e tutte le voci salvate al suo interno?`)) {
+    return;
+  }
+
+  STATE.customSections = STATE.customSections.filter(s => s.id !== customSec.id);
+  STATE.entries = STATE.entries.filter(e => e.section !== customSec.id);
+  await saveEncryptedVault();
+  showToast(`Tasto "${customSec.name}" eliminato`);
+  backToGrid();
+}
+
+// GESTIONE MODALE CREAZIONE NUOVO TASTO
+function openCreateCustomSectionModal() {
+  const modal = document.getElementById('createSectionModalOverlay');
+  const form = document.getElementById('createSectionForm');
+  if (form) form.reset();
+  selectCustomIcon('📑');
+  if (modal) modal.style.display = 'flex';
+  const nameInput = document.getElementById('customSectionNameInput');
+  if (nameInput) setTimeout(() => nameInput.focus(), 100);
+}
+
+function closeCreateCustomSectionModal() {
+  const modal = document.getElementById('createSectionModalOverlay');
+  if (modal) modal.style.display = 'none';
+}
+
+function closeCreateSectionModalOnOverlay(e) {
+  if (e.target.id === 'createSectionModalOverlay') closeCreateCustomSectionModal();
+}
+
+function selectCustomIcon(iconChar) {
+  const input = document.getElementById('customSectionIconInput');
+  if (input) input.value = iconChar;
+  const chips = document.querySelectorAll('#customIconSelector .icon-chip');
+  chips.forEach(c => {
+    c.classList.toggle('active', c.textContent.trim() === iconChar);
+  });
+}
+
+async function handleCreateCustomSection(e) {
+  e.preventDefault();
+  const nameInput = document.getElementById('customSectionNameInput');
+  const subInput = document.getElementById('customSectionSubInput');
+  const iconInput = document.getElementById('customSectionIconInput');
+
+  const name = nameInput ? nameInput.value.trim() : '';
+  const subtitle = subInput ? subInput.value.trim() : '';
+  const icon = iconInput ? iconInput.value.trim() : '📁';
+
+  if (!name) return;
+
+  const id = `sec_${Date.now()}`;
+  if (!STATE.customSections) STATE.customSections = [];
+
+  STATE.customSections.push({
+    id,
+    name,
+    subtitle,
+    icon,
+    createdAt: new Date().toISOString()
+  });
+
+  closeCreateCustomSectionModal();
+  await saveEncryptedVault();
+  updateTileCounts();
+  showToast(`Tasto "${name}" creato! 🎉`);
 }
 
 function backToGrid() {
@@ -1373,6 +1533,44 @@ function createEntryCardHTML(item) {
         </div>
       ` : ''}
     `;
+  } else if (item.section === 'debiti') {
+    detailsHTML = `
+      ${item.rata ? `
+        <div class="entry-row">
+          <span class="entry-label">Rata / Importo</span>
+          <span class="entry-value" style="font-weight: 700; color: #ffffff;">${escapeHTML(item.rata)}</span>
+          <button type="button" class="btn-copy" onclick="copyToClipboard('${escapeAttr(item.rata)}')">Copia</button>
+        </div>
+      ` : ''}
+      ${item.scadenza ? `
+        <div class="entry-row">
+          <span class="entry-label">Scadenza</span>
+          <span class="entry-value">${escapeHTML(item.scadenza)}</span>
+        </div>
+      ` : ''}
+      ${item.creditore ? `
+        <div class="entry-row">
+          <span class="entry-label">Creditore / Banca</span>
+          <span class="entry-value">${escapeHTML(item.creditore)}</span>
+        </div>
+      ` : ''}
+    `;
+  } else if (!['pw', 'banca', 'info_case', 'cassaforte', 'messaggio', 'note'].includes(item.section)) {
+    detailsHTML = `
+      ${item.valore ? `
+        <div class="entry-row">
+          <span class="entry-label">Dettaglio</span>
+          <span class="entry-value">${escapeHTML(item.valore)}</span>
+          <button type="button" class="btn-copy" onclick="copyToClipboard('${escapeAttr(item.valore)}')">Copia</button>
+        </div>
+      ` : ''}
+      ${item.riferimento ? `
+        <div class="entry-row">
+          <span class="entry-label">Riferimento</span>
+          <span class="entry-value">${escapeHTML(item.riferimento)}</span>
+        </div>
+      ` : ''}
+    `;
   }
 
   return `
@@ -1444,6 +1642,7 @@ function openAddModalForCurrentSection(section = 'pw') {
   document.getElementById('modalHeading').textContent = 'Nuova Informazione';
   form.reset();
   document.getElementById('entryId').value = '';
+  populateSectionSelectDropdown();
   document.getElementById('entrySectionSelect').value = section;
   adaptFormFields();
   modal.style.display = 'flex';
@@ -1456,6 +1655,7 @@ function openEditModal(id) {
   const modal = document.getElementById('modalOverlay');
   document.getElementById('modalHeading').textContent = 'Modifica Informazione';
   document.getElementById('entryId').value = item.id;
+  populateSectionSelectDropdown();
   document.getElementById('entrySectionSelect').value = item.section;
   document.getElementById('entryTitleInput').value = item.title || '';
 
@@ -1480,6 +1680,20 @@ function openEditModal(id) {
   // Messaggio fields
   document.getElementById('entryMittenteInput').value = item.mittente || '';
 
+  // Debiti fields
+  const elRata = document.getElementById('entryDebitoRataInput');
+  const elScad = document.getElementById('entryDebitoScadenzaInput');
+  const elCred = document.getElementById('entryDebitoCreditoreInput');
+  if (elRata) elRata.value = item.rata || '';
+  if (elScad) elScad.value = item.scadenza || '';
+  if (elCred) elCred.value = item.creditore || '';
+
+  // Custom fields
+  const elValore = document.getElementById('entryCustomValoreInput');
+  const elRif = document.getElementById('entryCustomRifInput');
+  if (elValore) elValore.value = item.valore || '';
+  if (elRif) elRif.value = item.riferimento || '';
+
   // Notes
   document.getElementById('entryNotesInput').value = item.notes || '';
 
@@ -1503,6 +1717,13 @@ function adaptFormFields() {
   document.getElementById('fieldsCassaforte').style.display = section === 'cassaforte' ? 'block' : 'none';
   document.getElementById('fieldsMessaggio').style.display = section === 'messaggio' ? 'block' : 'none';
 
+  const fieldsDebiti = document.getElementById('fieldsDebiti');
+  if (fieldsDebiti) fieldsDebiti.style.display = section === 'debiti' ? 'block' : 'none';
+
+  const isCustom = !['pw', 'banca', 'info_case', 'cassaforte', 'messaggio', 'note', 'debiti'].includes(section);
+  const fieldsCustom = document.getElementById('fieldsCustom');
+  if (fieldsCustom) fieldsCustom.style.display = isCustom ? 'block' : 'none';
+
   const labelTitle = document.getElementById('labelTitle');
   if (section === 'messaggio') {
     labelTitle.textContent = 'Oggetto del Messaggio *';
@@ -1510,6 +1731,11 @@ function adaptFormFields() {
     labelTitle.textContent = 'Nome / Identificativo Cassaforte *';
   } else if (section === 'note') {
     labelTitle.textContent = 'Titolo della Nota / Disposizione *';
+  } else if (section === 'debiti') {
+    labelTitle.textContent = 'Nome Debito / Finanziamento / Rata *';
+  } else if (isCustom) {
+    const customSec = (STATE.customSections || []).find(s => s.id === section);
+    labelTitle.textContent = customSec ? `Titolo ${customSec.name} *` : 'Titolo *';
   } else {
     labelTitle.textContent = 'Titolo / Servizio *';
   }
@@ -1547,6 +1773,19 @@ async function handleSaveEntry(e) {
   } else if (section === 'messaggio') {
     entryData.mittente = document.getElementById('entryMittenteInput').value.trim() || 'Famiglia';
     triggerPhoneNotification(`💬 Messaggio da ${entryData.mittente}`, notes || title);
+  } else if (section === 'debiti') {
+    const elRata = document.getElementById('entryDebitoRataInput');
+    const elScad = document.getElementById('entryDebitoScadenzaInput');
+    const elCred = document.getElementById('entryDebitoCreditoreInput');
+    entryData.rata = elRata ? elRata.value.trim() : '';
+    entryData.scadenza = elScad ? elScad.value.trim() : '';
+    entryData.creditore = elCred ? elCred.value.trim() : '';
+  } else {
+    // Custom section
+    const elValore = document.getElementById('entryCustomValoreInput');
+    const elRif = document.getElementById('entryCustomRifInput');
+    entryData.valore = elValore ? elValore.value.trim() : '';
+    entryData.riferimento = elRif ? elRif.value.trim() : '';
   }
 
   const btn = document.getElementById('saveEntrySubmitBtn');
@@ -1617,6 +1856,9 @@ async function checkForRemoteUpdates() {
     const decryptedJson = await decryptData(remoteVault.data, STATE.masterKey);
     const parsed = JSON.parse(decryptedJson || '[]');
     const newEntries = Array.isArray(parsed) ? parsed : (parsed.entries || []);
+    if (parsed && typeof parsed === 'object' && parsed.customSections) {
+      STATE.customSections = parsed.customSections;
+    }
 
     const oldMsgIds = new Set(STATE.entries.filter(e => e.section === 'messaggio').map(e => e.id));
     const newlyAdded = newEntries.filter(e => e.section === 'messaggio' && !oldMsgIds.has(e.id));
