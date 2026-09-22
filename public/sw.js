@@ -1,4 +1,4 @@
-const CACHE_NAME = 'famylia-v15';
+const CACHE_NAME = 'famylia-v16';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -131,6 +131,11 @@ self.addEventListener('notificationclick', (event) => {
 // 6. Comunicazione con la pagina per notifiche locali immediate
 self.addEventListener('message', (event) => {
   if (!event.data) return;
+
+  if (event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
 
   if (event.data.type === 'UPDATE_BADGE') {
     if (navigator.setAppBadge) {

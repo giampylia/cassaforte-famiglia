@@ -303,8 +303,26 @@ function initServiceWorker() {
       if (reg.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
       }
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        }
+      });
     }).catch((err) => {
       console.warn('[SW] Errore registrazione:', err);
+    });
+
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
     });
   }
 }
@@ -1269,7 +1287,8 @@ async function savePhonebook(showToastMsg = true) {
 }
 
 function callPerson(name) {
-  const phone = STATE.phonebook && STATE.phonebook[name];
+  const input = document.getElementById(`phone${name}`);
+  const phone = (input && input.value.trim()) || (STATE.phonebook && STATE.phonebook[name]);
   if (!phone) {
     showToast(`Inserisci prima il numero di ${name} nella rubrica!`);
     return;
@@ -1947,6 +1966,13 @@ async function checkForRemoteUpdates() {
       if (parsed.phonebook) {
         STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
         localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
+
+        const inpG = document.getElementById('phoneGiampy');
+        const inpT = document.getElementById('phoneTy');
+        const inpM = document.getElementById('phoneMiki');
+        if (inpG && document.activeElement !== inpG) inpG.value = STATE.phonebook.Giampy || '';
+        if (inpT && document.activeElement !== inpT) inpT.value = STATE.phonebook.Ty || '';
+        if (inpM && document.activeElement !== inpM) inpM.value = STATE.phonebook.Miki || '';
       }
     }
 
