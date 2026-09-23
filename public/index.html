@@ -87,13 +87,7 @@
       </div>
 
       <h1 class="auth-title">Famylia</h1>
-      <p class="auth-subtitle" id="authSubtitle">Inserisci il tuo PIN personale (Giampy, Ty o Miki).</p>
-
-      <div class="family-pins-hint" style="display: flex; gap: 6px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap;">
-        <span class="pin-hint-chip">👨 Giampy</span>
-        <span class="pin-hint-chip">👩 Ty</span>
-        <span class="pin-hint-chip">👦 Miki</span>
-      </div>
+      <p class="auth-subtitle" id="authSubtitle">Inserisci il tuo PIN personale a 6 cifre.</p>
 
       <form id="authForm" class="auth-form" onsubmit="handleUnlock(event)">
         <input type="password" id="masterPasswordInput" class="neu-input" placeholder="Il tuo PIN personale" autocomplete="current-password" required maxlength="30">
@@ -896,6 +890,6 @@
   <!-- Toast Notifica Copiato -->
   <div id="toastNotice" class="toast-notice">Copiato negli appunti!</div>
 
-  <script src="/app.js?v=7.6"></script>
+  <script src="/app.js?v=7.7"></script>
 </body>
 </html>

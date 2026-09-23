@@ -633,7 +633,7 @@ function updateAuthScreenUI() {
   const inp = document.getElementById('masterPasswordInput');
 
   if (title) title.textContent = 'Famylia';
-  if (subtitle) subtitle.textContent = 'Inserisci il tuo PIN personale (Giampy, Ty o Miki).';
+  if (subtitle) subtitle.textContent = 'Inserisci il tuo PIN personale a 6 cifre.';
   if (btn) btn.textContent = 'Accedi a Famylia';
   if (inp) {
     inp.placeholder = 'Il tuo PIN personale (6 cifre)';
