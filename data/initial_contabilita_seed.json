@@ -478,7 +478,79 @@
   ],
   "journalEntries": [
     {
-      "id": "initial-1-1790161710366",
+      "id": "je-1-bvgky",
+      "date": "2026-12-31",
+      "description": "CHIUSURA DEL CONTO PER SEMPLIFICAZIONE",
+      "debitAccountCode": "6660",
+      "creditAccountCode": "4041",
+      "amount": 17000
+    },
+    {
+      "id": "je-2-1hq3j",
+      "date": "2026-12-31",
+      "description": "CHIUSURA DEL CONTO PER SEMPLIFICAZIONE",
+      "debitAccountCode": "6661",
+      "creditAccountCode": "4041",
+      "amount": 6462.79
+    },
+    {
+      "id": "je-3-syfhv",
+      "date": "2026-12-31",
+      "description": "RECUPERO PARZIALE RISPARMI PER LIQUIDITA FINE ANNO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "5070",
+      "amount": 553.86
+    },
+    {
+      "id": "je-4-h6sfn",
+      "date": "2026-12-31",
+      "description": "RECUPERO PARZIALE RISPARMI PER LIQUIDITA FINE ANNO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "5070",
+      "amount": 903.49
+    },
+    {
+      "id": "je-5-8dsaf",
+      "date": "2026-12-31",
+      "description": "RECUPERO PARZIALE RISPARMI PER LIQUIDITA FINE ANNO",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "5070",
+      "amount": 477.86
+    },
+    {
+      "id": "je-6-i1urg",
+      "date": "2026-12-31",
+      "description": "RISPARMI DELL ANNO PER AZZERAMENTO DEBITO VERSO FRANCA TY BOBBYE",
+      "debitAccountCode": "6661",
+      "creditAccountCode": "5025",
+      "amount": 13537.21
+    },
+    {
+      "id": "je-7-tysyl",
+      "date": "2026-12-31",
+      "description": "RISPARMI GIRATI A F.CASANUOVA",
+      "debitAccountCode": "5070",
+      "creditAccountCode": "5025",
+      "amount": 267.78
+    },
+    {
+      "id": "je-8-tihys",
+      "date": "2026-09-21",
+      "description": "EMERGENCY",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-9-dwcdg",
+      "date": "2026-09-21",
+      "description": "FISSO WIND",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 30.49
+    },
+    {
+      "id": "je-10-yj7yi",
       "date": "2026-09-21",
       "description": "BOOKING PETRA WATTERMARK",
       "debitAccountCode": "4043",
@@ -486,7 +558,63 @@
       "amount": 123.67
     },
     {
-      "id": "initial-2-1790161710369",
+      "id": "je-11-2qtxd",
+      "date": "2026-09-21",
+      "description": "GRUPPO ABELE GPP PARTE CON PAYPAL PARTE ING DURECT",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4072",
+      "amount": 500
+    },
+    {
+      "id": "je-12-tztif",
+      "date": "2026-09-21",
+      "description": "DA ING PER GRUPPO ABELE",
+      "debitAccountCode": "4072",
+      "creditAccountCode": "4043",
+      "amount": 40.83
+    },
+    {
+      "id": "je-13-ke0fz",
+      "date": "2026-09-21",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-14-r78dh",
+      "date": "2026-09-19",
+      "description": "SCARPE",
+      "debitAccountCode": "6012",
+      "creditAccountCode": "4010",
+      "amount": 24
+    },
+    {
+      "id": "je-15-9vfsz",
+      "date": "2026-09-19",
+      "description": "SCARPE PADEL",
+      "debitAccountCode": "6012",
+      "creditAccountCode": "4043",
+      "amount": 23.97
+    },
+    {
+      "id": "je-16-du7b0",
+      "date": "2026-09-18",
+      "description": "IDS SCALISE",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 21
+    },
+    {
+      "id": "je-17-lq30q",
+      "date": "2026-09-18",
+      "description": "BOOWLING",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 8
+    },
+    {
+      "id": "je-18-h3ckz",
       "date": "2026-09-18",
       "description": "CAUZIONE SCALISE",
       "debitAccountCode": "5024",
@@ -494,7 +622,7 @@
       "amount": 250
     },
     {
-      "id": "initial-3-1790161710369",
+      "id": "je-19-ezmpa",
       "date": "2026-09-18",
       "description": "SALDO SCALISE",
       "debitAccountCode": "4043",
@@ -502,7 +630,7 @@
       "amount": 345
     },
     {
-      "id": "initial-4-1790161710369",
+      "id": "je-20-bmq6b",
       "date": "2026-09-18",
       "description": "CAUZIONE TANGREDI",
       "debitAccountCode": "5023",
@@ -510,7 +638,15 @@
       "amount": 200
     },
     {
-      "id": "initial-5-1790161710369",
+      "id": "je-21-wfpy2",
+      "date": "2026-09-17",
+      "description": "COMMISSIONE POSTA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 2
+    },
+    {
+      "id": "je-22-bum1d",
       "date": "2026-09-17",
       "description": "DOGHE E VARIE VILLASIMIUS",
       "debitAccountCode": "8040",
@@ -518,7 +654,15 @@
       "amount": 12
     },
     {
-      "id": "initial-6-1790161710369",
+      "id": "je-23-m972y",
+      "date": "2026-09-17",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 6
+    },
+    {
+      "id": "je-24-m1yim",
       "date": "2026-09-17",
       "description": "LIVIO SDROFFA",
       "debitAccountCode": "4043",
@@ -526,7 +670,47 @@
       "amount": 1500
     },
     {
-      "id": "initial-7-1790161710369",
+      "id": "je-25-7maxs",
+      "date": "2026-09-17",
+      "description": "ORDINARIE 2026",
+      "debitAccountCode": "6101",
+      "creditAccountCode": "4043",
+      "amount": 500
+    },
+    {
+      "id": "je-26-jhd91",
+      "date": "2026-09-17",
+      "description": "STILL I RISE MICHELE POSTA",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4010",
+      "amount": 500
+    },
+    {
+      "id": "je-27-tiw25",
+      "date": "2026-09-16",
+      "description": "RATA 3",
+      "debitAccountCode": "6210",
+      "creditAccountCode": "4043",
+      "amount": 1000
+    },
+    {
+      "id": "je-28-1c8q6",
+      "date": "2026-09-16",
+      "description": "SIGHT SAVERS",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 5
+    },
+    {
+      "id": "je-29-oyfyd",
+      "date": "2026-09-15",
+      "description": "PADEL",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 11.5
+    },
+    {
+      "id": "je-30-lnmm8",
       "date": "2026-09-14",
       "description": "BIANCHERIA LOSCIALE",
       "debitAccountCode": "4010",
@@ -534,7 +718,23 @@
       "amount": 30
     },
     {
-      "id": "initial-8-1790161710369",
+      "id": "je-31-usig4",
+      "date": "2026-09-14",
+      "description": "IDS LOSCIALE",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 13
+    },
+    {
+      "id": "je-32-u22l0",
+      "date": "2026-09-13",
+      "description": "COLAZIONE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 6.5
+    },
+    {
+      "id": "je-33-5ua1s",
       "date": "2026-09-13",
       "description": "RICARICA MODEM",
       "debitAccountCode": "8040",
@@ -542,7 +742,15 @@
       "amount": 10
     },
     {
-      "id": "initial-9-1790161710369",
+      "id": "je-34-gtnc0",
+      "date": "2026-09-12",
+      "description": "IDS PETRA WATTERMARK",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 4
+    },
+    {
+      "id": "je-35-58f5i",
       "date": "2026-09-12",
       "description": "TELECOMANDO TV SHARP",
       "debitAccountCode": "8040",
@@ -550,7 +758,23 @@
       "amount": 13
     },
     {
-      "id": "initial-10-1790161710369",
+      "id": "je-36-0c5cf",
+      "date": "2026-09-12",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 20
+    },
+    {
+      "id": "je-37-odt0f",
+      "date": "2026-09-12",
+      "description": "BOMBOLA GAS",
+      "debitAccountCode": "6091",
+      "creditAccountCode": "4010",
+      "amount": 20
+    },
+    {
+      "id": "je-38-yahxk",
       "date": "2026-09-12",
       "description": "PULIZIE RITA",
       "debitAccountCode": "8040",
@@ -558,7 +782,7 @@
       "amount": 30
     },
     {
-      "id": "initial-11-1790161710369",
+      "id": "je-39-94cwl",
       "date": "2026-09-12",
       "description": "BIANCHERIA GAIA CAMPANA",
       "debitAccountCode": "4010",
@@ -566,7 +790,15 @@
       "amount": 45
     },
     {
-      "id": "initial-12-1790161710369",
+      "id": "je-40-irz6j",
+      "date": "2026-09-12",
+      "description": "IDS GAIA CAMPANA BOOKING",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 15
+    },
+    {
+      "id": "je-41-tg08n",
       "date": "2026-09-12",
       "description": "BIANCHERIA PETRA WETTERMARK",
       "debitAccountCode": "4010",
@@ -574,12 +806,7076 @@
       "amount": 30
     },
     {
-      "id": "initial-13-1790161710369",
+      "id": "je-42-zpyso",
+      "date": "2026-09-11",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 2000
+    },
+    {
+      "id": "je-43-qcx0r",
+      "date": "2026-09-11",
+      "description": "IDS VITALE",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 40
+    },
+    {
+      "id": "je-44-9y01a",
+      "date": "2026-09-10",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 10
+    },
+    {
+      "id": "je-45-ynmhw",
+      "date": "2026-09-10",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 20
+    },
+    {
+      "id": "je-46-ne4ws",
       "date": "2026-09-08",
       "description": "DOGHE E SALISCENDI DOCCIA",
       "debitAccountCode": "8040",
       "creditAccountCode": "4010",
       "amount": 12.5
+    },
+    {
+      "id": "je-47-bluuz",
+      "date": "2026-09-08",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 35
+    },
+    {
+      "id": "je-48-vrlc1",
+      "date": "2026-09-08",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "4045",
+      "amount": 1500
+    },
+    {
+      "id": "je-49-0gfwk",
+      "date": "2026-09-08",
+      "description": "IMPREGNANTE BANCHI CHIESA",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4010",
+      "amount": 39.5
+    },
+    {
+      "id": "je-50-ldyby",
+      "date": "2026-09-07",
+      "description": "RIMBORSO ADOBE",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4071",
+      "amount": 45
+    },
+    {
+      "id": "je-51-gdqht",
+      "date": "2026-09-07",
+      "description": "ADOBE PHOTOSHOP",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 14.99
+    },
+    {
+      "id": "je-52-tpsu7",
+      "date": "2026-09-07",
+      "description": "LUCCHETTI CHIAVE ARIA CONDIZIONATA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 8.99
+    },
+    {
+      "id": "je-53-58w7m",
+      "date": "2026-09-06",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 1.5
+    },
+    {
+      "id": "je-54-njmcu",
+      "date": "2026-09-05",
+      "description": "RITA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-55-l8d1w",
+      "date": "2026-09-05",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 20
+    },
+    {
+      "id": "je-56-o8s0h",
+      "date": "2026-09-05",
+      "description": "SALDO DARIO VITALE",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 1460
+    },
+    {
+      "id": "je-57-iqwqa",
+      "date": "2026-09-05",
+      "description": "CAUZIONE DARIO VITALE",
+      "debitAccountCode": "5021",
+      "creditAccountCode": "8040",
+      "amount": 250
+    },
+    {
+      "id": "je-58-fd4hr",
+      "date": "2026-09-05",
+      "description": "MEZZAPESA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 208.58
+    },
+    {
+      "id": "je-59-r1hel",
+      "date": "2026-09-05",
+      "description": "DETERSIVO PIATTI",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 2.5
+    },
+    {
+      "id": "je-60-nd2bm",
+      "date": "2026-09-04",
+      "description": "MATERIALE PULIZIA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 3.77
+    },
+    {
+      "id": "je-61-qs7fk",
+      "date": "2026-09-04",
+      "description": "RITA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 40
+    },
+    {
+      "id": "je-62-lcubr",
+      "date": "2026-09-04",
+      "description": "GEMMA MICCIO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 570
+    },
+    {
+      "id": "je-63-7b603",
+      "date": "2026-09-04",
+      "description": "ACCREDITO INTERHOME A MIKI X REGALO ARMADIO MIKI",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4076",
+      "amount": 1200
+    },
+    {
+      "id": "je-64-av20e",
+      "date": "2026-09-04",
+      "description": "ACCREDITO INTERHOME A MIKI X REGALO ARMADIO MIKI",
+      "debitAccountCode": "4076",
+      "creditAccountCode": "8040",
+      "amount": 1200
+    },
+    {
+      "id": "je-65-x7u7s",
+      "date": "2026-09-03",
+      "description": "PUNTI METALLICI E GOMMINI ANTIRUMORE INGINOCCHIATOI",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4072",
+      "amount": 26.08
+    },
+    {
+      "id": "je-66-nblev",
+      "date": "2026-09-03",
+      "description": "SALDO FIORETTO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 530
+    },
+    {
+      "id": "je-67-jrhiy",
+      "date": "2026-09-03",
+      "description": "CAUZIONE FIORETTO",
+      "debitAccountCode": "5023",
+      "creditAccountCode": "8040",
+      "amount": 150
+    },
+    {
+      "id": "je-68-rdwmp",
+      "date": "2026-09-02",
+      "description": "IDS FINO A BEYER",
+      "debitAccountCode": "5100",
+      "creditAccountCode": "4043",
+      "amount": 56.73
+    },
+    {
+      "id": "je-69-mi6hu",
+      "date": "2026-09-02",
+      "description": "PADEL E BIRRA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 13.5
+    },
+    {
+      "id": "je-70-1vtce",
+      "date": "2026-09-02",
+      "description": "LAVATRICE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 189
+    },
+    {
+      "id": "je-71-ffye7",
+      "date": "2026-09-01",
+      "description": "PRESTITO",
+      "debitAccountCode": "6182",
+      "creditAccountCode": "4043",
+      "amount": 167.37
+    },
+    {
+      "id": "je-72-60cqb",
+      "date": "2026-09-01",
+      "description": "RATA MUTUO",
+      "debitAccountCode": "6180",
+      "creditAccountCode": "4043",
+      "amount": 488.42
+    },
+    {
+      "id": "je-73-4n9zl",
+      "date": "2026-09-01",
+      "description": "SIM MOBILE",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 22.75
+    },
+    {
+      "id": "je-74-myi79",
+      "date": "2026-09-01",
+      "description": "COMMISSIONI MUTUO",
+      "debitAccountCode": "6130",
+      "creditAccountCode": "4043",
+      "amount": 1.5
+    },
+    {
+      "id": "je-75-v3erc",
+      "date": "2026-09-01",
+      "description": "",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "8010",
+      "amount": 2168.94
+    },
+    {
+      "id": "je-76-vbe5v",
+      "date": "2026-08-31",
+      "description": "RATA 7",
+      "debitAccountCode": "6140",
+      "creditAccountCode": "4010",
+      "amount": 32
+    },
+    {
+      "id": "je-77-kn8pb",
+      "date": "2026-08-31",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 40
+    },
+    {
+      "id": "je-78-1tnet",
+      "date": "2026-08-31",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 15
+    },
+    {
+      "id": "je-79-jv95b",
+      "date": "2026-08-31",
+      "description": "STOFFA PER INGINOCCHIATOIO",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4010",
+      "amount": 11
+    },
+    {
+      "id": "je-80-m3w27",
+      "date": "2026-08-29",
+      "description": "PIZZA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 21
+    },
+    {
+      "id": "je-81-v5748",
+      "date": "2026-08-29",
+      "description": "RITA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 100
+    },
+    {
+      "id": "je-82-ttdcw",
+      "date": "2026-08-29",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 2
+    },
+    {
+      "id": "je-83-hwb4h",
+      "date": "2026-08-29",
+      "description": "SALDO SEDA BEKER",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 550
+    },
+    {
+      "id": "je-84-a871d",
+      "date": "2026-08-29",
+      "description": "SEDA BEKER",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 14
+    },
+    {
+      "id": "je-85-te1gy",
+      "date": "2026-08-29",
+      "description": "CAUZIONE SEDA BEKER",
+      "debitAccountCode": "5024",
+      "creditAccountCode": "8040",
+      "amount": 200
+    },
+    {
+      "id": "je-86-b5iya",
+      "date": "2026-08-28",
+      "description": "FATTURA ELETTRICA CAVARO",
+      "debitAccountCode": "6050",
+      "creditAccountCode": "4043",
+      "amount": 88.65
+    },
+    {
+      "id": "je-87-3tau7",
+      "date": "2026-08-28",
+      "description": "FATTURA ELETTRICA TISIDDU",
+      "debitAccountCode": "6052",
+      "creditAccountCode": "4043",
+      "amount": 242.64
+    },
+    {
+      "id": "je-88-6mf57",
+      "date": "2026-08-28",
+      "description": "BOOKING",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 282.12
+    },
+    {
+      "id": "je-89-px14j",
+      "date": "2026-08-28",
+      "description": "BOOKING",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 223.67
+    },
+    {
+      "id": "je-90-axsos",
+      "date": "2026-08-27",
+      "description": "REGALO SAMUELE",
+      "debitAccountCode": "6011",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-91-gkdc1",
+      "date": "2026-08-27",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 15
+    },
+    {
+      "id": "je-92-bns4h",
+      "date": "2026-08-26",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 1612.21
+    },
+    {
+      "id": "je-93-ljtbz",
+      "date": "2026-08-26",
+      "description": "TECNOMAT",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-94-u5bv2",
+      "date": "2026-08-26",
+      "description": "FATTURA ELETTRICA PRINCIPE 195,89",
+      "debitAccountCode": "6053",
+      "creditAccountCode": "4043",
+      "amount": 195.89
+    },
+    {
+      "id": "je-95-gwr3v",
+      "date": "2026-08-26",
+      "description": "FATTURA ELETTRICA TISIDDU 125,46",
+      "debitAccountCode": "6052",
+      "creditAccountCode": "4043",
+      "amount": 125.46
+    },
+    {
+      "id": "je-96-0qiow",
+      "date": "2026-08-25",
+      "description": "ZIRANU",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 7.5
+    },
+    {
+      "id": "je-97-qf86e",
+      "date": "2026-08-24",
+      "description": "CARTA IGIENICA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 5
+    },
+    {
+      "id": "je-98-q7rvq",
+      "date": "2026-08-24",
+      "description": "SALDO MEZZAPESA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 60
+    },
+    {
+      "id": "je-99-kcsbu",
+      "date": "2026-08-24",
+      "description": "IDS MEZZAPESA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 12
+    },
+    {
+      "id": "je-100-v5c1v",
+      "date": "2026-08-23",
+      "description": "PARCHEGGIO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 2
+    },
+    {
+      "id": "je-101-d1ne4",
+      "date": "2026-08-23",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-102-hct1w",
+      "date": "2026-08-23",
+      "description": "MULTA DIVIETO SOSTA",
+      "debitAccountCode": "6040",
+      "creditAccountCode": "4043",
+      "amount": 29.68
+    },
+    {
+      "id": "je-103-czoo4",
+      "date": "2026-08-23",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 2000
+    },
+    {
+      "id": "je-104-nj3vx",
+      "date": "2026-08-23",
+      "description": "SALDO CRISARI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 200
+    },
+    {
+      "id": "je-105-gpb79",
+      "date": "2026-08-23",
+      "description": "SALDO CRISARI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 380
+    },
+    {
+      "id": "je-106-jrnh4",
+      "date": "2026-08-23",
+      "description": "CAUZIONE CRISARI",
+      "debitAccountCode": "5022",
+      "creditAccountCode": "8040",
+      "amount": 150
+    },
+    {
+      "id": "je-107-78xx6",
+      "date": "2026-08-23",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 16
+    },
+    {
+      "id": "je-108-mxuqe",
+      "date": "2026-08-22",
+      "description": "BARBIERE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 15
+    },
+    {
+      "id": "je-109-eg9cg",
+      "date": "2026-08-21",
+      "description": "SALDO GIORGIO SPANO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 60
+    },
+    {
+      "id": "je-110-1alag",
+      "date": "2026-08-21",
+      "description": "IDS SPANO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 8
+    },
+    {
+      "id": "je-111-hg67f",
+      "date": "2026-08-21",
+      "description": "LINEA FISSA",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 30.49
+    },
+    {
+      "id": "je-112-kqpvh",
+      "date": "2026-08-20",
+      "description": "VARIE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 2.5
+    },
+    {
+      "id": "je-113-uz3vm",
+      "date": "2026-08-20",
+      "description": "EMERGENCY",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-114-ou0rm",
+      "date": "2026-08-20",
+      "description": "PASINATO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 45
+    },
+    {
+      "id": "je-115-fd3ov",
+      "date": "2026-08-20",
+      "description": "IDS PASINATO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 9
+    },
+    {
+      "id": "je-116-ysgmz",
+      "date": "2026-08-17",
+      "description": "VERSAMENTO RITA",
+      "debitAccountCode": "6210",
+      "creditAccountCode": "4043",
+      "amount": 1000
+    },
+    {
+      "id": "je-117-9cqck",
+      "date": "2026-08-17",
+      "description": "MULTA LIMITI VELOCITA",
+      "debitAccountCode": "6040",
+      "creditAccountCode": "4043",
+      "amount": 47.85
+    },
+    {
+      "id": "je-118-1fxf1",
+      "date": "2026-08-17",
+      "description": "ETICHETTE SPAZZATURA + GRAFFETTE SPARAPUNTI INGINOCCHIATOI",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4072",
+      "amount": 28.07
+    },
+    {
+      "id": "je-119-if0jw",
+      "date": "2026-08-17",
+      "description": "QUOTA GRAFFETTE INGINOCCHIATOI CHIESA",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "6010",
+      "amount": 20
+    },
+    {
+      "id": "je-120-rn34e",
+      "date": "2026-08-17",
+      "description": "SALDO KLAUS PITTERS",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 2542
+    },
+    {
+      "id": "je-121-tf880",
+      "date": "2026-08-17",
+      "description": "CAUZIONE KLAUS PITTERS",
+      "debitAccountCode": "5021",
+      "creditAccountCode": "8040",
+      "amount": 300
+    },
+    {
+      "id": "je-122-gr8pu",
+      "date": "2026-08-17",
+      "description": "KLAUS PITTERS",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "5100",
+      "amount": 42
+    },
+    {
+      "id": "je-123-dyzns",
+      "date": "2026-08-17",
+      "description": "SIGHT SAVERS",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 5
+    },
+    {
+      "id": "je-124-ukz8h",
+      "date": "2026-08-15",
+      "description": "PIZZA CON MIKI",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 51
+    },
+    {
+      "id": "je-125-u405s",
+      "date": "2026-08-15",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 50
+    },
+    {
+      "id": "je-126-27s1t",
+      "date": "2026-08-15",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 3.5
+    },
+    {
+      "id": "je-127-kfymf",
+      "date": "2026-08-15",
+      "description": "SILICONE DILUENTE NASTRO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 12
+    },
+    {
+      "id": "je-128-cdjee",
+      "date": "2026-08-14",
+      "description": "IDS BARBERA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 10
+    },
+    {
+      "id": "je-129-k9ltw",
+      "date": "2026-08-14",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 43.5
+    },
+    {
+      "id": "je-130-a00d9",
+      "date": "2026-08-13",
+      "description": "AFFITTO BARBERA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 307.72
+    },
+    {
+      "id": "je-131-jvyh0",
+      "date": "2026-08-11",
+      "description": "RITA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 100
+    },
+    {
+      "id": "je-132-6dbid",
+      "date": "2026-08-11",
+      "description": "DETERSIVI",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 5.27
+    },
+    {
+      "id": "je-133-zwwzr",
+      "date": "2026-08-11",
+      "description": "RIMBORSO CAZZOLA",
+      "debitAccountCode": "5022",
+      "creditAccountCode": "4043",
+      "amount": 250
+    },
+    {
+      "id": "je-134-hn8ua",
+      "date": "2026-08-11",
+      "description": "AMMORBIDENTE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 2.5
+    },
+    {
+      "id": "je-135-3k6o3",
+      "date": "2026-08-11",
+      "description": "CAUZIONE BARBARA MOI",
+      "debitAccountCode": "5024",
+      "creditAccountCode": "8040",
+      "amount": 250
+    },
+    {
+      "id": "je-136-l1fpy",
+      "date": "2026-08-11",
+      "description": "SALDO MILANI CLAUDIO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 1235
+    },
+    {
+      "id": "je-137-qvaiy",
+      "date": "2026-08-11",
+      "description": "CAUZIONE MILANI",
+      "debitAccountCode": "5022",
+      "creditAccountCode": "8040",
+      "amount": 250
+    },
+    {
+      "id": "je-138-fcr4m",
+      "date": "2026-08-11",
+      "description": "CLAUDIO MILANI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 20
+    },
+    {
+      "id": "je-139-kolqn",
+      "date": "2026-08-11",
+      "description": "FALEGNAME PER TOP CUCINA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 150
+    },
+    {
+      "id": "je-140-mchk7",
+      "date": "2026-08-11",
+      "description": "SALDO BARBARA MOI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 1200
+    },
+    {
+      "id": "je-141-fbee9",
+      "date": "2026-08-10",
+      "description": "QUOTA 2026",
+      "debitAccountCode": "6160",
+      "creditAccountCode": "5030",
+      "amount": 2000
+    },
+    {
+      "id": "je-142-p9g6t",
+      "date": "2026-08-10",
+      "description": "INTEGRATORE",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4010",
+      "amount": 10
+    },
+    {
+      "id": "je-143-z5dag",
+      "date": "2026-08-10",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 3
+    },
+    {
+      "id": "je-144-ugbof",
+      "date": "2026-08-10",
+      "description": "OPERAZIONE AFRICA GIAMPIERO",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 500
+    },
+    {
+      "id": "je-145-dfzrr",
+      "date": "2026-08-10",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 2000
+    },
+    {
+      "id": "je-146-a9s4v",
+      "date": "2026-08-09",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 50
+    },
+    {
+      "id": "je-147-8yho0",
+      "date": "2026-08-08",
+      "description": "SALDO ARGENTIERO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 2250
+    },
+    {
+      "id": "je-148-qxkcl",
+      "date": "2026-08-08",
+      "description": "ARGENTIERO",
+      "debitAccountCode": "5023",
+      "creditAccountCode": "8040",
+      "amount": 250
+    },
+    {
+      "id": "je-149-ctu6u",
+      "date": "2026-08-08",
+      "description": "RITA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 60
+    },
+    {
+      "id": "je-150-ka2ju",
+      "date": "2026-08-08",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 7
+    },
+    {
+      "id": "je-151-4hgr6",
+      "date": "2026-08-08",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 5000
+    },
+    {
+      "id": "je-152-ilex4",
+      "date": "2026-08-08",
+      "description": "IDS ARGENTIERO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 42
+    },
+    {
+      "id": "je-153-ftdwv",
+      "date": "2026-08-07",
+      "description": "MARIA CARMEN QUADRA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 459.7
+    },
+    {
+      "id": "je-154-x4zjn",
+      "date": "2026-08-07",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 5000
+    },
+    {
+      "id": "je-155-z7bvd",
+      "date": "2026-08-07",
+      "description": "ADOBE AGOSTO",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 14.99
+    },
+    {
+      "id": "je-156-lkpcf",
+      "date": "2026-08-06",
+      "description": "RATA 3 RITA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8020",
+      "amount": 3976.45
+    },
+    {
+      "id": "je-157-5fgqd",
+      "date": "2026-08-06",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 2000
+    },
+    {
+      "id": "je-158-zu5xp",
+      "date": "2026-08-04",
+      "description": "IDS GIUGNO (54€) + LUGLIO (86€) + SANZIONI . IDS INCASSATE FINO A M. LAZARICA INCLUSA",
+      "debitAccountCode": "5100",
+      "creditAccountCode": "4043",
+      "amount": 142
+    },
+    {
+      "id": "je-159-mpfjr",
+      "date": "2026-08-04",
+      "description": "FIANCHI PATTUMIERA CUCINA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 18.5
+    },
+    {
+      "id": "je-160-fad6x",
+      "date": "2026-08-04",
+      "description": "DATI OGGI FORSE SPESE CONDOMINIALI",
+      "debitAccountCode": "5081",
+      "creditAccountCode": "4010",
+      "amount": 1000
+    },
+    {
+      "id": "je-161-i85cd",
+      "date": "2026-08-04",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "4045",
+      "amount": 3000
+    },
+    {
+      "id": "je-162-z6y45",
+      "date": "2026-08-03",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 22.5
+    },
+    {
+      "id": "je-163-bh7et",
+      "date": "2026-08-03",
+      "description": "CAUZIONE MARIA LAZARICA",
+      "debitAccountCode": "5023",
+      "creditAccountCode": "8040",
+      "amount": 150
+    },
+    {
+      "id": "je-164-j1ska",
+      "date": "2026-08-03",
+      "description": "VERONICA MORELLI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 1600
+    },
+    {
+      "id": "je-165-6tkxj",
+      "date": "2026-08-03",
+      "description": "CAUZIONE VERONICA MORELLI",
+      "debitAccountCode": "5021",
+      "creditAccountCode": "8040",
+      "amount": 250
+    },
+    {
+      "id": "je-166-u9fnb",
+      "date": "2026-08-03",
+      "description": "SIM MOBILE",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 22.75
+    },
+    {
+      "id": "je-167-cv3mv",
+      "date": "2026-08-03",
+      "description": "RATA MUTUO",
+      "debitAccountCode": "6180",
+      "creditAccountCode": "4043",
+      "amount": 479.96
+    },
+    {
+      "id": "je-168-85kq9",
+      "date": "2026-08-03",
+      "description": "RATA PRESTITO",
+      "debitAccountCode": "6182",
+      "creditAccountCode": "4043",
+      "amount": 167.37
+    },
+    {
+      "id": "je-169-o8ejd",
+      "date": "2026-08-03",
+      "description": "COMMISSIONE MUTUO",
+      "debitAccountCode": "6130",
+      "creditAccountCode": "4043",
+      "amount": 1.5
+    },
+    {
+      "id": "je-170-rofhr",
+      "date": "2026-08-03",
+      "description": "TRAPPOLA TOPI E VARIE MENNENNE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 17
+    },
+    {
+      "id": "je-171-g6r41",
+      "date": "2026-08-03",
+      "description": "CAUZIONE THOMAS OBRADOVIC",
+      "debitAccountCode": "5021",
+      "creditAccountCode": "8040",
+      "amount": 300
+    },
+    {
+      "id": "je-172-khaur",
+      "date": "2026-08-02",
+      "description": "AGOSTO 5945,94",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "8010",
+      "amount": 5945.94
+    },
+    {
+      "id": "je-173-wr1a8",
+      "date": "2026-08-02",
+      "description": "MODELLO 730 3447",
+      "debitAccountCode": "8010",
+      "creditAccountCode": "8030",
+      "amount": 3447
+    },
+    {
+      "id": "je-174-w1kw5",
+      "date": "2026-08-02",
+      "description": "ACCONTO CEDOLARE SECCA E RIMBORSO 330",
+      "debitAccountCode": "8010",
+      "creditAccountCode": "6032",
+      "amount": 330
+    },
+    {
+      "id": "je-175-krgii",
+      "date": "2026-08-02",
+      "description": "CESTO BENVENUTO OSPITI",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 10
+    },
+    {
+      "id": "je-176-9xr8s",
+      "date": "2026-08-02",
+      "description": "SALDO MARIA LAZANICA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 530
+    },
+    {
+      "id": "je-177-p4oyp",
+      "date": "2026-08-02",
+      "description": "IDS MARIA LAZARICA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 12
+    },
+    {
+      "id": "je-178-444vp",
+      "date": "2026-08-01",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 50
+    },
+    {
+      "id": "je-179-pqenz",
+      "date": "2026-08-01",
+      "description": "ALBERTO CAZZOLA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 1440
+    },
+    {
+      "id": "je-180-onnki",
+      "date": "2026-08-01",
+      "description": "ALBERTO CAZZOLA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 30
+    },
+    {
+      "id": "je-181-yto9x",
+      "date": "2026-08-01",
+      "description": "COLAZIONE MIKI",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 19
+    },
+    {
+      "id": "je-182-m3pvo",
+      "date": "2026-07-31",
+      "description": "RITA 2 PULIZIE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 70
+    },
+    {
+      "id": "je-183-ta7r4",
+      "date": "2026-07-30",
+      "description": "FATTURA ELETTRICA TISIDDU",
+      "debitAccountCode": "6052",
+      "creditAccountCode": "4043",
+      "amount": 67.09
+    },
+    {
+      "id": "je-184-9sk0c",
+      "date": "2026-07-30",
+      "description": "TARI CAGLIARI 2026",
+      "debitAccountCode": "6031",
+      "creditAccountCode": "4043",
+      "amount": 223
+    },
+    {
+      "id": "je-185-dgw9j",
+      "date": "2026-07-30",
+      "description": "ANELLO TENSIONE LAVATRICE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 8
+    },
+    {
+      "id": "je-186-1l49a",
+      "date": "2026-07-30",
+      "description": "LAMINATO TOP",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 58
+    },
+    {
+      "id": "je-187-uwwkh",
+      "date": "2026-07-30",
+      "description": "TAGLI FALEGNAME",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 18
+    },
+    {
+      "id": "je-188-r2q6z",
+      "date": "2026-07-29",
+      "description": "BAR CON CERRITTELLI",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 7
+    },
+    {
+      "id": "je-189-fs8n3",
+      "date": "2026-07-29",
+      "description": "GIANNI CERRITTELLI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 630
+    },
+    {
+      "id": "je-190-01kk8",
+      "date": "2026-07-29",
+      "description": "FATTURA ELETTRICA CAVARO",
+      "debitAccountCode": "6050",
+      "creditAccountCode": "4043",
+      "amount": 58.58
+    },
+    {
+      "id": "je-191-nvl6n",
+      "date": "2026-07-29",
+      "description": "FATTURA ELETTRICA MENNENNE",
+      "debitAccountCode": "6051",
+      "creditAccountCode": "4043",
+      "amount": 137.56
+    },
+    {
+      "id": "je-192-aosnu",
+      "date": "2026-07-29",
+      "description": "MARIA DEL CARMEI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 60
+    },
+    {
+      "id": "je-193-psf26",
+      "date": "2026-07-29",
+      "description": "IDS MARIA DEL CARMEN",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 16
+    },
+    {
+      "id": "je-194-pgrrs",
+      "date": "2026-07-29",
+      "description": "POETTO CON GINO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 12
+    },
+    {
+      "id": "je-195-nudv9",
+      "date": "2026-07-27",
+      "description": "STEFAN",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 8
+    },
+    {
+      "id": "je-196-pbn9p",
+      "date": "2026-07-27",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 19
+    },
+    {
+      "id": "je-197-f221t",
+      "date": "2026-07-27",
+      "description": "DETERSIVI",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 10
+    },
+    {
+      "id": "je-198-67qt8",
+      "date": "2026-07-27",
+      "description": "MARTA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 40
+    },
+    {
+      "id": "je-199-7udeu",
+      "date": "2026-07-27",
+      "description": "RITA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-200-gjwx5",
+      "date": "2026-07-27",
+      "description": "SAKDO STEFAN",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 280
+    },
+    {
+      "id": "je-201-ndg15",
+      "date": "2026-07-26",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 50
+    },
+    {
+      "id": "je-202-lpwez",
+      "date": "2026-07-25",
+      "description": "MARTA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-203-5ytit",
+      "date": "2026-07-25",
+      "description": "TAGLIERE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 5.5
+    },
+    {
+      "id": "je-204-01fbf",
+      "date": "2026-07-25",
+      "description": "SALDO ANDREA SALERNO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 1650
+    },
+    {
+      "id": "je-205-wwuxo",
+      "date": "2026-07-25",
+      "description": "CAUZIONE ANDREA SALERNO",
+      "debitAccountCode": "5024",
+      "creditAccountCode": "8040",
+      "amount": 250
+    },
+    {
+      "id": "je-206-ywmdn",
+      "date": "2026-07-25",
+      "description": "PERDITE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 6
+    },
+    {
+      "id": "je-207-p8lmg",
+      "date": "2026-07-24",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 26
+    },
+    {
+      "id": "je-208-8b7au",
+      "date": "2026-07-23",
+      "description": "BOLLETTA ACQUA",
+      "debitAccountCode": "6063",
+      "creditAccountCode": "4043",
+      "amount": 130.55
+    },
+    {
+      "id": "je-209-tyw4b",
+      "date": "2026-07-23",
+      "description": "FISSO LUGLIO",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 27.49
+    },
+    {
+      "id": "je-210-c4qo5",
+      "date": "2026-07-23",
+      "description": "FATTURA ELETTRICA PRINCIPE",
+      "debitAccountCode": "6053",
+      "creditAccountCode": "4043",
+      "amount": 112.46
+    },
+    {
+      "id": "je-211-avgrr",
+      "date": "2026-07-23",
+      "description": "CAFFÈ",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4072",
+      "amount": 20.57
+    },
+    {
+      "id": "je-212-g0l4p",
+      "date": "2026-07-22",
+      "description": "PORTALAMPADE G9 PER BAGNO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 9.99
+    },
+    {
+      "id": "je-213-ybkxn",
+      "date": "2026-07-22",
+      "description": "BAR",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 12
+    },
+    {
+      "id": "je-214-kqapi",
+      "date": "2026-07-21",
+      "description": "FRENI ANT E CAMBIO OLIO (KM 74500)",
+      "debitAccountCode": "6040",
+      "creditAccountCode": "4010",
+      "amount": 180
+    },
+    {
+      "id": "je-215-htay8",
+      "date": "2026-07-20",
+      "description": "EMERGENCY",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-216-m89og",
+      "date": "2026-07-20",
+      "description": "LENZUOLA MATRIMONIALI E SINGOLI",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 23
+    },
+    {
+      "id": "je-217-k0xdv",
+      "date": "2026-07-20",
+      "description": "TAVOLE PER MODULO RIFIUTI",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 26
+    },
+    {
+      "id": "je-218-rnfjt",
+      "date": "2026-07-20",
+      "description": "BRUFEN",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4010",
+      "amount": 11.5
+    },
+    {
+      "id": "je-219-16i0k",
+      "date": "2026-07-20",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "4045",
+      "amount": 2000
+    },
+    {
+      "id": "je-220-y31ou",
+      "date": "2026-07-19",
+      "description": "FOREX INGINOCCHIATOIO",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4072",
+      "amount": 55.12
+    },
+    {
+      "id": "je-221-0g91j",
+      "date": "2026-07-19",
+      "description": "SECCHIO RIFIUTI",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "5070",
+      "amount": 53.1
+    },
+    {
+      "id": "je-222-shafx",
+      "date": "2026-07-18",
+      "description": "CULURGIONES",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 15
+    },
+    {
+      "id": "je-223-bc0xj",
+      "date": "2026-07-18",
+      "description": "BIRRE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 6
+    },
+    {
+      "id": "je-224-rfnpk",
+      "date": "2026-07-17",
+      "description": "ANNA PERIN",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 119.5
+    },
+    {
+      "id": "je-225-4vwc1",
+      "date": "2026-07-16",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 32
+    },
+    {
+      "id": "je-226-r23fw",
+      "date": "2026-07-16",
+      "description": "DETERSIVI",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 15
+    },
+    {
+      "id": "je-227-8p40u",
+      "date": "2026-07-16",
+      "description": "MARTA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-228-0t2no",
+      "date": "2026-07-16",
+      "description": "FEDERICA BENAGLIA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 640
+    },
+    {
+      "id": "je-229-6mqhs",
+      "date": "2026-07-16",
+      "description": "APERITIVO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 17.5
+    },
+    {
+      "id": "je-230-xj8n0",
+      "date": "2026-07-15",
+      "description": "SIGHT SAVERS",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 5
+    },
+    {
+      "id": "je-231-w15w1",
+      "date": "2026-07-14",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 1.5
+    },
+    {
+      "id": "je-232-rzn1n",
+      "date": "2026-07-13",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 50
+    },
+    {
+      "id": "je-233-z8mmr",
+      "date": "2026-07-13",
+      "description": "THOMAS OBRADOVIC",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 1458
+    },
+    {
+      "id": "je-234-3ujfc",
+      "date": "2026-07-13",
+      "description": "THOMAS OBRADOVIC",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "5100",
+      "amount": 28
+    },
+    {
+      "id": "je-235-w3ofh",
+      "date": "2026-07-13",
+      "description": "VERSAMENTO PRIMA RATA CONTRIBUZINE AGGIUNTIVA",
+      "debitAccountCode": "6210",
+      "creditAccountCode": "4043",
+      "amount": 1000
+    },
+    {
+      "id": "je-236-k7404",
+      "date": "2026-07-13",
+      "description": "BURROCACAO",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4010",
+      "amount": 4
+    },
+    {
+      "id": "je-237-jfyuc",
+      "date": "2026-07-13",
+      "description": "ASCIUGAMANI OSPITE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 11
+    },
+    {
+      "id": "je-238-cdy9x",
+      "date": "2026-07-13",
+      "description": "INTERRUTTORE ARIETE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 6
+    },
+    {
+      "id": "je-239-e20hs",
+      "date": "2026-07-12",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 1
+    },
+    {
+      "id": "je-240-wb8aa",
+      "date": "2026-07-12",
+      "description": "PIZZA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 25
+    },
+    {
+      "id": "je-241-hm82g",
+      "date": "2026-07-12",
+      "description": "RITA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-242-vsn01",
+      "date": "2026-07-12",
+      "description": "SALDO SONIA SPOLAOR",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 1625
+    },
+    {
+      "id": "je-243-wp13l",
+      "date": "2026-07-12",
+      "description": "IDS SPOLAOR",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5100",
+      "amount": 30
+    },
+    {
+      "id": "je-244-xg1hy",
+      "date": "2026-07-12",
+      "description": "SPOLAOR",
+      "debitAccountCode": "5022",
+      "creditAccountCode": "8040",
+      "amount": 250
+    },
+    {
+      "id": "je-245-waq4d",
+      "date": "2026-07-12",
+      "description": "PASQUALATO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 1625
+    },
+    {
+      "id": "je-246-asdlr",
+      "date": "2026-07-12",
+      "description": "IDS PASQUALATO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5100",
+      "amount": 30
+    },
+    {
+      "id": "je-247-mmqsj",
+      "date": "2026-07-12",
+      "description": "ENRICA PASQUALATO",
+      "debitAccountCode": "5023",
+      "creditAccountCode": "8040",
+      "amount": 250
+    },
+    {
+      "id": "je-248-9z2zm",
+      "date": "2026-07-12",
+      "description": "LIBRI DON IBBA",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4010",
+      "amount": 10
+    },
+    {
+      "id": "je-249-00iuj",
+      "date": "2026-07-11",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 5.5
+    },
+    {
+      "id": "je-250-faqln",
+      "date": "2026-07-11",
+      "description": "MARTA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 35
+    },
+    {
+      "id": "je-251-qa43b",
+      "date": "2026-07-11",
+      "description": "CESTO BENVENUTO",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 10
+    },
+    {
+      "id": "je-252-ks0an",
+      "date": "2026-07-10",
+      "description": "SALDO MATTEO CIARLO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 208.37
+    },
+    {
+      "id": "je-253-z9cq0",
+      "date": "2026-07-10",
+      "description": "RATE ORDINARIE",
+      "debitAccountCode": "6100",
+      "creditAccountCode": "4043",
+      "amount": 1000
+    },
+    {
+      "id": "je-254-jnzwv",
+      "date": "2026-07-10",
+      "description": "SALDO CEDOLARE SECCA TISIDDU",
+      "debitAccountCode": "5010",
+      "creditAccountCode": "4043",
+      "amount": 362.22
+    },
+    {
+      "id": "je-255-d8mb4",
+      "date": "2026-07-10",
+      "description": "RESIDUO CEDOLARE SECCA 2024",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "5010",
+      "amount": 59.48
+    },
+    {
+      "id": "je-256-r2wbg",
+      "date": "2026-07-09",
+      "description": "ANNA PERIN",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 4
+    },
+    {
+      "id": "je-257-77lbr",
+      "date": "2026-07-09",
+      "description": "ANNA PERIN",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 30
+    },
+    {
+      "id": "je-258-9kmo1",
+      "date": "2026-07-09",
+      "description": "SPAZZOLE TERGICRISTALLO",
+      "debitAccountCode": "6040",
+      "creditAccountCode": "4072",
+      "amount": 12.99
+    },
+    {
+      "id": "je-259-50xb4",
+      "date": "2026-07-08",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 20
+    },
+    {
+      "id": "je-260-2kbh8",
+      "date": "2026-07-08",
+      "description": "CESTO BENVENUTO FARNETANI E LELLA RIVA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 8
+    },
+    {
+      "id": "je-261-iskuw",
+      "date": "2026-07-08",
+      "description": "POMATA PER LABBRA",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4010",
+      "amount": 9
+    },
+    {
+      "id": "je-262-1omv5",
+      "date": "2026-07-08",
+      "description": "FRIGORIFERO NUOVO",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4045",
+      "amount": 249
+    },
+    {
+      "id": "je-263-rpfc0",
+      "date": "2026-07-07",
+      "description": "ADOBE LUGLIO",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 14.99
+    },
+    {
+      "id": "je-264-6z003",
+      "date": "2026-07-07",
+      "description": "COMPRESSE HERPES",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4010",
+      "amount": 13.5
+    },
+    {
+      "id": "je-265-78vfo",
+      "date": "2026-07-06",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 1.89
+    },
+    {
+      "id": "je-266-5ttlc",
+      "date": "2026-07-06",
+      "description": "SALDO RAFFAELLA RIVA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 850
+    },
+    {
+      "id": "je-267-n7zkc",
+      "date": "2026-07-06",
+      "description": "DA CAUZIONE A AFFITTI RAFFAELLA RIVA",
+      "debitAccountCode": "5024",
+      "creditAccountCode": "8040",
+      "amount": 150
+    },
+    {
+      "id": "je-268-2q905",
+      "date": "2026-07-06",
+      "description": "PULIZIE MARTA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-269-7pd2b",
+      "date": "2026-07-06",
+      "description": "ANTICIPO STEFAN VUJAKLIJA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 150
+    },
+    {
+      "id": "je-270-pzwyz",
+      "date": "2026-07-06",
+      "description": "IBUPROFENE",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4010",
+      "amount": 12
+    },
+    {
+      "id": "je-271-v5u4h",
+      "date": "2026-07-06",
+      "description": "EDUARDO FIORETTO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5023",
+      "amount": 150
+    },
+    {
+      "id": "je-272-2nfus",
+      "date": "2026-07-05",
+      "description": "RIMBORSO SPAZZOLE TERGICRISTALLO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "6040",
+      "amount": 18.09
+    },
+    {
+      "id": "je-273-4q3n8",
+      "date": "2026-07-05",
+      "description": "ANNALISA FARNETANI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 525
+    },
+    {
+      "id": "je-274-fga9e",
+      "date": "2026-07-04",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 20
+    },
+    {
+      "id": "je-275-im6z7",
+      "date": "2026-07-04",
+      "description": "RITA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 40
+    },
+    {
+      "id": "je-276-9ev3n",
+      "date": "2026-07-04",
+      "description": "DANIELE CRISARI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5022",
+      "amount": 150
+    },
+    {
+      "id": "je-277-26urm",
+      "date": "2026-07-03",
+      "description": "",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 50
+    },
+    {
+      "id": "je-278-53imj",
+      "date": "2026-07-03",
+      "description": "RICORSO ABF",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4045",
+      "amount": 20
+    },
+    {
+      "id": "je-279-bdcen",
+      "date": "2026-07-02",
+      "description": "V5",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 2
+    },
+    {
+      "id": "je-280-nwk8v",
+      "date": "2026-07-02",
+      "description": "CAMPIONE PELLE INGINOCCHIATOIO",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4010",
+      "amount": 4
+    },
+    {
+      "id": "je-281-7ioim",
+      "date": "2026-07-02",
+      "description": "EMERGENCY POSTA DA PARTE MIKI",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4010",
+      "amount": 500
+    },
+    {
+      "id": "je-282-gofyo",
+      "date": "2026-07-02",
+      "description": "COLLUTTORIO AFTA",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4010",
+      "amount": 15
+    },
+    {
+      "id": "je-283-1sj9l",
+      "date": "2026-07-02",
+      "description": "PANNELLO FONOASSORBENTI",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4010",
+      "amount": 3.5
+    },
+    {
+      "id": "je-284-xnw3z",
+      "date": "2026-07-02",
+      "description": "2 CERNIERE",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4010",
+      "amount": 1.5
+    },
+    {
+      "id": "je-285-izsr0",
+      "date": "2026-07-02",
+      "description": "JOLLY TOP",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 12
+    },
+    {
+      "id": "je-286-0rzbl",
+      "date": "2026-07-02",
+      "description": "SALDO BARBARA LONGARELLI",
+      "debitAccountCode": "4072",
+      "creditAccountCode": "8040",
+      "amount": 550
+    },
+    {
+      "id": "je-287-wxs96",
+      "date": "2026-07-02",
+      "description": "LONGARELLI (P)",
+      "debitAccountCode": "4072",
+      "creditAccountCode": "5100",
+      "amount": 11
+    },
+    {
+      "id": "je-288-w77jg",
+      "date": "2026-07-02",
+      "description": "CAUZIONE LONGARELLI",
+      "debitAccountCode": "5023",
+      "creditAccountCode": "8040",
+      "amount": 250
+    },
+    {
+      "id": "je-289-ijarp",
+      "date": "2026-07-01",
+      "description": "SIM MOBILI",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 22.75
+    },
+    {
+      "id": "je-290-xl94p",
+      "date": "2026-07-01",
+      "description": "MUTUO LUGLIO",
+      "debitAccountCode": "6180",
+      "creditAccountCode": "4043",
+      "amount": 476.77
+    },
+    {
+      "id": "je-291-ghjf7",
+      "date": "2026-07-01",
+      "description": "RATA LUGLIO",
+      "debitAccountCode": "6182",
+      "creditAccountCode": "4043",
+      "amount": 167.37
+    },
+    {
+      "id": "je-292-9a66f",
+      "date": "2026-07-01",
+      "description": "COMMISSIONI MUTUO",
+      "debitAccountCode": "6130",
+      "creditAccountCode": "4043",
+      "amount": 1.5
+    },
+    {
+      "id": "je-293-u7ef2",
+      "date": "2026-07-01",
+      "description": "SPAZZOLE TERGICRISTALLO",
+      "debitAccountCode": "6040",
+      "creditAccountCode": "4043",
+      "amount": 18.09
+    },
+    {
+      "id": "je-294-1ltvg",
+      "date": "2026-07-01",
+      "description": "LUGLIO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "8010",
+      "amount": 2168.96
+    },
+    {
+      "id": "je-295-9lnps",
+      "date": "2026-07-01",
+      "description": "SALDO MATTEO CIARLO",
+      "debitAccountCode": "4072",
+      "creditAccountCode": "8040",
+      "amount": 45
+    },
+    {
+      "id": "je-296-dg8u8",
+      "date": "2026-07-01",
+      "description": "IDS MATTEO CIARLO",
+      "debitAccountCode": "4072",
+      "creditAccountCode": "5100",
+      "amount": 6
+    },
+    {
+      "id": "je-297-3juso",
+      "date": "2026-06-30",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 7
+    },
+    {
+      "id": "je-298-9gy8d",
+      "date": "2026-06-30",
+      "description": "RATA 3 ASSILT",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4045",
+      "amount": 127.05
+    },
+    {
+      "id": "je-299-m66za",
+      "date": "2026-06-30",
+      "description": "RIMBORSO PINNA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4070",
+      "amount": 15
+    },
+    {
+      "id": "je-300-v4qfe",
+      "date": "2026-06-30",
+      "description": "VARIE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 1.5
+    },
+    {
+      "id": "je-301-2hy9q",
+      "date": "2026-06-30",
+      "description": "CAVATAPPI",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 4
+    },
+    {
+      "id": "je-302-zaljp",
+      "date": "2026-06-29",
+      "description": "ZUZANNE",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 30
+    },
+    {
+      "id": "je-303-dhs78",
+      "date": "2026-06-29",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 564.64
+    },
+    {
+      "id": "je-304-4wpf7",
+      "date": "2026-06-29",
+      "description": "SALDO STEPHANIE",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 320
+    },
+    {
+      "id": "je-305-5d88x",
+      "date": "2026-06-29",
+      "description": "IDS STEPHANIE",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5100",
+      "amount": 14
+    },
+    {
+      "id": "je-306-awz19",
+      "date": "2026-06-29",
+      "description": "FATTURA ELETTRICA CAVARO",
+      "debitAccountCode": "6050",
+      "creditAccountCode": "4043",
+      "amount": 41.63
+    },
+    {
+      "id": "je-307-waof1",
+      "date": "2026-06-29",
+      "description": "FATTURA ELETTRICA MENNENNE",
+      "debitAccountCode": "6051",
+      "creditAccountCode": "4043",
+      "amount": 54.74
+    },
+    {
+      "id": "je-308-6vs8w",
+      "date": "2026-06-28",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 2
+    },
+    {
+      "id": "je-309-443l1",
+      "date": "2026-06-28",
+      "description": "CHIARA PAIANO (M)",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5100",
+      "amount": 22
+    },
+    {
+      "id": "je-310-cjgfe",
+      "date": "2026-06-28",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 7.5
+    },
+    {
+      "id": "je-311-63isy",
+      "date": "2026-06-28",
+      "description": "IN RICORDO DI ELY",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 100
+    },
+    {
+      "id": "je-312-ci8wz",
+      "date": "2026-06-28",
+      "description": "CHIARA PAIANO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 500
+    },
+    {
+      "id": "je-313-m4nev",
+      "date": "2026-06-28",
+      "description": "CHIARA PAIANO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 620
+    },
+    {
+      "id": "je-314-chsbs",
+      "date": "2026-06-28",
+      "description": "CHIARA PAIANO",
+      "debitAccountCode": "5021",
+      "creditAccountCode": "8040",
+      "amount": 250
+    },
+    {
+      "id": "je-315-ndi3x",
+      "date": "2026-06-28",
+      "description": "SILICONE ,LAMPADE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 20
+    },
+    {
+      "id": "je-316-rjt9e",
+      "date": "2026-06-28",
+      "description": "IGIENIZZANTE CONDIZIONATORE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 15
+    },
+    {
+      "id": "je-317-q63wa",
+      "date": "2026-06-27",
+      "description": "MANUELA ZITO (P)",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5100",
+      "amount": 14
+    },
+    {
+      "id": "je-318-y23a4",
+      "date": "2026-06-27",
+      "description": "PULIZIE RITA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-319-at2p4",
+      "date": "2026-06-27",
+      "description": "PULIZIE MARTA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 20
+    },
+    {
+      "id": "je-320-jydnp",
+      "date": "2026-06-27",
+      "description": "OMBRELLONE SPIAGGE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 7.99
+    },
+    {
+      "id": "je-321-m0lnv",
+      "date": "2026-06-27",
+      "description": "SALDO MANUELA ZITO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 800
+    },
+    {
+      "id": "je-322-quh9i",
+      "date": "2026-06-27",
+      "description": "MANUELA ZITO",
+      "debitAccountCode": "5023",
+      "creditAccountCode": "8040",
+      "amount": 200
+    },
+    {
+      "id": "je-323-yysdr",
+      "date": "2026-06-27",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 2000
+    },
+    {
+      "id": "je-324-gc0cr",
+      "date": "2026-06-26",
+      "description": "GRIECO (T)",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 8
+    },
+    {
+      "id": "je-325-mwk94",
+      "date": "2026-06-26",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 18
+    },
+    {
+      "id": "je-326-2hf0u",
+      "date": "2026-06-26",
+      "description": "MARTA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 40
+    },
+    {
+      "id": "je-327-2oewg",
+      "date": "2026-06-26",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 40
+    },
+    {
+      "id": "je-328-dut3s",
+      "date": "2026-06-26",
+      "description": "SALDO GRIECO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 150
+    },
+    {
+      "id": "je-329-0kexj",
+      "date": "2026-06-26",
+      "description": "BOOKING",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 14.55
+    },
+    {
+      "id": "je-330-d24wg",
+      "date": "2026-06-26",
+      "description": "MULTA CEDOLARE SECCA 2025",
+      "debitAccountCode": "6032",
+      "creditAccountCode": "4043",
+      "amount": 44.31
+    },
+    {
+      "id": "je-331-xuncn",
+      "date": "2026-06-26",
+      "description": "BOOKING SALDO ANETTE E ILARIA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 518.54
+    },
+    {
+      "id": "je-332-4ud8z",
+      "date": "2026-06-25",
+      "description": "RC CASE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 125.03
+    },
+    {
+      "id": "je-333-9oqpa",
+      "date": "2026-06-25",
+      "description": "BARBIERE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 15
+    },
+    {
+      "id": "je-334-y1l3s",
+      "date": "2026-06-25",
+      "description": "LASTRA SPALLA (PADEL)",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4010",
+      "amount": 24
+    },
+    {
+      "id": "je-335-h90ub",
+      "date": "2026-06-24",
+      "description": "REGALO MIKI COMPLEANNO",
+      "debitAccountCode": "6011",
+      "creditAccountCode": "4045",
+      "amount": 500
+    },
+    {
+      "id": "je-336-1mhd6",
+      "date": "2026-06-24",
+      "description": "DETERSIVI PAVIMENTI E AMMORBIDENTE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 20
+    },
+    {
+      "id": "je-337-d047w",
+      "date": "2026-06-24",
+      "description": "PULIZIE RITA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 40
+    },
+    {
+      "id": "je-338-b5kbz",
+      "date": "2026-06-24",
+      "description": "SALDO IVANA CIARDI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 120
+    },
+    {
+      "id": "je-339-gucd6",
+      "date": "2026-06-24",
+      "description": "IDS IVANA CIARDI (T)",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 16
+    },
+    {
+      "id": "je-340-4iau9",
+      "date": "2026-06-24",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 13
+    },
+    {
+      "id": "je-341-3a7l8",
+      "date": "2026-06-24",
+      "description": "FATTURA ELETTRICA CAVARO",
+      "debitAccountCode": "6050",
+      "creditAccountCode": "4043",
+      "amount": 38.68
+    },
+    {
+      "id": "je-342-59s0f",
+      "date": "2026-06-24",
+      "description": "FATTURA ELETTRICA PRINCIPE",
+      "debitAccountCode": "6053",
+      "creditAccountCode": "4043",
+      "amount": 91.93
+    },
+    {
+      "id": "je-343-jp1hk",
+      "date": "2026-06-23",
+      "description": "SALDO ILARIA DELPIANO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 30
+    },
+    {
+      "id": "je-344-a35vf",
+      "date": "2026-06-23",
+      "description": "STILL I RISE",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 30
+    },
+    {
+      "id": "je-345-dyl8d",
+      "date": "2026-06-22",
+      "description": "SESENNA (T)",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 10
+    },
+    {
+      "id": "je-346-x5k5f",
+      "date": "2026-06-22",
+      "description": "FATTURA WIND",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 27.49
+    },
+    {
+      "id": "je-347-gnvpg",
+      "date": "2026-06-22",
+      "description": "AFFITTO GIULIA GRISI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 300
+    },
+    {
+      "id": "je-348-m2ay9",
+      "date": "2026-06-22",
+      "description": "RIMBORSO GIULIA GRISI",
+      "debitAccountCode": "5023",
+      "creditAccountCode": "4010",
+      "amount": 150
+    },
+    {
+      "id": "je-349-2qff2",
+      "date": "2026-06-22",
+      "description": "IDS GIULIA GRISI (G)",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 8
+    },
+    {
+      "id": "je-350-azrlu",
+      "date": "2026-06-22",
+      "description": "SALDO SESENNA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 200
+    },
+    {
+      "id": "je-351-f9yax",
+      "date": "2026-06-22",
+      "description": "MARTA PULIZIE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 70
+    },
+    {
+      "id": "je-352-5pb2w",
+      "date": "2026-06-22",
+      "description": "DETERSIVI",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 6
+    },
+    {
+      "id": "je-353-sixce",
+      "date": "2026-06-21",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 10
+    },
+    {
+      "id": "je-354-8zymp",
+      "date": "2026-06-20",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 13
+    },
+    {
+      "id": "je-355-x2zyq",
+      "date": "2026-06-20",
+      "description": "ILARIA DEL PIANO (P)",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5100",
+      "amount": 8
+    },
+    {
+      "id": "je-356-qdvjc",
+      "date": "2026-06-20",
+      "description": "COLAZIONE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 5.5
+    },
+    {
+      "id": "je-357-ws3qx",
+      "date": "2026-06-20",
+      "description": "PIZZA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-358-6pfh7",
+      "date": "2026-06-20",
+      "description": "MAGLIETTA E CALZINI",
+      "debitAccountCode": "6012",
+      "creditAccountCode": "4010",
+      "amount": 49
+    },
+    {
+      "id": "je-359-0pgk6",
+      "date": "2026-06-19",
+      "description": "SQUARZONI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 350
+    },
+    {
+      "id": "je-360-6n4wk",
+      "date": "2026-06-19",
+      "description": "BOOKING PER ZUZANNA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 572.24
+    },
+    {
+      "id": "je-361-gnetu",
+      "date": "2026-06-19",
+      "description": "PRANZO CON MIKI E TY",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4100",
+      "amount": 20.36
+    },
+    {
+      "id": "je-362-5vjda",
+      "date": "2026-06-19",
+      "description": "SALDO DEBITO CED SECCA PRINCIPE 2024",
+      "debitAccountCode": "5010",
+      "creditAccountCode": "8040",
+      "amount": 40.79
+    },
+    {
+      "id": "je-363-x8rja",
+      "date": "2026-06-18",
+      "description": "MATERASSO MATRIMONIALE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 128.24
+    },
+    {
+      "id": "je-364-8b37s",
+      "date": "2026-06-18",
+      "description": "PADEL",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 12
+    },
+    {
+      "id": "je-365-zouo4",
+      "date": "2026-06-18",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 50
+    },
+    {
+      "id": "je-366-drmw7",
+      "date": "2026-06-18",
+      "description": "BOSTIK PER TOP CUCINA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 27.5
+    },
+    {
+      "id": "je-367-zsir5",
+      "date": "2026-06-18",
+      "description": "SALDO FABIAN",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 45
+    },
+    {
+      "id": "je-368-vbj2e",
+      "date": "2026-06-18",
+      "description": "SALDO GIADA BERCINI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 920
+    },
+    {
+      "id": "je-369-oar8k",
+      "date": "2026-06-18",
+      "description": "DA PAYPAL PER MATERASSO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "4072",
+      "amount": 28.01
+    },
+    {
+      "id": "je-370-gbctc",
+      "date": "2026-06-17",
+      "description": "FABIAN HANKE (P)",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 7
+    },
+    {
+      "id": "je-371-o73k0",
+      "date": "2026-06-17",
+      "description": "GIADA BERCINI (M)",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 18
+    },
+    {
+      "id": "je-372-l3gar",
+      "date": "2026-06-17",
+      "description": "DETERSIVI VILLASIMIUS",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 6.5
+    },
+    {
+      "id": "je-373-priev",
+      "date": "2026-06-17",
+      "description": "PULIZIE MARTA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-374-f6g10",
+      "date": "2026-06-17",
+      "description": "BRACCETTO PORTACIALDE DA EBAY",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4072",
+      "amount": 11.99
+    },
+    {
+      "id": "je-375-g0fhx",
+      "date": "2026-06-17",
+      "description": "MANICO MICROONDE DA EBAY",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 12.1
+    },
+    {
+      "id": "je-376-cc1fb",
+      "date": "2026-06-16",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 9.61
+    },
+    {
+      "id": "je-377-goucx",
+      "date": "2026-06-16",
+      "description": "SALDO ANETTE",
+      "debitAccountCode": "4072",
+      "creditAccountCode": "8040",
+      "amount": 30
+    },
+    {
+      "id": "je-378-5envr",
+      "date": "2026-06-15",
+      "description": "SIGHT SAVERS",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 5
+    },
+    {
+      "id": "je-379-thpjm",
+      "date": "2026-06-15",
+      "description": "CORSALE MARCO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 610
+    },
+    {
+      "id": "je-380-aeuma",
+      "date": "2026-06-15",
+      "description": "RIMBORSO CAUZIONE CORSALE",
+      "debitAccountCode": "5022",
+      "creditAccountCode": "4010",
+      "amount": 200
+    },
+    {
+      "id": "je-381-azj1i",
+      "date": "2026-06-15",
+      "description": "RITA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 25
+    },
+    {
+      "id": "je-382-eqeez",
+      "date": "2026-06-15",
+      "description": "CAFFETTIERA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 8
+    },
+    {
+      "id": "je-383-putz4",
+      "date": "2026-06-15",
+      "description": "DETERSIVI VILLASIMIUS",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 15
+    },
+    {
+      "id": "je-384-09zi6",
+      "date": "2026-06-15",
+      "description": "ANETTE (G)",
+      "debitAccountCode": "4072",
+      "creditAccountCode": "5100",
+      "amount": 10
+    },
+    {
+      "id": "je-385-t96zs",
+      "date": "2026-06-14",
+      "description": "STORNO SPESE OLBIA A SPESE VARIE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "6170",
+      "amount": 22.5
+    },
+    {
+      "id": "je-386-3tckn",
+      "date": "2026-06-14",
+      "description": "ALBERGO OLBIA",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4010",
+      "amount": 55
+    },
+    {
+      "id": "je-387-yvx4n",
+      "date": "2026-06-14",
+      "description": "COLAZIONE",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4010",
+      "amount": 7.5
+    },
+    {
+      "id": "je-388-p9kqe",
+      "date": "2026-06-13",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 16
+    },
+    {
+      "id": "je-389-0vvm9",
+      "date": "2026-06-13",
+      "description": "ARUBA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 20.12
+    },
+    {
+      "id": "je-390-k8i94",
+      "date": "2026-06-13",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 50
+    },
+    {
+      "id": "je-391-44yqv",
+      "date": "2026-06-13",
+      "description": "PRANZO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4010",
+      "amount": 60
+    },
+    {
+      "id": "je-392-1lmcc",
+      "date": "2026-06-12",
+      "description": "PULIZIE MARTA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 40
+    },
+    {
+      "id": "je-393-9q21y",
+      "date": "2026-06-11",
+      "description": "RIMBORSO ADOBE GIUGNO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4071",
+      "amount": 15
+    },
+    {
+      "id": "je-394-vkjln",
+      "date": "2026-06-11",
+      "description": "ADOBE GIUGNO",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 14.99
+    },
+    {
+      "id": "je-395-krk6k",
+      "date": "2026-06-11",
+      "description": "RASOIO E OROLOGIO PAYPAL",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 16.6
+    },
+    {
+      "id": "je-396-ck9pj",
+      "date": "2026-06-10",
+      "description": "ANTICIPO ORDINARIE 2026",
+      "debitAccountCode": "6101",
+      "creditAccountCode": "4043",
+      "amount": 1000
+    },
+    {
+      "id": "je-397-xnaz1",
+      "date": "2026-06-10",
+      "description": "RATA 1",
+      "debitAccountCode": "6030",
+      "creditAccountCode": "4010",
+      "amount": 861
+    },
+    {
+      "id": "je-398-86dz0",
+      "date": "2026-06-09",
+      "description": "SALDO ROBERTO LUNARDI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 230
+    },
+    {
+      "id": "je-399-agmm1",
+      "date": "2026-06-09",
+      "description": "CAUZIONE ROBERTO LUNARDI GIRATA AD AFFITTO",
+      "debitAccountCode": "5024",
+      "creditAccountCode": "8040",
+      "amount": 250
+    },
+    {
+      "id": "je-400-3uvvp",
+      "date": "2026-06-09",
+      "description": "PALETTA PULIZIA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 8.5
+    },
+    {
+      "id": "je-401-ye464",
+      "date": "2026-06-09",
+      "description": "PULIZIE MANUELA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 80
+    },
+    {
+      "id": "je-402-yuqo3",
+      "date": "2026-06-09",
+      "description": "PIZZA QU3",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 24
+    },
+    {
+      "id": "je-403-tbdef",
+      "date": "2026-06-08",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 3.5
+    },
+    {
+      "id": "je-404-funil",
+      "date": "2026-06-08",
+      "description": "ROBOT DREAME 10PRO MIKI",
+      "debitAccountCode": "4076",
+      "creditAccountCode": "4072",
+      "amount": 869
+    },
+    {
+      "id": "je-405-dt14v",
+      "date": "2026-06-08",
+      "description": "ZUZANNA KRASLOWA (PRINCIPE)",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 14
+    },
+    {
+      "id": "je-406-hacid",
+      "date": "2026-06-08",
+      "description": "SALDO ACQUISTO ROBOT MIKI",
+      "debitAccountCode": "4072",
+      "creditAccountCode": "4043",
+      "amount": 77.57
+    },
+    {
+      "id": "je-407-2522n",
+      "date": "2026-06-08",
+      "description": "PRELEVAMENTO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4045",
+      "amount": 100
+    },
+    {
+      "id": "je-408-35mk6",
+      "date": "2026-06-07",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 20.5
+    },
+    {
+      "id": "je-409-5pj6v",
+      "date": "2026-06-07",
+      "description": "FEDERE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 6
+    },
+    {
+      "id": "je-410-zelmh",
+      "date": "2026-06-07",
+      "description": "PULIZIE MARTA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-411-wb7xj",
+      "date": "2026-06-07",
+      "description": "VARIE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 1.5
+    },
+    {
+      "id": "je-412-bgr90",
+      "date": "2026-06-06",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 15
+    },
+    {
+      "id": "je-413-wimst",
+      "date": "2026-06-06",
+      "description": "BLOCCHETTO IDS",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 3.5
+    },
+    {
+      "id": "je-414-rjc1r",
+      "date": "2026-06-06",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "4045",
+      "amount": 2000
+    },
+    {
+      "id": "je-415-vtn5d",
+      "date": "2026-06-05",
+      "description": "DAVID BY AURBNB",
+      "debitAccountCode": "4072",
+      "creditAccountCode": "8040",
+      "amount": 791.43
+    },
+    {
+      "id": "je-416-zwfjy",
+      "date": "2026-06-05",
+      "description": "RATA 3 TAVOLA PANCHINA MENNENNE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 31.86
+    },
+    {
+      "id": "je-417-5jcdm",
+      "date": "2026-06-05",
+      "description": "DAVID (MENNENNE)",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5100",
+      "amount": 14
+    },
+    {
+      "id": "je-418-kenk4",
+      "date": "2026-06-04",
+      "description": "REGALO TY",
+      "debitAccountCode": "6011",
+      "creditAccountCode": "4076",
+      "amount": 10
+    },
+    {
+      "id": "je-419-zxf6h",
+      "date": "2026-06-04",
+      "description": "BOLLETTA",
+      "debitAccountCode": "6050",
+      "creditAccountCode": "4043",
+      "amount": 43.69
+    },
+    {
+      "id": "je-420-wcpmz",
+      "date": "2026-06-04",
+      "description": "RIMBORSO TEMU",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "6010",
+      "amount": 2.54
+    },
+    {
+      "id": "je-421-bqetp",
+      "date": "2026-06-04",
+      "description": "PRANZI CON TY E MIKI COMPLEANNO TY",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 32.5
+    },
+    {
+      "id": "je-422-d4qhz",
+      "date": "2026-06-04",
+      "description": "QUOTA TY PRANZO",
+      "debitAccountCode": "4100",
+      "creditAccountCode": "6010",
+      "amount": 10.5
+    },
+    {
+      "id": "je-423-pix2r",
+      "date": "2026-06-04",
+      "description": "QUOTA MIKI PRANZO COMPLEANNO",
+      "debitAccountCode": "4076",
+      "creditAccountCode": "6010",
+      "amount": 10.5
+    },
+    {
+      "id": "je-424-o2xph",
+      "date": "2026-06-04",
+      "description": "POLIZZA ALLIANZ",
+      "debitAccountCode": "6040",
+      "creditAccountCode": "4043",
+      "amount": 385.5
+    },
+    {
+      "id": "je-425-3hxo3",
+      "date": "2026-06-04",
+      "description": "RISE GIALLE E COLORE FUGA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 14
+    },
+    {
+      "id": "je-426-o8nqt",
+      "date": "2026-06-03",
+      "description": "STORNO SPESA PER ACQUISTI VILLASIMIUS",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "6110",
+      "amount": 10.08
+    },
+    {
+      "id": "je-427-duiuo",
+      "date": "2026-06-03",
+      "description": "RATA 7 TFR",
+      "debitAccountCode": "6140",
+      "creditAccountCode": "4010",
+      "amount": 31.5
+    },
+    {
+      "id": "je-428-q7ix2",
+      "date": "2026-06-03",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 10.5
+    },
+    {
+      "id": "je-429-wor04",
+      "date": "2026-06-03",
+      "description": "PULIZIE RITA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 40
+    },
+    {
+      "id": "je-430-wbwrn",
+      "date": "2026-06-03",
+      "description": "RICARICA MODEM MENNENNE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 10
+    },
+    {
+      "id": "je-431-qwmkt",
+      "date": "2026-06-03",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-432-ozfip",
+      "date": "2026-06-03",
+      "description": "RICARICA MODEM MENNENNE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 10
+    },
+    {
+      "id": "je-433-komp6",
+      "date": "2026-06-03",
+      "description": "AFFITTI SESENNA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 200
+    },
+    {
+      "id": "je-434-9p93l",
+      "date": "2026-06-01",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 1
+    },
+    {
+      "id": "je-435-tanef",
+      "date": "2026-06-01",
+      "description": "LINEE MOBILI",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 22.75
+    },
+    {
+      "id": "je-436-ejvkk",
+      "date": "2026-06-01",
+      "description": "PENSIONE",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "8010",
+      "amount": 2166.21
+    },
+    {
+      "id": "je-437-6zll9",
+      "date": "2026-06-01",
+      "description": "RATA MUTUO",
+      "debitAccountCode": "6180",
+      "creditAccountCode": "4043",
+      "amount": 473.02
+    },
+    {
+      "id": "je-438-7ce7c",
+      "date": "2026-06-01",
+      "description": "RATA PRESTITO",
+      "debitAccountCode": "6182",
+      "creditAccountCode": "4043",
+      "amount": 167.37
+    },
+    {
+      "id": "je-439-l7088",
+      "date": "2026-06-01",
+      "description": "INCASSO RATA",
+      "debitAccountCode": "6130",
+      "creditAccountCode": "4043",
+      "amount": 1.5
+    },
+    {
+      "id": "je-440-eho03",
+      "date": "2026-05-31",
+      "description": "CLIMATIZZAZIONE SAN PAOLO",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 100
+    },
+    {
+      "id": "je-441-gz9m0",
+      "date": "2026-05-29",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 43
+    },
+    {
+      "id": "je-442-vz77q",
+      "date": "2026-05-29",
+      "description": "VARIE VILLASIMIUS TECNOMAT DEL 28 E 29 MAGGIO",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 14.5
+    },
+    {
+      "id": "je-443-n8t1m",
+      "date": "2026-05-29",
+      "description": "MASSIGEN",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4010",
+      "amount": 13
+    },
+    {
+      "id": "je-444-p3qkl",
+      "date": "2026-05-29",
+      "description": "CALZE",
+      "debitAccountCode": "6012",
+      "creditAccountCode": "4100",
+      "amount": 7
+    },
+    {
+      "id": "je-445-xqx1v",
+      "date": "2026-05-29",
+      "description": "SMERIGLIATRICE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 20
+    },
+    {
+      "id": "je-446-gu3l6",
+      "date": "2026-05-29",
+      "description": "LAVAGGIO AUTO",
+      "debitAccountCode": "6040",
+      "creditAccountCode": "4010",
+      "amount": 2.5
+    },
+    {
+      "id": "je-447-saxto",
+      "date": "2026-05-28",
+      "description": "MAGLIETTA",
+      "debitAccountCode": "6012",
+      "creditAccountCode": "4010",
+      "amount": 54
+    },
+    {
+      "id": "je-448-rwm3d",
+      "date": "2026-05-28",
+      "description": "REGALO CARLA",
+      "debitAccountCode": "6011",
+      "creditAccountCode": "4043",
+      "amount": 10
+    },
+    {
+      "id": "je-449-qv68p",
+      "date": "2026-05-28",
+      "description": "APERITIVO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 15.5
+    },
+    {
+      "id": "je-450-wbixy",
+      "date": "2026-05-28",
+      "description": "VARIE VILLASIMIUS",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 24
+    },
+    {
+      "id": "je-451-aj5bm",
+      "date": "2026-05-27",
+      "description": "OCTOPUS",
+      "debitAccountCode": "6050",
+      "creditAccountCode": "4043",
+      "amount": 28.85
+    },
+    {
+      "id": "je-452-iu62j",
+      "date": "2026-05-27",
+      "description": "OCTOPUS",
+      "debitAccountCode": "6051",
+      "creditAccountCode": "4043",
+      "amount": 51.48
+    },
+    {
+      "id": "je-453-7eq4o",
+      "date": "2026-05-26",
+      "description": "UNICEF",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-454-9tyyl",
+      "date": "2026-05-26",
+      "description": "GIORNALE E BAR",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 6.5
+    },
+    {
+      "id": "je-455-toohn",
+      "date": "2026-05-26",
+      "description": "OCTOPUS",
+      "debitAccountCode": "6053",
+      "creditAccountCode": "4043",
+      "amount": 105.21
+    },
+    {
+      "id": "je-456-9hckb",
+      "date": "2026-05-26",
+      "description": "RATA TRE DOGHE PANCHINA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 75.13
+    },
+    {
+      "id": "je-457-aotpa",
+      "date": "2026-05-25",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 3.5
+    },
+    {
+      "id": "je-458-0vr0m",
+      "date": "2026-05-25",
+      "description": "AFFITTI LUIGI LUNARDI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 300
+    },
+    {
+      "id": "je-459-i1aiu",
+      "date": "2026-05-24",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 3.5
+    },
+    {
+      "id": "je-460-kiivj",
+      "date": "2026-05-23",
+      "description": "VARIE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 2
+    },
+    {
+      "id": "je-461-j3fmr",
+      "date": "2026-05-23",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-462-6fe0o",
+      "date": "2026-05-23",
+      "description": "CUSCINI VILLASIMIUS",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 18
+    },
+    {
+      "id": "je-463-fxhdu",
+      "date": "2026-05-23",
+      "description": "PIASTRELLE TOP CAVARO",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 134
+    },
+    {
+      "id": "je-464-x3pgp",
+      "date": "2026-05-23",
+      "description": "BAR",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 6
+    },
+    {
+      "id": "je-465-pt9qz",
+      "date": "2026-05-23",
+      "description": "REGALO ALEX DA PARTE BONARIA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "6011",
+      "amount": 150
+    },
+    {
+      "id": "je-466-le7z7",
+      "date": "2026-05-22",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 10
+    },
+    {
+      "id": "je-467-f0wqi",
+      "date": "2026-05-22",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 2
+    },
+    {
+      "id": "je-468-hml0p",
+      "date": "2026-05-22",
+      "description": "QUOTA FRANCA E MARIA REGALO ALEX",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "6011",
+      "amount": 260
+    },
+    {
+      "id": "je-469-nepyr",
+      "date": "2026-05-22",
+      "description": "BAR",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 6.5
+    },
+    {
+      "id": "je-470-3522m",
+      "date": "2026-05-22",
+      "description": "WIND FIBRA",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 27.49
+    },
+    {
+      "id": "je-471-j7hyf",
+      "date": "2026-05-21",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 17
+    },
+    {
+      "id": "je-472-ys7qo",
+      "date": "2026-05-21",
+      "description": "PRESTATI A TY",
+      "debitAccountCode": "4100",
+      "creditAccountCode": "4010",
+      "amount": 5
+    },
+    {
+      "id": "je-473-jo0ii",
+      "date": "2026-05-19",
+      "description": "GIULIA GRISI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5023",
+      "amount": 150
+    },
+    {
+      "id": "je-474-3cik1",
+      "date": "2026-05-19",
+      "description": "BAR",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 2.5
+    },
+    {
+      "id": "je-475-rtukp",
+      "date": "2026-05-18",
+      "description": "BOLLETTA ABBANOA",
+      "debitAccountCode": "6063",
+      "creditAccountCode": "4043",
+      "amount": 197.47
+    },
+    {
+      "id": "je-476-x9rcg",
+      "date": "2026-05-18",
+      "description": "BOLLETTA ABBANOA",
+      "debitAccountCode": "6062",
+      "creditAccountCode": "4043",
+      "amount": 113.45
+    },
+    {
+      "id": "je-477-7ew0c",
+      "date": "2026-05-18",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 1
+    },
+    {
+      "id": "je-478-awzoy",
+      "date": "2026-05-18",
+      "description": "MAGLIETTA",
+      "debitAccountCode": "6012",
+      "creditAccountCode": "4043",
+      "amount": 18.1
+    },
+    {
+      "id": "je-479-vg1xh",
+      "date": "2026-05-18",
+      "description": "BOLLO AUTO SCAD APRILE",
+      "debitAccountCode": "6040",
+      "creditAccountCode": "4010",
+      "amount": 211.5
+    },
+    {
+      "id": "je-480-7clsi",
+      "date": "2026-05-17",
+      "description": "GAZA EMERGENCY GIAMPIERO",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 500
+    },
+    {
+      "id": "je-481-w449j",
+      "date": "2026-05-17",
+      "description": "CAFFE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 1.5
+    },
+    {
+      "id": "je-482-nqung",
+      "date": "2026-05-16",
+      "description": "FABRIZIO SICURI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 700
+    },
+    {
+      "id": "je-483-5eb23",
+      "date": "2026-05-16",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 9
+    },
+    {
+      "id": "je-484-zigz9",
+      "date": "2026-05-16",
+      "description": "SIGHT SAVERS",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 5
+    },
+    {
+      "id": "je-485-uza4f",
+      "date": "2026-05-16",
+      "description": "GELATERIA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 9
+    },
+    {
+      "id": "je-486-eaudm",
+      "date": "2026-05-15",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 12
+    },
+    {
+      "id": "je-487-4tbvv",
+      "date": "2026-05-15",
+      "description": "BRUFEN A VILLASIMIUS",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4010",
+      "amount": 11.5
+    },
+    {
+      "id": "je-488-iq0ys",
+      "date": "2026-05-14",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 17
+    },
+    {
+      "id": "je-489-gyki2",
+      "date": "2026-05-14",
+      "description": "VARIE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 3.5
+    },
+    {
+      "id": "je-490-65p61",
+      "date": "2026-05-14",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-491-ygrez",
+      "date": "2026-05-13",
+      "description": "REGALO NOZZE ALESSANDRA E DANIELE",
+      "debitAccountCode": "4076",
+      "creditAccountCode": "6011",
+      "amount": 100
+    },
+    {
+      "id": "je-492-vvqfx",
+      "date": "2026-05-13",
+      "description": "REGALO NOZZE ALESSANDRA E DANIELE",
+      "debitAccountCode": "4100",
+      "creditAccountCode": "6011",
+      "amount": 160
+    },
+    {
+      "id": "je-493-3fe9z",
+      "date": "2026-05-13",
+      "description": "CUSCINI E COPRIMATERASSO, BATTERIE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 45.5
+    },
+    {
+      "id": "je-494-rfyuz",
+      "date": "2026-05-13",
+      "description": "MENSOLE ARMADIO, E VARIE VILLASIMIUS",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 59.55
+    },
+    {
+      "id": "je-495-54ra9",
+      "date": "2026-05-13",
+      "description": "VARIE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 4.5
+    },
+    {
+      "id": "je-496-d2lz9",
+      "date": "2026-05-13",
+      "description": "REGALO NOZZE ALESSANDRA E DANIELE",
+      "debitAccountCode": "6011",
+      "creditAccountCode": "4043",
+      "amount": 1000
+    },
+    {
+      "id": "je-497-d5xse",
+      "date": "2026-05-13",
+      "description": "REGALO NOZZE ALESSANDRA E DANIELE FERNANDO",
+      "debitAccountCode": "4078",
+      "creditAccountCode": "6011",
+      "amount": 150
+    },
+    {
+      "id": "je-498-kjrwg",
+      "date": "2026-05-13",
+      "description": "CAUZIONE VERONICA MORELLI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5021",
+      "amount": 250
+    },
+    {
+      "id": "je-499-k1bot",
+      "date": "2026-05-13",
+      "description": "ARREDI VARI VILLASIMIUS",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 22.95
+    },
+    {
+      "id": "je-500-ydnyw",
+      "date": "2026-05-12",
+      "description": "BAR",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 4
+    },
+    {
+      "id": "je-501-4tktl",
+      "date": "2026-05-12",
+      "description": "VARIE VILLASIMIUS",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 56.48
+    },
+    {
+      "id": "je-502-faug4",
+      "date": "2026-05-12",
+      "description": "CAUZIONE MARCO CARSOLI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5022",
+      "amount": 200
+    },
+    {
+      "id": "je-503-kzbuu",
+      "date": "2026-05-12",
+      "description": "RESO GIACCA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "6012",
+      "amount": 49.9
+    },
+    {
+      "id": "je-504-ds80g",
+      "date": "2026-05-12",
+      "description": "RIMBORSO ADOBE MAGGIO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4071",
+      "amount": 15
+    },
+    {
+      "id": "je-505-zarj4",
+      "date": "2026-05-12",
+      "description": "CAUZIONE SEDA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5024",
+      "amount": 200
+    },
+    {
+      "id": "je-506-kwv6w",
+      "date": "2026-05-10",
+      "description": "GIACCA",
+      "debitAccountCode": "6012",
+      "creditAccountCode": "4043",
+      "amount": 79.95
+    },
+    {
+      "id": "je-507-b141a",
+      "date": "2026-05-09",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 10.55
+    },
+    {
+      "id": "je-508-9te23",
+      "date": "2026-05-09",
+      "description": "RICARICA ESTINTORI (QUOTA MIA 15X4=60)",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 150
+    },
+    {
+      "id": "je-509-liz6x",
+      "date": "2026-05-09",
+      "description": "CREDITO VERSO STEFANO ORRU (75€) E PINNA (15€) PER ESTINTORI",
+      "debitAccountCode": "4070",
+      "creditAccountCode": "8040",
+      "amount": 90
+    },
+    {
+      "id": "je-510-x9tyc",
+      "date": "2026-05-09",
+      "description": "RIMBORSO STEFANO ORRU RICARICA ESTINTORI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "4070",
+      "amount": 75
+    },
+    {
+      "id": "je-511-yau4a",
+      "date": "2026-05-08",
+      "description": "RATA RITA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8020",
+      "amount": 3702.06
+    },
+    {
+      "id": "je-512-n0med",
+      "date": "2026-05-07",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 2.85
+    },
+    {
+      "id": "je-513-03lv4",
+      "date": "2026-05-06",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 40
+    },
+    {
+      "id": "je-514-kix22",
+      "date": "2026-05-06",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 2.95
+    },
+    {
+      "id": "je-515-bryb9",
+      "date": "2026-05-06",
+      "description": "LENZUOLA E BIANCHERIA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 42
+    },
+    {
+      "id": "je-516-otxns",
+      "date": "2026-05-06",
+      "description": "CAUZIONE STEPHANIE",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 200
+    },
+    {
+      "id": "je-517-m7fr9",
+      "date": "2026-05-05",
+      "description": "AFFITTO PRELI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 800
+    },
+    {
+      "id": "je-518-l280n",
+      "date": "2026-05-05",
+      "description": "CAUZIONE MANUELA ZITO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5023",
+      "amount": 200
+    },
+    {
+      "id": "je-519-hzgx4",
+      "date": "2026-05-05",
+      "description": "BAR",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 5
+    },
+    {
+      "id": "je-520-xup3f",
+      "date": "2026-05-05",
+      "description": "ADOBE MAGGIO",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 14.99
+    },
+    {
+      "id": "je-521-qddby",
+      "date": "2026-05-05",
+      "description": "RIMBORSO TECNOMAT",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 6.5
+    },
+    {
+      "id": "je-522-9d2zq",
+      "date": "2026-05-05",
+      "description": "GIACCA",
+      "debitAccountCode": "6012",
+      "creditAccountCode": "4010",
+      "amount": 60
+    },
+    {
+      "id": "je-523-x0e5i",
+      "date": "2026-05-05",
+      "description": "JEANS",
+      "debitAccountCode": "6012",
+      "creditAccountCode": "4043",
+      "amount": 49.9
+    },
+    {
+      "id": "je-524-lo4mr",
+      "date": "2026-05-05",
+      "description": "OGGETTI VARI VILLASIMIUS",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 22.51
+    },
+    {
+      "id": "je-525-hewss",
+      "date": "2026-05-04",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 2.22
+    },
+    {
+      "id": "je-526-juq9t",
+      "date": "2026-05-04",
+      "description": "RATA MUTUO",
+      "debitAccountCode": "6180",
+      "creditAccountCode": "4043",
+      "amount": 463.84
+    },
+    {
+      "id": "je-527-4ftis",
+      "date": "2026-05-04",
+      "description": "SORGENIA TISIDDU COMPETENZA SCHIAPPACASSE",
+      "debitAccountCode": "6052",
+      "creditAccountCode": "4043",
+      "amount": 180.54
+    },
+    {
+      "id": "je-528-xj7tx",
+      "date": "2026-05-04",
+      "description": "FIBRA FISSA",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 27.74
+    },
+    {
+      "id": "je-529-d15qx",
+      "date": "2026-05-04",
+      "description": "RATA PRESTITO",
+      "debitAccountCode": "6182",
+      "creditAccountCode": "4043",
+      "amount": 167.37
+    },
+    {
+      "id": "je-530-9jszx",
+      "date": "2026-05-04",
+      "description": "OCTOPUS PRINCIPE",
+      "debitAccountCode": "6053",
+      "creditAccountCode": "4043",
+      "amount": 103.14
+    },
+    {
+      "id": "je-531-costr",
+      "date": "2026-05-04",
+      "description": "COMMISSIONI RATA MUTUO",
+      "debitAccountCode": "6130",
+      "creditAccountCode": "4043",
+      "amount": 1.5
+    },
+    {
+      "id": "je-532-5xfyf",
+      "date": "2026-05-04",
+      "description": "PIATTI E STOVIGLIE IKEA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 26.85
+    },
+    {
+      "id": "je-533-x53vi",
+      "date": "2026-05-04",
+      "description": "IMPREGNANTE E ALTRO PER CASE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 58.4
+    },
+    {
+      "id": "je-534-4n8bf",
+      "date": "2026-05-03",
+      "description": "+++",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 2
+    },
+    {
+      "id": "je-535-42vx9",
+      "date": "2026-05-03",
+      "description": "RATA A SALDO TARI CAVARO 2025",
+      "debitAccountCode": "6031",
+      "creditAccountCode": "4043",
+      "amount": 76.35
+    },
+    {
+      "id": "je-536-p4z85",
+      "date": "2026-05-03",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 15.8
+    },
+    {
+      "id": "je-537-mp7kc",
+      "date": "2026-05-03",
+      "description": "PENSIONE MAGGIO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "8010",
+      "amount": 2358.93
+    },
+    {
+      "id": "je-538-733np",
+      "date": "2026-05-03",
+      "description": "RATA 2 TAVOLE PANCHINA MENNENNE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 31.87
+    },
+    {
+      "id": "je-539-f40f6",
+      "date": "2026-05-03",
+      "description": "TERZA RATA TARI CAVARO PAGATA IN RITARDO",
+      "debitAccountCode": "6031",
+      "creditAccountCode": "4043",
+      "amount": 76.75
+    },
+    {
+      "id": "je-540-nnww9",
+      "date": "2026-05-03",
+      "description": "SUPPORTO SMERIGLIATRICE ANGOLARE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 17.99
+    },
+    {
+      "id": "je-541-mac1g",
+      "date": "2026-05-01",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 1.87
+    },
+    {
+      "id": "je-542-9ya4z",
+      "date": "2026-04-30",
+      "description": "DETERSIVI",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 9.73
+    },
+    {
+      "id": "je-543-2athe",
+      "date": "2026-04-30",
+      "description": "RICARICA VERY MOBILE MENNENNE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 5
+    },
+    {
+      "id": "je-544-29s0s",
+      "date": "2026-04-30",
+      "description": "FATTURA ELETTRICA TISIDDU COMPETENNZA SONIA CASTELLANO E SCHIAPPACASSE",
+      "debitAccountCode": "5022",
+      "creditAccountCode": "6052",
+      "amount": 250
+    },
+    {
+      "id": "je-545-4aw2f",
+      "date": "2026-04-29",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 19.93
+    },
+    {
+      "id": "je-546-6ynkm",
+      "date": "2026-04-29",
+      "description": "SILICONE CHIMICO",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 8
+    },
+    {
+      "id": "je-547-ocdp4",
+      "date": "2026-04-28",
+      "description": "CORSO PADEL APRILE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-548-yb78e",
+      "date": "2026-04-28",
+      "description": "CLIMATIZZAZIONE CHIESA SAN PAOLO",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 100
+    },
+    {
+      "id": "je-549-1ssns",
+      "date": "2026-04-28",
+      "description": "ADDEBITO ATM MILANO POST DATATO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 1.3
+    },
+    {
+      "id": "je-550-hv5ie",
+      "date": "2026-04-28",
+      "description": "ADDEBITO ATM MILANO POST DATATO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 1.3
+    },
+    {
+      "id": "je-551-dholy",
+      "date": "2026-04-28",
+      "description": "BARBIERE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 15
+    },
+    {
+      "id": "je-552-melpl",
+      "date": "2026-04-27",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4043",
+      "amount": 40
+    },
+    {
+      "id": "je-553-i7z2w",
+      "date": "2026-04-27",
+      "description": "PAGAMENTO FATTURA ACQUA",
+      "debitAccountCode": "6060",
+      "creditAccountCode": "4043",
+      "amount": 40.39
+    },
+    {
+      "id": "je-554-cqsih",
+      "date": "2026-04-27",
+      "description": "FARMACIA PER TIZIANA",
+      "debitAccountCode": "4100",
+      "creditAccountCode": "4043",
+      "amount": 22.12
+    },
+    {
+      "id": "je-555-791jy",
+      "date": "2026-04-27",
+      "description": "PUNTE TRAPANO",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 4.29
+    },
+    {
+      "id": "je-556-esf0g",
+      "date": "2026-04-27",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 1.99
+    },
+    {
+      "id": "je-557-ffdsn",
+      "date": "2026-04-26",
+      "description": "LASTRE ISOLA CUCINA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 46.76
+    },
+    {
+      "id": "je-558-u8inv",
+      "date": "2026-04-25",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 16.54
+    },
+    {
+      "id": "je-559-otkhy",
+      "date": "2026-04-24",
+      "description": "METRO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 2.2
+    },
+    {
+      "id": "je-560-jrzbw",
+      "date": "2026-04-24",
+      "description": "UNICEF",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-561-6eca3",
+      "date": "2026-04-24",
+      "description": "PRELEVAMENTO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4043",
+      "amount": 500
+    },
+    {
+      "id": "je-562-uy9ng",
+      "date": "2026-04-24",
+      "description": "RATA 2 DOGHE PANCHINA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 75.14
+    },
+    {
+      "id": "je-563-g8sfi",
+      "date": "2026-04-24",
+      "description": "TRENO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 1.3
+    },
+    {
+      "id": "je-564-cp8xk",
+      "date": "2026-04-24",
+      "description": "SALDO PANCHINE E TAVOLO",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 700
+    },
+    {
+      "id": "je-565-bj3eg",
+      "date": "2026-04-24",
+      "description": "PIZZA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 22.5
+    },
+    {
+      "id": "je-566-jh4ac",
+      "date": "2026-04-24",
+      "description": "BAR CON CHIARA",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 2.6
+    },
+    {
+      "id": "je-567-kmzki",
+      "date": "2026-04-24",
+      "description": "OCTOPUS",
+      "debitAccountCode": "6051",
+      "creditAccountCode": "4043",
+      "amount": 56.86
+    },
+    {
+      "id": "je-568-ogy5g",
+      "date": "2026-04-24",
+      "description": "BUS",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 1.3
+    },
+    {
+      "id": "je-569-y2nis",
+      "date": "2026-04-24",
+      "description": "VARIE PER PANCHINA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 22.65
+    },
+    {
+      "id": "je-570-kwo6r",
+      "date": "2026-04-23",
+      "description": "V5",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4010",
+      "amount": 1
+    },
+    {
+      "id": "je-571-rhpmf",
+      "date": "2026-04-23",
+      "description": "METRO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 1.3
+    },
+    {
+      "id": "je-572-cnsig",
+      "date": "2026-04-23",
+      "description": "METRO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 2.2
+    },
+    {
+      "id": "je-573-hdfdk",
+      "date": "2026-04-23",
+      "description": "METRO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 2.2
+    },
+    {
+      "id": "je-574-l56pz",
+      "date": "2026-04-23",
+      "description": "OCTOPUS",
+      "debitAccountCode": "6050",
+      "creditAccountCode": "4043",
+      "amount": 36.28
+    },
+    {
+      "id": "je-575-t0js2",
+      "date": "2026-04-22",
+      "description": "SPESA",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 22.01
+    },
+    {
+      "id": "je-576-mpc9x",
+      "date": "2026-04-22",
+      "description": "CAFFE",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4010",
+      "amount": 1.3
+    },
+    {
+      "id": "je-577-z0uf9",
+      "date": "2026-04-22",
+      "description": "METRO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 2.2
+    },
+    {
+      "id": "je-578-8t45n",
+      "date": "2026-04-22",
+      "description": "CHIAVI CASA MIKI",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 18
+    },
+    {
+      "id": "je-579-lddzp",
+      "date": "2026-04-21",
+      "description": "METRO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 4.4
+    },
+    {
+      "id": "je-580-cb13l",
+      "date": "2026-04-21",
+      "description": "FIBRA",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 27.49
+    },
+    {
+      "id": "je-581-2uo91",
+      "date": "2026-04-20",
+      "description": "METRO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4010",
+      "amount": 2.2
+    },
+    {
+      "id": "je-582-75t24",
+      "date": "2026-04-20",
+      "description": "METRO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 2.2
+    },
+    {
+      "id": "je-583-rzgy0",
+      "date": "2026-04-20",
+      "description": "SPESA",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 1.19
+    },
+    {
+      "id": "je-584-bp6lz",
+      "date": "2026-04-19",
+      "description": "SPESA",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 17.7
+    },
+    {
+      "id": "je-585-w0nrd",
+      "date": "2026-04-19",
+      "description": "TRENO AEREOPORTI",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 1.3
+    },
+    {
+      "id": "je-586-5276u",
+      "date": "2026-04-19",
+      "description": "BAR CON ALDO E CHIARA",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 3.6
+    },
+    {
+      "id": "je-587-4oi9v",
+      "date": "2026-04-19",
+      "description": "METRO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 2.2
+    },
+    {
+      "id": "je-588-ctsvh",
+      "date": "2026-04-19",
+      "description": "METRO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 2.2
+    },
+    {
+      "id": "je-589-vsq8s",
+      "date": "2026-04-18",
+      "description": "SILICONE NERO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 9.99
+    },
+    {
+      "id": "je-590-o4ri4",
+      "date": "2026-04-18",
+      "description": "VARIE MILANO SALONE MOBILE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "6170",
+      "amount": 70
+    },
+    {
+      "id": "je-591-4hwhi",
+      "date": "2026-04-18",
+      "description": "SPESE TRASPORTO MILANO SALONE MOBILE",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "6170",
+      "amount": 30
+    },
+    {
+      "id": "je-592-1u7kx",
+      "date": "2026-04-18",
+      "description": "VITTO MILANO SALONE MOBILE",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "6170",
+      "amount": 20
+    },
+    {
+      "id": "je-593-a3oth",
+      "date": "2026-04-18",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 2.36
+    },
+    {
+      "id": "je-594-t82ky",
+      "date": "2026-04-18",
+      "description": "VERNICE NERA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 4.5
+    },
+    {
+      "id": "je-595-fxbzn",
+      "date": "2026-04-17",
+      "description": "BAR SERGIO CAPPAI",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 6
+    },
+    {
+      "id": "je-596-zqf2g",
+      "date": "2026-04-17",
+      "description": "AEREO MILANO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 124.98
+    },
+    {
+      "id": "je-597-n0dp3",
+      "date": "2026-04-17",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 2.78
+    },
+    {
+      "id": "je-598-a1cpt",
+      "date": "2026-04-15",
+      "description": "UNICEF",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 5
+    },
+    {
+      "id": "je-599-2u15b",
+      "date": "2026-04-15",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 2.11
+    },
+    {
+      "id": "je-600-cyif4",
+      "date": "2026-04-14",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 2
+    },
+    {
+      "id": "je-601-5l7hl",
+      "date": "2026-04-14",
+      "description": "COLLA E LAMPADINE ISOLA CUCINA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 38
+    },
+    {
+      "id": "je-602-g5qjy",
+      "date": "2026-04-14",
+      "description": "BAR",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 3
+    },
+    {
+      "id": "je-603-4oibs",
+      "date": "2026-04-14",
+      "description": "BERCINI GIADA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 250
+    },
+    {
+      "id": "je-604-8apvq",
+      "date": "2026-04-14",
+      "description": "PADEL",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 10
+    },
+    {
+      "id": "je-605-727st",
+      "date": "2026-04-11",
+      "description": "TRUCIOLARE PER ISOLA CUCINA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 61.4
+    },
+    {
+      "id": "je-606-tpg70",
+      "date": "2026-04-11",
+      "description": "CAUZIONE NICOLA GRIECO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 200
+    },
+    {
+      "id": "je-607-xexqr",
+      "date": "2026-04-10",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 1.25
+    },
+    {
+      "id": "je-608-qg4f1",
+      "date": "2026-04-10",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4043",
+      "amount": 100
+    },
+    {
+      "id": "je-609-uqwwi",
+      "date": "2026-04-10",
+      "description": "LIUTAIO IN CONTO PSICOLOGO MIKI",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4010",
+      "amount": 50
+    },
+    {
+      "id": "je-610-mkod9",
+      "date": "2026-04-09",
+      "description": "ANTICIPO NUOVO TELEFONINO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 19.99
+    },
+    {
+      "id": "je-611-605pm",
+      "date": "2026-04-09",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 40
+    },
+    {
+      "id": "je-612-r8l7m",
+      "date": "2026-04-09",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 17.65
+    },
+    {
+      "id": "je-613-btizj",
+      "date": "2026-04-07",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 500
+    },
+    {
+      "id": "je-614-3mujd",
+      "date": "2026-04-07",
+      "description": "ADOBE",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4071",
+      "amount": 15
+    },
+    {
+      "id": "je-615-ipm6l",
+      "date": "2026-04-07",
+      "description": "CAUZIONE TANGREDI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5023",
+      "amount": 200
+    },
+    {
+      "id": "je-616-nufw9",
+      "date": "2026-04-07",
+      "description": "QUITE ORDINARIE",
+      "debitAccountCode": "6102",
+      "creditAccountCode": "4045",
+      "amount": 500
+    },
+    {
+      "id": "je-617-lq0z1",
+      "date": "2026-04-07",
+      "description": "OCTOPUS",
+      "debitAccountCode": "6050",
+      "creditAccountCode": "4043",
+      "amount": 53.68
+    },
+    {
+      "id": "je-618-po4fb",
+      "date": "2026-04-07",
+      "description": "MAGLIONE",
+      "debitAccountCode": "6012",
+      "creditAccountCode": "4043",
+      "amount": 36
+    },
+    {
+      "id": "je-619-mhb0i",
+      "date": "2026-04-06",
+      "description": "RIPARTO PRANZO PASQUETTA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "6170",
+      "amount": 20
+    },
+    {
+      "id": "je-620-emgnl",
+      "date": "2026-04-06",
+      "description": "REGALO TATONIA",
+      "debitAccountCode": "6011",
+      "creditAccountCode": "4100",
+      "amount": 42
+    },
+    {
+      "id": "je-621-5z1rb",
+      "date": "2026-04-06",
+      "description": "RIPARTO PRANZO PASQUETTA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "6170",
+      "amount": 20
+    },
+    {
+      "id": "je-622-mdtgg",
+      "date": "2026-04-06",
+      "description": "PRANZO PASQUETTA",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4100",
+      "amount": 83
+    },
+    {
+      "id": "je-623-sbztu",
+      "date": "2026-04-06",
+      "description": "REGALO TATONIA E PRANZO PASQUETTA A NETTO REGALI NATALE",
+      "debitAccountCode": "4100",
+      "creditAccountCode": "4043",
+      "amount": 102.18
+    },
+    {
+      "id": "je-624-qf52p",
+      "date": "2026-04-06",
+      "description": "RIPARTO PRANZO PASQUETTA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "6170",
+      "amount": 20
+    },
+    {
+      "id": "je-625-iffrr",
+      "date": "2026-04-05",
+      "description": "RIMBORSO PARZIALE DEBITO FRANCA",
+      "debitAccountCode": "4077",
+      "creditAccountCode": "4010",
+      "amount": 385
+    },
+    {
+      "id": "je-626-elpbw",
+      "date": "2026-04-05",
+      "description": "PERDITE VARIE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 21
+    },
+    {
+      "id": "je-627-99vfr",
+      "date": "2026-04-05",
+      "description": "PHOTOSHOP APRILE",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 14.99
+    },
+    {
+      "id": "je-628-l3955",
+      "date": "2026-04-05",
+      "description": "VARIE PER PANCHINA MENNENNE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 27
+    },
+    {
+      "id": "je-629-ihqns",
+      "date": "2026-04-04",
+      "description": "VINO PER PRANZO GIUSY",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 22.6
+    },
+    {
+      "id": "je-630-sckzs",
+      "date": "2026-04-03",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 3.41
+    },
+    {
+      "id": "je-631-jr1lp",
+      "date": "2026-04-03",
+      "description": "RATA 1 TAVOLA PANCHINA MENNENNE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 31.87
+    },
+    {
+      "id": "je-632-w1fxj",
+      "date": "2026-04-03",
+      "description": "RIMBORSO TAVOLE PANCHINA MENNENNE",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 70
+    },
+    {
+      "id": "je-633-fxe4r",
+      "date": "2026-04-03",
+      "description": "BOLLO",
+      "debitAccountCode": "6130",
+      "creditAccountCode": "4045",
+      "amount": 8.55
+    },
+    {
+      "id": "je-634-0gkiq",
+      "date": "2026-04-03",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 1.29
+    },
+    {
+      "id": "je-635-clbpv",
+      "date": "2026-04-02",
+      "description": "BAR CON MIKI",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 5.2
+    },
+    {
+      "id": "je-636-rxwva",
+      "date": "2026-04-01",
+      "description": "PSICOLOGA MIKI",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4070",
+      "amount": 180
+    },
+    {
+      "id": "je-637-k02s6",
+      "date": "2026-04-01",
+      "description": "PENSIONE APRILE",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "8010",
+      "amount": 2166.21
+    },
+    {
+      "id": "je-638-2xlg0",
+      "date": "2026-04-01",
+      "description": "RATA PRESTITO",
+      "debitAccountCode": "6182",
+      "creditAccountCode": "4043",
+      "amount": 167.37
+    },
+    {
+      "id": "je-639-g4ue0",
+      "date": "2026-04-01",
+      "description": "SPESE INCASSO RATA MUTUO",
+      "debitAccountCode": "6130",
+      "creditAccountCode": "4043",
+      "amount": 1.5
+    },
+    {
+      "id": "je-640-awh3b",
+      "date": "2026-04-01",
+      "description": "PRIMA RATA MUTUO CON PREAMMORTAMENTO",
+      "debitAccountCode": "6180",
+      "creditAccountCode": "4043",
+      "amount": 580.74
+    },
+    {
+      "id": "je-641-ijpka",
+      "date": "2026-04-01",
+      "description": "RATA 2 ASSILT",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4043",
+      "amount": 127.75
+    },
+    {
+      "id": "je-642-dz5jv",
+      "date": "2026-04-01",
+      "description": "SIM GIAMPY APRILE",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 18.76
+    },
+    {
+      "id": "je-643-5rlpt",
+      "date": "2026-04-01",
+      "description": "AFFITTO MIKI ASSAGO",
+      "debitAccountCode": "6180",
+      "creditAccountCode": "4070",
+      "amount": 450
+    },
+    {
+      "id": "je-644-ohbe0",
+      "date": "2026-04-01",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "4045",
+      "amount": 2400
+    },
+    {
+      "id": "je-645-5bf24",
+      "date": "2026-04-01",
+      "description": "OCTOPUS CAVARO",
+      "debitAccountCode": "6050",
+      "creditAccountCode": "4043",
+      "amount": 49.51
+    },
+    {
+      "id": "je-646-ralcc",
+      "date": "2026-04-01",
+      "description": "RIMBORSO CAUZIONE SIGNORA BERNARDINI (TOTALE 1350)",
+      "debitAccountCode": "4076",
+      "creditAccountCode": "4070",
+      "amount": 495
+    },
+    {
+      "id": "je-647-lfjk3",
+      "date": "2026-04-01",
+      "description": "A PERDITE TARI PAGATA PER CONTO SILVANA",
+      "debitAccountCode": "6031",
+      "creditAccountCode": "4070",
+      "amount": 36
+    },
+    {
+      "id": "je-648-3le3z",
+      "date": "2026-03-31",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 1
+    },
+    {
+      "id": "je-649-bbs2t",
+      "date": "2026-03-31",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4043",
+      "amount": 40
+    },
+    {
+      "id": "je-650-v4t08",
+      "date": "2026-03-31",
+      "description": "OCTOPUS TISIDDU",
+      "debitAccountCode": "6052",
+      "creditAccountCode": "4043",
+      "amount": 38.95
+    },
+    {
+      "id": "je-651-ww0d6",
+      "date": "2026-03-31",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 37.19
+    },
+    {
+      "id": "je-652-fokc4",
+      "date": "2026-03-30",
+      "description": "PIZZERIA OSTERIA ROMANA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 47.37
+    },
+    {
+      "id": "je-653-s5zou",
+      "date": "2026-03-30",
+      "description": "RIMBORSO LOVABLE",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4071",
+      "amount": 4.37
+    },
+    {
+      "id": "je-654-gew1a",
+      "date": "2026-03-29",
+      "description": "COLAZIONE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 4.6
+    },
+    {
+      "id": "je-655-vlm6c",
+      "date": "2026-03-29",
+      "description": "ROSE ROSSE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 5
+    },
+    {
+      "id": "je-656-b9y0j",
+      "date": "2026-03-29",
+      "description": "SPESE VARIE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 6.5
+    },
+    {
+      "id": "je-657-uchs0",
+      "date": "2026-03-29",
+      "description": "3 QUOTA SALDO TRAGHETTO MILANO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 72.45
+    },
+    {
+      "id": "je-658-wjf0k",
+      "date": "2026-03-29",
+      "description": "+++",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4010",
+      "amount": 5
+    },
+    {
+      "id": "je-659-06t5l",
+      "date": "2026-03-28",
+      "description": "OCTOPUS COMPETENZA RENE’",
+      "debitAccountCode": "5023",
+      "creditAccountCode": "6053",
+      "amount": 270
+    },
+    {
+      "id": "je-660-aka5l",
+      "date": "2026-03-28",
+      "description": "RIMBORSO CAUZIONE RENE’",
+      "debitAccountCode": "5023",
+      "creditAccountCode": "4043",
+      "amount": 300
+    },
+    {
+      "id": "je-661-4v664",
+      "date": "2026-03-28",
+      "description": "TAVOLA OKUME PIANO CUCINA CAVARO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 102.7
+    },
+    {
+      "id": "je-662-737xx",
+      "date": "2026-03-28",
+      "description": "ACQUA COMPETENZA RENE’",
+      "debitAccountCode": "5023",
+      "creditAccountCode": "6063",
+      "amount": 30
+    },
+    {
+      "id": "je-663-e8xro",
+      "date": "2026-03-27",
+      "description": "RIMBORSO CAUZIONE ADRIANO RISOLI",
+      "debitAccountCode": "5021",
+      "creditAccountCode": "4043",
+      "amount": 150
+    },
+    {
+      "id": "je-664-30kzd",
+      "date": "2026-03-27",
+      "description": "FATTURA",
+      "debitAccountCode": "6053",
+      "creditAccountCode": "4043",
+      "amount": 105.41
+    },
+    {
+      "id": "je-665-5z7i1",
+      "date": "2026-03-27",
+      "description": "PADEL MARZO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-666-c0qd7",
+      "date": "2026-03-27",
+      "description": "LOVABLE MARZO",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 4.37
+    },
+    {
+      "id": "je-667-l91qh",
+      "date": "2026-03-26",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 10.13
+    },
+    {
+      "id": "je-668-4gag2",
+      "date": "2026-03-26",
+      "description": "CAUZIONE MARIA LAZARICA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5023",
+      "amount": 150
+    },
+    {
+      "id": "je-669-7ih4p",
+      "date": "2026-03-26",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 6.42
+    },
+    {
+      "id": "je-670-82x22",
+      "date": "2026-03-25",
+      "description": "ANODO SOLARE TERMICO PINNA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 16
+    },
+    {
+      "id": "je-671-7ori7",
+      "date": "2026-03-25",
+      "description": "ANODO SOLARE TERMICO MIO",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 19
+    },
+    {
+      "id": "je-672-otlfj",
+      "date": "2026-03-25",
+      "description": "PENNELLESSA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 8.85
+    },
+    {
+      "id": "je-673-rnlm5",
+      "date": "2026-03-25",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 2
+    },
+    {
+      "id": "je-674-ltxl0",
+      "date": "2026-03-24",
+      "description": "UNICEF",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-675-0u2kt",
+      "date": "2026-03-24",
+      "description": "RATA 1 DOGHE PANCHINA PATIO",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 75.14
+    },
+    {
+      "id": "je-676-i4tdg",
+      "date": "2026-03-24",
+      "description": "200 CIALDE CAFFE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 34.2
+    },
+    {
+      "id": "je-677-688ni",
+      "date": "2026-03-24",
+      "description": "WIND",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 27.49
+    },
+    {
+      "id": "je-678-gv4p1",
+      "date": "2026-03-24",
+      "description": "VASO ESPANSIONE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 21.7
+    },
+    {
+      "id": "je-679-ktrzx",
+      "date": "2026-03-23",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 1.5
+    },
+    {
+      "id": "je-680-4ee6i",
+      "date": "2026-03-23",
+      "description": "ROSE ROSSE SALONE E INSETTICIDA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 13
+    },
+    {
+      "id": "je-681-dxbuz",
+      "date": "2026-03-22",
+      "description": "SCOLAPIATTI",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 2.95
+    },
+    {
+      "id": "je-682-eratf",
+      "date": "2026-03-21",
+      "description": "BAR",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 3.9
+    },
+    {
+      "id": "je-683-7gjpl",
+      "date": "2026-03-21",
+      "description": "VERNICE GIALLA PATIO",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 57
+    },
+    {
+      "id": "je-684-odtm4",
+      "date": "2026-03-19",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 26.07
+    },
+    {
+      "id": "je-685-iqmky",
+      "date": "2026-03-19",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4043",
+      "amount": 30
+    },
+    {
+      "id": "je-686-crq5h",
+      "date": "2026-03-18",
+      "description": "CAUZIONE ENRICA PASQUALATO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5023",
+      "amount": 250
+    },
+    {
+      "id": "je-687-m50ag",
+      "date": "2026-03-17",
+      "description": "ROSE ROSSE SALONE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 11
+    },
+    {
+      "id": "je-688-t1obi",
+      "date": "2026-03-17",
+      "description": "SIGHT SAVERS",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 5
+    },
+    {
+      "id": "je-689-p82px",
+      "date": "2026-03-17",
+      "description": "RIMBORSO QU3",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4071",
+      "amount": 17
+    },
+    {
+      "id": "je-690-6yc1s",
+      "date": "2026-03-16",
+      "description": "NASTRO PER BORDO PARETI",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 4.01
+    },
+    {
+      "id": "je-691-33ppe",
+      "date": "2026-03-16",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 1.5
+    },
+    {
+      "id": "je-692-onwwe",
+      "date": "2026-03-15",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "4045",
+      "amount": 1500
+    },
+    {
+      "id": "je-693-ma4bi",
+      "date": "2026-03-15",
+      "description": "PIZZA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 23
+    },
+    {
+      "id": "je-694-93xvu",
+      "date": "2026-03-14",
+      "description": "RIMBORSO CAUZIONE LAURA SPANO",
+      "debitAccountCode": "5024",
+      "creditAccountCode": "4043",
+      "amount": 650
+    },
+    {
+      "id": "je-695-r9xsy",
+      "date": "2026-03-14",
+      "description": "CONSUMI ELETTRICI LAURA SPANO",
+      "debitAccountCode": "5024",
+      "creditAccountCode": "6053",
+      "amount": 50
+    },
+    {
+      "id": "je-696-xh0hw",
+      "date": "2026-03-12",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 29.81
+    },
+    {
+      "id": "je-697-8w5e6",
+      "date": "2026-03-12",
+      "description": "BAR",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 1
+    },
+    {
+      "id": "je-698-gbjoy",
+      "date": "2026-03-11",
+      "description": "MANIGLIA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 2.25
+    },
+    {
+      "id": "je-699-ias24",
+      "date": "2026-03-11",
+      "description": "ANTICIPO PANCHINA MENNENNE",
+      "debitAccountCode": "5070",
+      "creditAccountCode": "4010",
+      "amount": 200
+    },
+    {
+      "id": "je-700-o4yiu",
+      "date": "2026-03-10",
+      "description": "CREDITO VERSO QU3 NON RIMBORSATO",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4010",
+      "amount": 2
+    },
+    {
+      "id": "je-701-1n1gj",
+      "date": "2026-03-10",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 20
+    },
+    {
+      "id": "je-702-6les5",
+      "date": "2026-03-09",
+      "description": "BOLLETTA ELETTRICA CAVARO",
+      "debitAccountCode": "6050",
+      "creditAccountCode": "4043",
+      "amount": 77.56
+    },
+    {
+      "id": "je-703-tz0f0",
+      "date": "2026-03-09",
+      "description": "RIMBORSO LOVABLE",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4071",
+      "amount": 4.36
+    },
+    {
+      "id": "je-704-ee12c",
+      "date": "2026-03-09",
+      "description": "VARIE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 18.86
+    },
+    {
+      "id": "je-705-aue6g",
+      "date": "2026-03-08",
+      "description": "VERNICE MENNENNE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 60
+    },
+    {
+      "id": "je-706-6o568",
+      "date": "2026-03-07",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 7.08
+    },
+    {
+      "id": "je-707-kk5q3",
+      "date": "2026-03-06",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 1.64
+    },
+    {
+      "id": "je-708-rt08h",
+      "date": "2026-03-06",
+      "description": "BOLLETTA ELETTRICA PRINCIPE",
+      "debitAccountCode": "6053",
+      "creditAccountCode": "4043",
+      "amount": 140.15
+    },
+    {
+      "id": "je-709-d3w8z",
+      "date": "2026-03-05",
+      "description": "ADOBE MARZO",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 14.99
+    },
+    {
+      "id": "je-710-a7lgo",
+      "date": "2026-03-04",
+      "description": "CAUZIONE ANDREA SALERNO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5024",
+      "amount": 250
+    },
+    {
+      "id": "je-711-21imv",
+      "date": "2026-03-04",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 20.13
+    },
+    {
+      "id": "je-712-65kxs",
+      "date": "2026-03-04",
+      "description": "AFFITTO LAURA SPANO MARZO E SALDO FEBBRAIO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 550
+    },
+    {
+      "id": "je-713-vejoc",
+      "date": "2026-03-03",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 40
+    },
+    {
+      "id": "je-714-6mfy3",
+      "date": "2026-03-03",
+      "description": "SALDO LAMINA TOP INFERIORE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 76
+    },
+    {
+      "id": "je-715-0f9fp",
+      "date": "2026-03-03",
+      "description": "BARBIERE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 15
+    },
+    {
+      "id": "je-716-eke9l",
+      "date": "2026-03-02",
+      "description": "LENZUOLA MATRIMONIALI",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 17
+    },
+    {
+      "id": "je-717-udhn4",
+      "date": "2026-03-02",
+      "description": "TOVAGLIA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 6
+    },
+    {
+      "id": "je-718-ttsxh",
+      "date": "2026-03-02",
+      "description": "TELEFONO MOBILE",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 18.76
+    },
+    {
+      "id": "je-719-akbhz",
+      "date": "2026-03-02",
+      "description": "BOLLETTA ELETTRICA MENNENNE",
+      "debitAccountCode": "6051",
+      "creditAccountCode": "4043",
+      "amount": 100.1
+    },
+    {
+      "id": "je-720-x87uf",
+      "date": "2026-03-02",
+      "description": "RATA 6 TASSAZIONE IRPEF",
+      "debitAccountCode": "6140",
+      "creditAccountCode": "4043",
+      "amount": 31.06
+    },
+    {
+      "id": "je-721-s19pr",
+      "date": "2026-03-02",
+      "description": "PENSIONE MARZO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "8010",
+      "amount": 1494.45
+    },
+    {
+      "id": "je-722-xkd5g",
+      "date": "2026-03-01",
+      "description": "SPESE VARIE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 1
+    },
+    {
+      "id": "je-723-cgnzx",
+      "date": "2026-03-01",
+      "description": "ANTENNA E VARIE MENNENNE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 65
+    },
+    {
+      "id": "je-724-rsmvc",
+      "date": "2026-03-01",
+      "description": "RIMBORSO A TY ASSAGO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 107.46
+    },
+    {
+      "id": "je-725-a2dxh",
+      "date": "2026-03-01",
+      "description": "PIZZA PORTO CORALLO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 16
+    },
+    {
+      "id": "je-726-mbnk5",
+      "date": "2026-03-01",
+      "description": "PRESTITO ING",
+      "debitAccountCode": "6182",
+      "creditAccountCode": "4043",
+      "amount": 167.37
+    },
+    {
+      "id": "je-727-rc98j",
+      "date": "2026-02-28",
+      "description": "SECONDARATA TRAGHETTO",
+      "debitAccountCode": "5010",
+      "creditAccountCode": "4043",
+      "amount": 72.45
+    },
+    {
+      "id": "je-728-t4j9d",
+      "date": "2026-02-28",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 8.32
+    },
+    {
+      "id": "je-729-jo4ls",
+      "date": "2026-02-27",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 4.94
+    },
+    {
+      "id": "je-730-v4ny1",
+      "date": "2026-02-27",
+      "description": "RICARICA VERY MOBILE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 10
+    },
+    {
+      "id": "je-731-2ghy0",
+      "date": "2026-02-27",
+      "description": "LOVABLE MARZO",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 4.37
+    },
+    {
+      "id": "je-732-rk1i3",
+      "date": "2026-02-27",
+      "description": "AFFITTO RENE",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 450
+    },
+    {
+      "id": "je-733-fou3z",
+      "date": "2026-02-27",
+      "description": "AFFITTO SONIA CRESPELLANI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 900
+    },
+    {
+      "id": "je-734-d2v92",
+      "date": "2026-02-26",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 23.4
+    },
+    {
+      "id": "je-735-rlncf",
+      "date": "2026-02-25",
+      "description": "APERITIVO CON TY",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 6.5
+    },
+    {
+      "id": "je-736-efhn5",
+      "date": "2026-02-25",
+      "description": "CAVO RICARICA TELEFONO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 4.7
+    },
+    {
+      "id": "je-737-663jj",
+      "date": "2026-02-25",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 1.58
+    },
+    {
+      "id": "je-738-yv3l5",
+      "date": "2026-02-24",
+      "description": "PADEL FEBBRAIO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-739-c61zt",
+      "date": "2026-02-24",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4043",
+      "amount": 40
+    },
+    {
+      "id": "je-740-6z2wb",
+      "date": "2026-02-24",
+      "description": "CAVO RICARICA TELEFONO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 3.5
+    },
+    {
+      "id": "je-741-uosng",
+      "date": "2026-02-24",
+      "description": "SECONDA RATA TRAGHETTO 72,45",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "5010",
+      "amount": 72.45
+    },
+    {
+      "id": "je-742-fg9ft",
+      "date": "2026-02-23",
+      "description": "RUOTA ANTERIORE DX",
+      "debitAccountCode": "6040",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-743-eubnt",
+      "date": "2026-02-23",
+      "description": "RUOTA ANT SX",
+      "debitAccountCode": "6040",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-744-twl1u",
+      "date": "2026-02-23",
+      "description": "PENNELLI E VARIE NIDO DI MENNENNE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 12
+    },
+    {
+      "id": "je-745-b2zce",
+      "date": "2026-02-23",
+      "description": "VERNICE PATIO NIDO DI MENNENNE",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4043",
+      "amount": 29.5
+    },
+    {
+      "id": "je-746-flxns",
+      "date": "2026-02-23",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 2.72
+    },
+    {
+      "id": "je-747-lyuh5",
+      "date": "2026-02-23",
+      "description": "OCTOPUS TISIDDU",
+      "debitAccountCode": "6052",
+      "creditAccountCode": "4043",
+      "amount": 57.74
+    },
+    {
+      "id": "je-748-lpqbk",
+      "date": "2026-02-23",
+      "description": "TELEFONIA FISSA",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 27.49
+    },
+    {
+      "id": "je-749-9twz6",
+      "date": "2026-02-23",
+      "description": "UNICEF",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-750-xkm6w",
+      "date": "2026-02-22",
+      "description": "SPESE ASSAGO PER ROGITO 18/2/2026",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 50.03
+    },
+    {
+      "id": "je-751-cwq5a",
+      "date": "2026-02-22",
+      "description": "SPESE ASSAGO PER ROGITO 18/2/2026",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 54.95
+    },
+    {
+      "id": "je-752-j2si5",
+      "date": "2026-02-22",
+      "description": "SPESE ASSAGO PER ROGITO 18/2/2026",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 7.7
+    },
+    {
+      "id": "je-753-xk6l2",
+      "date": "2026-02-22",
+      "description": "VARIE SPESE AD ASSAGO 18/2/2026",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "6170",
+      "amount": 143.2
+    },
+    {
+      "id": "je-754-kehut",
+      "date": "2026-02-22",
+      "description": "GASOLIO SPESO AD ASSAGO 18/2/2026",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "6170",
+      "amount": 40
+    },
+    {
+      "id": "je-755-qhyjz",
+      "date": "2026-02-22",
+      "description": "VITTO SPESO AD ASSAGO 18/2/2026",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "6170",
+      "amount": 19.85
+    },
+    {
+      "id": "je-756-94qm0",
+      "date": "2026-02-22",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 500
+    },
+    {
+      "id": "je-757-f9jt0",
+      "date": "2026-02-22",
+      "description": "SALDO RIMBORSO TATONIA",
+      "debitAccountCode": "5080",
+      "creditAccountCode": "4045",
+      "amount": 5000
+    },
+    {
+      "id": "je-758-hvfc6",
+      "date": "2026-02-22",
+      "description": "SPESE VARIE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 1.2
+    },
+    {
+      "id": "je-759-o0k6p",
+      "date": "2026-02-22",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 3.06
+    },
+    {
+      "id": "je-760-0381v",
+      "date": "2026-02-21",
+      "description": "SPESE ASSAGO PER ROGITO 18/2/2026",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 27.71
+    },
+    {
+      "id": "je-761-vxcra",
+      "date": "2026-02-21",
+      "description": "SPESE ASSAGO PER ROGITO 18/2/2026",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 4.7
+    },
+    {
+      "id": "je-762-sy8jp",
+      "date": "2026-02-21",
+      "description": "SPESE ASSAGO PER ROGITO 18/2/2026",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 8.75
+    },
+    {
+      "id": "je-763-wy3yx",
+      "date": "2026-02-21",
+      "description": "SPESE ASSAGO PER ROGITO 18/2/2026",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 8.9
+    },
+    {
+      "id": "je-764-du2pi",
+      "date": "2026-02-21",
+      "description": "SPESE ASSAGO PER ROGITO 18/2/2026",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 8.5
+    },
+    {
+      "id": "je-765-f0o2o",
+      "date": "2026-02-20",
+      "description": "SPESE ASSAGO PER ROGITO 18/2/2026",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 2.25
+    },
+    {
+      "id": "je-766-hck10",
+      "date": "2026-02-19",
+      "description": "ACCONTO LAURA SPANO FEBBRAIO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 350
+    },
+    {
+      "id": "je-767-rat2r",
+      "date": "2026-02-19",
+      "description": "ABBIGLIAMENTO",
+      "debitAccountCode": "6012",
+      "creditAccountCode": "4043",
+      "amount": 94.7
+    },
+    {
+      "id": "je-768-3x89d",
+      "date": "2026-02-18",
+      "description": "SPESE ASSAGO PER ROGITO 18/2/2026",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 30
+    },
+    {
+      "id": "je-769-quhhj",
+      "date": "2026-02-18",
+      "description": "SPESE ASSAGO PER ROGITO 18/2/2026",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 6.8
+    },
+    {
+      "id": "je-770-e5kqo",
+      "date": "2026-02-18",
+      "description": "SPESE ASSAGO PER ROGITO 18/2/2026",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 18
+    },
+    {
+      "id": "je-771-2rfow",
+      "date": "2026-02-18",
+      "description": "SPESE ASSAGO PER ROGITO 18/2/2026",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 2
+    },
+    {
+      "id": "je-772-vqeds",
+      "date": "2026-02-16",
+      "description": "SIGHT SAVER",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 5
+    },
+    {
+      "id": "je-773-1jftf",
+      "date": "2026-02-15",
+      "description": "RIMBORSO CAUZIONE ORTENSIA",
+      "debitAccountCode": "5021",
+      "creditAccountCode": "4043",
+      "amount": 226.09
+    },
+    {
+      "id": "je-774-nyz2a",
+      "date": "2026-02-15",
+      "description": "CONSUMI CORRENTE ORTESIA",
+      "debitAccountCode": "5021",
+      "creditAccountCode": "6051",
+      "amount": 273.91
+    },
+    {
+      "id": "je-775-40jcf",
+      "date": "2026-02-15",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 1500
+    },
+    {
+      "id": "je-776-0fedn",
+      "date": "2026-02-15",
+      "description": "BAR CON GINO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 9
+    },
+    {
+      "id": "je-777-a2iqk",
+      "date": "2026-02-13",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 6.45
+    },
+    {
+      "id": "je-778-zdx12",
+      "date": "2026-02-12",
+      "description": "CAUZIONE BARBARA LONGARELLI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5023",
+      "amount": 250
+    },
+    {
+      "id": "je-779-aoqss",
+      "date": "2026-02-12",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 29.25
+    },
+    {
+      "id": "je-780-b3ac1",
+      "date": "2026-02-12",
+      "description": "MUTUO ING DIRECT",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5025",
+      "amount": 63537.5
+    },
+    {
+      "id": "je-781-gq0uo",
+      "date": "2026-02-12",
+      "description": "NOTAIO PER MUTUO",
+      "debitAccountCode": "5025",
+      "creditAccountCode": "4045",
+      "amount": 1600
+    },
+    {
+      "id": "je-782-oopd5",
+      "date": "2026-02-12",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 3000
+    },
+    {
+      "id": "je-783-wn2th",
+      "date": "2026-02-12",
+      "description": "RIMBORSO PRESTITO MARIA",
+      "debitAccountCode": "5083",
+      "creditAccountCode": "4043",
+      "amount": 35000
+    },
+    {
+      "id": "je-784-voc46",
+      "date": "2026-02-12",
+      "description": "RIMBORSO PRESTITO TATONIA PARZIALE",
+      "debitAccountCode": "5080",
+      "creditAccountCode": "4043",
+      "amount": 20000
+    },
+    {
+      "id": "je-785-bw5b3",
+      "date": "2026-02-12",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 3000
+    },
+    {
+      "id": "je-786-ajvto",
+      "date": "2026-02-10",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 200
+    },
+    {
+      "id": "je-787-hlopj",
+      "date": "2026-02-10",
+      "description": "PRESTATI DA FRANCA",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4042",
+      "amount": 1000
+    },
+    {
+      "id": "je-788-usxbb",
+      "date": "2026-02-10",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4010",
+      "amount": 500
+    },
+    {
+      "id": "je-789-5jnaq",
+      "date": "2026-02-10",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 1.55
+    },
+    {
+      "id": "je-790-5q8lm",
+      "date": "2026-02-10",
+      "description": "BAR",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 4
+    },
+    {
+      "id": "je-791-ihk2d",
+      "date": "2026-02-10",
+      "description": "LOVABLE PER QU3",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4043",
+      "amount": 26.19
+    },
+    {
+      "id": "je-792-936p8",
+      "date": "2026-02-08",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 3
+    },
+    {
+      "id": "je-793-dq84r",
+      "date": "2026-02-07",
+      "description": "CAUZIONE ALBERTO CAZZOLA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5022",
+      "amount": 250
+    },
+    {
+      "id": "je-794-m6y9s",
+      "date": "2026-02-07",
+      "description": "A MIKI PER CASA",
+      "debitAccountCode": "5025",
+      "creditAccountCode": "4045",
+      "amount": 67000
+    },
+    {
+      "id": "je-795-xyzn3",
+      "date": "2026-02-06",
+      "description": "PRESTATI DA TATONIA PER CASA ASSAGO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "5080",
+      "amount": 25000
+    },
+    {
+      "id": "je-796-984sq",
+      "date": "2026-02-06",
+      "description": "PRESTATI DA MARIA PER CASA ASSAGO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "5083",
+      "amount": 35000
+    },
+    {
+      "id": "je-797-dwzbn",
+      "date": "2026-02-06",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 700
+    },
+    {
+      "id": "je-798-abtrs",
+      "date": "2026-02-06",
+      "description": "RIMBORSO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4071",
+      "amount": 36.86
+    },
+    {
+      "id": "je-799-xnrf7",
+      "date": "2026-02-06",
+      "description": "PHOTOSHOP FEBBRAIO",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 14.99
+    },
+    {
+      "id": "je-800-l3cg7",
+      "date": "2026-02-05",
+      "description": "RATA RITA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8020",
+      "amount": 3703.36
+    },
+    {
+      "id": "je-801-jko9m",
+      "date": "2026-02-05",
+      "description": "BOLLO E BAR",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 13.5
+    },
+    {
+      "id": "je-802-s57dz",
+      "date": "2026-02-05",
+      "description": "OCTOPUS",
+      "debitAccountCode": "6050",
+      "creditAccountCode": "4043",
+      "amount": 52.28
+    },
+    {
+      "id": "je-803-kitb3",
+      "date": "2026-02-04",
+      "description": "PRESTITO FRANCA CASSAFORTE",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4042",
+      "amount": 2000
+    },
+    {
+      "id": "je-804-fnehl",
+      "date": "2026-02-03",
+      "description": "RENE FEBBRAIO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 450
+    },
+    {
+      "id": "je-805-9qu1k",
+      "date": "2026-02-02",
+      "description": "OCTOPUS",
+      "debitAccountCode": "6053",
+      "creditAccountCode": "4043",
+      "amount": 120.45
+    },
+    {
+      "id": "je-806-xo6nu",
+      "date": "2026-02-02",
+      "description": "SIM FEBBRAIO",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 18.76
+    },
+    {
+      "id": "je-807-1961r",
+      "date": "2026-02-02",
+      "description": "INPS FEBBRAIO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "8010",
+      "amount": 1453.93
+    },
+    {
+      "id": "je-808-b218c",
+      "date": "2026-02-02",
+      "description": "RATA PRESTITO",
+      "debitAccountCode": "6182",
+      "creditAccountCode": "4043",
+      "amount": 167.37
+    },
+    {
+      "id": "je-809-2zwxt",
+      "date": "2026-02-01",
+      "description": "PRESTATI PER TRAGHETTO DA TY",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "6170",
+      "amount": 250
+    },
+    {
+      "id": "je-810-y8lln",
+      "date": "2026-02-01",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "4045",
+      "amount": 70
+    },
+    {
+      "id": "je-811-w3mm0",
+      "date": "2026-01-31",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 24
+    },
+    {
+      "id": "je-812-xvlyx",
+      "date": "2026-01-31",
+      "description": "VARIE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 5
+    },
+    {
+      "id": "je-813-1k246",
+      "date": "2026-01-30",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 4.5
+    },
+    {
+      "id": "je-814-7jsvv",
+      "date": "2026-01-29",
+      "description": "OCTOPUS",
+      "debitAccountCode": "6052",
+      "creditAccountCode": "4043",
+      "amount": 41.25
+    },
+    {
+      "id": "je-815-5773u",
+      "date": "2026-01-29",
+      "description": "OCTOPUS",
+      "debitAccountCode": "6051",
+      "creditAccountCode": "4043",
+      "amount": 60.99
+    },
+    {
+      "id": "je-816-csj10",
+      "date": "2026-01-29",
+      "description": "RATA 1 TRAGHETTO LIVORNO",
+      "debitAccountCode": "6170",
+      "creditAccountCode": "4043",
+      "amount": 72.45
+    },
+    {
+      "id": "je-817-2jrif",
+      "date": "2026-01-29",
+      "description": "BRUFEN",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4043",
+      "amount": 9.9
+    },
+    {
+      "id": "je-818-0l1qm",
+      "date": "2026-01-29",
+      "description": "UNICEF",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-819-4oijr",
+      "date": "2026-01-28",
+      "description": "ARCHITETTO PER CONFORMITA CATASTALE",
+      "debitAccountCode": "5070",
+      "creditAccountCode": "4010",
+      "amount": 300
+    },
+    {
+      "id": "je-820-cwnlp",
+      "date": "2026-01-27",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "je-821-dq4vi",
+      "date": "2026-01-27",
+      "description": "ABBONAMENTO LOVABLE DEV AI PER QU3",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 21.87
+    },
+    {
+      "id": "je-822-h4hg6",
+      "date": "2026-01-26",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 2.5
+    },
+    {
+      "id": "je-823-adz8p",
+      "date": "2026-01-25",
+      "description": "+++",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4010",
+      "amount": 10
+    },
+    {
+      "id": "je-824-kljen",
+      "date": "2026-01-23",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "4045",
+      "amount": 300
+    },
+    {
+      "id": "je-825-fspz9",
+      "date": "2026-01-23",
+      "description": "VERSAMENTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4010",
+      "amount": 200
+    },
+    {
+      "id": "je-826-ptvwp",
+      "date": "2026-01-22",
+      "description": "COLAZIONE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 5
+    },
+    {
+      "id": "je-827-fs9u7",
+      "date": "2026-01-22",
+      "description": "BONIFICO MIKI PER CASA",
+      "debitAccountCode": "5025",
+      "creditAccountCode": "4045",
+      "amount": 40000
+    },
+    {
+      "id": "je-828-gdlwl",
+      "date": "2026-01-22",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 30.32
+    },
+    {
+      "id": "je-829-ww408",
+      "date": "2026-01-22",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 2000
+    },
+    {
+      "id": "je-830-e34ko",
+      "date": "2026-01-22",
+      "description": "GIROCONTO",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "4043",
+      "amount": 1000
+    },
+    {
+      "id": "je-831-uaw99",
+      "date": "2026-01-22",
+      "description": "CAUZIONE IVANA CIARDI AD AFFITTI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 200
+    },
+    {
+      "id": "je-832-ekv8s",
+      "date": "2026-01-21",
+      "description": "AFFITTO RENE GENNAIO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 450
+    },
+    {
+      "id": "je-833-dbawl",
+      "date": "2026-01-21",
+      "description": "ENERGIA ELETTRICA RENE NOVEMBRE E DICEMBRE",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "6053",
+      "amount": 140
+    },
+    {
+      "id": "je-834-zjyob",
+      "date": "2026-01-21",
+      "description": "LINEA FISSA",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 27.49
+    },
+    {
+      "id": "je-835-3biou",
+      "date": "2026-01-20",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 5.15
+    },
+    {
+      "id": "je-836-6y89j",
+      "date": "2026-01-19",
+      "description": "RIMBORSO CAUZIONE ROSSELLA",
+      "debitAccountCode": "5022",
+      "creditAccountCode": "4043",
+      "amount": 60
+    },
+    {
+      "id": "je-837-swoyl",
+      "date": "2026-01-19",
+      "description": "CORRENTE COMPETENZA ROSSELLA",
+      "debitAccountCode": "5022",
+      "creditAccountCode": "6052",
+      "amount": 140
+    },
+    {
+      "id": "je-838-k1pu1",
+      "date": "2026-01-18",
+      "description": "PIZZERIA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 20.5
+    },
+    {
+      "id": "je-839-f0jqk",
+      "date": "2026-01-17",
+      "description": "SIGHT SAVER",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 5
+    },
+    {
+      "id": "je-840-r3rjx",
+      "date": "2026-01-17",
+      "description": "CAUZIONE CLAUDIO MILANI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5022",
+      "amount": 250
+    },
+    {
+      "id": "je-841-epzo9",
+      "date": "2026-01-17",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 3.07
+    },
+    {
+      "id": "je-842-6uajb",
+      "date": "2026-01-16",
+      "description": "AFFITTO ORTENSIA FEBBRAIO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 450
+    },
+    {
+      "id": "je-843-bw5fn",
+      "date": "2026-01-15",
+      "description": "ANTICIPO LAMINATO PER TOPOCUCINA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-844-426zs",
+      "date": "2026-01-15",
+      "description": "CAUZIONE DARIO VITALE",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5021",
+      "amount": 250
+    },
+    {
+      "id": "je-845-iicls",
+      "date": "2026-01-14",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4043",
+      "amount": 30
+    },
+    {
+      "id": "je-846-bj4ys",
+      "date": "2026-01-13",
+      "description": "PADEL GENNAIO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 50
+    },
+    {
+      "id": "je-847-2x4pf",
+      "date": "2026-01-12",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 6.6
+    },
+    {
+      "id": "je-848-vc0u6",
+      "date": "2026-01-12",
+      "description": "CAUZIONE SONIA SPOLAOR",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5022",
+      "amount": 250
+    },
+    {
+      "id": "je-849-66d1t",
+      "date": "2026-01-12",
+      "description": "V5",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 2
+    },
+    {
+      "id": "je-850-9djij",
+      "date": "2026-01-11",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 22.7
+    },
+    {
+      "id": "je-851-xw8lz",
+      "date": "2026-01-11",
+      "description": "SCHIUMA POLIURETANO E INTERRUTORI",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 10.3
+    },
+    {
+      "id": "je-852-p9jvx",
+      "date": "2026-01-10",
+      "description": "PIZZA KIPLING",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 20
+    },
+    {
+      "id": "je-853-15f5l",
+      "date": "2026-01-09",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 2.86
+    },
+    {
+      "id": "je-854-4xg0a",
+      "date": "2026-01-09",
+      "description": "TARI VILLASIMIUS 2020",
+      "debitAccountCode": "6031",
+      "creditAccountCode": "4043",
+      "amount": 92
+    },
+    {
+      "id": "je-855-un6aj",
+      "date": "2026-01-08",
+      "description": "ASSILT PRIMA RATA",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4043",
+      "amount": 133.75
+    },
+    {
+      "id": "je-856-ab2mc",
+      "date": "2026-01-08",
+      "description": "RIMBORSO ADOBE GENNAIO",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4071",
+      "amount": 15
+    },
+    {
+      "id": "je-857-tavrs",
+      "date": "2026-01-08",
+      "description": "COLAZIONE",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 4.5
+    },
+    {
+      "id": "je-858-4w71h",
+      "date": "2026-01-07",
+      "description": "AFFITTO LAURA SPANO GENNAIO + CORRENTE",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 576.39
+    },
+    {
+      "id": "je-859-4dg04",
+      "date": "2026-01-07",
+      "description": "CORRENTE RIMBORSATA LAURA SPANO",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "6053",
+      "amount": 126.39
+    },
+    {
+      "id": "je-860-o5q00",
+      "date": "2026-01-07",
+      "description": "PRINCIPE 126,39 7 GENNAIO 2026",
+      "debitAccountCode": "6053",
+      "creditAccountCode": "4043",
+      "amount": 126.39
+    },
+    {
+      "id": "je-861-gwml0",
+      "date": "2026-01-06",
+      "description": "BOLLO CONTO CORRENTE",
+      "debitAccountCode": "6130",
+      "creditAccountCode": "4045",
+      "amount": 3.88
+    },
+    {
+      "id": "je-862-eryvc",
+      "date": "2026-01-06",
+      "description": "PENSIONE INPS",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "8010",
+      "amount": 2178.06
+    },
+    {
+      "id": "je-863-4mmms",
+      "date": "2026-01-05",
+      "description": "AGENADA",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 7
+    },
+    {
+      "id": "je-864-jc3v9",
+      "date": "2026-01-05",
+      "description": "ADOBE GENNAIO",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 14.99
+    },
+    {
+      "id": "je-865-pqkal",
+      "date": "2026-01-04",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 3.73
+    },
+    {
+      "id": "je-866-ovg4t",
+      "date": "2026-01-03",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 7.48
+    },
+    {
+      "id": "je-867-5kptf",
+      "date": "2026-01-03",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 3.93
+    },
+    {
+      "id": "je-868-79mny",
+      "date": "2026-01-03",
+      "description": "MALOX",
+      "debitAccountCode": "6120",
+      "creditAccountCode": "4043",
+      "amount": 16.3
+    },
+    {
+      "id": "je-869-wzala",
+      "date": "2026-01-02",
+      "description": "PRESTATI DA TY PER CASA ASSAGO",
+      "debitAccountCode": "5025",
+      "creditAccountCode": "5082",
+      "amount": 10000
+    },
+    {
+      "id": "je-870-ohoe2",
+      "date": "2026-01-02",
+      "description": "BOLLI GOVERNATIVI",
+      "debitAccountCode": "6130",
+      "creditAccountCode": "4043",
+      "amount": 8.62
+    },
+    {
+      "id": "je-871-b89lq",
+      "date": "2026-01-02",
+      "description": "RAT PRESTITO",
+      "debitAccountCode": "6182",
+      "creditAccountCode": "4043",
+      "amount": 167.37
+    },
+    {
+      "id": "je-872-o8e99",
+      "date": "2026-01-02",
+      "description": "GENNAIO SIM",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 18.76
+    },
+    {
+      "id": "je-873-6ldhj",
+      "date": "2026-01-02",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4043",
+      "amount": 30
+    },
+    {
+      "id": "je-874-91r7x",
+      "date": "2026-01-02",
+      "description": "PADEL",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4043",
+      "amount": 6
+    },
+    {
+      "id": "je-875-v4mcd",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5999",
+      "amount": 38
+    },
+    {
+      "id": "je-876-5dsd0",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI",
+      "debitAccountCode": "4041",
+      "creditAccountCode": "5999",
+      "amount": 23462.79
+    },
+    {
+      "id": "je-877-fytur",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5999",
+      "amount": 2192.65
+    },
+    {
+      "id": "je-878-wrsyw",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI",
+      "debitAccountCode": "4045",
+      "creditAccountCode": "5999",
+      "amount": 35000
+    },
+    {
+      "id": "je-879-frpjf",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI CAUZIONE MILANO",
+      "debitAccountCode": "4070",
+      "creditAccountCode": "5999",
+      "amount": 1125
+    },
+    {
+      "id": "je-880-11f07",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI TARI ULASSAI 2025 SILVANA",
+      "debitAccountCode": "4070",
+      "creditAccountCode": "5999",
+      "amount": 36
+    },
+    {
+      "id": "je-881-6y8zu",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "4077",
+      "amount": 386.01
+    },
+    {
+      "id": "je-882-yg5pq",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "4076",
+      "amount": 202.95
+    },
+    {
+      "id": "je-883-4lqw2",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "4100",
+      "amount": 256.37
+    },
+    {
+      "id": "je-884-dgbin",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "4078",
+      "amount": 543.22
+    },
+    {
+      "id": "je-885-waauh",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI RESIDUO BOOKING CEDOLARE 2024",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5010",
+      "amount": 343.53
+    },
+    {
+      "id": "je-886-7zwny",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI ORTENSIA",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5010",
+      "amount": 225
+    },
+    {
+      "id": "je-887-43lhp",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI PANCHINA MENNENNE",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5010",
+      "amount": 900
+    },
+    {
+      "id": "je-888-y9l3x",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI TOP CUCINA",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5010",
+      "amount": 700
+    },
+    {
+      "id": "je-889-19zbs",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI GASOLIO",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5010",
+      "amount": 903.49
+    },
+    {
+      "id": "je-890-t0d7m",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI VITTO",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5010",
+      "amount": 477.86
+    },
+    {
+      "id": "je-891-bew0i",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI SPESE VARIE",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5010",
+      "amount": 553.86
+    },
+    {
+      "id": "je-892-8eahl",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI CONDOMINIO I BORGHI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5010",
+      "amount": 1000
+    },
+    {
+      "id": "je-893-z9f5n",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI KLAUS",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5021",
+      "amount": 300
+    },
+    {
+      "id": "je-894-d96km",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI THOMAS",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5021",
+      "amount": 300
+    },
+    {
+      "id": "je-895-f2i7r",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI ORTENSIA",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5021",
+      "amount": 500
+    },
+    {
+      "id": "je-896-r9d0o",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI CHIARA PAIANO",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5021",
+      "amount": 250
+    },
+    {
+      "id": "je-897-cbj15",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI ADRIANO RISOLI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5021",
+      "amount": 150
+    },
+    {
+      "id": "je-898-p9toq",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI ROSSELLA",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5022",
+      "amount": 200
+    },
+    {
+      "id": "je-899-jdu4q",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI SONIA CASTELLANI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5022",
+      "amount": 250
+    },
+    {
+      "id": "je-900-752vd",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI RENE MULLER",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5023",
+      "amount": 600
+    },
+    {
+      "id": "je-901-efnfr",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI ARGENTIERO",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5023",
+      "amount": 250
+    },
+    {
+      "id": "je-902-xmvp4",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI BARBARA MOI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5024",
+      "amount": 250
+    },
+    {
+      "id": "je-903-0n17s",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI AGATA SALISCI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5024",
+      "amount": 250
+    },
+    {
+      "id": "je-904-1xqkb",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI ROBERTO LUNARDI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5024",
+      "amount": 250
+    },
+    {
+      "id": "je-905-hgghb",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI LAURA SPANO",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5024",
+      "amount": 700
+    },
+    {
+      "id": "je-906-7gcjp",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI RAFFAELLA RIVA",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5024",
+      "amount": 150
+    },
+    {
+      "id": "je-907-3q9lb",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI",
+      "debitAccountCode": "5025",
+      "creditAccountCode": "5999",
+      "amount": 60824.2
+    },
+    {
+      "id": "je-908-8hdv0",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5030",
+      "amount": 2048.39
+    },
+    {
+      "id": "je-909-ftc2a",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5040",
+      "amount": 100
+    },
+    {
+      "id": "je-910-kg3xd",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5050",
+      "amount": 6571.79
+    },
+    {
+      "id": "je-911-qt9s1",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI RISPARMI BOBYE",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5068",
+      "amount": 30000
+    },
+    {
+      "id": "je-912-zsp0o",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5070",
+      "amount": 66.17
+    },
+    {
+      "id": "je-913-f1eae",
+      "date": "2026-01-01",
+      "description": "DEPOSITO FRANCA",
+      "debitAccountCode": "4042",
+      "creditAccountCode": "5081",
+      "amount": 3000
+    },
+    {
+      "id": "je-914-u4jvd",
+      "date": "2026-01-01",
+      "description": "APERTURA DEI CONTI VENDITA BOBBYE 30000 E FRANCA 35000",
+      "debitAccountCode": "5999",
+      "creditAccountCode": "5081",
+      "amount": 73000
+    },
+    {
+      "id": "je-915-keuns",
+      "date": "2026-01-01",
+      "description": "STORNO AI CONTI DI COMPETENZA",
+      "debitAccountCode": "5010",
+      "creditAccountCode": "6010",
+      "amount": 553.86
+    },
+    {
+      "id": "je-916-3mvtz",
+      "date": "2026-01-01",
+      "description": "STORNO AI CONTI DI COMPETENZA",
+      "debitAccountCode": "5010",
+      "creditAccountCode": "6041",
+      "amount": 903.49
+    },
+    {
+      "id": "je-917-789fs",
+      "date": "2026-01-01",
+      "description": "STORNO AI CONTI DI COMPETENZA",
+      "debitAccountCode": "5010",
+      "creditAccountCode": "6110",
+      "amount": 477.86
+    },
+    {
+      "id": "je-918-1f5x0",
+      "date": "2026-01-01",
+      "description": "STORNO AI CONTI DI COMPETENZA PANCHINA MENNENNE",
+      "debitAccountCode": "5010",
+      "creditAccountCode": "5070",
+      "amount": 900
+    },
+    {
+      "id": "je-919-n6yzm",
+      "date": "2026-01-01",
+      "description": "STORNO AI CONTI DI COMPETENZA TOP CUCINA",
+      "debitAccountCode": "5010",
+      "creditAccountCode": "5070",
+      "amount": 700
+    },
+    {
+      "id": "je-920-shp0y",
+      "date": "2026-01-01",
+      "description": "AFFITTO GENNAIO ORTENSIA GIA RISCOSSO",
+      "debitAccountCode": "5010",
+      "creditAccountCode": "8040",
+      "amount": 225
+    },
+    {
+      "id": "je-921-a2pel",
+      "date": "2026-01-01",
+      "description": "ACCANTONATO 2025 PER CONDOMINIO",
+      "debitAccountCode": "5010",
+      "creditAccountCode": "6100",
+      "amount": 500
+    },
+    {
+      "id": "je-922-bdhn4",
+      "date": "2026-01-01",
+      "description": "ACCANTONATO 2025 PER CONDOMINIO",
+      "debitAccountCode": "5010",
+      "creditAccountCode": "6101",
+      "amount": 500
+    },
+    {
+      "id": "je-923-i11f1",
+      "date": "2026-01-01",
+      "description": "CAPITALE ESTINTO NEL 2026",
+      "debitAccountCode": "5050",
+      "creditAccountCode": "6182",
+      "amount": 1866.09
+    },
+    {
+      "id": "je-924-ynqm3",
+      "date": "2026-01-01",
+      "description": "AZZERAMENTO FONDO CASA NUOVA",
+      "debitAccountCode": "5070",
+      "creditAccountCode": "5025",
+      "amount": 2886.7
+    },
+    {
+      "id": "je-925-nrc21",
+      "date": "2026-01-01",
+      "description": "QUOTA TY REGALATA A MIKI",
+      "debitAccountCode": "6181",
+      "creditAccountCode": "4076",
+      "amount": 3600
     }
   ],
   "budgetEntries": []

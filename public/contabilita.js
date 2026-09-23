@@ -191,8 +191,9 @@
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
-    if (!state.filterFrom) state.filterFrom = getFirstDayOfMonthIso();
-    if (!state.filterTo) state.filterTo = getTodayIso();
+    const y = new Date().getFullYear();
+    if (!state.filterFrom) state.filterFrom = `${y}-01-01`;
+    if (!state.filterTo) state.filterTo = `${y}-12-31`;
 
     fetchContabilita();
   }
@@ -358,8 +359,15 @@
         <div class="contabilita-card" style="margin-top:20px;">
           <div class="contabilita-card-header" style="flex-wrap:wrap;gap:12px;">
             <div>
-              <h3 class="contabilita-card-title">Libro Giornale (${filtered.length})</h3>
-              <p class="contabilita-card-sub">Cronologia dei movimenti contabili</p>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <h3 class="contabilita-card-title">Libro Giornale</h3>
+                <span class="badge-attivo" style="font-family:monospace;font-size:0.75rem;">${filtered.length} di ${state.journalEntries.length} registrazioni</span>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+                <button type="button" class="chip-btn" onclick="window.GiampyCash.setQuickFilter('year')">📅 Tutto il 2026 (${state.journalEntries.length})</button>
+                <button type="button" class="chip-btn" onclick="window.GiampyCash.setQuickFilter('month')">Settembre</button>
+                <button type="button" class="chip-btn" onclick="window.GiampyCash.setQuickFilter('all')">Mostra Tutte</button>
+              </div>
             </div>
 
             <!-- FILTRI DATE E CONTO -->
@@ -1263,6 +1271,21 @@
     renderContabilitaModal();
   }
 
+  function setQuickFilter(mode) {
+    const y = new Date().getFullYear();
+    if (mode === 'year') {
+      state.filterFrom = `${y}-01-01`;
+      state.filterTo = `${y}-12-31`;
+    } else if (mode === 'month') {
+      state.filterFrom = getFirstDayOfMonthIso();
+      state.filterTo = getTodayIso();
+    } else if (mode === 'all') {
+      state.filterFrom = '';
+      state.filterTo = '';
+    }
+    renderContabilitaModal();
+  }
+
   // --- GESTIONE PIANO DEI CONTI ---
   function handleNewAccountSubmit(e) {
     e.preventDefault();
@@ -1618,6 +1641,7 @@
     saveEditEntry: saveEditEntry,
     deleteEntry: deleteEntry,
     setFilter: setFilter,
+    setQuickFilter: setQuickFilter,
     handleNewAccountSubmit: handleNewAccountSubmit,
     startEditAccount: startEditAccount,
     deleteAccount: deleteAccount,
