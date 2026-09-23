@@ -601,13 +601,7 @@ async function loadVaultFromStorage() {
     try { STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, JSON.parse(cachedPhonebook)); } catch (e) {}
   }
 
-  const local = localStorage.getItem('family_vault_encrypted');
-  if (local) {
-    try {
-      STATE.encryptedVault = JSON.parse(local);
-    } catch (e) {}
-  }
-
+  // 1. Prova prima a scaricare il vault più recente dal server cloud
   try {
     const res = await fetch('/api/vault?t=' + Date.now(), {
       cache: 'no-store',
@@ -622,6 +616,14 @@ async function loadVaultFromStorage() {
       }
     }
   } catch (e) {}
+
+  // 2. Solo se offline, carica la copia salvata localmente
+  const local = localStorage.getItem('family_vault_encrypted');
+  if (local && !STATE.encryptedVault) {
+    try {
+      STATE.encryptedVault = JSON.parse(local);
+    } catch (e) {}
+  }
 }
 
 function updateAuthScreenUI() {
@@ -666,9 +668,9 @@ async function handleUnlock(e) {
     STATE.currentSender = activeUser;
 
     // 2. Scarica SEMPRE il vault più recente dal server cloud (con retry)
-    let vaultToTry = STATE.encryptedVault;
+    let vaultToTry = null;
     let attempts = 0;
-    while ((!vaultToTry || !vaultToTry.salt) && attempts < 3) {
+    while (!vaultToTry && attempts < 3) {
       attempts++;
       try {
         const freshRes = await fetch('/api/vault?t=' + Date.now(), {
@@ -685,13 +687,24 @@ async function handleUnlock(e) {
           }
         }
       } catch (recoveryErr) {}
-      if (!vaultToTry) {
-        await new Promise(r => setTimeout(r, 300));
+      if (!vaultToTry && attempts < 3) {
+        await new Promise(r => setTimeout(r, 250));
+      }
+    }
+
+    // Se offline o server non raggiungibile, ripiega sulla copia locale di backup
+    if (!vaultToTry) {
+      vaultToTry = STATE.encryptedVault;
+      if (!vaultToTry || !vaultToTry.salt) {
+        const local = localStorage.getItem('family_vault_encrypted');
+        if (local) {
+          try { vaultToTry = JSON.parse(local); } catch (e) {}
+        }
       }
     }
 
     if (!vaultToTry || !vaultToTry.salt) {
-      if (errorEl) errorEl.textContent = 'Impossibile scaricare la cassaforte dal cloud. Verifica la connessione e riprova.';
+      if (errorEl) errorEl.textContent = 'Impossibile contattare la cassaforte sul cloud. Verifica la connessione e riprova.';
       btn.disabled = false;
       btn.textContent = 'Accedi a Famylia';
       return;
@@ -793,9 +806,9 @@ async function tryAutoUnlock() {
     const btn = document.getElementById('unlockSubmitBtn');
     if (btn) btn.textContent = 'Accesso automatico...';
 
-    let vaultToTry = STATE.encryptedVault;
+    let vaultToTry = null;
     let attempts = 0;
-    while ((!vaultToTry || !vaultToTry.salt) && attempts < 3) {
+    while (!vaultToTry && attempts < 3) {
       attempts++;
       try {
         const freshRes = await fetch('/api/vault?t=' + Date.now(), {
@@ -812,8 +825,18 @@ async function tryAutoUnlock() {
           }
         }
       } catch (e) {}
-      if (!vaultToTry) {
-        await new Promise(r => setTimeout(r, 300));
+      if (!vaultToTry && attempts < 3) {
+        await new Promise(r => setTimeout(r, 250));
+      }
+    }
+
+    if (!vaultToTry) {
+      vaultToTry = STATE.encryptedVault;
+      if (!vaultToTry || !vaultToTry.salt) {
+        const local = localStorage.getItem('family_vault_encrypted');
+        if (local) {
+          try { vaultToTry = JSON.parse(local); } catch (e) {}
+        }
       }
     }
 
@@ -3509,6 +3532,281 @@ async function confirmVoiceSave() {
       u.lang = 'it-IT';
       window.speechSynthesis.speak(u);
     } catch (e) {}
+  }
+}
+
+// ==========================================
+// 12. GESTIONE BACKUP & RIPRISTINO COMPLETO
+// ==========================================
+
+let isBackupModalFromAuth = false;
+
+function openBackupModal(isFromAuth = false) {
+  isBackupModalFromAuth = isFromAuth;
+  const modal = document.getElementById('backupModal');
+  if (modal) modal.style.display = 'flex';
+  loadCloudBackupsList();
+}
+
+function closeBackupModal() {
+  const modal = document.getElementById('backupModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function closeBackupModalOnOverlay(e) {
+  if (e.target.id === 'backupModal') closeBackupModal();
+}
+
+async function loadCloudBackupsList() {
+  const listEl = document.getElementById('cloudBackupsList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 12px;">Caricamento punti di ripristino...</div>';
+
+  try {
+    const res = await fetch('/api/backups?t=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+    });
+    if (!res.ok) throw new Error('Errore durante il recupero dei backup');
+    const data = await res.json();
+    const backups = (data && data.backups) || [];
+
+    if (backups.length === 0) {
+      listEl.innerHTML = '<div style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 12px;">Nessun punto di ripristino salvato sul server.</div>';
+      return;
+    }
+
+    listEl.innerHTML = backups.map(function(b) {
+      const d = new Date(b.date);
+      const dateFormatted = isNaN(d.getTime()) ? b.date : d.toLocaleString('it-IT', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+      const sizeKb = Math.round(b.size / 1024 * 10) / 10;
+      return '<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border-light); border-radius: 12px; gap: 8px;">' +
+        '<div style="text-align: left; overflow: hidden;">' +
+          '<div style="font-size: 0.82rem; font-weight: 700; color: #ffffff;">📅 ' + escapeHTML(dateFormatted) + '</div>' +
+          '<div style="font-size: 0.72rem; color: var(--text-muted);">' + sizeKb + ' KB • ' + escapeHTML(b.filename) + '</div>' +
+        '</div>' +
+        '<button type="button" class="btn-back" onclick="confirmRestoreBackup(\'' + escapeHTML(b.filename) + '\')" style="white-space: nowrap; font-size: 0.78rem; padding: 6px 12px; background: #059669; color: #ffffff; border-radius: 8px;">' +
+          '↺ Ripristina' +
+        '</button>' +
+      '</div>';
+    }).join('');
+  } catch (err) {
+    listEl.innerHTML = '<div style="font-size: 0.8rem; color: #ef4444; text-align: center; padding: 12px;">Errore caricamento: ' + escapeHTML(err.message) + '</div>';
+  }
+}
+
+async function confirmRestoreBackup(filename) {
+  if (!confirm('Vuoi davvero ripristinare questo punto di ripristino (' + filename + ')? I dati attuali verranno sostituiti con questa copia.')) {
+    return;
+  }
+
+  showToast('Ripristino in corso...');
+
+  try {
+    const res = await fetch('/api/backups/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: filename })
+    });
+    const result = await res.json();
+    if (!res.ok || !result.success || !result.vault) {
+      throw new Error(result.error || 'Ripristino fallito');
+    }
+
+    const restoredVault = result.vault;
+    STATE.encryptedVault = restoredVault;
+    localStorage.setItem('family_vault_encrypted', JSON.stringify(restoredVault));
+
+    if (STATE.isUnlocked || STATE.currentPassword) {
+      const saltBytes = new Uint8Array(base64ToBuffer(restoredVault.salt));
+      STATE.masterKey = await deriveKey(FAMILY_MASTER_SECRET, saltBytes);
+      const dec = await decryptData(restoredVault.data, STATE.masterKey);
+      const parsed = JSON.parse(dec || '[]');
+      STATE.entries = Array.isArray(parsed) ? parsed : (parsed.entries || []);
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.customSections) STATE.customSections = parsed.customSections;
+        if (parsed.phonebook) {
+          STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
+          localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
+        }
+      }
+      updateTileCounts();
+      updateAppIconBadge();
+      if (STATE.activeSection && STATE.activeSection !== 'grid') {
+        renderSectionList();
+      }
+    }
+
+    closeBackupModal();
+    showToast('✅ Punto di ripristino caricato con successo!');
+
+    if (isBackupModalFromAuth) {
+      await tryAutoUnlock();
+    }
+  } catch (e) {
+    alert('Errore ripristino backup: ' + e.message);
+  }
+}
+
+async function createManualCloudBackup() {
+  showToast('Creazione punto di ripristino...');
+  try {
+    const res = await fetch('/api/backups/create', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Errore creazione backup');
+    showToast('✅ Punto di ripristino creato sul cloud');
+    loadCloudBackupsList();
+  } catch (err) {
+    alert('Errore creazione backup: ' + err.message);
+  }
+}
+
+function downloadVaultFileBackup() {
+  const vault = STATE.encryptedVault || JSON.parse(localStorage.getItem('family_vault_encrypted') || 'null');
+  if (!vault || !vault.salt) {
+    alert('Nessun dato nella cassaforte da esportare.');
+    return;
+  }
+
+  const jsonStr = JSON.stringify(vault, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const now = new Date();
+  const pad = function(n) { return String(n).length < 2 ? '0' + n : '' + n; };
+  const filename = 'famylia-backup-' + now.getFullYear() + pad(now.getMonth()+1) + pad(now.getDate()) + '-' + pad(now.getHours()) + pad(now.getMinutes()) + '.json';
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('📁 File ' + filename + ' scaricato!');
+}
+
+function triggerFileInputRestore() {
+  const inp = document.getElementById('backupFileInput');
+  if (inp) {
+    inp.value = '';
+    inp.click();
+  }
+}
+
+async function handleRestoreFromFile(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const content = e.target.result;
+      const parsedVault = JSON.parse(content);
+
+      if (!parsedVault || !parsedVault.salt || !parsedVault.data || !parsedVault.check) {
+        alert('Il file selezionato non è un backup valido di Famylia.');
+        return;
+      }
+
+      if (!confirm('Confermi il ripristino dal file "' + file.name + '"? Tutti i dati correnti verranno sostituiti con quelli di questo file.')) {
+        return;
+      }
+
+      showToast('Ripristino da file in corso...');
+
+      const res = await fetch('/api/backups/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vaultData: parsedVault })
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) throw new Error(result.error || 'Errore salvataggio server');
+
+      STATE.encryptedVault = parsedVault;
+      localStorage.setItem('family_vault_encrypted', JSON.stringify(parsedVault));
+
+      if (STATE.isUnlocked || STATE.currentPassword) {
+        const saltBytes = new Uint8Array(base64ToBuffer(parsedVault.salt));
+        STATE.masterKey = await deriveKey(FAMILY_MASTER_SECRET, saltBytes);
+        const dec = await decryptData(parsedVault.data, STATE.masterKey);
+        const parsed = JSON.parse(dec || '[]');
+        STATE.entries = Array.isArray(parsed) ? parsed : (parsed.entries || []);
+        if (parsed && typeof parsed === 'object') {
+          if (parsed.customSections) STATE.customSections = parsed.customSections;
+          if (parsed.phonebook) {
+            STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
+            localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
+          }
+        }
+        updateTileCounts();
+        updateAppIconBadge();
+        if (STATE.activeSection && STATE.activeSection !== 'grid') {
+          renderSectionList();
+        }
+      }
+
+      closeBackupModal();
+      showToast('✅ Dati ripristinati con successo dal file!');
+
+      if (isBackupModalFromAuth) {
+        await tryAutoUnlock();
+      }
+    } catch (err) {
+      alert('Errore durante la lettura del file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function forceSyncFromCloud(fromAuth) {
+  showToast('🔄 Download forzato dal cloud in corso...');
+  localStorage.removeItem('family_vault_encrypted');
+
+  try {
+    const res = await fetch('/api/vault?t=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+    });
+    if (!res.ok) throw new Error('Server non raggiungibile');
+    const cloudVault = await res.json();
+
+    if (!cloudVault || !cloudVault.salt || !cloudVault.data) {
+      throw new Error('Nessun archivio valido sul server');
+    }
+
+    STATE.encryptedVault = cloudVault;
+    localStorage.setItem('family_vault_encrypted', JSON.stringify(cloudVault));
+
+    if (STATE.isUnlocked) {
+      const saltBytes = new Uint8Array(base64ToBuffer(cloudVault.salt));
+      STATE.masterKey = await deriveKey(FAMILY_MASTER_SECRET, saltBytes);
+      const dec = await decryptData(cloudVault.data, STATE.masterKey);
+      const parsed = JSON.parse(dec || '[]');
+      STATE.entries = Array.isArray(parsed) ? parsed : (parsed.entries || []);
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.customSections) STATE.customSections = parsed.customSections;
+        if (parsed.phonebook) {
+          STATE.phonebook = Object.assign({ Giampy: '', Ty: '', Miki: '' }, parsed.phonebook);
+          localStorage.setItem('famylia_phonebook', JSON.stringify(STATE.phonebook));
+        }
+      }
+      updateTileCounts();
+      updateAppIconBadge();
+      if (STATE.activeSection && STATE.activeSection !== 'grid') {
+        renderSectionList();
+      }
+      showToast('✅ Sincronizzazione completata: tutti i dati sono aggiornati!');
+    } else {
+      showToast('✅ Cache PC ripulita e dati aggiornati dal cloud! Inserisci il PIN.');
+      if (fromAuth) {
+        await tryAutoUnlock();
+      }
+    }
+  } catch (err) {
+    alert('Errore durante la sincronizzazione: ' + err.message);
   }
 }
 

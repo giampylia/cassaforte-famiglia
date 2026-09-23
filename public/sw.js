@@ -1,4 +1,4 @@
-const CACHE_NAME = 'famylia-v25';
+const CACHE_NAME = 'famylia-v26';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

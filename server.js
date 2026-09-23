@@ -333,17 +333,85 @@ async function handleRequest(req, res) {
       return sendJSON(res, 200, vault || {});
     }
 
-    // GET /api/vault-backup (diagnostica e recupero backup)
-    if (pathname === '/api/vault-backup' && req.method === 'GET') {
-      const backupPath = path.join(__dirname, 'data', 'vault.backup.json');
-      if (fs.existsSync(backupPath)) {
+    // GET /api/backups (elenco punti di ripristino sul server)
+    if (pathname === '/api/backups' && req.method === 'GET') {
+      const backupDir = path.join(__dirname, 'data', 'backups');
+      const list = [];
+      if (fs.existsSync(backupDir)) {
         try {
-          return sendJSON(res, 200, JSON.parse(fs.readFileSync(backupPath, 'utf8')));
-        } catch (e) {
-          return sendJSON(res, 500, { error: e.message });
-        }
+          const files = fs.readdirSync(backupDir).filter(f => f.endsWith('.json')).sort().reverse();
+          for (const file of files) {
+            try {
+              const fPath = path.join(backupDir, file);
+              const stat = fs.statSync(fPath);
+              let dateStr = stat.mtime.toISOString();
+              const tsMatch = file.match(/vault_(\d+)\.json/);
+              if (tsMatch) {
+                dateStr = new Date(parseInt(tsMatch[1], 10)).toISOString();
+              }
+              list.push({
+                filename: file,
+                size: stat.size,
+                date: dateStr
+              });
+            } catch (fe) {}
+          }
+        } catch (dirErr) {}
       }
-      return sendJSON(res, 404, { error: 'Nessun file backup presente sul server' });
+      return sendJSON(res, 200, { backups: list });
+    }
+
+    // POST /api/backups/restore (ripristina un punto di ripristino o un vault caricato)
+    if (pathname === '/api/backups/restore' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        let targetVault = null;
+
+        if (body && body.filename) {
+          const safeFilename = path.basename(body.filename);
+          const fPath = path.join(__dirname, 'data', 'backups', safeFilename);
+          if (!fs.existsSync(fPath)) {
+            return sendJSON(res, 404, { error: 'File di backup non trovato sul server' });
+          }
+          targetVault = JSON.parse(fs.readFileSync(fPath, 'utf8'));
+        } else if (body && body.vaultData) {
+          targetVault = body.vaultData;
+        }
+
+        if (!targetVault || !targetVault.salt || !targetVault.data || !targetVault.check) {
+          return sendJSON(res, 400, { error: 'Dati di backup non validi o incompleti' });
+        }
+
+        const ok = saveVault(targetVault);
+        if (!ok) {
+          return sendJSON(res, 500, { error: 'Errore durante il salvataggio del backup' });
+        }
+
+        return sendJSON(res, 200, {
+          success: true,
+          message: 'Punto di ripristino caricato con successo!',
+          vault: targetVault
+        });
+      } catch (err) {
+        return sendJSON(res, 500, { error: err.message });
+      }
+    }
+
+    // POST /api/backups/create (crea un punto di ripristino istantaneo)
+    if (pathname === '/api/backups/create' && req.method === 'POST') {
+      try {
+        const current = loadVault();
+        if (!current || !current.salt) {
+          return sendJSON(res, 400, { error: 'Nessun archivio valido da salvare' });
+        }
+        const backupDir = path.join(__dirname, 'data', 'backups');
+        if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+        const filename = `vault_${Date.now()}.json`;
+        fs.writeFileSync(path.join(backupDir, filename), JSON.stringify(current, null, 2), 'utf8');
+        return sendJSON(res, 200, { success: true, filename, message: 'Nuovo punto di ripristino creato' });
+      } catch (err) {
+        return sendJSON(res, 500, { error: err.message });
+      }
     }
 
     // POST /api/vault (salva vault cifrato)
