@@ -336,6 +336,14 @@ function initServiceWorker() {
         window.location.reload();
       }
     });
+
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'NAVIGATE_SECTION') {
+        if (typeof openSection === 'function') {
+          openSection(event.data.section);
+        }
+      }
+    });
   }
 }
 
@@ -957,6 +965,21 @@ function unlockSuccess() {
       openSection('parking');
       saveManualParking(true);
     }, 600);
+  } else {
+    // Se ci sono notifiche non lette (o parametro ?open=messaggio), porta subito l'utente sul messaggio evidenziato!
+    const unreadMsgs = getUnreadMessages();
+    const urlParams = new URLSearchParams(window.location.search);
+    const wantsOpenMsg = urlParams.get('open') === 'messaggio';
+
+    if (unreadMsgs.length > 0 || wantsOpenMsg) {
+      const targetMsgId = unreadMsgs.length > 0 ? unreadMsgs[0].id : null;
+      setTimeout(() => {
+        openSection('messaggio');
+        if (targetMsgId) {
+          highlightMessageCard(targetMsgId);
+        }
+      }, 450);
+    }
   }
 }
 
@@ -1163,6 +1186,12 @@ function updateTileCounts() {
   if (elMessaggi) elMessaggi.textContent = countMessaggi;
   if (elDebiti) elDebiti.textContent = countDebiti;
 
+  const unreadCount = typeof getUnreadMessages === 'function' ? getUnreadMessages().length : 0;
+  const elDot = document.getElementById('unreadMessaggiDot');
+  if (elDot) {
+    elDot.style.display = unreadCount > 0 ? 'inline-block' : 'none';
+  }
+
   const serverActive = STATE.serverParking && STATE.serverParking.active;
   const userParkingEntries = STATE.entries.filter(e => e.section === 'parking' && (e.utente === STATE.currentUser || e.owner === STATE.currentUser));
   const latestParking = serverActive || (userParkingEntries.length > 0 ? userParkingEntries[0] : null);
@@ -1284,6 +1313,12 @@ function openSection(sectionKey) {
   }
 
   renderSectionList();
+
+  if (sectionKey === 'messaggio') {
+    setTimeout(() => {
+      markAllMyMessagesAsRead();
+    }, 1200);
+  }
 }
 
 async function handleDeleteCurrentCustomSection() {
@@ -1495,8 +1530,80 @@ async function sendQuickFamilyMessage() {
   showToast('Messaggio inviato e notificato! 🔔');
 }
 
+// ==========================================
+// GESTIONE STATO LETTURA NOTIFICHE & BADGE SMART
+// ==========================================
+function getReadMessageIds() {
+  const user = STATE.currentUser || 'Giampy';
+  try {
+    const raw = localStorage.getItem(`famylia_read_msgs_${user}`);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function saveReadMessageIds(readSet) {
+  const user = STATE.currentUser || 'Giampy';
+  try {
+    localStorage.setItem(`famylia_read_msgs_${user}`, JSON.stringify(Array.from(readSet)));
+  } catch (e) {}
+}
+
+function getUnreadMessages() {
+  const readIds = getReadMessageIds();
+  const curUser = STATE.currentUser || 'Giampy';
+  return (STATE.entries || []).filter(e => {
+    if (e.section !== 'messaggio') return false;
+    const isForMe = !e.destinatario || e.destinatario === 'Tutti' || e.destinatario === curUser;
+    const isFromOther = e.mittente && e.mittente !== curUser;
+    return isForMe && isFromOther && !readIds.has(e.id);
+  });
+}
+
+function markMessagesAsRead(msgIds) {
+  if (!msgIds || msgIds.length === 0) return;
+  const readSet = getReadMessageIds();
+  let changed = false;
+  msgIds.forEach(id => {
+    if (!readSet.has(id)) {
+      readSet.add(id);
+      changed = true;
+    }
+  });
+  if (changed) {
+    saveReadMessageIds(readSet);
+    updateTileCounts();
+    updateAppIconBadge(0);
+  }
+}
+
+function markAllMyMessagesAsRead() {
+  const unread = getUnreadMessages();
+  if (unread.length > 0) {
+    markMessagesAsRead(unread.map(m => m.id));
+  } else {
+    updateAppIconBadge(0);
+  }
+}
+
+function highlightMessageCard(msgId) {
+  setTimeout(() => {
+    const card = document.getElementById(`card-${msgId}`);
+    if (card) {
+      card.classList.add('highlight-unread-msg');
+      try {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (e) {}
+      setTimeout(() => {
+        card.classList.remove('highlight-unread-msg');
+      }, 6000);
+    }
+  }, 250);
+}
+
 function triggerPhoneNotification(title, body) {
-  const count = STATE.entries.filter(e => e.section === 'messaggio').length;
+  const count = getUnreadMessages().length || 1;
 
   // Imposta il badge sull'icona dell'app sullo schermo dello smartphone
   updateAppIconBadge(count);
@@ -1508,7 +1615,8 @@ function triggerPhoneNotification(title, body) {
         type: 'SHOW_NOTIF',
         title: title,
         body: body,
-        badge: count
+        badge: count,
+        url: '/?open=messaggio'
       });
     } else {
       new Notification(title, {
@@ -1525,30 +1633,36 @@ function triggerPhoneNotification(title, body) {
 }
 
 function updateAppIconBadge(count) {
-  const msgCount = count !== undefined ? count : STATE.entries.filter(e => e.section === 'messaggio').length;
+  const unreadCount = count !== undefined ? count : getUnreadMessages().length;
 
   // Web Badging API nativa per PWA installata su Home screen (Android / iOS)
   if ('setAppBadge' in navigator) {
-    if (msgCount > 0) {
-      navigator.setAppBadge(msgCount).catch(() => {});
+    if (unreadCount > 0) {
+      navigator.setAppBadge(unreadCount).catch(() => {});
     } else {
       navigator.clearAppBadge().catch(() => {});
     }
   }
 
-  // Notifica al Service Worker per mantenere il badge attivo
+  // Notifica al Service Worker per mantenere il badge attivo o azzerarlo
   if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
     navigator.serviceWorker.controller.postMessage({
       type: 'UPDATE_BADGE',
-      count: msgCount
+      count: unreadCount
     });
   }
 
   // Indicatore nel titolo del browser
-  if (msgCount > 0) {
-    document.title = `(${msgCount}) Famylia`;
+  if (unreadCount > 0) {
+    document.title = `(${unreadCount}) Famylia`;
   } else {
     document.title = `Famylia`;
+  }
+
+  // Aggiorna anche il pallino rosso sul widget/tile interno della dashboard
+  const elDot = document.getElementById('unreadMessaggiDot');
+  if (elDot) {
+    elDot.style.display = unreadCount > 0 ? 'inline-block' : 'none';
   }
 }
 
@@ -2256,12 +2370,17 @@ function createEntryCardHTML(item) {
     const dateStr = item.createdAt ? formatTimeAgo(item.createdAt) : '';
     const mittenteText = item.mittente || 'Giampy';
     const destText = item.destinatario || 'Tutti';
+    const readIds = typeof getReadMessageIds === 'function' ? getReadMessageIds() : new Set();
+    const isUnread = (!item.destinatario || item.destinatario === 'Tutti' || item.destinatario === STATE.currentUser) &&
+                     (item.mittente && item.mittente !== STATE.currentUser) &&
+                     !readIds.has(item.id);
 
     return `
-      <article class="msg-item-card" id="card-${item.id}">
+      <article class="msg-item-card ${isUnread ? 'highlight-unread-msg' : ''}" id="card-${item.id}">
         <div class="msg-item-header">
           <span class="msg-item-sender">
             ${senderIcon} <strong>${escapeHTML(mittenteText)}</strong> ➔ ${destIcon} <strong>${escapeHTML(destText)}</strong>
+            ${isUnread ? '<span class="badge-unread-pill">NUOVO</span>' : ''}
           </span>
           <span class="msg-item-date">${escapeHTML(dateStr)}</span>
         </div>

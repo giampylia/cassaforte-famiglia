@@ -2282,4 +2282,168 @@ body.has-custom-bg {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
 }
 
+/* ==============================================================
+   NUOVO LAYOUT MINIMALE & SENZA FRONZOLI PER LIBRO GIORNALE
+   ============================================================== */
+.journal-item-clean {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08); /* linea leggera di separazione */
+  transition: background 0.15s ease;
+  color: #f1f5f9; /* tutto stesso colore elegante */
+}
+
+.journal-item-clean:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.journal-item-clean:last-child {
+  border-bottom: none;
+}
+
+.journal-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.journal-date-clean {
+  font-size: 0.84rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: monospace;
+}
+
+.journal-flow-clean {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #f1f5f9; /* stesso colore */
+}
+
+.acc-clean-name {
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #f1f5f9;
+  transition: opacity 0.15s, text-decoration 0.15s;
+}
+
+.acc-clean-name:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+.flow-arrow-clean {
+  color: #64748b;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.journal-amount-clean {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #f8fafc;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
+  cursor: pointer;
+  font-family: monospace;
+}
+
+.journal-actions-clean {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.icon-btn-clean {
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  padding: 3px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: all 0.15s;
+}
+
+.icon-btn-clean:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.journal-row-sub {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding-left: 2px;
+}
+
+.journal-desc-clean {
+  font-size: 0.92rem; /* grande e ben leggibile */
+  font-weight: 500;
+  color: #cbd5e1; /* alto contrasto, chiara */
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+/* ==============================================================
+   NOTIFICHE: PALLINO ROSSO & EVIDENZIAZIONE MESSAGGIO
+   ============================================================== */
+.unread-red-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  margin-left: 6px;
+  box-shadow: 0 0 8px #ef4444;
+  animation: pulseRedDot 1.5s infinite ease-in-out;
+  vertical-align: middle;
+}
+
+@keyframes pulseRedDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.75; }
+}
+
+.highlight-unread-msg {
+  border: 2px solid #ef4444 !important;
+  box-shadow: 0 0 22px rgba(239, 68, 68, 0.7) !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+  position: relative;
+  animation: pulseCardGlow 2.5s infinite ease-in-out;
+}
+
+@keyframes pulseCardGlow {
+  0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+  50% { box-shadow: 0 0 28px rgba(239, 68, 68, 0.9); }
+}
+
+.badge-unread-pill {
+  display: inline-block;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+
 

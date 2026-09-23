@@ -111,18 +111,22 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// 5. Click sulla Notifica: porta l'app in primo piano
+// 5. Click sulla Notifica: porta l'app in primo piano e apre la sezione messaggi
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/?open=messaggio';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url && 'focus' in client) {
+          try {
+            client.postMessage({ type: 'NAVIGATE_SECTION', section: 'messaggio' });
+          } catch (e) {}
           return client.focus();
         }
       }
       if (clients.openWindow) {
-        return clients.openWindow('/');
+        return clients.openWindow(targetUrl);
       }
     })
   );
@@ -150,10 +154,17 @@ self.addEventListener('message', (event) => {
       body: event.data.body,
       icon: '/icons/icon-192.svg',
       badge: '/icons/icon-192.svg',
-      vibrate: [200, 100, 200]
+      vibrate: [200, 100, 200],
+      data: {
+        url: event.data.url || '/?open=messaggio'
+      }
     });
-    if (navigator.setAppBadge && event.data.badge) {
-      navigator.setAppBadge(event.data.badge).catch(() => {});
+    if (navigator.setAppBadge) {
+      if (event.data.badge > 0) {
+        navigator.setAppBadge(event.data.badge).catch(() => {});
+      } else {
+        navigator.clearAppBadge().catch(() => {});
+      }
     }
   }
 });

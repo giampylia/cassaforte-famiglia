@@ -263,16 +263,20 @@
     const today = getTodayIso();
     const accounts = state.accounts;
 
-    // Filtra voci Libro Giornale
-    const from = state.filterFrom || getFirstDayOfMonthIso();
-    const to = state.filterTo || today;
+    // Filtra voci Libro Giornale (di default mostra tutto in ordine discendente)
+    const from = state.filterFrom || '';
+    const to = state.filterTo || '';
     const filterAcc = state.filterAccount || '';
 
     const filtered = state.journalEntries.filter(je => {
       const matchDate = (!from || je.date >= from) && (!to || je.date <= to);
       const matchAcc = !filterAcc || je.debitAccountCode === filterAcc || je.creditAccountCode === filterAcc;
       return matchDate && matchAcc;
-    }).sort((a, b) => b.date.localeCompare(a.date));
+    }).sort((a, b) => {
+      const dCmp = (b.date || '').localeCompare(a.date || '');
+      if (dCmp !== 0) return dCmp;
+      return (b.id || '').localeCompare(a.id || '', undefined, { numeric: true, sensitivity: 'base' });
+    });
 
     // Raggruppa per Mese
     const groups = {};
@@ -361,12 +365,12 @@
             <div>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 <h3 class="contabilita-card-title">Libro Giornale</h3>
-                <span class="badge-attivo" style="font-family:monospace;font-size:0.75rem;">${filtered.length} di ${state.journalEntries.length} registrazioni</span>
+                <span style="font-family:monospace;font-size:0.78rem;color:#94a3b8;background:rgba(255,255,255,0.06);padding:3px 8px;border-radius:6px;">${filtered.length} di ${state.journalEntries.length} registrazioni</span>
               </div>
               <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
-                <button type="button" class="chip-btn" onclick="window.GiampyCash.setQuickFilter('year')">📅 Tutto il 2026 (${state.journalEntries.length})</button>
+                <button type="button" class="chip-btn" onclick="window.GiampyCash.setQuickFilter('all')">Mostra Tutte (${state.journalEntries.length})</button>
+                <button type="button" class="chip-btn" onclick="window.GiampyCash.setQuickFilter('year')">📅 Anno 2026</button>
                 <button type="button" class="chip-btn" onclick="window.GiampyCash.setQuickFilter('month')">Settembre</button>
-                <button type="button" class="chip-btn" onclick="window.GiampyCash.setQuickFilter('all')">Mostra Tutte</button>
               </div>
             </div>
 
@@ -438,33 +442,30 @@
 
     const debitName = getAccountName(entry.debitAccountCode);
     const creditName = getAccountName(entry.creditAccountCode);
-    const debitType = getAccountType(entry.debitAccountCode);
-    const creditType = getAccountType(entry.creditAccountCode);
 
     return `
-      <div class="journal-item" id="je-${entry.id}">
-        <div class="journal-item-left">
-          <div class="journal-date font-mono">${formatDateIt(entry.date)}</div>
-          <div class="journal-details">
-            <div class="journal-flow">
-              <span class="acc-link ${getAccountBadgeClass(debitType)}" onclick="window.GiampyCash.showAccountDetail('${entry.debitAccountCode}')" title="Vedi conto">
-                ${entry.debitAccountCode} ${debitName}
-              </span>
-              <span class="flow-arrow">→</span>
-              <span class="acc-link ${getAccountBadgeClass(creditType)}" onclick="window.GiampyCash.showAccountDetail('${entry.creditAccountCode}')" title="Vedi conto">
-                ${entry.creditAccountCode} ${creditName}
-              </span>
-            </div>
-            <div class="journal-desc uppercase">${escapeHtml(entry.description)}</div>
+      <div class="journal-item-clean" id="je-${entry.id}">
+        <div class="journal-row-main">
+          <span class="journal-date-clean">${formatDateIt(entry.date)}</span>
+          <div class="journal-flow-clean">
+            <span class="acc-clean-name" onclick="window.GiampyCash.showAccountDetail('${entry.debitAccountCode}')" title="Conto Dare: ${entry.debitAccountCode} - ${escapeHtml(debitName)}">
+              ${escapeHtml(debitName)}
+            </span>
+            <span class="flow-arrow-clean">→</span>
+            <span class="acc-clean-name" onclick="window.GiampyCash.showAccountDetail('${entry.creditAccountCode}')" title="Conto Avere: ${entry.creditAccountCode} - ${escapeHtml(creditName)}">
+              ${escapeHtml(creditName)}
+            </span>
+          </div>
+          <span class="journal-amount-clean" onclick="window.GiampyCash.triggerZoom(this)">
+            ${formatCurrency(entry.amount)}
+          </span>
+          <div class="journal-actions-clean">
+            <button type="button" class="icon-btn-clean" onclick="window.GiampyCash.startEditEntry('${entry.id}')" title="Modifica">✏️</button>
+            <button type="button" class="icon-btn-clean icon-btn-del" onclick="window.GiampyCash.deleteEntry('${entry.id}')" title="Elimina">🗑️</button>
           </div>
         </div>
-
-        <div class="journal-item-right">
-          <span class="journal-amount font-mono" onclick="window.GiampyCash.triggerZoom(this)">${formatCurrency(entry.amount)}</span>
-          <div class="journal-actions">
-            <button type="button" class="icon-btn" onclick="window.GiampyCash.startEditEntry('${entry.id}')" title="Modifica">✏️</button>
-            <button type="button" class="icon-btn icon-btn-del" onclick="window.GiampyCash.deleteEntry('${entry.id}')" title="Elimina">🗑️</button>
-          </div>
+        <div class="journal-row-sub">
+          <div class="journal-desc-clean uppercase">${escapeHtml(entry.description)}</div>
         </div>
       </div>
     `;
@@ -1028,7 +1029,11 @@
 
     const entries = state.journalEntries
       .filter(j => j.debitAccountCode === accountCode || j.creditAccountCode === accountCode)
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => {
+        const dCmp = (b.date || '').localeCompare(a.date || '');
+        if (dCmp !== 0) return dCmp;
+        return (b.id || '').localeCompare(a.id || '', undefined, { numeric: true, sensitivity: 'base' });
+      });
 
     let dare = 0;
     let avere = 0;
@@ -1196,7 +1201,11 @@
     };
 
     state.journalEntries.unshift(newEntry);
-    state.journalEntries.sort((a, b) => b.date.localeCompare(a.date));
+    state.journalEntries.sort((a, b) => {
+      const dCmp = (b.date || '').localeCompare(a.date || '');
+      if (dCmp !== 0) return dCmp;
+      return (b.id || '').localeCompare(a.id || '', undefined, { numeric: true, sensitivity: 'base' });
+    });
 
     // Reset modulo
     document.getElementById('regAmount').value = '';
@@ -1248,7 +1257,11 @@
         creditAccountCode: credit,
         amount: amountVal
       };
-      state.journalEntries.sort((a, b) => b.date.localeCompare(a.date));
+      state.journalEntries.sort((a, b) => {
+        const dCmp = (b.date || '').localeCompare(a.date || '');
+        if (dCmp !== 0) return dCmp;
+        return (b.id || '').localeCompare(a.id || '', undefined, { numeric: true, sensitivity: 'base' });
+      });
       state.editingId = null;
       saveContabilitaServer();
       renderContabilitaModal();
@@ -1587,7 +1600,11 @@
       };
 
       state.journalEntries.unshift(newEntry);
-      state.journalEntries.sort((a, b) => b.date.localeCompare(a.date));
+      state.journalEntries.sort((a, b) => {
+        const dCmp = (b.date || '').localeCompare(a.date || '');
+        if (dCmp !== 0) return dCmp;
+        return (b.id || '').localeCompare(a.id || '', undefined, { numeric: true, sensitivity: 'base' });
+      });
       saveContabilitaServer();
       renderContabilitaModal();
 
