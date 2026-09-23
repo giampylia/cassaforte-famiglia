@@ -3273,10 +3273,10 @@ function parseVoiceCommand(text) {
 
   if (section === 'parking') {
     action.title = 'Posizione Auto GPS';
-    action.shouldSave = shouldSave || cleanLower.includes('parking') || cleanLower.includes('parcheggio');
+    action.shouldSave = true;
     action.fields = {
       'Azione': 'Salvataggio istantaneo coordinate GPS veicolo',
-      'Stato': 'Pronto alla memorizzazione'
+      'Stato': 'Rilevamento posizione GPS in corso...'
     };
   } else if (section === 'debiti') {
     const segs = extractSegments(textAfterSection, ['nome', 'titolo', 'debito', 'importo', 'rata', 'somma', 'cifra', 'scadenza', 'data', 'banca', 'creditore', 'note', 'istruzioni']);
@@ -3418,16 +3418,16 @@ function parseVoiceCommand(text) {
   detectedVoiceAction = action;
   renderVoiceDetectedSummary(action);
 
-  // Se l'utente ha detto salva / memorizza, salva automaticamente
-  if (shouldSave) {
+  // Se la sezione è parking OPPURE l'utente ha detto salva/memorizza/conferma, salva automaticamente!
+  if (section === 'parking' || shouldSave || action.shouldSave) {
     stopVoiceListening();
     const st = document.getElementById('voiceStatusText');
-    if (st) st.textContent = 'Salvataggio in corso...';
+    if (st) st.textContent = (section === 'parking') ? '🚗 Rilevamento GPS auto in corso...' : 'Salvataggio in corso...';
 
     if (voiceAutoSaveTimer) clearTimeout(voiceAutoSaveTimer);
     voiceAutoSaveTimer = setTimeout(() => {
       confirmVoiceSave();
-    }, 500);
+    }, (section === 'parking') ? 150 : 500);
   }
 }
 
@@ -3468,6 +3468,13 @@ async function confirmVoiceSave() {
     closeVoiceAssistantModal();
     showToast('🚗 Rilevamento GPS auto in corso...');
     await saveManualParking(false, 'voce');
+    if ('speechSynthesis' in window) {
+      try {
+        const u = new SpeechSynthesisUtterance('Posizione auto memorizzata');
+        u.lang = 'it-IT';
+        window.speechSynthesis.speak(u);
+      } catch (e) {}
+    }
     return;
   }
 
@@ -3525,10 +3532,31 @@ async function confirmVoiceSave() {
   updateAppIconBadge();
   showToast(`✅ "${entryData.title}" salvato vocalmente in ${getSectionDisplayName(entryData.section)}!`);
 
-  // Sintesi vocale di conferma
+  // Sintesi vocale di conferma con frase specifica per ogni sezione
   if ('speechSynthesis' in window) {
     try {
-      const u = new SpeechSynthesisUtterance('Salvato nella cassaforte');
+      let phrase = 'Salvato nella cassaforte';
+      if (entryData.section === 'note') {
+        phrase = 'Salvato nelle note';
+      } else if (entryData.section === 'debiti') {
+        phrase = 'Salvato nei debiti';
+      } else if (entryData.section === 'pw') {
+        phrase = 'Salvato nelle password';
+      } else if (entryData.section === 'banca') {
+        phrase = 'Salvato nella banca';
+      } else if (entryData.section === 'info_case') {
+        phrase = 'Salvato nelle info casa';
+      } else if (entryData.section === 'cassaforte') {
+        phrase = 'Salvato nella cassaforte';
+      } else if (entryData.section === 'messaggio') {
+        phrase = 'Messaggio inviato alla famiglia';
+      } else if (entryData.section === 'parking') {
+        phrase = 'Posizione auto memorizzata';
+      } else {
+        const cs = (STATE.customSections || []).find(s => s.id === entryData.section);
+        phrase = cs ? `Salvato in ${cs.name}` : 'Informazione salvata';
+      }
+      const u = new SpeechSynthesisUtterance(phrase);
       u.lang = 'it-IT';
       window.speechSynthesis.speak(u);
     } catch (e) {}
