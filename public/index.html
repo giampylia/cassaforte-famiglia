@@ -278,6 +278,19 @@
           <span class="dash-tile-sub"><span id="countDebiti">0</span> rate / voci</span>
         </button>
 
+        <!-- TASTO CONTABILITÀ (GIAMPYCASH) -->
+        <button type="button" class="dash-tile" onclick="openContabilitaModal()" aria-label="Contabilità GiampyCash">
+          <div class="dash-tile-icon" style="color: #10b981;">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="20" x2="12" y2="10"></line>
+              <line x1="18" y1="20" x2="18" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="16"></line>
+            </svg>
+          </div>
+          <span class="dash-tile-title">Contabilità</span>
+          <span class="dash-tile-sub" id="subContabilita">GiampyCash</span>
+        </button>
+
         <!-- TASTO 8: PARKING (AUTO & BLUETOOTH) -->
         <button type="button" class="dash-tile" onclick="openSection('parking')" aria-label="Posizione Auto e Parcheggio">
           <div class="dash-tile-icon" style="color: #38bdf8;">
@@ -860,9 +873,60 @@
     </div>
   </div>
 
+  <!-- MODALE A SCHERMO INTERO: CONTABILITÀ GIAMPYCASH -->
+  <div id="contabilitaModal" class="modal-overlay modal-fullscreen" style="display: none;">
+    <div class="modal-card modal-card-fullscreen">
+      <!-- HEADER GIAMPYCASH -->
+      <div class="contabilita-topbar">
+        <div class="contabilita-brand">
+          <div class="brand-logo-icon">📊</div>
+          <div>
+            <div class="brand-title">GiampyCash</div>
+            <div class="brand-tag">Partita Doppia</div>
+          </div>
+        </div>
+
+        <!-- TABS NAVIGAZIONE -->
+        <div class="contabilita-nav-tabs">
+          <button type="button" class="contabilita-tab-btn active" data-tab="registrazioni" onclick="window.GiampyCash.switchTab('registrazioni')">
+            <span class="tab-icon">📝</span> Registrazioni
+          </button>
+          <button type="button" class="contabilita-tab-btn" data-tab="budget" onclick="window.GiampyCash.switchTab('budget')">
+            <span class="tab-icon">🎯</span> Budget
+          </button>
+          <button type="button" class="contabilita-tab-btn" data-tab="avanzamento" onclick="window.GiampyCash.switchTab('avanzamento')">
+            <span class="tab-icon">📈</span> Avanzamento
+          </button>
+          <button type="button" class="contabilita-tab-btn" data-tab="liquidita" onclick="window.GiampyCash.switchTab('liquidita')">
+            <span class="tab-icon">💧</span> Liquidità
+          </button>
+          <button type="button" class="contabilita-tab-btn" data-tab="piano" onclick="window.GiampyCash.switchTab('piano')">
+            <span class="tab-icon">📑</span> Piano dei Conti
+          </button>
+        </div>
+
+        <!-- AZIONI RAPIDE HEADER -->
+        <div class="contabilita-header-actions">
+          <button type="button" class="btn-sm btn-ghost" id="contabilitaSyncBtn" onclick="window.GiampyCash.fetchData()" title="Ricarica dal server">
+            ↺ Sincronizza
+          </button>
+          <button type="button" class="btn-sm btn-back-c" onclick="window.GiampyCash.closeModal()" title="Torna alla Home di Famylia">
+            ← Torna a Famylia
+          </button>
+        </div>
+      </div>
+
+      <!-- CORPO CONTENUTO CONTABILITÀ -->
+      <div id="contabilitaBody" class="contabilita-main-scroll">
+        <!-- Renderizzato dinamicamente da contabilita.js -->
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notifica Copiato -->
   <div id="toastNotice" class="toast-notice">Copiato negli appunti!</div>
 
-  <script src="/app.js?v=7.9"></script>
+  <script src="/contabilita.js?v=1.0"></script>
+  <script src="/app.js?v=8.0"></script>
 </body>
 </html>

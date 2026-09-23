@@ -3137,6 +3137,7 @@ function startModalVoiceDictation() {
 
 function getSectionDisplayName(sec) {
   const map = {
+    contabilita: '📊 Contabilità (GiampyCash)',
     parking: '🚗 Parking Auto & GPS',
     debiti: '💳 Debiti & Finanziamenti',
     note: '📝 Note & Disposizioni',
@@ -3153,6 +3154,7 @@ function getSectionDisplayName(sec) {
 
 function getSectionIcon(sec) {
   const map = {
+    contabilita: '📊',
     parking: '🚗',
     debiti: '💳',
     note: '📝',
@@ -3177,6 +3179,17 @@ function parseVoiceCommand(text) {
   const raw = text.trim();
   const lower = raw.toLowerCase();
 
+  // Se il comando vocale riguarda la contabilità GiampyCash
+  if (currentVoicePreselectedSection === 'contabilita' || /\b(contabilit[aà]|giampycash|partita doppia)\b/i.test(lower)) {
+    if (window.GiampyCash && window.GiampyCash.parseVoiceCommand) {
+      const handled = window.GiampyCash.parseVoiceCommand(raw);
+      if (handled) {
+        closeVoiceAssistantModal();
+        return;
+      }
+    }
+  }
+
   // Verifica parola chiave di salvataggio
   const shouldSave = /\b(salva|salvare|memorizza|registra|conferma|fine)\b/i.test(lower);
   const cleanLower = lower.replace(/\b(salva|salvare|memorizza|registra|conferma|fine)\b/gi, '').trim();
@@ -3186,6 +3199,7 @@ function parseVoiceCommand(text) {
   // Se non preselezionata, individua la sezione dalla prima parola pronunciata
   if (!section) {
     const secPatterns = [
+      { id: 'contabilita', regex: /\b(contabilit[aà]|giampycash|partita doppia)\b/i },
       { id: 'parking', regex: /\b(parking|parcheggio|macchina|auto|veicolo)\b/i },
       { id: 'debiti', regex: /\b(debiti|debito|finanziamento|mutuo|finanziamenti)\b/i },
       { id: 'pw', regex: /\b(password|credenziali|credenziale|chiave|login|spid)\b/i },

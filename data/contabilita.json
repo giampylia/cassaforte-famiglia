@@ -1,0 +1,586 @@
+{
+  "accounts": [
+    {
+      "code": "4010",
+      "name": "CASSA",
+      "type": "attivo"
+    },
+    {
+      "code": "4041",
+      "name": "FONDO TELEMACO",
+      "type": "attivo"
+    },
+    {
+      "code": "4042",
+      "name": "CASSAFORTE",
+      "type": "attivo"
+    },
+    {
+      "code": "4043",
+      "name": "CC ING DIRECT",
+      "type": "attivo"
+    },
+    {
+      "code": "4044",
+      "name": "CC BBVA",
+      "type": "attivo"
+    },
+    {
+      "code": "4045",
+      "name": "C/C B. SARDEGNA",
+      "type": "attivo"
+    },
+    {
+      "code": "4046",
+      "name": "CC BANCOPOSTA",
+      "type": "attivo"
+    },
+    {
+      "code": "4061",
+      "name": "CARTA YAP",
+      "type": "attivo"
+    },
+    {
+      "code": "4062",
+      "name": "CARTAMUCHBETTE",
+      "type": "attivo"
+    },
+    {
+      "code": "4070",
+      "name": "CREDITI VARI",
+      "type": "attivo"
+    },
+    {
+      "code": "4071",
+      "name": "CREDITI QU3",
+      "type": "attivo"
+    },
+    {
+      "code": "4072",
+      "name": "CONTO PAYPAL",
+      "type": "attivo"
+    },
+    {
+      "code": "4075",
+      "name": "CREDITI GIUSY",
+      "type": "attivo"
+    },
+    {
+      "code": "4076",
+      "name": "CREDITI MIKI",
+      "type": "attivo"
+    },
+    {
+      "code": "4077",
+      "name": "CREDITI FRANCA",
+      "type": "attivo"
+    },
+    {
+      "code": "4078",
+      "name": "CREDITI BOBBYE",
+      "type": "attivo"
+    },
+    {
+      "code": "4080",
+      "name": "CREDITI ATTILIO",
+      "type": "attivo"
+    },
+    {
+      "code": "4100",
+      "name": "CREDITI TIZIANA",
+      "type": "attivo"
+    },
+    {
+      "code": "4120",
+      "name": "ASSILT",
+      "type": "attivo"
+    },
+    {
+      "code": "4999",
+      "name": "SCRITTURE RETTA",
+      "type": "attivo"
+    },
+    {
+      "code": "5010",
+      "name": "DEBITI VARI",
+      "type": "passivo"
+    },
+    {
+      "code": "5021",
+      "name": "CAUZIONE MENNEN",
+      "type": "passivo"
+    },
+    {
+      "code": "5022",
+      "name": "CAUZIONE TISIDDU",
+      "type": "passivo"
+    },
+    {
+      "code": "5023",
+      "name": "CAUZIONE PRINCIPE",
+      "type": "passivo"
+    },
+    {
+      "code": "5024",
+      "name": "CAUZIONE GATTA",
+      "type": "passivo"
+    },
+    {
+      "code": "5025",
+      "name": "FONDO CASANUOVA",
+      "type": "passivo"
+    },
+    {
+      "code": "5030",
+      "name": "DEB.BENEFICENZA",
+      "type": "passivo"
+    },
+    {
+      "code": "5040",
+      "name": "F.PIZZA",
+      "type": "passivo"
+    },
+    {
+      "code": "5050",
+      "name": "PRESTITO ING1",
+      "type": "passivo"
+    },
+    {
+      "code": "5051",
+      "name": "PRESTITO ING2",
+      "type": "passivo"
+    },
+    {
+      "code": "5068",
+      "name": "F.BOBBYE ASSAGO",
+      "type": "passivo"
+    },
+    {
+      "code": "5070",
+      "name": "F.RISERVA",
+      "type": "passivo"
+    },
+    {
+      "code": "5071",
+      "name": "F.BOBBYE ASSAGO 2",
+      "type": "passivo"
+    },
+    {
+      "code": "5072",
+      "name": "F. TIZIANA ASSAGO",
+      "type": "passivo"
+    },
+    {
+      "code": "5073",
+      "name": "F. TATONIA ASSAGO",
+      "type": "passivo"
+    },
+    {
+      "code": "5074",
+      "name": "F. FRANCA ASSAGO",
+      "type": "passivo"
+    },
+    {
+      "code": "5075",
+      "name": "F. MARIA ASSAGO",
+      "type": "passivo"
+    },
+    {
+      "code": "5080",
+      "name": "F. TATONIA ASSAGO",
+      "type": "passivo"
+    },
+    {
+      "code": "5081",
+      "name": "F. FRANCA ASSAGO",
+      "type": "passivo"
+    },
+    {
+      "code": "5082",
+      "name": "F. TIZIANA ASSAGO",
+      "type": "passivo"
+    },
+    {
+      "code": "5083",
+      "name": "F. MARIA ASSAGO",
+      "type": "passivo"
+    },
+    {
+      "code": "5091",
+      "name": "F.AUTO GIAMPY",
+      "type": "passivo"
+    },
+    {
+      "code": "5100",
+      "name": "IMP. SOGGIORNO",
+      "type": "passivo"
+    },
+    {
+      "code": "5998",
+      "name": "UTILE ANNO PREC",
+      "type": "passivo"
+    },
+    {
+      "code": "5999",
+      "name": "RATEI-RISCONTI",
+      "type": "passivo"
+    },
+    {
+      "code": "6010",
+      "name": "SPESE VARIE",
+      "type": "costo"
+    },
+    {
+      "code": "6011",
+      "name": "REGALI",
+      "type": "costo"
+    },
+    {
+      "code": "6012",
+      "name": "ABBIGLIAMENTO",
+      "type": "costo"
+    },
+    {
+      "code": "6030",
+      "name": "IMU TASI",
+      "type": "costo"
+    },
+    {
+      "code": "6031",
+      "name": "TARI",
+      "type": "costo"
+    },
+    {
+      "code": "6032",
+      "name": "CEDOLARE SECCA",
+      "type": "costo"
+    },
+    {
+      "code": "6040",
+      "name": "SPESE AUTO",
+      "type": "costo"
+    },
+    {
+      "code": "6041",
+      "name": "GASOLIO",
+      "type": "costo"
+    },
+    {
+      "code": "6042",
+      "name": "AUTO MIKI",
+      "type": "costo"
+    },
+    {
+      "code": "6050",
+      "name": "SORGENIA CAVARO",
+      "type": "costo"
+    },
+    {
+      "code": "6051",
+      "name": "SORGENIA BORGHI",
+      "type": "costo"
+    },
+    {
+      "code": "6052",
+      "name": "SORGENIA TISIDDU",
+      "type": "costo"
+    },
+    {
+      "code": "6053",
+      "name": "SORGENIA PRINCIPE",
+      "type": "costo"
+    },
+    {
+      "code": "6060",
+      "name": "ACQUA CAGLIARI",
+      "type": "costo"
+    },
+    {
+      "code": "6062",
+      "name": "ACQUA TISIDDU",
+      "type": "costo"
+    },
+    {
+      "code": "6063",
+      "name": "ACQUA PRINCIPE",
+      "type": "costo"
+    },
+    {
+      "code": "6070",
+      "name": "RAI CAGLIARI",
+      "type": "costo"
+    },
+    {
+      "code": "6080",
+      "name": "TELECOMITALIA",
+      "type": "costo"
+    },
+    {
+      "code": "6090",
+      "name": "GAS CAGLIARI",
+      "type": "costo"
+    },
+    {
+      "code": "6091",
+      "name": "GAS I BORGHI",
+      "type": "costo"
+    },
+    {
+      "code": "6092",
+      "name": "GAS LUSA",
+      "type": "costo"
+    },
+    {
+      "code": "6100",
+      "name": "CONDOM.CAGLIARI",
+      "type": "costo"
+    },
+    {
+      "code": "6101",
+      "name": "CONDOM. BORGHI",
+      "type": "costo"
+    },
+    {
+      "code": "6102",
+      "name": "CONDOM. LUSA",
+      "type": "costo"
+    },
+    {
+      "code": "6110",
+      "name": "VITTO",
+      "type": "costo"
+    },
+    {
+      "code": "6120",
+      "name": "SPESE MEDICHE",
+      "type": "costo"
+    },
+    {
+      "code": "6130",
+      "name": "INT. PASSIVI",
+      "type": "costo"
+    },
+    {
+      "code": "6140",
+      "name": "IRPEF TFR 2020",
+      "type": "costo"
+    },
+    {
+      "code": "6150",
+      "name": "QUOTA C. COMUNE",
+      "type": "costo"
+    },
+    {
+      "code": "6160",
+      "name": "OP. AFRICA",
+      "type": "costo"
+    },
+    {
+      "code": "6170",
+      "name": "TURISMO",
+      "type": "costo"
+    },
+    {
+      "code": "6180",
+      "name": "MUTUO CAGLIARI",
+      "type": "costo"
+    },
+    {
+      "code": "6181",
+      "name": "MUTUO TIZIANA",
+      "type": "costo"
+    },
+    {
+      "code": "6182",
+      "name": "PRESTITO ING1",
+      "type": "costo"
+    },
+    {
+      "code": "6183",
+      "name": "PRESTITO ING2",
+      "type": "costo"
+    },
+    {
+      "code": "6199",
+      "name": "S.STRAORDINARIE",
+      "type": "costo"
+    },
+    {
+      "code": "6210",
+      "name": "VERS. F.TELEMACO",
+      "type": "costo"
+    },
+    {
+      "code": "6220",
+      "name": "MICHELE MEDICHE",
+      "type": "costo"
+    },
+    {
+      "code": "6230",
+      "name": "MICHELE ALTRE",
+      "type": "costo"
+    },
+    {
+      "code": "6240",
+      "name": "MICHELE ABBIGL.",
+      "type": "costo"
+    },
+    {
+      "code": "6250",
+      "name": "MICHELE REGALI",
+      "type": "costo"
+    },
+    {
+      "code": "6260",
+      "name": "MIKI MILANO",
+      "type": "costo"
+    },
+    {
+      "code": "6660",
+      "name": "MILANO RIMB. RINV.",
+      "type": "costo"
+    },
+    {
+      "code": "6661",
+      "name": "CASA MILANO",
+      "type": "costo"
+    },
+    {
+      "code": "6999",
+      "name": "PROF.PERDITE",
+      "type": "costo"
+    },
+    {
+      "code": "8010",
+      "name": "PENSIONE INPS",
+      "type": "ricavo"
+    },
+    {
+      "code": "8012",
+      "name": "COMP.ACCESSORIE",
+      "type": "ricavo"
+    },
+    {
+      "code": "8020",
+      "name": "COMP.ACCESSORIE",
+      "type": "ricavo"
+    },
+    {
+      "code": "8030",
+      "name": "PROVENTI VARI",
+      "type": "ricavo"
+    },
+    {
+      "code": "8040",
+      "name": "AFFITTI VILLAS.",
+      "type": "ricavo"
+    }
+  ],
+  "journalEntries": [
+    {
+      "id": "initial-1-1790161710366",
+      "date": "2026-09-21",
+      "description": "BOOKING PETRA WATTERMARK",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 123.67
+    },
+    {
+      "id": "initial-2-1790161710369",
+      "date": "2026-09-18",
+      "description": "CAUZIONE SCALISE",
+      "debitAccountCode": "5024",
+      "creditAccountCode": "8040",
+      "amount": 250
+    },
+    {
+      "id": "initial-3-1790161710369",
+      "date": "2026-09-18",
+      "description": "SALDO SCALISE",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 345
+    },
+    {
+      "id": "initial-4-1790161710369",
+      "date": "2026-09-18",
+      "description": "CAUZIONE TANGREDI",
+      "debitAccountCode": "5023",
+      "creditAccountCode": "8040",
+      "amount": 200
+    },
+    {
+      "id": "initial-5-1790161710369",
+      "date": "2026-09-17",
+      "description": "DOGHE E VARIE VILLASIMIUS",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 12
+    },
+    {
+      "id": "initial-6-1790161710369",
+      "date": "2026-09-17",
+      "description": "LIVIO SDROFFA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 1500
+    },
+    {
+      "id": "initial-7-1790161710369",
+      "date": "2026-09-14",
+      "description": "BIANCHERIA LOSCIALE",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 30
+    },
+    {
+      "id": "initial-8-1790161710369",
+      "date": "2026-09-13",
+      "description": "RICARICA MODEM",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4072",
+      "amount": 10
+    },
+    {
+      "id": "initial-9-1790161710369",
+      "date": "2026-09-12",
+      "description": "TELECOMANDO TV SHARP",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 13
+    },
+    {
+      "id": "initial-10-1790161710369",
+      "date": "2026-09-12",
+      "description": "PULIZIE RITA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "initial-11-1790161710369",
+      "date": "2026-09-12",
+      "description": "BIANCHERIA GAIA CAMPANA",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 45
+    },
+    {
+      "id": "initial-12-1790161710369",
+      "date": "2026-09-12",
+      "description": "BIANCHERIA PETRA WETTERMARK",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 30
+    },
+    {
+      "id": "initial-13-1790161710369",
+      "date": "2026-09-08",
+      "description": "DOGHE E SALISCENDI DOCCIA",
+      "debitAccountCode": "8040",
+      "creditAccountCode": "4010",
+      "amount": 12.5
+    }
+  ],
+  "budgetEntries": []
+}

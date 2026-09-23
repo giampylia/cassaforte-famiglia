@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data', 'memos.json');
 const VAULT_FILE = path.join(__dirname, 'data', 'vault.json');
 const PARKING_FILE = path.join(__dirname, 'data', 'parking.json');
+const CONTABILITA_FILE = path.join(__dirname, 'data', 'contabilita.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 function loadParking() {
@@ -160,6 +161,80 @@ function saveVault(vaultData) {
     fs.writeFileSync(VAULT_FILE, JSON.stringify(vaultData, null, 2), 'utf8');
     return true;
   } catch (err) {
+    return false;
+  }
+}
+
+// --- CONTABILITA (GIAMPYCASH) DATA MANAGEMENT ---
+let inMemoryContabilita = null;
+
+function getInitialContabilita() {
+  const seedFile = path.join(__dirname, 'data', 'initial_contabilita_seed.json');
+  if (fs.existsSync(seedFile)) {
+    try {
+      return JSON.parse(fs.readFileSync(seedFile, 'utf8'));
+    } catch (e) {}
+  }
+  return { accounts: [], budgetEntries: [], journalEntries: [] };
+}
+
+function loadContabilita() {
+  if (inMemoryContabilita && inMemoryContabilita.accounts && inMemoryContabilita.accounts.length > 0) {
+    return inMemoryContabilita;
+  }
+  try {
+    if (!fs.existsSync(CONTABILITA_FILE)) {
+      const initial = getInitialContabilita();
+      fs.writeFileSync(CONTABILITA_FILE, JSON.stringify(initial, null, 2), 'utf8');
+      inMemoryContabilita = initial;
+      return initial;
+    }
+    const data = fs.readFileSync(CONTABILITA_FILE, 'utf8');
+    const parsed = JSON.parse(data || '{}');
+    if (!parsed.accounts || !Array.isArray(parsed.accounts) || parsed.accounts.length === 0) {
+      parsed.accounts = getInitialContabilita().accounts;
+    }
+    if (!parsed.journalEntries || !Array.isArray(parsed.journalEntries)) {
+      parsed.journalEntries = [];
+    }
+    if (!parsed.budgetEntries || !Array.isArray(parsed.budgetEntries)) {
+      parsed.budgetEntries = [];
+    }
+    inMemoryContabilita = parsed;
+    return parsed;
+  } catch (err) {
+    console.error('Errore lettura contabilita.json:', err.message);
+    return getInitialContabilita();
+  }
+}
+
+function saveContabilita(data) {
+  try {
+    if (!data || typeof data !== 'object') return false;
+    inMemoryContabilita = data;
+    const backupDir = path.join(__dirname, 'data', 'backups');
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+    // Salva un backup prima di sovrascrivere
+    if (fs.existsSync(CONTABILITA_FILE)) {
+      try {
+        const backupFile = path.join(backupDir, `contabilita_${Date.now()}.json`);
+        fs.copyFileSync(CONTABILITA_FILE, backupFile);
+        const files = fs.readdirSync(backupDir).filter(f => f.startsWith('contabilita_')).sort();
+        if (files.length > 20) {
+          for (let i = 0; i < files.length - 20; i++) {
+            try { fs.unlinkSync(path.join(backupDir, files[i])); } catch (e) {}
+          }
+        }
+      } catch (be) {}
+    }
+
+    const tmp = CONTABILITA_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
+    fs.renameSync(tmp, CONTABILITA_FILE);
+    return true;
+  } catch (err) {
+    console.error('Errore salvataggio contabilita.json:', err.message);
     return false;
   }
 }
@@ -420,6 +495,78 @@ async function handleRequest(req, res) {
         const body = await parseJsonBody(req);
         saveVault(body);
         return sendJSON(res, 200, { success: true });
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
+    }
+
+    // GET /api/contabilita (restituisce stato contabilità GiampyCash)
+    if (pathname === '/api/contabilita' && req.method === 'GET') {
+      const data = loadContabilita();
+      return sendJSON(res, 200, { success: true, data });
+    }
+
+    // POST /api/contabilita (salva stato contabilità)
+    if (pathname === '/api/contabilita' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        if (body && typeof body === 'object') {
+          saveContabilita(body);
+          return sendJSON(res, 200, { success: true });
+        }
+        return sendJSON(res, 400, { error: 'Payload contabilità non valido' });
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
+    }
+
+    // POST /api/contabilita/import-csv (importa registrazioni da CSV)
+    if (pathname === '/api/contabilita/import-csv' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        const csvContent = body.csv || '';
+        if (!csvContent) {
+          return sendJSON(res, 400, { error: 'CSV vuoto' });
+        }
+        const state = loadContabilita();
+        const lines = csvContent.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        let imported = 0;
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(';').map(c => c.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+          if (cols.length >= 7) {
+            const [dare, avere, dDare, dAvere, dateStr, impStr, desc] = cols;
+            const dateParts = dateStr.split('/');
+            let isoDate = dateStr;
+            if (dateParts.length === 3) {
+              isoDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+            }
+            const amount = parseFloat(impStr.replace(',', '.'));
+            if (!isNaN(amount) && dare && avere) {
+              const cleanDesc = (desc || '').toUpperCase();
+              const exists = state.journalEntries.some(e =>
+                e.date === isoDate &&
+                e.debitAccountCode === dare &&
+                e.creditAccountCode === avere &&
+                Math.abs(e.amount - amount) < 0.001 &&
+                e.description === cleanDesc
+              );
+              if (!exists) {
+                state.journalEntries.push({
+                  id: 'csv-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+                  date: isoDate,
+                  description: cleanDesc,
+                  debitAccountCode: dare,
+                  creditAccountCode: avere,
+                  amount: amount
+                });
+                imported++;
+              }
+            }
+          }
+        }
+        state.journalEntries.sort((a, b) => b.date.localeCompare(a.date));
+        saveContabilita(state);
+        return sendJSON(res, 200, { success: true, imported, total: state.journalEntries.length });
       } catch (err) {
         return sendJSON(res, 400, { error: err.message });
       }
