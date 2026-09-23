@@ -760,8 +760,19 @@ async function handleRequest(req, res) {
           });
         }
 
-        const rawLat = parsedUrl.searchParams.get('lat') || body.lat;
-        const rawLng = parsedUrl.searchParams.get('lng') || parsedUrl.searchParams.get('lon') || body.lng || body.lon;
+        let rawLat = parsedUrl.searchParams.get('lat') || body.lat;
+        let rawLng = parsedUrl.searchParams.get('lng') || parsedUrl.searchParams.get('lon') || body.lng || body.lon;
+        const rawLoc = parsedUrl.searchParams.get('loc') || parsedUrl.searchParams.get('location') || body.loc || body.location;
+
+        if ((!rawLat || !rawLng) && rawLoc && typeof rawLoc === 'string' && rawLoc.includes(',')) {
+          const parts = rawLoc.split(',');
+          rawLat = parts[0].trim();
+          rawLng = parts[1].trim();
+        } else if (rawLat && typeof rawLat === 'string' && rawLat.includes(',')) {
+          const parts = rawLat.split(',');
+          rawLat = parts[0].trim();
+          if (!rawLng) rawLng = parts[1].trim();
+        }
 
         if (!rawLat || !rawLng) {
           return sendJSON(res, 400, { error: 'Coordinate lat e lng mancanti.' });
