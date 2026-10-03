@@ -833,7 +833,10 @@ async function handleRequest(req, res) {
             body: `📍 ${geo.addressShort} (${timeStr})`,
             icon: '/icons/icon-192.svg',
             badge: '/icons/icon-192.svg',
-            url: '/?section=parking'
+            url: '/?section=parking',
+            type: 'PARKING_UPDATE',
+            user: user,
+            parking: newParking
           });
           subs.filter(s => s.user === user || s.user === 'Famiglia').forEach(subItem => {
             webpush.sendNotification(subItem.subscription, payload).catch(() => {});
@@ -868,6 +871,33 @@ async function handleRequest(req, res) {
       } catch (err) {
         console.error('[Parking] Errore auto-park:', err);
         return sendJSON(res, 500, { error: err.message });
+      }
+    }
+
+    // POST /api/parking/restore (ripristina parcheggio attivo dal client se il server si era riavviato)
+    if (pathname === '/api/parking/restore' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        const user = resolveUser(body.user, body.pin);
+        if (!user) {
+          return sendJSON(res, 400, { error: 'Utente o PIN non valido.' });
+        }
+        const parkingStore = loadParking();
+        if (!parkingStore[user]) {
+          parkingStore[user] = { active: null, history: [] };
+        }
+        if (body.parking) {
+          const clientTime = new Date(body.parking.timestamp || 0).getTime();
+          const serverTime = parkingStore[user].active ? new Date(parkingStore[user].active.timestamp || 0).getTime() : 0;
+          if (!parkingStore[user].active || clientTime >= serverTime) {
+            parkingStore[user].active = body.parking;
+            saveParking(parkingStore);
+            console.log(`[Parking] Ripristinato parcheggio attivo per ${user}: ${body.parking.addressShort || body.parking.address}`);
+          }
+        }
+        return sendJSON(res, 200, { success: true, active: parkingStore[user].active });
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
       }
     }
 

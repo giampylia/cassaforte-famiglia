@@ -342,6 +342,21 @@ function initServiceWorker() {
         if (typeof openSection === 'function') {
           openSection(event.data.section);
         }
+      } else if (event.data && event.data.type === 'PARKING_UPDATED') {
+        const u = event.data.user || STATE.currentUser;
+        if (typeof setLocalActiveParking === 'function') {
+          setLocalActiveParking(u, event.data.parking);
+        }
+        if (u === STATE.currentUser) {
+          if (!STATE.serverParking) STATE.serverParking = {};
+          STATE.serverParking.active = event.data.parking;
+          if (STATE.activeSection === 'parking') {
+            const container = document.getElementById('sectionList');
+            if (container) renderParkingSection(container);
+          } else {
+            updateTileCounts();
+          }
+        }
       }
     });
   }
@@ -966,12 +981,17 @@ function unlockSuccess() {
       saveManualParking(true);
     }, 600);
   } else {
-    // Se ci sono notifiche non lette (o parametro ?open=messaggio), porta subito l'utente sul messaggio evidenziato!
-    const unreadMsgs = getUnreadMessages();
+    // Se ci sono notifiche non lette o parametri URL, porta subito l'utente sulla sezione richiesta
     const urlParams = new URLSearchParams(window.location.search);
+    const wantsSection = urlParams.get('section');
     const wantsOpenMsg = urlParams.get('open') === 'messaggio';
+    const unreadMsgs = getUnreadMessages();
 
-    if (unreadMsgs.length > 0 || wantsOpenMsg) {
+    if (wantsSection === 'parking') {
+      setTimeout(() => {
+        openSection('parking');
+      }, 350);
+    } else if (unreadMsgs.length > 0 || wantsOpenMsg) {
       const targetMsgId = unreadMsgs.length > 0 ? unreadMsgs[0].id : null;
       setTimeout(() => {
         openSection('messaggio');
@@ -1192,7 +1212,8 @@ function updateTileCounts() {
     elDot.style.display = unreadCount > 0 ? 'inline-block' : 'none';
   }
 
-  const serverActive = STATE.serverParking && STATE.serverParking.active;
+  const localActive = typeof getLocalActiveParking === 'function' ? getLocalActiveParking(STATE.currentUser) : null;
+  const serverActive = (STATE.serverParking && STATE.serverParking.active) || localActive;
   const userParkingEntries = STATE.entries.filter(e => e.section === 'parking' && (e.utente === STATE.currentUser || e.owner === STATE.currentUser));
   const latestParking = serverActive || (userParkingEntries.length > 0 ? userParkingEntries[0] : null);
   const elParking = document.getElementById('subParking');
@@ -1672,14 +1693,122 @@ function updateAppIconBadge(count) {
 
 let ACTIVE_BT_DEVICE = null;
 
+// --- GESTIONE PERSISTENZA BLINDATA PARCHEGGIO (LOCALSTORAGE + CACHE SERVICE WORKER + SERVER) ---
+
+function getLocalActiveParking(user) {
+  const u = user || STATE.currentUser || 'Giampy';
+  try {
+    const raw = localStorage.getItem(`famylia_active_parking_${u}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setLocalActiveParking(user, parking) {
+  const u = user || STATE.currentUser || 'Giampy';
+  try {
+    if (parking) {
+      localStorage.setItem(`famylia_active_parking_${u}`, JSON.stringify(parking));
+    } else {
+      localStorage.removeItem(`famylia_active_parking_${u}`);
+    }
+  } catch (e) {}
+}
+
+function getLocalParkingHistory(user) {
+  const u = user || STATE.currentUser || 'Giampy';
+  try {
+    const raw = localStorage.getItem(`famylia_parking_history_${u}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveLocalParkingHistory(user, history) {
+  const u = user || STATE.currentUser || 'Giampy';
+  try {
+    localStorage.setItem(`famylia_parking_history_${u}`, JSON.stringify(history || []));
+  } catch (e) {}
+}
+
+async function syncOfflineCachedParking(user) {
+  const u = user || STATE.currentUser || 'Giampy';
+  if (!('caches' in window)) return;
+  try {
+    const cache = await caches.open('famylia-parking-cache');
+    const res = await cache.match(`/offline-parking-cache-${encodeURIComponent(u)}`);
+    if (res) {
+      const cached = await res.json();
+      if (cached && cached.timestamp) {
+        const local = getLocalActiveParking(u);
+        const lTime = local ? new Date(local.timestamp || 0).getTime() : 0;
+        const cTime = new Date(cached.timestamp || 0).getTime();
+        if (!local || cTime >= lTime) {
+          setLocalActiveParking(u, cached);
+          if (!STATE.serverParking) STATE.serverParking = {};
+          STATE.serverParking.active = cached;
+          if (STATE.activeSection === 'parking') {
+            const container = document.getElementById('sectionList');
+            if (container) renderParkingSection(container);
+          } else {
+            updateTileCounts();
+          }
+        }
+      }
+    }
+  } catch (e) {}
+}
+
 async function fetchServerParking(silent = false) {
   try {
     const user = STATE.currentUser || 'Giampy';
     const pin = STATE.currentPin || (user === 'Giampy' ? '240961' : (user === 'Ty' ? '040663' : '240696'));
+
+    // Inizializza istantaneamente dallo storage locale a costo 0
+    const localActive = getLocalActiveParking(user);
+    const localHistory = getLocalParkingHistory(user);
+    if (!STATE.serverParking || !STATE.serverParking.active) {
+      STATE.serverParking = {
+        user: user,
+        active: localActive,
+        history: localHistory
+      };
+    }
+
+    // Controlla cache Service Worker
+    syncOfflineCachedParking(user).catch(() => {});
+
     const res = await fetch(`/api/parking?user=${encodeURIComponent(user)}&pin=${encodeURIComponent(pin)}`);
     if (res.ok) {
       const data = await res.json();
-      STATE.serverParking = data;
+      const currentLocal = getLocalActiveParking(user);
+
+      if (data.active) {
+        STATE.serverParking.active = data.active;
+        setLocalActiveParking(user, data.active);
+      } else if (currentLocal) {
+        // IL SERVER RESTITUISCE ACTIVE NULL (es. dyno riavviato su Render),
+        // MA IL CLIENT HA UN PARCHEGGIO ATTIVO NON RILASCIATO DALL'UTENTE!
+        // Non cancelliamo assolutamente nulla: ripristiniamo la posizione anche sul server
+        STATE.serverParking.active = currentLocal;
+        fetch('/api/parking/restore', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user, pin, parking: currentLocal })
+        }).catch(() => {});
+      } else {
+        STATE.serverParking.active = null;
+      }
+
+      if (Array.isArray(data.history) && data.history.length > 0) {
+        STATE.serverParking.history = data.history;
+        saveLocalParkingHistory(user, data.history);
+      } else if (localHistory && localHistory.length > 0) {
+        STATE.serverParking.history = localHistory;
+      }
+
       if (STATE.activeSection === 'parking') {
         const container = document.getElementById('sectionList');
         if (container) renderParkingSection(container);
@@ -1689,32 +1818,44 @@ async function fetchServerParking(silent = false) {
     }
   } catch (err) {
     if (!silent) console.warn('[Parking] Errore fetchServerParking:', err);
+    const fallbackActive = getLocalActiveParking(STATE.currentUser || 'Giampy');
+    if (fallbackActive && (!STATE.serverParking || !STATE.serverParking.active)) {
+      if (!STATE.serverParking) STATE.serverParking = {};
+      STATE.serverParking.active = fallbackActive;
+      if (STATE.activeSection === 'parking') {
+        const container = document.getElementById('sectionList');
+        if (container) renderParkingSection(container);
+      } else {
+        updateTileCounts();
+      }
+    }
   }
 }
 
 function renderParkingSection(container) {
   // RIGOROSO ISOLAMENTO PERSONALE: ognuno vede solo ed esclusivamente il proprio parcheggio
-  const userCred = Object.values(FAMILY_CREDENTIALS).find(c => c.id === STATE.currentUser) || { name: STATE.currentUser || 'Giampy', icon: '👨' };
+  const user = STATE.currentUser || 'Giampy';
+  const userCred = Object.values(FAMILY_CREDENTIALS).find(c => c.id === user) || { name: user, icon: '👨' };
   
+  const localActive = getLocalActiveParking(user);
   const serverActive = (STATE.serverParking && STATE.serverParking.active) || null;
   const serverHistory = (STATE.serverParking && STATE.serverParking.history) || [];
-  const localParkings = STATE.entries.filter(e => e.section === 'parking' && (e.utente === STATE.currentUser || e.owner === STATE.currentUser));
+  const localHistory = getLocalParkingHistory(user);
+  const localParkings = STATE.entries.filter(e => e.section === 'parking' && (e.utente === user || e.owner === user));
 
   // Determina il parcheggio attivo più recente
   let activeParking = null;
-  if (serverActive && localParkings.length > 0) {
-    const sTime = new Date(serverActive.timestamp).getTime();
-    const lTime = new Date(localParkings[0].timestamp).getTime();
-    activeParking = sTime >= lTime ? serverActive : localParkings[0];
-  } else {
-    activeParking = serverActive || (localParkings.length > 0 ? localParkings[0] : null);
+  const candidates = [serverActive, localActive, (localParkings.length > 0 ? localParkings[0] : null)].filter(Boolean);
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+    activeParking = candidates[0];
   }
 
   // Costruisci storico senza duplicati
   const seenIds = new Set();
   if (activeParking && activeParking.id) seenIds.add(activeParking.id);
   const myHistory = [];
-  [...serverHistory, ...localParkings].forEach(item => {
+  [...serverHistory, ...localHistory, ...localParkings].forEach(item => {
     if (item && item.id && !seenIds.has(item.id)) {
       seenIds.add(item.id);
       myHistory.push(item);
@@ -1723,7 +1864,7 @@ function renderParkingSection(container) {
   myHistory.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   const originUrl = window.location.origin;
-  const webhookUrl = `${originUrl}/api/auto-park?user=${encodeURIComponent(STATE.currentUser || 'Giampy')}`;
+  const webhookUrl = `${originUrl}/api/auto-park?user=${encodeURIComponent(user)}`;
 
   container.innerHTML = `
     <!-- SCHEDA PRINCIPALE PARCHEGGIO ATTUALE -->
@@ -1953,6 +2094,9 @@ async function saveManualParking(silent = false, triggerType = 'manuale') {
         };
 
         STATE.entries.unshift(newEntry);
+        setLocalActiveParking(STATE.currentUser, newEntry);
+        if (!STATE.serverParking) STATE.serverParking = {};
+        STATE.serverParking.active = newEntry;
         await saveEncryptedVault();
 
         // Sincronizza anche con il server per webhook e notifiche cross-device
@@ -2013,9 +2157,11 @@ function openMapsNavigation(lat, lng) {
 }
 
 async function addNoteToActiveParking(id) {
+  const user = STATE.currentUser || 'Giampy';
   const serverActive = STATE.serverParking && STATE.serverParking.active;
+  const localActive = getLocalActiveParking(user);
   const localItem = STATE.entries.find(e => e.id === id);
-  const currentNote = (serverActive && serverActive.notes) || (localItem && localItem.notes) || '';
+  const currentNote = (serverActive && serverActive.notes) || (localActive && localActive.notes) || (localItem && localItem.notes) || '';
   const note = prompt("Aggiungi nota al parcheggio (es. Piano -2, Posto 45, Scadenza ticket ore 18:30):", currentNote);
   if (note !== null) {
     const trimmed = note.trim();
@@ -2028,6 +2174,10 @@ async function addNoteToActiveParking(id) {
     } catch (e) {}
 
     if (serverActive) serverActive.notes = trimmed;
+    if (localActive) {
+      localActive.notes = trimmed;
+      setLocalActiveParking(user, localActive);
+    }
     if (localItem) {
       localItem.notes = trimmed;
       await saveEncryptedVault();
@@ -2039,11 +2189,34 @@ async function addNoteToActiveParking(id) {
 
 async function releaseCurrentParking(id) {
   if (!confirm("Hai ripreso l'auto? Rimuovere la posizione dal parcheggio attivo?")) return;
+  const user = STATE.currentUser || 'Giampy';
+  const pin = STATE.currentPin || (user === 'Giampy' ? '240961' : (user === 'Ty' ? '040663' : '240696'));
+
+  // 1. Sposta active nello storico locale prima di eliminarlo
+  const currentActive = (STATE.serverParking && STATE.serverParking.active) || getLocalActiveParking(user);
+  if (currentActive) {
+    currentActive.releasedAt = new Date().toISOString();
+    const hist = getLocalParkingHistory(user);
+    hist.unshift(currentActive);
+    saveLocalParkingHistory(user, hist.slice(0, 50));
+    if (STATE.serverParking) {
+      if (!Array.isArray(STATE.serverParking.history)) STATE.serverParking.history = [];
+      STATE.serverParking.history.unshift(currentActive);
+    }
+  }
+
+  // 2. Rimuovi definitivamente da localStorage e cache SW
+  setLocalActiveParking(user, null);
+  if ('caches' in window) {
+    caches.open('famylia-parking-cache').then(c => c.delete(`/offline-parking-cache-${encodeURIComponent(user)}`)).catch(() => {});
+  }
+
+  // 3. Invia release al server
   try {
     await fetch('/api/parking/release', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user: STATE.currentUser, pin: STATE.currentPin })
+      body: JSON.stringify({ user, pin })
     });
   } catch (e) {}
 
@@ -2061,11 +2234,15 @@ async function releaseCurrentParking(id) {
 
 async function clearParkingHistory() {
   if (!confirm("Vuoi cancellare tutto lo storico dei tuoi parcheggi precedenti?")) return;
+  const user = STATE.currentUser || 'Giampy';
+  const pin = STATE.currentPin || (user === 'Giampy' ? '240961' : (user === 'Ty' ? '040663' : '240696'));
+
+  saveLocalParkingHistory(user, []);
   try {
     await fetch('/api/parking/clear-history', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user: STATE.currentUser, pin: STATE.currentPin })
+      body: JSON.stringify({ user, pin })
     });
   } catch (e) {}
 
@@ -2081,14 +2258,20 @@ async function clearParkingHistory() {
 
 async function deleteLocalOrServerParking(id) {
   if (!confirm("Vuoi eliminare questa voce dallo storico?")) return;
+  const user = STATE.currentUser || 'Giampy';
   STATE.entries = STATE.entries.filter(e => e.id !== id);
   await saveEncryptedVault();
+
+  const hist = getLocalParkingHistory(user).filter(h => h.id !== id);
+  saveLocalParkingHistory(user, hist);
 
   if (STATE.serverParking && STATE.serverParking.history) {
     STATE.serverParking.history = STATE.serverParking.history.filter(h => h.id !== id);
   }
-  if (STATE.serverParking && STATE.serverParking.active && STATE.serverParking.active.id === id) {
-    STATE.serverParking.active = null;
+  const currentActive = getLocalActiveParking(user);
+  if ((STATE.serverParking && STATE.serverParking.active && STATE.serverParking.active.id === id) || (currentActive && currentActive.id === id)) {
+    setLocalActiveParking(user, null);
+    if (STATE.serverParking) STATE.serverParking.active = null;
     try {
       await fetch('/api/parking/release', {
         method: 'POST',

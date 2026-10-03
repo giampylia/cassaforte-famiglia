@@ -1,4 +1,4 @@
-const CACHE_NAME = 'famylia-v29';
+const CACHE_NAME = 'famylia-v30';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -82,7 +82,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// 4. Gestione Notifiche Push (quando arrivano messaggi da altri familiari)
+// 4. Gestione Notifiche Push (quando arrivano messaggi o parcheggio auto da altri familiari/MacroDroid)
 self.addEventListener('push', (event) => {
   let payload = { title: 'Famylia', body: 'Nuovo messaggio in bacheca' };
   
@@ -94,15 +94,49 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  const isParking = payload.type === 'PARKING_UPDATE' || (payload.url && payload.url.includes('section=parking'));
+
+  // Se è un aggiornamento parcheggio, salvalo subito nella cache offline del Service Worker!
+  if (payload.parking) {
+    const parkUser = payload.user || 'Giampy';
+    event.waitUntil(
+      (async () => {
+        try {
+          const cache = await caches.open('famylia-parking-cache');
+          await cache.put(
+            new Request(`/offline-parking-cache-${encodeURIComponent(parkUser)}`),
+            new Response(JSON.stringify(payload.parking), {
+              headers: { 'Content-Type': 'application/json' }
+            })
+          );
+        } catch (cacheErr) {
+          console.warn('[SW] Errore cache parcheggio:', cacheErr);
+        }
+
+        // Informa le finestre aperte dell'app
+        try {
+          const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+          for (const client of clientList) {
+            client.postMessage({
+              type: 'PARKING_UPDATED',
+              user: parkUser,
+              parking: payload.parking
+            });
+          }
+        } catch (postErr) {}
+      })()
+    );
+  }
+
   const options = {
-    body: payload.body || 'Nuovo messaggio di famiglia',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    body: payload.body || (isParking ? 'Auto parcheggiata memorizzata' : 'Nuovo messaggio di famiglia'),
+    icon: '/icons/icon-192.svg',
+    badge: '/icons/icon-192.svg',
     vibrate: [250, 100, 250, 100, 250],
-    tag: 'famylia-msg-' + Date.now(),
+    tag: isParking ? 'famylia-parking-active' : ('famylia-msg-' + Date.now()),
     renotify: true,
     data: {
-      url: payload.url || '/'
+      url: payload.url || (isParking ? '/?section=parking' : '/?open=messaggio')
     }
   };
 
@@ -111,16 +145,28 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// 5. Click sulla Notifica: porta l'app in primo piano e apre la sezione messaggi
+// 5. Click sulla Notifica: porta l'app in primo piano e apre la sezione corretta (parking o messaggio)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = (event.notification.data && event.notification.data.url) || '/?open=messaggio';
+  
+  let targetSection = 'messaggio';
+  if (targetUrl.includes('section=parking')) {
+    targetSection = 'parking';
+  } else if (targetUrl.includes('open=')) {
+    const m = targetUrl.match(/open=([^&]+)/);
+    if (m) targetSection = m[1];
+  } else if (targetUrl.includes('section=')) {
+    const m = targetUrl.match(/section=([^&]+)/);
+    if (m) targetSection = m[1];
+  }
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url && 'focus' in client) {
           try {
-            client.postMessage({ type: 'NAVIGATE_SECTION', section: 'messaggio' });
+            client.postMessage({ type: 'NAVIGATE_SECTION', section: targetSection });
           } catch (e) {}
           return client.focus();
         }
