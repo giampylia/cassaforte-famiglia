@@ -11,7 +11,17 @@ const PARKING_FILE = path.join(__dirname, 'data', 'parking.json');
 const CONTABILITA_FILE = path.join(__dirname, 'data', 'contabilita.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
+const {
+  persistParkingToCloud,
+  loadParkingFromCloud,
+  persistSubscriptionToCloud,
+  loadSubscriptionsFromCloud
+} = require('./cloud_db');
+
+let inMemoryParking = null;
+
 function loadParking() {
+  if (inMemoryParking) return inMemoryParking;
   try {
     if (!fs.existsSync(PARKING_FILE)) {
       const initial = {
@@ -20,22 +30,28 @@ function loadParking() {
         Miki: { active: null, history: [] }
       };
       fs.writeFileSync(PARKING_FILE, JSON.stringify(initial, null, 2), 'utf8');
+      inMemoryParking = initial;
       return initial;
     }
     const data = fs.readFileSync(PARKING_FILE, 'utf8');
-    return JSON.parse(data || '{}');
+    const parsed = JSON.parse(data || '{}');
+    inMemoryParking = parsed;
+    return parsed;
   } catch (err) {
     console.error('Errore lettura parking.json:', err.message);
-    return {
+    const fallback = {
       Giampy: { active: null, history: [] },
       Ty: { active: null, history: [] },
       Miki: { active: null, history: [] }
     };
+    inMemoryParking = fallback;
+    return fallback;
   }
 }
 
 function saveParking(data) {
   try {
+    inMemoryParking = data;
     fs.writeFileSync(PARKING_FILE, JSON.stringify(data, null, 2), 'utf8');
     return true;
   } catch (err) {
@@ -607,6 +623,7 @@ async function handleRequest(req, res) {
           subs.push(entry);
         }
         saveSubscriptions(subs);
+        persistSubscriptionToCloud(entry).catch(() => {});
         console.log(`[Push] Dispositivo registrato per ${entry.user}. Totale: ${subs.length}`);
         return sendJSON(res, 200, { success: true, count: subs.length });
       } catch (err) {
@@ -822,6 +839,7 @@ async function handleRequest(req, res) {
 
         parkingStore[user].active = newParking;
         saveParking(parkingStore);
+        persistParkingToCloud(user, newParking).catch(() => {});
         console.log(`[Parking] Auto parcheggiata salvata per ${user}: ${geo.addressShort} (trigger: ${trigger})`);
 
         // Invia notifica Push immediata al telefono di quell'utente
@@ -926,10 +944,12 @@ async function handleRequest(req, res) {
         }
         const parkingStore = loadParking();
         if (parkingStore[user] && parkingStore[user].active) {
+          const released = parkingStore[user].active;
           parkingStore[user].active.releasedAt = new Date().toISOString();
           parkingStore[user].history.unshift(parkingStore[user].active);
           parkingStore[user].active = null;
           saveParking(parkingStore);
+          persistParkingToCloud(user, released, true).catch(() => {});
         }
         return sendJSON(res, 200, { success: true });
       } catch (err) {
@@ -1046,6 +1066,62 @@ function startServer(portToTry) {
   });
 }
 
+async function initCloudSync() {
+  try {
+    // 1. Sincronizza sottoscrizioni push da Supabase
+    const cloudSubs = await loadSubscriptionsFromCloud();
+    if (cloudSubs && cloudSubs.length > 0) {
+      const local = loadSubscriptions();
+      const seen = new Set(local.map(s => (s.subscription && s.subscription.endpoint) || null).filter(Boolean));
+      let added = 0;
+      for (const cs of cloudSubs) {
+        if (cs.subscription && cs.subscription.endpoint && !seen.has(cs.subscription.endpoint)) {
+          local.push(cs);
+          seen.add(cs.subscription.endpoint);
+          added++;
+        }
+      }
+      if (added > 0) {
+        saveSubscriptions(local);
+        console.log(`[CloudDB] Sincronizzate ${added} nuove sottoscrizioni push da Supabase.`);
+      }
+    }
+
+    // 2. Sincronizza parcheggi da Supabase
+    const cloudParking = await loadParkingFromCloud();
+    if (cloudParking) {
+      const local = loadParking();
+      let updated = false;
+      for (const u of ['Giampy', 'Ty', 'Miki']) {
+        if (cloudParking[u]) {
+          if (!local[u]) local[u] = { active: null, history: [] };
+          if (cloudParking[u].active && (!local[u].active || new Date(cloudParking[u].active.timestamp) >= new Date(local[u].active.timestamp))) {
+            local[u].active = cloudParking[u].active;
+            updated = true;
+          }
+          if (Array.isArray(cloudParking[u].history)) {
+            const histSeen = new Set(local[u].history.map(h => h.id));
+            for (const h of cloudParking[u].history) {
+              if (h && h.id && !histSeen.has(h.id)) {
+                local[u].history.push(h);
+                histSeen.add(h.id);
+                updated = true;
+              }
+            }
+          }
+        }
+      }
+      if (updated) {
+        saveParking(local);
+        console.log('[CloudDB] Parcheggi sincronizzati da Supabase!');
+      }
+    }
+  } catch (err) {
+    console.warn('[CloudDB] Sincronizzazione iniziale fallita:', err.message);
+  }
+}
+
 startServer(PORT);
+initCloudSync().catch(() => {});
 
 

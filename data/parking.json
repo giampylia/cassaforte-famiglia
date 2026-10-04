@@ -1,7 +1,49 @@
 {
   "Giampy": {
-    "active": null,
-    "history": []
+    "active": {
+      "id": "park-20261003-221350",
+      "section": "parking",
+      "user": "Giampy",
+      "owner": "Giampy",
+      "lat": 39.2252545,
+      "lng": 9.1289067,
+      "accuracy": 11,
+      "address": "Via Pietro Cavaro 9, Cagliari",
+      "addressShort": "Via Pietro Cavaro 9",
+      "timestamp": "2026-10-03T20:13:50.000Z",
+      "trigger": "bluetooth_auto",
+      "notes": "Nissan"
+    },
+    "history": [
+      {
+        "id": "park-20261003-221038",
+        "section": "parking",
+        "user": "Giampy",
+        "owner": "Giampy",
+        "lat": 39.2254777,
+        "lng": 9.1281631,
+        "accuracy": 17,
+        "address": "Via Pietro Cavaro 23, Cagliari",
+        "addressShort": "Via Pietro Cavaro 23",
+        "timestamp": "2026-10-03T20:10:38.000Z",
+        "trigger": "bluetooth_auto",
+        "notes": "Nissan"
+      },
+      {
+        "id": "park-20261003-180410",
+        "section": "parking",
+        "user": "Giampy",
+        "owner": "Giampy",
+        "lat": 39.2253251,
+        "lng": 9.1288486,
+        "accuracy": 14,
+        "address": "Via Pietro Cavaro 11, Cagliari",
+        "addressShort": "Via Pietro Cavaro 11",
+        "timestamp": "2026-10-03T16:04:10.000Z",
+        "trigger": "bluetooth_auto",
+        "notes": "Nissan"
+      }
+    ]
   },
   "Ty": {
     "active": null,
