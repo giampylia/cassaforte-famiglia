@@ -1832,6 +1832,439 @@ async function fetchServerParking(silent = false) {
   }
 }
 
+const MONTH_NAMES_IT = [
+  'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+  'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'
+];
+
+function groupParkingByMonth(items, activeParking) {
+  const all = [...(items || [])];
+  if (activeParking && activeParking.id && !all.some(i => i.id === activeParking.id)) {
+    all.unshift(activeParking);
+  }
+
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const curMonthIdx = now.getMonth();
+  const curMonthKey = `${curYear}-${String(curMonthIdx + 1).padStart(2, '0')}`;
+
+  const groups = {};
+
+  all.forEach(p => {
+    if (!p || !p.timestamp) return;
+    const d = new Date(p.timestamp);
+    if (isNaN(d.getTime())) return;
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const key = `${y}-${String(m + 1).padStart(2, '0')}`;
+    if (!groups[key]) {
+      const mName = MONTH_NAMES_IT[m] || `mese ${m + 1}`;
+      const mCap = mName.charAt(0).toUpperCase() + mName.slice(1);
+      groups[key] = {
+        key: key,
+        year: y,
+        monthIndex: m,
+        monthName: mName,
+        monthNameCap: mCap,
+        label: `parcheggi mese ${mName}/${y}`,
+        title: `Parcheggi Mese ${mCap}/${y}`,
+        isCurrentMonth: (key === curMonthKey),
+        items: []
+      };
+    }
+    groups[key].items.push(p);
+  });
+
+  if (!groups[curMonthKey]) {
+    const curName = MONTH_NAMES_IT[curMonthIdx];
+    const curCap = curName.charAt(0).toUpperCase() + curName.slice(1);
+    groups[curMonthKey] = {
+      key: curMonthKey,
+      year: curYear,
+      monthIndex: curMonthIdx,
+      monthName: curName,
+      monthNameCap: curCap,
+      label: `parcheggi mese ${curName}/${curYear}`,
+      title: `Parcheggi Mese ${curCap}/${curYear}`,
+      isCurrentMonth: true,
+      items: []
+    };
+  }
+
+  Object.values(groups).forEach(g => {
+    g.items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  });
+
+  const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+  const currentGroup = groups[curMonthKey];
+  const archivedGroups = sortedKeys
+    .filter(k => k !== curMonthKey)
+    .map(k => groups[k])
+    .filter(g => g.items.length > 0);
+
+  return {
+    current: currentGroup,
+    archived: archivedGroups,
+    allGroups: groups
+  };
+}
+
+function sanitizePdfText(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/[àá]/g, 'a')
+    .replace(/[èé]/g, 'e')
+    .replace(/[ìí]/g, 'i')
+    .replace(/[òó]/g, 'o')
+    .replace(/[ùú]/g, 'u')
+    .replace(/[ÀÁ]/g, 'A')
+    .replace(/[ÈÉ]/g, 'E')
+    .replace(/[ÌÍ]/g, 'I')
+    .replace(/[ÒÓ]/g, 'O')
+    .replace(/[ÙÚ]/g, 'U')
+    .replace(/[°]/g, ' deg')
+    .replace(/[\(\)]/g, ' ')
+    .replace(/\\/g, '/')
+    .replace(/[^\x20-\x7E]/g, ' ');
+}
+
+function generateParkingPdfBlob(opts) {
+  const title = opts.title || 'Parcheggi Mese';
+  const subtitle = opts.subtitle || 'Registro Ufficiale Parcheggi';
+  const user = opts.user || 'Giampy';
+  const items = opts.items || [];
+
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const margin = 40;
+  const contentWidth = pageWidth - (margin * 2);
+
+  const itemsPerPage = 7;
+  const pagesData = [];
+  for (let i = 0; i < Math.max(1, items.length); i += itemsPerPage) {
+    pagesData.push(items.slice(i, i + itemsPerPage));
+  }
+  const totalPages = pagesData.length;
+  const pageStreams = [];
+
+  pagesData.forEach((pageItems, pageIdx) => {
+    let stream = '';
+    let y = pageHeight - 50;
+
+    // Barra superiore con colore accento #0284c7
+    stream += `0.01 0.52 0.78 rg\n`;
+    stream += `${margin} ${y - 4} ${contentWidth} 3 re f\n`;
+
+    // Titolo
+    stream += `0.06 0.09 0.16 rg\n`;
+    stream += `BT /F2 16 Tf ${margin} ${y} Td (${sanitizePdfText(title)}) Tj ET\n`;
+    y -= 18;
+
+    // Sottotitolo con data e proprietario auto
+    stream += `0.39 0.45 0.55 rg\n`;
+    stream += `BT /F1 9 Tf ${margin} ${y} Td (${sanitizePdfText(subtitle)} - Auto di: ${sanitizePdfText(user)} - Totale: ${items.length} registrazioni) Tj ET\n`;
+    y -= 25;
+
+    // Intestazione Tabella
+    stream += `0.94 0.96 0.98 rg\n`;
+    stream += `${margin} ${y - 6} ${contentWidth} 20 re f\n`;
+    stream += `0.80 0.84 0.88 RG 1 w\n`;
+    stream += `${margin} ${y - 6} ${contentWidth} 20 re S\n`;
+
+    stream += `0.20 0.25 0.33 rg\n`;
+    stream += `BT /F2 9 Tf ${margin + 8} ${y} Td (DATA / ORA) Tj ET\n`;
+    stream += `BT /F2 9 Tf ${margin + 115} ${y} Td (INDIRIZZO / POSIZIONE) Tj ET\n`;
+    stream += `BT /F2 9 Tf ${margin + 360} ${y} Td (GPS / PREC.) Tj ET\n`;
+    stream += `BT /F2 9 Tf ${margin + 440} ${y} Td (MODALITA') Tj ET\n`;
+    y -= 22;
+
+    if (pageItems.length === 0) {
+      stream += `0.5 0.5 0.5 rg\n`;
+      stream += `BT /F1 10 Tf ${margin + 10} ${y - 15} Td (Nessun parcheggio registrato per questo periodo.) Tj ET\n`;
+    } else {
+      pageItems.forEach((p, idx) => {
+        const itemHeight = p.notes ? 42 : 32;
+
+        if (idx % 2 === 1) {
+          stream += `0.98 0.98 0.99 rg\n`;
+          stream += `${margin} ${y - itemHeight + 10} ${contentWidth} ${itemHeight} re f\n`;
+        }
+
+        stream += `0.88 0.91 0.94 RG 0.5 w\n`;
+        stream += `${margin} ${y - itemHeight + 10} m ${margin + contentWidth} ${y - itemHeight + 10} l S\n`;
+
+        const d = new Date(p.timestamp || 0);
+        const dateStr = !isNaN(d.getTime())
+          ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+          : 'Data n/d';
+
+        stream += `0.06 0.09 0.16 rg\n`;
+        stream += `BT /F2 8.5 Tf ${margin + 8} ${y} Td (${sanitizePdfText(dateStr)}) Tj ET\n`;
+
+        const addr = sanitizePdfText(p.addressShort || p.address || 'Posizione registrata');
+        const addrLine1 = addr.substring(0, 48);
+        const addrLine2 = addr.length > 48 ? addr.substring(48, 96) : '';
+
+        stream += `BT /F1 8.5 Tf ${margin + 115} ${y} Td (${addrLine1}) Tj ET\n`;
+        if (addrLine2) {
+          stream += `0.45 0.50 0.55 rg\n`;
+          stream += `BT /F1 7.5 Tf ${margin + 115} ${y - 10} Td (${addrLine2}) Tj ET\n`;
+        }
+
+        const gpsStr = (p.lat && p.lng) ? `${Number(p.lat).toFixed(4)}, ${Number(p.lng).toFixed(4)}` : '';
+        const accStr = p.accuracy ? `+/-${p.accuracy}m` : '';
+        stream += `0.2 0.4 0.6 rg\n`;
+        stream += `BT /F1 7.5 Tf ${margin + 360} ${y} Td (${sanitizePdfText(gpsStr)}) Tj ET\n`;
+        if (accStr) {
+          stream += `0.5 0.5 0.5 rg\n`;
+          stream += `BT /F1 7 Tf ${margin + 360} ${y - 9} Td (${sanitizePdfText(accStr)}) Tj ET\n`;
+        }
+
+        const trigStr = p.trigger === 'bluetooth_auto' ? 'Bluetooth Auto' : (p.trigger === 'ios_shortcut' ? 'iPhone Auto' : 'Manuale');
+        stream += `0.1 0.6 0.4 rg\n`;
+        stream += `BT /F1 7.5 Tf ${margin + 440} ${y} Td (${sanitizePdfText(trigStr)}) Tj ET\n`;
+
+        if (p.notes) {
+          stream += `0.35 0.35 0.35 rg\n`;
+          stream += `BT /F1 7.5 Tf ${margin + 115} ${y - (addrLine2 ? 19 : 11)} Td (Nota: ${sanitizePdfText(p.notes)}) Tj ET\n`;
+        }
+
+        y -= itemHeight;
+      });
+    }
+
+    const footerY = 30;
+    stream += `0.55 0.60 0.65 rg\n`;
+    stream += `BT /F1 8 Tf ${margin} ${footerY} Td (Generato automaticamente da Famylia - cassaforte-famiglia) Tj ET\n`;
+    stream += `BT /F1 8 Tf ${pageWidth - margin - 80} ${footerY} Td (Pagina ${pageIdx + 1} di ${totalPages}) Tj ET\n`;
+
+    pageStreams.push(stream);
+  });
+
+  let out = '%PDF-1.4\n%\xFF\xFF\xFF\xFF\n';
+  const offsets = [];
+
+  offsets.push(out.length);
+  out += `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`;
+
+  const pageObjNums = [];
+  for (let i = 0; i < totalPages; i++) {
+    pageObjNums.push(5 + (i * 2));
+  }
+
+  offsets.push(out.length);
+  out += `2 0 obj\n<< /Type /Pages /Kids [${pageObjNums.map(n => `${n} 0 R`).join(' ')}] /Count ${totalPages} >>\nendobj\n`;
+
+  offsets.push(out.length);
+  out += `3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n`;
+
+  offsets.push(out.length);
+  out += `4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>\nendobj\n`;
+
+  pageStreams.forEach((streamContent, idx) => {
+    const pageNum = 5 + (idx * 2);
+    const streamNum = pageNum + 1;
+
+    offsets.push(out.length);
+    out += `${pageNum} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${streamNum} 0 R >>\nendobj\n`;
+
+    const streamLen = streamContent.length;
+    offsets.push(out.length);
+    out += `${streamNum} 0 obj\n<< /Length ${streamLen} >>\nstream\n${streamContent}\nendstream\nendobj\n`;
+  });
+
+  const startXref = out.length;
+  const numObjects = offsets.length + 1;
+
+  out += `xref\n0 ${numObjects}\n`;
+  out += `0000000000 65535 f \n`;
+  offsets.forEach(offset => {
+    out += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  });
+
+  out += `trailer\n<< /Size ${numObjects} /Root 1 0 R >>\nstartxref\n${startXref}\n%%EOF\n`;
+
+  const bytes = new Uint8Array(out.length);
+  for (let i = 0; i < out.length; i++) {
+    bytes[i] = out.charCodeAt(i) & 0xff;
+  }
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
+function getAllUserParkingItems(user) {
+  const localActive = getLocalActiveParking(user);
+  const serverActive = (STATE.serverParking && STATE.serverParking.active) || null;
+  const serverHistory = (STATE.serverParking && STATE.serverParking.history) || [];
+  const localHistory = getLocalParkingHistory(user);
+  const localParkings = (STATE.entries || []).filter(e => e.section === 'parking' && (e.utente === user || e.owner === user));
+
+  const seenIds = new Set();
+  const allItems = [];
+  [serverActive, localActive, ...serverHistory, ...localHistory, ...localParkings].filter(Boolean).forEach(p => {
+    if (p && p.id && !seenIds.has(p.id)) {
+      seenIds.add(p.id);
+      allItems.push(p);
+    }
+  });
+  return allItems;
+}
+
+function downloadParkingMonthPDF(monthKey) {
+  const user = STATE.currentUser || 'Giampy';
+  const userCred = Object.values(FAMILY_CREDENTIALS).find(c => c.id === user) || { name: user };
+  const allItems = getAllUserParkingItems(user);
+  const grouped = groupParkingByMonth(allItems);
+  const targetGroup = grouped.allGroups[monthKey] || grouped.current;
+
+  if (!targetGroup) {
+    showToast("Nessun parcheggio da esportare per questo mese.");
+    return;
+  }
+
+  const blob = generateParkingPdfBlob({
+    title: targetGroup.title,
+    subtitle: `Archivio Ufficiale Mensile (${targetGroup.label})`,
+    user: userCred.name,
+    items: targetGroup.items
+  });
+
+  const fileName = `parcheggi_mese_${targetGroup.monthName}_${targetGroup.year}.pdf`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 1000);
+
+  showToast(`📄 PDF "${targetGroup.label}" scaricato!`);
+}
+
+function printParkingMonthReport(monthKey) {
+  const user = STATE.currentUser || 'Giampy';
+  const userCred = Object.values(FAMILY_CREDENTIALS).find(c => c.id === user) || { name: user };
+  const allItems = getAllUserParkingItems(user);
+  const grouped = groupParkingByMonth(allItems);
+  const targetGroup = grouped.allGroups[monthKey] || grouped.current;
+
+  if (!targetGroup) {
+    showToast("Nessun parcheggio da stampare.");
+    return;
+  }
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    window.print();
+    return;
+  }
+
+  const rowsHtml = targetGroup.items.length === 0
+    ? `<tr><td colspan="4" style="text-align: center; padding: 20px; color: #64748b;">Nessun parcheggio registrato in questo mese.</td></tr>`
+    : targetGroup.items.map(p => {
+        const d = new Date(p.timestamp || 0);
+        const dateStr = !isNaN(d.getTime())
+          ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+          : 'Data n/d';
+        const trigStr = p.trigger === 'bluetooth_auto' ? 'Spegnimento Motore (Bluetooth)' : (p.trigger === 'ios_shortcut' ? 'iPhone Auto' : 'Manuale');
+        const gpsStr = (p.lat && p.lng) ? `${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}` : '';
+        const accStr = p.accuracy ? `±${p.accuracy}m` : '';
+
+        return `
+          <tr>
+            <td style="font-weight: 700; white-space: nowrap;">${escapeHTML(dateStr)}</td>
+            <td>
+              <div style="font-weight: 600; color: #0f172a;">${escapeHTML(p.addressShort || p.address || 'Posizione registrata')}</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">${escapeHTML(p.address || '')}</div>
+              ${p.notes ? `<div style="font-size: 10px; color: #0369a1; margin-top: 3px; font-weight: 600;">📝 Nota: ${escapeHTML(p.notes)}</div>` : ''}
+            </td>
+            <td style="white-space: nowrap; font-family: monospace; font-size: 10px;">
+              ${gpsStr ? `<div>${gpsStr}</div>` : ''}
+              ${accStr ? `<div style="color: #64748b;">${accStr}</div>` : ''}
+            </td>
+            <td style="font-size: 10px;">${escapeHTML(trigStr)}</td>
+          </tr>
+        `;
+      }).join('');
+
+  printWindow.document.write(`<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHTML(targetGroup.label)}</title>
+  <style>
+    @page { size: A4 portrait; margin: 12mm 15mm; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0f172a; margin: 0; padding: 15px; }
+    .header { border-bottom: 2px solid #0284c7; padding-bottom: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .title { font-size: 18px; font-weight: 800; color: #0f172a; }
+    .sub { font-size: 12px; color: #64748b; margin-top: 3px; }
+    .meta { text-align: right; font-size: 11px; color: #64748b; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+    th { background: #f8fafc; text-align: left; padding: 8px 10px; border-bottom: 2px solid #cbd5e1; font-weight: 700; color: #334155; }
+    td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+    tr:nth-child(even) { background: #f8fafc; }
+    .footer { margin-top: 25px; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between; }
+    @media print {
+      body { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="title">🚗 ${escapeHTML(targetGroup.title)}</div>
+      <div class="sub">Auto di <strong>${escapeHTML(userCred.name)}</strong> - Registro Ufficiale Famylia</div>
+    </div>
+    <div class="meta">
+      <div>Totale registrazioni: <strong>${targetGroup.items.length}</strong></div>
+      <div>Stampato il: ${new Date().toLocaleDateString('it-IT')} ${new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 20%;">Data e Ora</th>
+        <th style="width: 48%;">Indirizzo / Posizione</th>
+        <th style="width: 18%;">Coordinate GPS</th>
+        <th style="width: 14%;">Modalità</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <span>Famylia - Cassaforte di Famiglia</span>
+    <span>Documento: ${escapeHTML(targetGroup.label)}</span>
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 250);
+    };
+  <\/script>
+</body>
+</html>`);
+  printWindow.document.close();
+}
+
+function toggleParkingArchiveMonth(monthKey) {
+  if (!STATE.expandedParkingArchives) STATE.expandedParkingArchives = {};
+  STATE.expandedParkingArchives[monthKey] = !STATE.expandedParkingArchives[monthKey];
+  const container = document.getElementById('sectionList');
+  if (container) renderParkingSection(container);
+}
+
+window.downloadParkingMonthPDF = downloadParkingMonthPDF;
+window.printParkingMonthReport = printParkingMonthReport;
+window.toggleParkingArchiveMonth = toggleParkingArchiveMonth;
+
 function renderParkingSection(container) {
   // RIGOROSO ISOLAMENTO PERSONALE: ognuno vede solo ed esclusivamente il proprio parcheggio
   const user = STATE.currentUser || 'Giampy';
@@ -1862,6 +2295,11 @@ function renderParkingSection(container) {
     }
   });
   myHistory.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  // Raggruppamento per mese solare (mese corrente vs archivi mesi precedenti)
+  const grouped = groupParkingByMonth(myHistory, activeParking);
+  const currentGroup = grouped.current;
+  const archivedGroups = grouped.archived;
 
   const originUrl = window.location.origin;
   const webhookUrl = `${originUrl}/api/auto-park?user=${encodeURIComponent(user)}`;
@@ -1948,27 +2386,39 @@ function renderParkingSection(container) {
       </div>
     </div>
 
-    <!-- STORICO PARCHEGGI (SOLO DI QUESTO UTENTE) -->
+    <!-- STORICO PARCHEGGI MESE CORRENTE -->
     <div class="parking-history-card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
         <div style="font-weight: 800; font-size: 0.88rem; color: #ffffff; display: flex; align-items: center; gap: 6px;">
-          <span>📜 Storico Parcheggi di ${escapeHTML(userCred.name)}</span>
-          <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">(${myHistory.length})</span>
+          <span>📜 Parcheggi Mese Corrente (${escapeHTML(currentGroup.monthNameCap)} ${currentGroup.year})</span>
+          <span style="font-size: 0.75rem; color: #38bdf8; font-weight: 700;">(${currentGroup.items.length})</span>
         </div>
-        ${myHistory.length > 0 ? `
+        ${currentGroup.items.length > 0 ? `
           <button type="button" style="background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; text-decoration: underline;" onclick="clearParkingHistory()">
             Svuota storico
           </button>
         ` : ''}
       </div>
 
-      ${myHistory.length === 0 ? `
+      <!-- BARRA EXPORT PDF & STAMPA MESE CORRENTE -->
+      <div class="parking-export-bar">
+        <button type="button" class="btn-parking-export pdf" onclick="downloadParkingMonthPDF('${currentGroup.key}')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          <span>📄 Scarica PDF (${escapeHTML(currentGroup.label)})</span>
+        </button>
+        <button type="button" class="btn-parking-export print" onclick="printParkingMonthReport('${currentGroup.key}')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+          <span>🖨️ Stampa A4</span>
+        </button>
+      </div>
+
+      ${currentGroup.items.length === 0 ? `
         <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 14px 0;">
-          Nessun parcheggio registrato ancora per ${escapeHTML(userCred.name)}.
+          Nessun parcheggio registrato finora in questo mese per ${escapeHTML(userCred.name)}.
         </p>
       ` : `
         <div class="parking-history-list">
-          ${myHistory.map((p, idx) => `
+          ${currentGroup.items.map((p, idx) => `
             <div class="parking-history-item">
               <div style="flex: 1;">
                 <div style="font-size: 0.84rem; font-weight: 700; color: #ffffff;">${escapeHTML(p.addressShort || p.address)}</div>
@@ -1985,6 +2435,76 @@ function renderParkingSection(container) {
           `).join('')}
         </div>
       `}
+
+      <!-- SEZIONE ARCHIVIO MESI PRECEDENTI (CHIUSURA AUTOMATICA A INIZIO MESE) -->
+      <div class="parking-archives-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div style="font-weight: 800; font-size: 0.86rem; color: #ffffff; display: flex; align-items: center; gap: 6px;">
+            <span>📁 Archivio Mesi Precedenti (PDF)</span>
+            <span style="font-size: 0.72rem; color: #38bdf8; font-weight: 600;">(${archivedGroups.length} archiviati)</span>
+          </div>
+        </div>
+
+        ${archivedGroups.length === 0 ? `
+          <div style="font-size: 0.76rem; color: var(--text-muted); padding: 12px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.08); line-height: 1.45;">
+            📅 <strong>Archiviazione automatica per mese solare:</strong><br>
+            All'inizio di ogni nuovo mese solare (il 1° del mese alle 00:00), tutti i parcheggi del mese appena trascorso vengono archiviati automaticamente qui in un PDF intitolato <em>"parcheggi mese [mese]/[anno]"</em>, pronti per essere salvati o stampati.
+          </div>
+        ` : `
+          <div class="parking-archives-list">
+            ${archivedGroups.map(arc => {
+              const isExp = !!(STATE.expandedParkingArchives && STATE.expandedParkingArchives[arc.key]);
+              return `
+                <div class="parking-archive-card">
+                  <div class="parking-archive-header" onclick="toggleParkingArchiveMonth('${arc.key}')">
+                    <div class="parking-archive-title">
+                      <span style="font-size: 1.1rem;">📁</span>
+                      <div>
+                        <div style="font-size: 0.84rem; font-weight: 700; color: #f1f5f9;">${escapeHTML(arc.title)}</div>
+                        <div style="font-size: 0.7rem; color: #94a3b8;">"${escapeHTML(arc.label)}"</div>
+                      </div>
+                      <span class="parking-archive-badge">${arc.items.length} parcheggi</span>
+                    </div>
+                    <div class="parking-archive-actions" onclick="event.stopPropagation()">
+                      <button type="button" class="btn-parking-export pdf" onclick="downloadParkingMonthPDF('${arc.key}')" title="Scarica PDF">
+                        📄 Scarica PDF
+                      </button>
+                      <button type="button" class="btn-parking-export print" onclick="printParkingMonthReport('${arc.key}')" title="Stampa">
+                        🖨️ Stampa
+                      </button>
+                      <button type="button" class="btn-parking-export" onclick="toggleParkingArchiveMonth('${arc.key}')" title="${isExp ? 'Chiudi' : 'Mostra'}">
+                        ${isExp ? '▲ Chiudi' : '▼ Mostra'}
+                      </button>
+                    </div>
+                  </div>
+
+                  ${isExp ? `
+                    <div class="parking-archive-body">
+                      <div class="parking-history-list">
+                        ${arc.items.map(p => `
+                          <div class="parking-history-item">
+                            <div style="flex: 1;">
+                              <div style="font-size: 0.82rem; font-weight: 700; color: #ffffff;">${escapeHTML(p.addressShort || p.address)}</div>
+                              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
+                                ${formatTimeAndDate(p.timestamp)}
+                              </div>
+                              ${p.notes ? `<div style="font-size: 0.72rem; color: #cbd5e1; margin-top: 2px;">📝 ${escapeHTML(p.notes)}</div>` : ''}
+                            </div>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                              <button type="button" class="btn-copy" onclick="openMapsNavigation(${p.lat}, ${p.lng})" title="Apri navigatore">🧭 Mappa</button>
+                              <button type="button" class="entry-action-btn delete" onclick="deleteLocalOrServerParking('${p.id}')" title="Elimina voce">✕</button>
+                            </div>
+                          </div>
+                        `).join('')}
+                      </div>
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
+      </div>
     </div>
   `;
 }

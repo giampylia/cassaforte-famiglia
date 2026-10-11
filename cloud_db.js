@@ -126,7 +126,7 @@ async function loadParkingFromCloud() {
     const { token } = await getAuthToken();
     if (!token) return null;
 
-    const res = await request('/rest/v1/journal_entries?debit_account_code=eq.9999&order=created_at.desc&limit=100', 'GET', null, token);
+    const res = await request('/rest/v1/journal_entries?debit_account_code=eq.9999&order=created_at.desc&limit=500', 'GET', null, token);
     if (res.data && Array.isArray(res.data)) {
       const store = {
         Giampy: { active: null, history: [] },

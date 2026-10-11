@@ -817,8 +817,8 @@ async function handleRequest(req, res) {
         // Se c'era già un parcheggio attivo, archivialo nello storico
         if (parkingStore[user].active) {
           parkingStore[user].history.unshift(parkingStore[user].active);
-          if (parkingStore[user].history.length > 50) {
-            parkingStore[user].history = parkingStore[user].history.slice(0, 50);
+          if (parkingStore[user].history.length > 1000) {
+            parkingStore[user].history = parkingStore[user].history.slice(0, 1000);
           }
         }
 
@@ -947,6 +947,9 @@ async function handleRequest(req, res) {
           const released = parkingStore[user].active;
           parkingStore[user].active.releasedAt = new Date().toISOString();
           parkingStore[user].history.unshift(parkingStore[user].active);
+          if (parkingStore[user].history.length > 1000) {
+            parkingStore[user].history = parkingStore[user].history.slice(0, 1000);
+          }
           parkingStore[user].active = null;
           saveParking(parkingStore);
           persistParkingToCloud(user, released, true).catch(() => {});
