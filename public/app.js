@@ -1909,6 +1909,39 @@ function groupParkingByMonth(items, activeParking) {
   };
 }
 
+function formatParkingDisplayAddress(p) {
+  if (!p) return 'Posizione salvata';
+  let short = (p.addressShort || '').trim();
+  let full = (p.address || '').trim();
+  if (!short && !full) return 'Posizione GPS';
+  if (!short) return full;
+  if (!full) return short;
+
+  // Se short include già una virgola o una parentesi con il comune, è già completo
+  if (short.includes(',') || (short.includes('(') && short.includes(')'))) {
+    return short;
+  }
+
+  // Estrai il comune da full se disponibile
+  const parts = full.split(',').map(s => s.trim()).filter(Boolean);
+  if (parts.length > 1) {
+    for (let i = 1; i < parts.length; i++) {
+      let candidate = parts[i];
+      if (/^\d+$/.test(candidate) || candidate.toLowerCase() === 'italia' || candidate.toLowerCase() === 'italy') {
+        continue;
+      }
+      candidate = candidate.replace(/^\d{5}\s+/, '').trim();
+      candidate = candidate.replace(/\s+[A-Z]{2}$/, '').trim();
+      
+      if (candidate && !short.toLowerCase().includes(candidate.toLowerCase())) {
+        return `${short}, ${candidate}`;
+      }
+    }
+  }
+
+  return short;
+}
+
 function sanitizePdfText(str) {
   if (!str) return '';
   return String(str)
@@ -2001,7 +2034,7 @@ function generateParkingPdfBlob(opts) {
         stream += `0.06 0.09 0.16 rg\n`;
         stream += `BT /F2 8.5 Tf ${margin + 8} ${y} Td (${sanitizePdfText(dateStr)}) Tj ET\n`;
 
-        const addr = sanitizePdfText(p.addressShort || p.address || 'Posizione registrata');
+        const addr = sanitizePdfText(formatParkingDisplayAddress(p));
         const addrLine1 = addr.substring(0, 48);
         const addrLine2 = addr.length > 48 ? addr.substring(48, 96) : '';
 
@@ -2176,7 +2209,7 @@ function printParkingMonthReport(monthKey) {
           <tr>
             <td style="font-weight: 700; white-space: nowrap;">${escapeHTML(dateStr)}</td>
             <td>
-              <div style="font-weight: 600; color: #0f172a;">${escapeHTML(p.addressShort || p.address || 'Posizione registrata')}</div>
+              <div style="font-weight: 600; color: #0f172a;">${escapeHTML(formatParkingDisplayAddress(p))}</div>
               <div style="font-size: 10px; color: #64748b; margin-top: 2px;">${escapeHTML(p.address || '')}</div>
               ${p.notes ? `<div style="font-size: 10px; color: #0369a1; margin-top: 3px; font-weight: 600;">📝 Nota: ${escapeHTML(p.notes)}</div>` : ''}
             </td>
@@ -2317,7 +2350,7 @@ function renderParkingSection(container) {
 
       ${activeParking ? `
         <div class="parking-address-box">
-          <div class="parking-address-title">${escapeHTML(activeParking.addressShort || activeParking.address || 'Posizione salvata')}</div>
+          <div class="parking-address-title">${escapeHTML(formatParkingDisplayAddress(activeParking))}</div>
           <div style="font-size: 0.82rem; color: #94a3b8; margin-bottom: 8px; line-height: 1.35;">${escapeHTML(activeParking.address || '')}</div>
           <div class="parking-meta-row">
             <span>🕒 ${formatTimeAgo(activeParking.timestamp)} (${formatTimeAndDate(activeParking.timestamp)})</span>
@@ -2421,7 +2454,7 @@ function renderParkingSection(container) {
           ${currentGroup.items.map((p, idx) => `
             <div class="parking-history-item">
               <div style="flex: 1;">
-                <div style="font-size: 0.84rem; font-weight: 700; color: #ffffff;">${escapeHTML(p.addressShort || p.address)}</div>
+                <div style="font-size: 0.84rem; font-weight: 700; color: #ffffff;">${escapeHTML(formatParkingDisplayAddress(p))}</div>
                 <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 2px;">
                   ${formatTimeAndDate(p.timestamp)}
                 </div>
@@ -2484,7 +2517,7 @@ function renderParkingSection(container) {
                         ${arc.items.map(p => `
                           <div class="parking-history-item">
                             <div style="flex: 1;">
-                              <div style="font-size: 0.82rem; font-weight: 700; color: #ffffff;">${escapeHTML(p.addressShort || p.address)}</div>
+                              <div style="font-size: 0.82rem; font-weight: 700; color: #ffffff;">${escapeHTML(formatParkingDisplayAddress(p))}</div>
                               <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
                                 ${formatTimeAndDate(p.timestamp)}
                               </div>
@@ -2582,14 +2615,17 @@ async function saveManualParking(silent = false, triggerType = 'manuale') {
               const a = data.address;
               const road = a.road || a.pedestrian || a.street || '';
               const house = a.house_number ? ' ' + a.house_number : '';
-              const city = a.city || a.town || a.village || a.suburb || '';
+              const city = a.city || a.town || a.village || a.municipality || a.suburb || '';
               if (road) {
-                addressShort = road + house;
-                address = `${road}${house}${city ? ', ' + city : ''}`;
+                const streetWithHouse = (road + house).trim();
+                addressShort = city ? `${streetWithHouse}, ${city}` : streetWithHouse;
+                address = `${streetWithHouse}${city ? ', ' + city : ''}`;
               } else if (data.display_name) {
                 const parts = data.display_name.split(',');
-                addressShort = parts[0];
-                address = parts.slice(0, 3).join(',');
+                const mainLoc = parts[0] ? parts[0].trim() : 'Posizione';
+                const locCity = city || (parts[1] ? parts[1].trim() : '');
+                addressShort = locCity && !mainLoc.includes(locCity) ? `${mainLoc}, ${locCity}` : mainLoc;
+                address = parts.slice(0, 3).join(', ');
               }
             }
           }

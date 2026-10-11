@@ -100,17 +100,20 @@ function reverseGeocodeServer(lat, lng) {
             const a = json.address;
             const road = a.road || a.pedestrian || a.street || '';
             const house = a.house_number ? ' ' + a.house_number : '';
-            const city = a.city || a.town || a.village || a.suburb || '';
+            const city = a.city || a.town || a.village || a.municipality || a.suburb || '';
             if (road) {
+              const streetWithHouse = (road + house).trim();
               return resolve({
-                addressShort: road + house,
-                address: `${road}${house}${city ? ', ' + city : ''}`
+                addressShort: city ? `${streetWithHouse}, ${city}` : streetWithHouse,
+                address: `${streetWithHouse}${city ? ', ' + city : ''}`
               });
             } else if (json.display_name) {
               const parts = json.display_name.split(',');
+              const mainLoc = parts[0] ? parts[0].trim() : 'Posizione';
+              const locCity = city || (parts[1] ? parts[1].trim() : '');
               return resolve({
-                addressShort: parts[0],
-                address: parts.slice(0, 3).join(',')
+                addressShort: locCity && !mainLoc.includes(locCity) ? `${mainLoc}, ${locCity}` : mainLoc,
+                address: parts.slice(0, 3).join(', ')
               });
             }
           }
