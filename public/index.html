@@ -14,7 +14,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#112825" />
-    <link rel="manifest" href="/q3.webmanifest?v=5" />
+    <link rel="manifest" href="/q3.webmanifest?v=6" />
+    <link rel="preload" href="/app.bundle.js?v=6" as="script" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -35,24 +36,17 @@
         }
       };
     </script>
-    <link rel="stylesheet" href="/app.bundle.css?v=5" />
+    <link rel="stylesheet" href="/app.bundle.css?v=6" />
   </head>
-  <body class="antialiased selection:bg-emerald-600 selection:text-white" style="background-color: #112825; margin: 0;">
+  <body class="antialiased selection:bg-emerald-600 selection:text-white" style="background-color: #f8fafc; margin: 0;">
     <div id="root">
-      <!-- Splash di apertura tutto verde (#112825) solo con l'icona Q3 -->
+      <!-- Splash istantaneo verde #112825 solo durante la frazione di secondo prima del montaggio React -->
       <div style="min-height: 100vh; width: 100%; display: flex; align-items: center; justify-content: center; background-color: #112825;">
-        <img src="/q3-icon-512.png?v=5" alt="Q3" style="width: 192px; height: 192px; object-fit: contain;" />
+        <img src="/q3-icon-512.png?v=5" alt="Q3" style="width: 180px; height: 180px; object-fit: contain;" />
       </div>
     </div>
-    <script type="module" src="/app.bundle.js?v=5"></script>
+    <script type="module" src="/app.bundle.js?v=6"></script>
     <script>
-      if ('caches' in window) {
-        caches.keys().then((keys) => {
-          keys.forEach((k) => {
-            if (k !== 'q3-verde-v5') caches.delete(k);
-          });
-        });
-      }
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').then((reg) => {

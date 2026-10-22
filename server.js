@@ -1,7 +1,9 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const zlib = require('zlib');
 const { spawn } = require('child_process');
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 5173;
@@ -14,7 +16,10 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 const sseClients = new Set();
-let publicCloudUrl = process.env.PUBLIC_URL || null;
+let publicCloudUrl = process.env.PUBLIC_URL || 'https://qu3.onrender.com';
+
+// Memory cache for static files (raw + gzipped) for sub-millisecond response times
+const staticCache = new Map();
 
 function loadDb() {
   try {
@@ -83,6 +88,8 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
 };
+
+const COMPRESSIBLE_EXTS = new Set(['.html', '.js', '.css', '.json', '.webmanifest', '.svg']);
 
 function sendJson(res, status, obj) {
   res.writeHead(status, {
@@ -176,6 +183,32 @@ const server = http.createServer(async (req, res) => {
     }
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    const acceptEncoding = req.headers['accept-encoding'] || '';
+    const canGzip = COMPRESSIBLE_EXTS.has(ext) && acceptEncoding.includes('gzip');
+
+    const cacheControl =
+      ext === '.html' || ext === '.webmanifest'
+        ? 'no-cache'
+        : 'public, max-age=86400, stale-while-revalidate=604800';
+
+    const cached = staticCache.get(filePath);
+    if (cached && stats && cached.mtimeMs === stats.mtimeMs) {
+      if (canGzip && cached.gzipped) {
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Content-Encoding': 'gzip',
+          'Cache-Control': cacheControl,
+        });
+        res.end(cached.gzipped);
+        return;
+      }
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': cacheControl,
+      });
+      res.end(cached.raw);
+      return;
+    }
 
     fs.readFile(filePath, (readErr, content) => {
       if (readErr) {
@@ -183,62 +216,46 @@ const server = http.createServer(async (req, res) => {
         res.end('Internal Server Error');
         return;
       }
-      res.writeHead(200, {
-        'Content-Type': contentType,
-        'Cache-Control': 'no-cache',
-      });
-      res.end(content);
+      const mtimeMs = stats ? stats.mtimeMs : Date.now();
+      if (COMPRESSIBLE_EXTS.has(ext)) {
+        zlib.gzip(content, (gzErr, gzipped) => {
+          staticCache.set(filePath, { mtimeMs, raw: content, gzipped: gzErr ? null : gzipped });
+          if (canGzip && !gzErr) {
+            res.writeHead(200, {
+              'Content-Type': contentType,
+              'Content-Encoding': 'gzip',
+              'Cache-Control': cacheControl,
+            });
+            res.end(gzipped);
+          } else {
+            res.writeHead(200, {
+              'Content-Type': contentType,
+              'Cache-Control': cacheControl,
+            });
+            res.end(content);
+          }
+        });
+      } else {
+        staticCache.set(filePath, { mtimeMs, raw: content, gzipped: null });
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Cache-Control': cacheControl,
+        });
+        res.end(content);
+      }
     });
   });
 });
 
-function getLocalIp() {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name] || []) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
-      }
-    }
-  }
-  return 'localhost';
-}
-
-function startCloudflareTunnel() {
-  const cfPath = path.join(__dirname, 'cloudflared');
-  if (!fs.existsSync(cfPath)) return;
-
+// Keep-alive self-ping every 10 minutes so Render never puts the server into cold-start sleep
+setInterval(() => {
   try {
-    const child = spawn(cfPath, ['tunnel', '--url', `http://localhost:${PORT}`], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    const extractUrl = (chunk) => {
-      const text = chunk.toString();
-      const match = text.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
-      if (match && match[0] && match[0] !== publicCloudUrl) {
-        publicCloudUrl = match[0];
-        console.log('============================================================');
-        console.log(`  🌍 LINK PUBBLICO CLOUD (4G/5G OVUNQUE): ${publicCloudUrl}`);
-        console.log('============================================================\n');
-        broadcastUpdate('PUBLIC_URL', { publicUrl: publicCloudUrl });
-      }
-    };
-
-    child.stdout.on('data', extractUrl);
-    child.stderr.on('data', extractUrl);
-  } catch (e) {
-    console.error('Could not start cloudflared tunnel:', e.message);
-  }
-}
+    https.get('https://qu3.onrender.com/api/state', (res) => {
+      res.resume();
+    }).on('error', () => {});
+  } catch {}
+}, 10 * 60 * 1000);
 
 server.listen(PORT, '0.0.0.0', () => {
-  const ip = getLocalIp();
-  console.log('\n============================================================');
-  console.log('  🎓 QUARTimbra Cloud & Real-Time Server — QU3 Quartu S. Elena');
-  console.log('============================================================');
-  console.log(`  ▶ Ufficio / Computer:   http://localhost:${PORT}`);
-  console.log(`  ▶ Rete Wi-Fi Locale:    http://${ip}:${PORT}`);
-  console.log('============================================================\n');
-  startCloudflareTunnel();
+  console.log(`Q3 Cloud Server active on port ${PORT}`);
 });

@@ -1,6 +1,3 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-
 let cachedLogoDataUrl: string | null = null;
 
 async function getLogoDataUrl(): Promise<string | null> {
@@ -20,12 +17,26 @@ async function getLogoDataUrl(): Promise<string | null> {
   }
 }
 
+function loadScriptOnce(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Impossibile caricare ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
 export function playSuccessSound(voiceText?: string, enableVoice = true) {
   try {
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new AudioCtx();
     const now = ctx.currentTime;
-    // Original QUARTimbra C5 - E5 - G5 chime
     [523.25, 659.25, 783.99].forEach((freq, idx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -77,7 +88,13 @@ export interface PdfExportOptions {
 
 export async function exportOfficialPdf(options: PdfExportOptions) {
   const { title, subtitle, head, body, fileName, landscape } = options;
-  const doc = new jsPDF({
+
+  await loadScriptOnce('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js');
+  await loadScriptOnce('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js');
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const jspdfGlobal = (window as any).jspdf;
+  const doc = new jspdfGlobal.jsPDF({
     orientation: landscape ? 'landscape' : 'portrait',
     unit: 'mm',
     format: 'a4',
@@ -97,7 +114,7 @@ export async function exportOfficialPdf(options: PdfExportOptions) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(17);
   doc.setTextColor(20, 83, 45);
-  doc.text("QU3 — Università della Terza Età di Quartu S. Elena", logo ? 40 : 14, 18);
+  doc.text("Q3 — Università della Terza Età di Quartu S. Elena", logo ? 40 : 14, 18);
 
   doc.setFontSize(13);
   doc.setTextColor(30, 41, 59);
@@ -113,10 +130,10 @@ export async function exportOfficialPdf(options: PdfExportOptions) {
     doc.text(subtitle, logo ? 40 : 14, 32);
   }
 
-  autoTable(doc, {
+  doc.autoTable({
     startY: 38,
     head: [head],
-    body: body.map((row) => row.map((cell) => String(cell ?? ''))),
+    body: body.map((row: (string | number)[]) => row.map((cell) => String(cell ?? ''))),
     styles: {
       fontSize: 9.5,
       cellPadding: 2.5,
@@ -136,7 +153,7 @@ export async function exportOfficialPdf(options: PdfExportOptions) {
       doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
       doc.text(
-        `QUARTimbra — Settore Didattica QU3 · Pagina ${currentPage} di ${totalPages}`,
+        `Q3 — Settore Didattica QU3 · Pagina ${currentPage} di ${totalPages}`,
         pageWidth - 14,
         doc.internal.pageSize.getHeight() - 8,
         { align: 'right' }
