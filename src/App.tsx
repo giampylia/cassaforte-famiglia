@@ -12,30 +12,21 @@ const MainRouter: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 850);
+    }, 800);
     return () => clearTimeout(timer);
   }, []);
 
   if (showSplash) {
     return (
       <div
-        className="min-h-screen w-full flex flex-col items-center justify-center px-6 text-center select-none"
-        style={{ backgroundColor: '#132a21' }}
+        className="min-h-screen w-full flex items-center justify-center select-none"
+        style={{ backgroundColor: '#112825' }}
       >
         <img
-          src="/q3-icon.jpeg"
+          src="/q3-icon-512.png?v=5"
           alt="Q3"
-          className="w-32 h-32 sm:w-36 sm:h-36 rounded-3xl object-cover shadow-2xl border border-amber-400/30 animate-success-in"
+          className="w-48 h-48 object-contain animate-success-in"
         />
-        <h1
-          className="mt-5 text-2xl sm:text-3xl font-medium tracking-wide"
-          style={{ color: '#f5d77f' }}
-        >
-          Q3
-        </h1>
-        <p className="mt-1.5 text-sm sm:text-base font-normal text-emerald-200/90">
-          Università della Terza Età · Quartu Sant'Elena
-        </p>
       </div>
     );
   }
