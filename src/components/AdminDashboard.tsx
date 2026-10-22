@@ -531,10 +531,10 @@ export const AdminDashboard: React.FC = () => {
             <button
               type="button"
               onClick={signOut}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3.5 py-2 text-xs sm:text-sm font-normal text-rose-700 transition"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 px-4 py-2 text-xs sm:text-sm font-medium text-white shadow-sm transition"
             >
               <LogOut className="h-4 w-4" />
-              <span>Esci</span>
+              <span>Esci dall'Ufficio</span>
             </button>
           </div>
         </div>
@@ -589,7 +589,7 @@ export const AdminDashboard: React.FC = () => {
           {[
             {
               key: 'live' as const,
-              label: 'Controllo Live in Aula',
+              label: 'Soci Timbrati in Aula (Live)',
               icon: Radio,
               badge: 'Tempo reale',
             },
@@ -652,28 +652,25 @@ export const AdminDashboard: React.FC = () => {
 
       <main className="mx-auto max-w-6xl px-4 pt-6 space-y-6">
         {/* ===================================================================
-            SEZIONE 0: CONTROLLO LIVE IN AULA (CONFRONTO A OCCHIO VS APP)
+            SEZIONE 0: MONITORAGGIO IN TEMPO REALE SOCI CHE HANNO TIMBRATO
            =================================================================== */}
         {activeTab === 'live' && (
           <div className="space-y-6">
-            {/* Banner Spiegazione Operativa per Ufficio Presenze in Aula o Segreteria */}
+            {/* Riepilogo Diretta Timbrature */}
             <div className="rounded-3xl border border-emerald-200 bg-white p-5 sm:p-6 shadow-sm">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 border border-rose-200 px-3 py-0.5 text-xs font-normal text-rose-700">
-                      <span className="h-2 w-2 rounded-full bg-rose-600 animate-ping" />
-                      Monitoraggio in Tempo Reale
-                    </span>
-                    <span className="text-xs font-normal text-slate-500">
-                      Per smartphone dell'addetto in aula e PC dell'Ufficio Presenze
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-0.5 text-xs font-normal text-emerald-800">
+                      <span className="h-2 w-2 rounded-full bg-emerald-600 animate-ping" />
+                      Diretta Cloud in Tempo Reale
                     </span>
                   </div>
                   <h2 className="text-xl sm:text-2xl font-medium text-slate-900">
-                    Verifica Presenze in Aula: Presenti Seduti vs Timbrati in App
+                    Soci che hanno timbrato in Aula
                   </h2>
                   <p className="text-sm font-normal text-slate-600">
-                    Imposta il numero di persone che vedi a occhio in aula (es. 95 o 100 persone). Il sistema confronta istantaneamente i soci che hanno timbrato sull'app e ti segnala quanti soci seduti devono ancora timbrare.
+                    Numero ed elenco aggiornato in tempo reale dei soci che hanno registrato la presenza col proprio smartphone in ciascuna aula.
                   </p>
                 </div>
 
@@ -713,17 +710,12 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Griglia Aule Live con Confronto "Presenti a Occhio" vs "Registrati in App" */}
+            {/* Griglia Aule: Solo Soci che hanno timbrato */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {CLASSROOMS.map((room) => {
                 const activeLesson = getActiveLessonForRoom(room.key);
                 const roomAttendances = getTodayAttendancesForRoom(room.key);
                 const appCount = roomAttendances.length;
-                const visualCount = visualHeadcounts[room.key] ?? 0;
-                const missingCount = Math.max(0, visualCount - appCount);
-                const percentage =
-                  visualCount > 0 ? Math.min(100, Math.round((appCount / visualCount) * 100)) : 100;
-
                 const isExpanded = expandedRoomList === room.key;
 
                 return (
@@ -731,17 +723,17 @@ export const AdminDashboard: React.FC = () => {
                     key={room.key}
                     className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-between space-y-4"
                   >
-                    {/* Header Aula e Corso Attivo */}
+                    {/* Header Aula, Corso Attivo e Contatore Soci Timbrati */}
                     <div>
                       <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
                           <img
                             src={room.image}
                             alt={room.fullName}
                             className="h-14 w-14 rounded-full object-cover border border-slate-200 shrink-0"
                           />
-                          <div>
-                            <div className="flex items-center gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span
                                 className="rounded-lg px-2.5 py-0.5 text-xs font-normal text-white"
                                 style={{ backgroundColor: room.bgColor }}
@@ -752,7 +744,7 @@ export const AdminDashboard: React.FC = () => {
                                 Sede {room.sede}
                               </span>
                             </div>
-                            <h3 className="mt-1 text-lg font-medium text-slate-900">
+                            <h3 className="mt-1 text-lg font-medium text-slate-900 truncate">
                               {activeLesson
                                 ? `${getSubjectMeta(activeLesson.subject).emoji} ${activeLesson.subject}`
                                 : 'Nessuna lezione attiva in questo orario'}
@@ -765,109 +757,70 @@ export const AdminDashboard: React.FC = () => {
                             )}
                           </div>
                         </div>
-                      </div>
 
-                      {/* Riquadro Confronto: Presenti a Occhio vs Registrati in App */}
-                      <div className="mt-4 grid grid-cols-3 gap-2.5 rounded-2xl bg-slate-50 border border-slate-200 p-3.5">
-                        {/* 1. Stima a occhio in aula */}
-                        <div className="flex flex-col justify-between">
-                          <span className="text-xs font-normal text-slate-500">
-                            Presenti a occhio
-                          </span>
-                          <div className="mt-1 flex items-center gap-1">
-                            <input
-                              type="number"
-                              min={0}
-                              max={500}
-                              value={visualCount}
-                              onChange={(e) =>
-                                setRoomVisualHeadcount(room.key, Number(e.target.value))
-                              }
-                              className="w-20 h-10 rounded-xl border border-slate-300 bg-white px-2 text-center text-xl font-medium tabular-nums text-slate-900"
-                            />
-                          </div>
-                          <div className="mt-1.5 flex gap-1">
-                            {[-10, -1, +1, +10].map((delta) => (
-                              <button
-                                key={delta}
-                                type="button"
-                                onClick={() =>
-                                  setRoomVisualHeadcount(room.key, visualCount + delta)
-                                }
-                                className="flex-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 py-0.5 text-[11px] font-normal text-slate-600"
-                              >
-                                {delta > 0 ? `+${delta}` : delta}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* 2. Registrati in App in tempo reale */}
-                        <div className="flex flex-col justify-between border-l border-slate-200 pl-3">
-                          <span className="text-xs font-normal text-slate-500">
-                            Timbrati in App
-                          </span>
-                          <span className="text-3xl font-medium tabular-nums text-emerald-700 my-auto">
+                        {/* Numero ben visibile dei Soci che hanno timbrato */}
+                        <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-2.5 text-center shrink-0">
+                          <span className="block text-3xl font-medium tabular-nums text-emerald-800 leading-none">
                             {appCount}
                           </span>
-                          <span className="text-[11px] font-normal text-slate-500">
-                            {percentage}% dei presenti
-                          </span>
-                        </div>
-
-                        {/* 3. Soci seduti che NON hanno ancora timbrato */}
-                        <div className="flex flex-col justify-between border-l border-slate-200 pl-3">
-                          <span className="text-xs font-normal text-slate-500">
-                            Non timbrati
-                          </span>
-                          <span
-                            className={`text-3xl font-medium tabular-nums my-auto ${
-                              missingCount > 10
-                                ? 'text-rose-600'
-                                : missingCount > 0
-                                ? 'text-amber-600'
-                                : 'text-emerald-700'
-                            }`}
-                          >
-                            {missingCount}
-                          </span>
-                          <span className="text-[11px] font-normal text-slate-500">
-                            {missingCount > 0 ? 'da sollecitare' : 'tutti registrati'}
+                          <span className="block mt-1 text-[11px] font-normal text-emerald-700">
+                            Soci timbrati
                           </span>
                         </div>
                       </div>
 
-                      {/* Barra di avanzamento e Avviso per richiamare i soci in aula */}
-                      <div className="mt-3 space-y-1.5">
-                        <div className="h-2.5 w-full rounded-full bg-slate-200 overflow-hidden">
-                          <div
-                            className={`h-full transition-all duration-300 ${
-                              percentage < 60
-                                ? 'bg-rose-500'
-                                : percentage < 85
-                                ? 'bg-amber-500'
-                                : 'bg-emerald-600'
-                            }`}
-                            style={{ width: `${percentage}%` }}
-                          />
+                      {/* Elenco immediato dei soci che hanno timbrato in quest'aula */}
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium text-slate-700">
+                            Elenco soci timbrati oggi ({appCount}):
+                          </span>
+                          {roomAttendances.length > 5 && (
+                            <button
+                              type="button"
+                              onClick={() => setExpandedRoomList(isExpanded ? null : room.key)}
+                              className="text-xs font-normal text-emerald-700 hover:underline"
+                            >
+                              {isExpanded ? 'Mostra meno' : `Mostra tutti (${appCount})`}
+                            </button>
+                          )}
                         </div>
 
-                        {missingCount > 0 ? (
-                          <p className="text-xs sm:text-sm font-normal text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
-                            ⚠️ Ci sono circa <strong>{visualCount}</strong> persone in aula ma solo{' '}
-                            <strong>{appCount}</strong> hanno timbrato sull'app: invita i{' '}
-                            <strong>{missingCount} soci mancanti</strong> a registrare la presenza.
+                        {roomAttendances.length === 0 ? (
+                          <p className="text-xs font-normal text-slate-500 py-2 text-center">
+                            Nessun socio ha ancora timbrato in quest'aula.
                           </p>
                         ) : (
-                          <p className="text-xs sm:text-sm font-normal text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
-                            ✓ Tutti i soci presenti in aula risultano regolarmente timbrati sull'app.
-                          </p>
+                          <div className="space-y-1 max-h-48 overflow-y-auto">
+                            {(isExpanded ? roomAttendances : roomAttendances.slice(0, 5)).map(
+                              (att, idx) => {
+                                const prof = profiles.find((p) => p.id === att.user_id);
+                                return (
+                                  <div
+                                    key={att.id}
+                                    className="flex items-center justify-between text-xs font-normal bg-white rounded-lg px-2.5 py-1.5 border border-slate-100"
+                                  >
+                                    <span className="truncate">
+                                      {idx + 1}. Tessera <strong>{prof?.member_number}</strong> —{' '}
+                                      {prof?.full_name}
+                                    </span>
+                                    <span className="text-slate-400 tabular-nums shrink-0 ml-2">
+                                      {new Date(att.created_at).toLocaleTimeString('it-IT', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Timbratura Assistita dall'Operatore in Aula + Elenco Nominativi Presenti */}
-                    <div className="pt-3 border-t border-slate-100 space-y-2.5">
+                    {/* Timbratura Rapida per un Socio (se non ha il telefono) */}
+                    <div className="pt-2 border-t border-slate-100 space-y-2">
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -900,51 +853,6 @@ export const AdminDashboard: React.FC = () => {
                         >
                           {assistedFeedback.message}
                         </p>
-                      )}
-
-                      <div className="flex items-center justify-between">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setExpandedRoomList(isExpanded ? null : room.key)
-                          }
-                          className="text-xs font-normal text-emerald-700 hover:underline"
-                        >
-                          {isExpanded
-                            ? 'Nascondi elenco nominativi timbrati'
-                            : `Vedi i ${appCount} soci che hanno timbrato in ${room.fullName}`}
-                        </button>
-                      </div>
-
-                      {isExpanded && (
-                        <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2.5 space-y-1">
-                          {roomAttendances.length === 0 ? (
-                            <p className="text-xs font-normal text-slate-500 text-center py-2">
-                              Nessun socio ha ancora timbrato in quest'aula.
-                            </p>
-                          ) : (
-                            roomAttendances.map((att, idx) => {
-                              const prof = profiles.find((p) => p.id === att.user_id);
-                              return (
-                                <div
-                                  key={att.id}
-                                  className="flex items-center justify-between text-xs font-normal bg-white rounded-lg px-2.5 py-1.5 border border-slate-100"
-                                >
-                                  <span>
-                                    {idx + 1}. Tessera <strong>{prof?.member_number}</strong> —{' '}
-                                    {prof?.full_name}
-                                  </span>
-                                  <span className="text-slate-400 tabular-nums">
-                                    {new Date(att.created_at).toLocaleTimeString('it-IT', {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
-                                  </span>
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
                       )}
                     </div>
                   </div>

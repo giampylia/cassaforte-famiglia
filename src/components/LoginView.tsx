@@ -186,7 +186,7 @@ export const LoginView: React.FC = () => {
             </div>
 
             <p className="text-sm font-normal text-slate-600 mb-4">
-              Inserisci il codice riservato al personale della segreteria e del settore didattica (codice ufficio: <span className="font-mono text-slate-800">07088</span>).
+              Inserisci il codice riservato al personale della segreteria e del settore didattica.
             </p>
 
             <form onSubmit={handleStaffSubmit} className="space-y-4">

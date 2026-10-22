@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, VolumeX, Smartphone, X, Share, PlusSquare, CheckCircle2, Type, Wifi } from 'lucide-react';
+import { Volume2, VolumeX, Smartphone, X, Share, PlusSquare, CheckCircle2, Type, Wifi, LogOut } from 'lucide-react';
 import { useApp, FontScale } from '../context/AppContext';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -9,6 +9,8 @@ interface BeforeInstallPromptEvent extends Event {
 
 export const AccessibilityTopBar: React.FC = () => {
   const {
+    currentUser,
+    signOut,
     fontScale,
     setFontScale,
     voiceEnabled,
@@ -71,7 +73,7 @@ export const AccessibilityTopBar: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Dimensione caratteri */}
             <button
               type="button"
@@ -107,6 +109,18 @@ export const AccessibilityTopBar: React.FC = () => {
               <Smartphone className="h-4 w-4" />
               <span>Installa sul telefono</span>
             </button>
+
+            {/* Tasto Esci sempre visibile quando si è loggati */}
+            {currentUser && (
+              <button
+                type="button"
+                onClick={signOut}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-1.5 text-xs sm:text-sm font-medium shadow-sm transition active:scale-95"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Esci</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

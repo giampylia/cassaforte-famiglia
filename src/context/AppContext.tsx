@@ -427,17 +427,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   }, [attendance, currentUser, todayIsoPrefix]);
 
-  // Member login: ONLY accepts member card numbers (never logs into admin!)
+  // Member login: accepts member card numbers (and secret code 000 for admin)
   const signInMember = (rawCardNumber: string): { error: string | null } => {
     const cleaned = rawCardNumber.trim();
     if (!cleaned) {
       return { error: 'Digita il numero della tua tessera per entrare.' };
     }
 
+    if (cleaned === '000') {
+      const adminProfile = profiles.find((p) => p.role === 'admin') || INITIAL_PROFILES[0];
+      setCurrentUser(adminProfile);
+      return { error: null };
+    }
+
     // Prevent anyone from entering "admin" in the member login box
     if (cleaned.toLowerCase() === 'admin' || cleaned.includes('@')) {
       return {
-        error: 'Inserisci un numero di tessera socio valido (solo cifre). Per l\'Ufficio Presenze usa il link riservato in fondo alla pagina.',
+        error: 'Inserisci un numero di tessera socio valido (solo cifre).',
       };
     }
 
@@ -472,23 +478,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   };
 
-  // Dedicated Staff / Ufficio Presenze login protected by PIN/Password
+  // Dedicated Staff / Ufficio Presenze login protected by secret code 000
   const signInAdmin = (secretCode: string): { error: string | null } => {
     const cleaned = secretCode.trim().toLowerCase();
-    // Accept office codes: "07088", "ufficio", "didattica", "quartu2026", "admin2024"
-    if (
-      cleaned === '07088' ||
-      cleaned === 'ufficio' ||
-      cleaned === 'didattica' ||
-      cleaned === 'quartu2026' ||
-      cleaned === 'admin2024' ||
-      cleaned === 'admin'
-    ) {
+    if (cleaned === '000') {
       const adminProfile = profiles.find((p) => p.role === 'admin') || INITIAL_PROFILES[0];
       setCurrentUser(adminProfile);
       return { error: null };
     }
-    return { error: 'Codice Ufficio non valido.' };
+    return { error: 'Codice riservato non valido.' };
   };
 
   const signOut = () => {
