@@ -3,7 +3,7 @@ services:
     name: q3
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: echo "Q3 Bundle Ready"
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
