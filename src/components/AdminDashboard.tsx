@@ -155,7 +155,7 @@ export const AdminDashboard: React.FC = () => {
     manual_utility_boost: number;
   } | null>(null);
 
-  const shareUrl = 'https://spoo.me/quartimbra';
+  const shareUrl = 'https://q3.onrender.com';
 
   const handleCopyShareLink = () => {
     if (navigator.clipboard) {
@@ -1981,17 +1981,11 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-sm font-normal text-emerald-950 space-y-1.5">
               <p className="font-medium text-emerald-900">
-                3 Link Brevi facili da dettare o scrivere ai Soci:
+                Indirizzo Cloud Ufficiale per i Soci (iPhone e Android):
               </p>
               <ul className="space-y-1 text-slate-800">
                 <li>
-                  • <strong>spoo.me/quartimbra</strong>
-                </li>
-                <li>
-                  • <strong>spoo.me/univerquartu</strong>
-                </li>
-                <li>
-                  • <strong>spoo.me/qu3</strong>
+                  • <strong>https://q3.onrender.com</strong>
                 </li>
               </ul>
             </div>
