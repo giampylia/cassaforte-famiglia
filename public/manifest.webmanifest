@@ -1,0 +1,26 @@
+{
+  "name": "QUARTimbra — Università Terza Età Quartu S. Elena",
+  "short_name": "QUARTimbra",
+  "description": "Registrazione presenze lezioni e monitoraggio didattico QU3 Quartu Sant'Elena e Soleminis",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#14532d",
+  "lang": "it",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/app-icon.jpeg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/app-icon.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
