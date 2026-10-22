@@ -5,17 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <title>Q3 — Università della Terza Età di Quartu Sant'Elena</title>
     <meta name="description" content="Q3 — Registrazione Presenze Soci e Monitoraggio Didattica Università della Terza Età di Quartu Sant'Elena" />
-    <link rel="icon" href="/app-icon.jpeg?v=q3" type="image/jpeg" />
-    <link rel="apple-touch-icon" href="/app-icon.jpeg?v=q3" />
+    <link rel="icon" href="/q3-icon.jpeg" type="image/jpeg" />
+    <link rel="shortcut icon" href="/q3-icon.jpeg" type="image/jpeg" />
+    <link rel="apple-touch-icon" href="/q3-icon.jpeg" />
+    <link rel="apple-touch-startup-image" href="/q3-icon.jpeg" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Q3" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#14532d" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#132a21" />
+    <link rel="manifest" href="/manifest.webmanifest?v=q3gold" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -33,15 +35,31 @@
         }
       };
     </script>
-    <link rel="stylesheet" href="/app.bundle.css" />
+    <link rel="stylesheet" href="/app.bundle.css?v=q3gold" />
   </head>
-  <body class="antialiased selection:bg-emerald-600 selection:text-white">
-    <div id="root"></div>
-    <script type="module" src="/app.bundle.js"></script>
+  <body class="antialiased selection:bg-emerald-600 selection:text-white" style="background-color: #132a21; margin: 0;">
+    <div id="root">
+      <!-- Schermata di apertura verde smeraldo Q3 con icona dorata -->
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #132a21; color: #f8fafc; font-family: 'Public Sans', system-ui, sans-serif; padding: 24px; text-align: center;">
+        <img src="/q3-icon.jpeg" alt="Q3" style="width: 128px; height: 128px; border-radius: 28px; box-shadow: 0 16px 36px rgba(0,0,0,0.45); border: 1px solid rgba(212, 175, 55, 0.35);" />
+        <div style="margin-top: 18px; font-size: 22px; font-weight: 500; letter-spacing: 0.02em; color: #f5d77f;">Q3</div>
+        <div style="margin-top: 4px; font-size: 14px; font-weight: 400; color: #a7f3d0;">Università della Terza Età · Quartu Sant'Elena</div>
+      </div>
+    </div>
+    <script type="module" src="/app.bundle.js?v=q3gold"></script>
     <script>
+      if ('caches' in window) {
+        caches.keys().then((keys) => {
+          keys.forEach((k) => {
+            if (k !== 'q3-gold-v4') caches.delete(k);
+          });
+        });
+      }
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
+          navigator.serviceWorker.register('/sw.js?v=q3gold').then((reg) => {
+            reg.update();
+          }).catch(() => {});
         });
       }
     </script>

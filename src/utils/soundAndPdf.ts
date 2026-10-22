@@ -6,7 +6,7 @@ let cachedLogoDataUrl: string | null = null;
 async function getLogoDataUrl(): Promise<string | null> {
   if (cachedLogoDataUrl) return cachedLogoDataUrl;
   try {
-    const response = await fetch('/app-icon.jpeg');
+    const response = await fetch('/q3-icon.jpeg');
     const blob = await response.blob();
     cachedLogoDataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();

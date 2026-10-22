@@ -1,9 +1,10 @@
-const CACHE_NAME = 'q3-pwa-v3';
+const CACHE_NAME = 'q3-gold-v4';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/manifest.webmanifest',
-  '/app-icon.jpeg?v=q3',
+  '/manifest.webmanifest?v=q3gold',
+  '/q3-icon.jpeg',
+  '/app-icon.jpeg',
   '/assets/aula-rossa.png',
   '/assets/aula-verde.png',
   '/assets/aula-gialla.png',
