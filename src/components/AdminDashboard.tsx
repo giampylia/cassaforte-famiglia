@@ -474,8 +474,8 @@ export const AdminDashboard: React.FC = () => {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <img
-              src="/app-icon.jpeg"
-              alt="QUARTimbra"
+              src="/app-icon.jpeg?v=q3"
+              alt="Q3"
               className="h-12 w-12 rounded-2xl object-cover border border-slate-200"
             />
             <div>
@@ -492,7 +492,7 @@ export const AdminDashboard: React.FC = () => {
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-medium text-slate-900 mt-0.5">
-                QUARTimbra — Piattaforma Monitoraggio Soci e Corsi
+                Q3 — Piattaforma Monitoraggio Soci e Corsi
               </h1>
             </div>
           </div>

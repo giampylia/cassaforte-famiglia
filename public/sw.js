@@ -1,9 +1,9 @@
-const CACHE_NAME = 'quartimbra-pwa-v2';
+const CACHE_NAME = 'q3-pwa-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
-  '/app-icon.jpeg',
+  '/app-icon.jpeg?v=q3',
   '/assets/aula-rossa.png',
   '/assets/aula-verde.png',
   '/assets/aula-gialla.png',

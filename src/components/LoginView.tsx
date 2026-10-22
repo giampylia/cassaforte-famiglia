@@ -50,14 +50,14 @@ export const LoginView: React.FC = () => {
         <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm text-center">
           <div className="mx-auto mb-4 flex items-center justify-center">
             <img
-              src="/app-icon.jpeg"
-              alt="Logo QUARTimbra"
+              src="/app-icon.jpeg?v=q3"
+              alt="Logo Q3"
               className="w-24 h-24 rounded-2xl object-cover shadow-sm border border-slate-200"
             />
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-medium text-slate-900 tracking-normal">
-            QUARTimbra
+            Q3 — Portale Soci
           </h1>
           <p className="mt-1 text-base font-normal text-emerald-700">
             Università della Terza Età · Quartu Sant'Elena

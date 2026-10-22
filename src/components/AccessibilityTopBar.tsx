@@ -51,8 +51,8 @@ export const AccessibilityTopBar: React.FC = () => {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <img
-              src="/app-icon.jpeg"
-              alt="QUARTimbra"
+              src="/app-icon.jpeg?v=q3"
+              alt="Q3"
               className="h-7 w-7 rounded-lg object-cover border border-slate-200"
             />
             <span className="text-sm sm:text-base font-normal text-slate-700 tracking-normal">
@@ -118,13 +118,13 @@ export const AccessibilityTopBar: React.FC = () => {
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex items-center gap-3">
                 <img
-                  src="/app-icon.jpeg"
-                  alt="QUARTimbra"
+                  src="/app-icon.jpeg?v=q3"
+                  alt="Q3"
                   className="h-14 w-14 rounded-2xl border border-slate-200 shadow-sm"
                 />
                 <div>
                   <h2 className="text-xl font-medium text-slate-900">
-                    Installa QUARTimbra sul tuo Smartphone
+                    Installa Q3 sul tuo Smartphone
                   </h2>
                   <p className="text-sm font-normal text-slate-500">
                     Basta farlo solo la prima volta su iPhone o Android
@@ -176,7 +176,7 @@ export const AccessibilityTopBar: React.FC = () => {
                       3
                     </span>
                     <span>
-                      Conferma toccando "Aggiungi" in alto a destra: l'icona QUARTimbra resterà sempre sul tuo telefono.
+                      Conferma toccando "Aggiungi" in alto a destra: l'icona Q3 resterà sempre sul tuo telefono.
                     </span>
                   </li>
                 </ol>
