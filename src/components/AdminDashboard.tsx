@@ -78,6 +78,11 @@ export const AdminDashboard: React.FC = () => {
     addMember,
     updateMember,
     deleteMember,
+    isSuperAdmin,
+    availableRoles,
+    addCustomRole,
+    toggleMemberCD,
+    toggleMemberRole,
     addLesson,
     deleteLesson,
     saveSubjectNote,
@@ -109,10 +114,14 @@ export const AdminDashboard: React.FC = () => {
   // --- STATE SEZIONE SOCI ---
   const [memberSearch, setMemberSearch] = useState('');
   const [memberSedeFilter, setMemberSedeFilter] = useState<'ALL' | 'Quartu' | 'Soleminis'>('ALL');
+  const [memberRoleFilter, setMemberRoleFilter] = useState<string>('ALL');
   const [memberSortBy, setMemberSortBy] = useState<'member_number' | 'full_name' | 'attendances'>('member_number');
   const [newMemberNum, setNewMemberNum] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberSede, setNewMemberSede] = useState<'Quartu' | 'Soleminis'>('Quartu');
+  const [newMemberIsCD, setNewMemberIsCD] = useState(false);
+  const [newCustomRoleInput, setNewCustomRoleInput] = useState('');
+  const [openRolePickerMemberId, setOpenRolePickerMemberId] = useState<string | null>(null);
   const [memberFormMsg, setMemberFormMsg] = useState<string | null>(null);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editMemberData, setEditMemberData] = useState<{
@@ -296,6 +305,12 @@ export const AdminDashboard: React.FC = () => {
     const q = memberSearch.trim().toLowerCase();
     const list = profiles.filter((p) => {
       if (memberSedeFilter !== 'ALL' && p.sede !== memberSedeFilter) return false;
+      if (memberRoleFilter === 'ONLY_CD') {
+        if (!p.is_cd && !p.roles?.includes('CD')) return false;
+      } else if (memberRoleFilter !== 'ALL') {
+        const roles = p.roles && p.roles.length > 0 ? p.roles : ['Socio'];
+        if (!roles.includes(memberRoleFilter)) return false;
+      }
       if (!q) return true;
       return (
         p.member_number.toLowerCase().includes(q) ||
@@ -316,7 +331,7 @@ export const AdminDashboard: React.FC = () => {
       const nb = parseInt(b.member_number.replace(/\D/g, ''), 10) || 999999;
       return na - nb;
     });
-  }, [profiles, memberSearch, memberSedeFilter, memberSortBy, attendanceByMember]);
+  }, [profiles, memberSearch, memberSedeFilter, memberRoleFilter, memberSortBy, attendanceByMember]);
 
   const filteredAttendance = useMemo(() => {
     return attendance.filter((att) => {
@@ -344,12 +359,19 @@ export const AdminDashboard: React.FC = () => {
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
-    const res = addMember(newMemberNum, newMemberName, newMemberSede);
+    const res = addMember(
+      newMemberNum,
+      newMemberName,
+      newMemberSede,
+      isSuperAdmin && newMemberIsCD ? ['Socio', 'CD'] : ['Socio'],
+      isSuperAdmin ? newMemberIsCD : false
+    );
     if (!res.ok) {
       setMemberFormMsg(res.message || 'Errore');
     } else {
       setNewMemberNum('');
       setNewMemberName('');
+      setNewMemberIsCD(false);
       setMemberFormMsg('✓ Socio aggiunto correttamente');
       setTimeout(() => setMemberFormMsg(null), 3000);
     }
@@ -1130,23 +1152,27 @@ export const AdminDashboard: React.FC = () => {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-medium text-slate-900">
-                    Anagrafica Soci e Monitoraggio Presenze Individuali
+                    Anagrafica Soci, Ruoli (CD / Settori) e Presenze Individuali
                   </h2>
                   <p className="text-xs sm:text-sm font-normal text-slate-500">
-                    Cerca un socio, verifica quante lezioni segue o aggiungi un nuovo iscritto
+                    {isSuperAdmin
+                      ? 'Accesso Amministratore Generale (7796 — Giampiero Pilia): puoi spuntare CD (Sì/No) e attribuire i ruoli a fianco a ogni socio.'
+                      : 'Cerca un socio, verifica i ruoli e quante lezioni segue o aggiungi un nuovo iscritto.'}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() =>
                     exportOfficialPdf({
-                      title: 'Elenco Ufficiale Soci e Riepilogo Presenze Individuali',
+                      title: 'Elenco Ufficiale Soci, Ruoli e Riepilogo Presenze',
                       subtitle: `Totale soci in elenco: ${filteredMembers.length}`,
                       head: [
                         'N° Tessera',
                         'Cognome e Nome',
                         'Sede',
-                        'Presenze Registrate',
+                        'CD',
+                        'Ruoli Attribuiti',
+                        'Presenze',
                         'Ultima Presenza',
                       ],
                       body: filteredMembers.map((m) => {
@@ -1154,19 +1180,83 @@ export const AdminDashboard: React.FC = () => {
                         const lastDt = recs[0]
                           ? new Date(recs[0].created_at).toLocaleDateString('it-IT')
                           : 'Nessuna';
-                        return [m.member_number, m.full_name, m.sede, recs.length, lastDt];
+                        const isCd = Boolean(m.is_cd || m.roles?.includes('CD'));
+                        const rolesStr = (m.roles && m.roles.length > 0 ? m.roles : ['Socio']).join(
+                          ', '
+                        );
+                        return [
+                          m.member_number,
+                          m.full_name,
+                          m.sede,
+                          isCd ? 'SÌ' : 'NO',
+                          rolesStr,
+                          recs.length,
+                          lastDt,
+                        ];
                       }),
-                      fileName: `elenco_soci_presenze_${new Date().toISOString().slice(0, 10)}.pdf`,
+                      fileName: `elenco_soci_ruoli_presenze_${new Date().toISOString().slice(0, 10)}.pdf`,
+                      landscape: true,
                     })
                   }
                   className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2.5 text-sm font-normal text-white shadow-sm transition"
                 >
                   <FileDown className="h-4 w-4" />
-                  <span>Esporta PDF Soci & Presenze</span>
+                  <span>Esporta PDF Soci & Ruoli</span>
                 </button>
               </div>
 
-              <form onSubmit={handleAddMember} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              {/* Pannello esclusivo Giampiero Pilia (7796): Gestione ed estensione Ruoli */}
+              {isSuperAdmin && (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <span className="text-xs font-medium uppercase tracking-wider text-emerald-900 block">
+                      Gestione Ruoli Soci (Riservato a Giampiero Pilia — 7796)
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs font-normal text-slate-600 mr-1">
+                        Ruoli attivi:
+                      </span>
+                      {availableRoles.map((r) => (
+                        <span
+                          key={r}
+                          className="rounded-lg bg-white border border-emerald-200 px-2.5 py-0.5 text-xs font-normal text-emerald-900"
+                        >
+                          {r}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <input
+                      type="text"
+                      placeholder="Nuovo ruolo (es. Biblioteca, Eventi...)"
+                      value={newCustomRoleInput}
+                      onChange={(e) => setNewCustomRoleInput(e.target.value)}
+                      className={`h-10 rounded-xl px-3 text-xs sm:text-sm font-normal ${inputClass}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newCustomRoleInput.trim()) return;
+                        addCustomRole(newCustomRoleInput);
+                        setNewCustomRoleInput('');
+                        setMemberFormMsg(`✓ Nuovo ruolo "${newCustomRoleInput.trim()}" aggiunto all'elenco!`);
+                        setTimeout(() => setMemberFormMsg(null), 3500);
+                      }}
+                      className="h-10 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 text-xs sm:text-sm font-normal text-white flex items-center gap-1.5 shrink-0 shadow-xs"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>Aggiungi Ruolo</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <form
+                onSubmit={handleAddMember}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3"
+              >
                 <input
                   type="text"
                   placeholder="N° Tessera (es. 115)"
@@ -1189,6 +1279,21 @@ export const AdminDashboard: React.FC = () => {
                   <option value="Quartu">Sede Quartu S. Elena</option>
                   <option value="Soleminis">Sede Soleminis</option>
                 </select>
+
+                {isSuperAdmin ? (
+                  <label className="h-11 rounded-xl border border-slate-300 bg-slate-50 px-3.5 flex items-center justify-between text-sm font-normal text-slate-700 cursor-pointer">
+                    <span>Membro CD:</span>
+                    <input
+                      type="checkbox"
+                      checked={newMemberIsCD}
+                      onChange={(e) => setNewMemberIsCD(e.target.checked)}
+                      className="h-4 w-4 accent-emerald-700 rounded"
+                    />
+                  </label>
+                ) : (
+                  <div className="hidden lg:block" />
+                )}
+
                 <button
                   type="submit"
                   className="h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-normal flex items-center justify-center gap-2 shadow-sm transition"
@@ -1202,7 +1307,7 @@ export const AdminDashboard: React.FC = () => {
                 <p className="text-sm font-normal text-emerald-700">{memberFormMsg}</p>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
                 <div className="relative">
                   <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
@@ -1227,6 +1332,23 @@ export const AdminDashboard: React.FC = () => {
                 </select>
 
                 <select
+                  value={memberRoleFilter}
+                  onChange={(e) => setMemberRoleFilter(e.target.value)}
+                  className={`h-11 rounded-xl px-3 text-sm font-normal ${inputClass}`}
+                >
+                  <option value="ALL">Tutti i Ruoli ({profiles.length} soci)</option>
+                  <option value="ONLY_CD">
+                    Solo Membri CD (Consiglio Direttivo:{' '}
+                    {profiles.filter((p) => p.is_cd || p.roles?.includes('CD')).length})
+                  </option>
+                  {availableRoles.map((r) => (
+                    <option key={r} value={r}>
+                      Ruolo: {r}
+                    </option>
+                  ))}
+                </select>
+
+                <select
                   value={memberSortBy}
                   onChange={(e) =>
                     setMemberSortBy(
@@ -1247,19 +1369,27 @@ export const AdminDashboard: React.FC = () => {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 text-xs font-normal uppercase tracking-wider text-slate-500">
-                      <th className="p-4">N° Tessera</th>
-                      <th className="p-4">Nome Completo</th>
-                      <th className="p-4">Sede</th>
-                      <th className="p-4">Lezioni Seguite</th>
-                      <th className="p-4">Ultima Presenza</th>
-                      <th className="p-4 text-right">Azioni e Scheda</th>
+                      <th className="p-3.5">N° Tessera</th>
+                      <th className="p-3.5">Nome Completo</th>
+                      <th className="p-3.5">Sede</th>
+                      <th className="p-3.5 text-center">CD (Sì / No)</th>
+                      <th className="p-3.5">Ruoli Attribuiti</th>
+                      <th className="p-3.5">Lezioni Seguite</th>
+                      <th className="p-3.5 text-right">Azioni e Scheda</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredMembers.map((m) => {
                       const recs = attendanceByMember[m.id] || [];
-                      const lastRec = recs[0];
                       const isEditing = editingMemberId === m.id;
+                      const isMemberCD = Boolean(m.is_cd || m.roles?.includes('CD'));
+                      const memberRoles =
+                        m.roles && m.roles.length > 0
+                          ? m.roles
+                          : isMemberCD
+                          ? ['Socio', 'CD']
+                          : ['Socio'];
+                      const isRolePickerOpen = openRolePickerMemberId === m.id;
 
                       return (
                         <tr
@@ -1307,8 +1437,13 @@ export const AdminDashboard: React.FC = () => {
                                   <option value="Soleminis">Soleminis</option>
                                 </select>
                               </td>
+                              <td className="p-3 text-center">
+                                {isMemberCD ? 'Sì' : 'No'}
+                              </td>
+                              <td className="p-3 text-xs text-slate-600">
+                                {memberRoles.join(', ')}
+                              </td>
                               <td className="p-3 font-normal">{recs.length}</td>
-                              <td className="p-3">—</td>
                               <td className="p-3 text-right space-x-2">
                                 <button
                                   type="button"
@@ -1331,61 +1466,178 @@ export const AdminDashboard: React.FC = () => {
                             </>
                           ) : (
                             <>
-                              <td className="p-4 font-normal tabular-nums text-base">
+                              <td className="p-3.5 font-normal tabular-nums text-base whitespace-nowrap">
                                 <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-emerald-800">
                                   {m.member_number}
                                 </span>
                               </td>
-                              <td className="p-4 font-medium text-base text-slate-900">
+                              <td className="p-3.5 font-medium text-base text-slate-900">
                                 {m.full_name}
+                                {m.member_number === '7796' && (
+                                  <span className="ml-2 rounded-md bg-amber-100 border border-amber-300 px-2 py-0.5 text-[11px] font-normal text-amber-900">
+                                    Amministratore
+                                  </span>
+                                )}
                               </td>
-                              <td className="p-4 text-sm font-normal text-slate-600">
+                              <td className="p-3.5 text-sm font-normal text-slate-600 whitespace-nowrap">
                                 {m.sede}
                               </td>
-                              <td className="p-4">
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 border border-sky-200 px-3 py-1 text-sm font-normal text-sky-800 tabular-nums">
+
+                              {/* COLONNA CHECK / SCELTA CD (Sì / No) */}
+                              <td className="p-3.5 text-center whitespace-nowrap">
+                                {isSuperAdmin ? (
+                                  <label className="inline-flex items-center gap-2 cursor-pointer select-none rounded-xl border px-3 py-1.5 transition bg-white hover:bg-slate-50 border-slate-200">
+                                    <input
+                                      type="checkbox"
+                                      checked={isMemberCD}
+                                      onChange={(e) => toggleMemberCD(m.id, e.target.checked)}
+                                      className="h-4 w-4 accent-emerald-700 rounded cursor-pointer"
+                                    />
+                                    <span
+                                      className={`text-xs font-medium ${
+                                        isMemberCD ? 'text-emerald-800' : 'text-slate-400'
+                                      }`}
+                                    >
+                                      {isMemberCD ? 'CD: SÌ' : 'CD: NO'}
+                                    </span>
+                                  </label>
+                                ) : (
+                                  <span
+                                    className={`inline-block rounded-lg px-2.5 py-1 text-xs font-normal ${
+                                      isMemberCD
+                                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                        : 'bg-slate-100 text-slate-500'
+                                    }`}
+                                  >
+                                    {isMemberCD ? 'CD: SÌ' : 'No'}
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* COLONNA RUOLI (Socio, CD, Amministrativo, Didattica, Viaggi, ecc.) */}
+                              <td className="p-3.5">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {memberRoles.map((roleName) => (
+                                    <span
+                                      key={roleName}
+                                      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-xs font-normal border ${
+                                        roleName === 'CD'
+                                          ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-medium'
+                                          : roleName === 'Socio'
+                                          ? 'bg-slate-100 border-slate-200 text-slate-700'
+                                          : 'bg-amber-50 border-amber-200 text-amber-900'
+                                      }`}
+                                    >
+                                      <span>{roleName}</span>
+                                      {isSuperAdmin && roleName !== 'Socio' && (
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleMemberRole(m.id, roleName)}
+                                          className="ml-0.5 text-slate-400 hover:text-rose-600"
+                                          title={`Rimuovi ruolo ${roleName}`}
+                                        >
+                                          ×
+                                        </button>
+                                      )}
+                                    </span>
+                                  ))}
+
+                                  {isSuperAdmin && (
+                                    <div className="relative inline-block">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setOpenRolePickerMemberId(
+                                            isRolePickerOpen ? null : m.id
+                                          )
+                                        }
+                                        className="inline-flex items-center gap-1 rounded-lg border border-dashed border-emerald-400 bg-emerald-50/50 hover:bg-emerald-100 px-2 py-0.5 text-xs font-normal text-emerald-800 transition"
+                                      >
+                                        <span>+ Ruolo</span>
+                                      </button>
+
+                                      {isRolePickerOpen && (
+                                        <div className="absolute left-0 top-7 z-30 w-52 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl space-y-1">
+                                          <div className="flex items-center justify-between border-b border-slate-100 pb-1 mb-1">
+                                            <span className="text-[11px] font-medium text-slate-500">
+                                              Attribuisci Ruoli
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={() => setOpenRolePickerMemberId(null)}
+                                              className="text-slate-400 hover:text-slate-700"
+                                            >
+                                              <X className="h-3.5 w-3.5" />
+                                            </button>
+                                          </div>
+                                          {availableRoles.map((rName) => {
+                                            const active = memberRoles.includes(rName);
+                                            return (
+                                              <label
+                                                key={rName}
+                                                className="flex items-center justify-between rounded-lg px-2 py-1.5 text-xs font-normal hover:bg-slate-50 cursor-pointer"
+                                              >
+                                                <span className="text-slate-800">{rName}</span>
+                                                <input
+                                                  type="checkbox"
+                                                  checked={active}
+                                                  onChange={() => toggleMemberRole(m.id, rName)}
+                                                  className="h-3.5 w-3.5 accent-emerald-700 rounded"
+                                                />
+                                              </label>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+
+                              <td className="p-3.5 whitespace-nowrap">
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 border border-sky-200 px-3 py-1 text-xs sm:text-sm font-normal text-sky-800 tabular-nums">
                                   {recs.length} presenze
                                 </span>
                               </td>
-                              <td className="p-4 text-sm font-normal text-slate-500 tabular-nums">
-                                {lastRec
-                                  ? new Date(lastRec.created_at).toLocaleDateString('it-IT')
-                                  : '—'}
-                              </td>
-                              <td className="p-4 text-right space-x-1.5 whitespace-nowrap">
+
+                              <td className="p-3.5 text-right space-x-1.5 whitespace-nowrap">
                                 <button
                                   type="button"
                                   onClick={() => setInspectedMember(m)}
                                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-xs font-normal text-white shadow-sm transition"
                                 >
                                   <Eye className="h-3.5 w-3.5" />
-                                  <span>Scheda Presenze</span>
+                                  <span>Scheda</span>
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingMemberId(m.id);
-                                    setEditMemberData({
-                                      member_number: m.member_number,
-                                      full_name: m.full_name,
-                                      sede: m.sede,
-                                      role: m.role,
-                                    });
-                                  }}
-                                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-100"
-                                  title="Modifica socio"
-                                >
-                                  <Edit3 className="h-4 w-4" />
-                                </button>
-                                {m.role !== 'admin' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => deleteMember(m.id)}
-                                    className="inline-flex items-center justify-center rounded-xl border border-rose-200 p-2 text-rose-600 hover:bg-rose-50"
-                                    title="Elimina socio"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
+                                {isSuperAdmin && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingMemberId(m.id);
+                                        setEditMemberData({
+                                          member_number: m.member_number,
+                                          full_name: m.full_name,
+                                          sede: m.sede,
+                                          role: m.role,
+                                        });
+                                      }}
+                                      className="inline-flex items-center justify-center rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-100"
+                                      title="Modifica dati socio"
+                                    >
+                                      <Edit3 className="h-4 w-4" />
+                                    </button>
+                                    {m.member_number !== '7796' && m.role !== 'admin' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => deleteMember(m.id)}
+                                        className="inline-flex items-center justify-center rounded-xl border border-rose-200 p-2 text-rose-600 hover:bg-rose-50"
+                                        title="Elimina socio"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                  </>
                                 )}
                               </td>
                             </>

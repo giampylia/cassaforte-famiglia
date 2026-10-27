@@ -1,9 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from 'react';
 import {
   AttendanceRecord,
+  CashMovement,
   ClassroomKey,
-  CLASSROOM_LABELS,
+  DEFAULT_AVAILABLE_ROLES,
+  ExpenseCategory,
   generateInitialAttendance,
+  INITIAL_CASH_MOVEMENTS,
+  INITIAL_EXPENSE_CATEGORIES,
   INITIAL_LESSONS,
   INITIAL_PROFILES,
   INITIAL_SUBJECT_NOTES,
@@ -15,6 +19,7 @@ import {
 import { playSuccessSound } from '../utils/soundAndPdf';
 
 export type FontScale = 'normal' | 'large' | 'xlarge';
+export type AppSection = 'presenze' | 'piccola_cassa' | 'admin_dashboard';
 
 export interface LiveFeedEvent {
   id: string;
@@ -28,6 +33,10 @@ export interface LiveFeedEvent {
 
 interface CloudDbSnapshot {
   profiles: Profile[];
+  availableRoles?: string[];
+  expenseCategories?: ExpenseCategory[];
+  cashMovements?: CashMovement[];
+  cashOpeningBalance?: number;
   lessons: Lesson[];
   attendance: AttendanceRecord[];
   subjectNotes: SubjectDidacticNote[];
@@ -38,7 +47,25 @@ interface CloudDbSnapshot {
 
 interface AppContextType {
   currentUser: Profile | null;
+  isSuperAdmin: boolean;
+  isCDMember: boolean;
+  activeSection: AppSection;
+  setActiveSection: (sec: AppSection) => void;
   profiles: Profile[];
+  availableRoles: string[];
+  addCustomRole: (roleName: string) => { ok: boolean; message?: string };
+  toggleMemberCD: (userId: string, isCd: boolean) => void;
+  toggleMemberRole: (userId: string, roleName: string) => void;
+  expenseCategories: ExpenseCategory[];
+  addExpenseCategory: (name: string, description?: string) => void;
+  updateExpenseCategory: (id: string, data: Partial<ExpenseCategory>) => void;
+  deleteExpenseCategory: (id: string) => void;
+  cashMovements: CashMovement[];
+  cashOpeningBalance: number;
+  setCashOpeningBalance: (amount: number) => void;
+  addCashMovement: (movement: Omit<CashMovement, 'id' | 'created_at'>) => CashMovement;
+  updateCashMovement: (id: string, data: Partial<CashMovement>) => void;
+  deleteCashMovement: (id: string) => void;
   lessons: Lesson[];
   attendance: AttendanceRecord[];
   subjectNotes: SubjectDidacticNote[];
@@ -76,10 +103,10 @@ interface AppContextType {
   registerAssistedAttendance: (room: ClassroomKey, memberCardNumber: string) => { ok: boolean; message: string };
   cancelAttendance: (attendanceId: string) => void;
   rateAttendance: (attendanceId: string, rating: 1 | 2 | 3) => void;
-  // Live Classroom Headcount (for Ufficio Presenze in classroom)
+  // Live Classroom Headcount
   setRoomVisualHeadcount: (room: ClassroomKey, count: number) => void;
   // Admin actions
-  addMember: (member_number: string, full_name: string, sede: 'Quartu' | 'Soleminis', phone?: string) => { ok: boolean; message?: string };
+  addMember: (member_number: string, full_name: string, sede: 'Quartu' | 'Soleminis', phone?: string, is_cd?: boolean, roles?: string[]) => { ok: boolean; message?: string };
   updateMember: (id: string, data: Partial<Profile>) => void;
   deleteMember: (id: string) => void;
   addLesson: (lesson: Omit<Lesson, 'id'>) => void;
@@ -90,8 +117,12 @@ interface AppContextType {
 }
 
 const STORAGE_KEYS = {
-  USER: 'quartimbra_current_user_v3',
-  PROFILES: 'quartimbra_profiles_v3',
+  USER: 'quartimbra_current_user_v4',
+  PROFILES: 'quartimbra_profiles_v4',
+  ROLES: 'quartimbra_available_roles_v4',
+  CATEGORIES: 'quartimbra_expense_categories_v4',
+  CASH_MOVEMENTS: 'quartimbra_cash_movements_v4',
+  CASH_BALANCE: 'quartimbra_cash_opening_balance_v4',
   LESSONS: 'quartimbra_lessons_v3',
   ATTENDANCE: 'quartimbra_attendance_v3',
   NOTES: 'quartimbra_subject_notes_v3',
@@ -113,15 +144,80 @@ const DEFAULT_HEADCOUNTS: Record<ClassroomKey, number> = {
   polifunzionale: 35,
 };
 
+function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
+  const list = [...rawProfiles];
+  const superAdmin = INITIAL_PROFILES[0]; // Giampiero Pilia (7796)
+  const existingIdx = list.findIndex((p) => p.member_number === '7796' || p.id === 'admin-7796');
+  if (existingIdx === -1) {
+    list.unshift(superAdmin);
+  } else {
+    list[existingIdx] = {
+      ...list[existingIdx],
+      member_number: '7796',
+      full_name: 'Giampiero Pilia',
+      role: 'admin',
+      is_super_admin: true,
+      is_cd: true,
+      roles: Array.from(new Set([...(list[existingIdx].roles || []), 'Socio', 'CD', 'Amministrativo', 'Didattica', 'Viaggi'])),
+    };
+  }
+  return list.map((p) => {
+    const initialMatch = INITIAL_PROFILES.find((ip) => ip.member_number === p.member_number);
+    const roles = p.roles && p.roles.length > 0 ? p.roles : initialMatch?.roles || ['Socio'];
+    const is_cd = typeof p.is_cd === 'boolean' ? p.is_cd : roles.includes('CD') || Boolean(initialMatch?.is_cd);
+    return {
+      ...p,
+      is_cd,
+      roles: is_cd && !roles.includes('CD') ? [...roles, 'CD'] : roles,
+    };
+  });
+}
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profiles, setProfiles] = useState<Profile[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PROFILES);
-      return saved ? JSON.parse(saved) : INITIAL_PROFILES;
+      return saved ? ensureSuperAdminAndRoles(JSON.parse(saved)) : INITIAL_PROFILES;
     } catch {
       return INITIAL_PROFILES;
+    }
+  });
+
+  const [availableRoles, setAvailableRoles] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.ROLES);
+      return saved ? JSON.parse(saved) : DEFAULT_AVAILABLE_ROLES;
+    } catch {
+      return DEFAULT_AVAILABLE_ROLES;
+    }
+  });
+
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
+      return saved ? JSON.parse(saved) : INITIAL_EXPENSE_CATEGORIES;
+    } catch {
+      return INITIAL_EXPENSE_CATEGORIES;
+    }
+  });
+
+  const [cashMovements, setCashMovements] = useState<CashMovement[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CASH_MOVEMENTS);
+      return saved ? JSON.parse(saved) : INITIAL_CASH_MOVEMENTS;
+    } catch {
+      return INITIAL_CASH_MOVEMENTS;
+    }
+  });
+
+  const [cashOpeningBalance, setCashOpeningBalanceState] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CASH_BALANCE);
+      return saved !== null ? Number(saved) : 500;
+    } catch {
+      return 500;
     }
   });
 
@@ -179,11 +275,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [activeSection, setActiveSection] = useState<AppSection>('presenze');
+
+  // Keep currentUser synchronized with updated roles/CD status in profiles
+  useEffect(() => {
+    if (!currentUser) return;
+    const updated = profiles.find((p) => p.id === currentUser.id || p.member_number === currentUser.member_number);
+    if (updated && JSON.stringify(updated) !== JSON.stringify(currentUser)) {
+      setCurrentUser(updated);
+    }
+  }, [profiles, currentUser]);
+
+  const isSuperAdmin = Boolean(
+    currentUser && (currentUser.member_number === '7796' || currentUser.is_super_admin)
+  );
+
+  const isCDMember = Boolean(
+    currentUser &&
+      (isSuperAdmin ||
+        currentUser.is_cd ||
+        (currentUser.roles && currentUser.roles.includes('CD')))
+  );
+
   const [fontScale, setFontScale] = useState<FontScale>(() => {
     return (localStorage.getItem(STORAGE_KEYS.FONT_SCALE) as FontScale) || 'large';
   });
 
-  // White background by default as requested by user!
   const [lightTheme, setLightTheme] = useState<boolean>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.LIGHT_THEME);
     return saved !== null ? saved === 'true' : true;
@@ -216,7 +333,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => clearInterval(timer);
   }, []);
 
-  // Push state snapshot to Cloud Server & BroadcastChannel
   const pushCloudSnapshot = async (snapshot: CloudDbSnapshot, eventLabel?: string) => {
     try {
       if (broadcastChannelRef.current) {
@@ -242,14 +358,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
       }
     } catch {
-      // Offline fallback: localStorage continues to work seamlessly
+      // Offline fallback
     }
   };
 
   const applyRemoteSnapshot = (db: CloudDbSnapshot) => {
     if (!db) return;
     isApplyingRemoteRef.current = true;
-    if (Array.isArray(db.profiles)) setProfiles(db.profiles);
+    if (Array.isArray(db.profiles)) setProfiles(ensureSuperAdminAndRoles(db.profiles));
+    if (Array.isArray(db.availableRoles) && db.availableRoles.length > 0) {
+      setAvailableRoles(db.availableRoles);
+    }
+    if (Array.isArray(db.expenseCategories) && db.expenseCategories.length > 0) {
+      setExpenseCategories(db.expenseCategories);
+    }
+    if (Array.isArray(db.cashMovements)) {
+      setCashMovements(db.cashMovements);
+    }
+    if (typeof db.cashOpeningBalance === 'number') {
+      setCashOpeningBalanceState(db.cashOpeningBalance);
+    }
     if (Array.isArray(db.lessons)) setLessons(db.lessons);
     if (Array.isArray(db.attendance)) setAttendance(db.attendance);
     if (Array.isArray(db.subjectNotes)) setSubjectNotes(db.subjectNotes);
@@ -261,9 +389,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 50);
   };
 
-  // Connect to Real-Time Cloud Server (/api/state + /api/events SSE) and BroadcastChannel
   useEffect(() => {
-    // 1. Initial fetch from Cloud server
     fetch('/api/state')
       .then((r) => r.json())
       .then((data) => {
@@ -275,9 +401,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (data.db && data.db.attendance && data.db.attendance.length > 0) {
           applyRemoteSnapshot(data.db);
         } else {
-          // Initialize cloud server with our initial data
           pushCloudSnapshot({
             profiles,
+            availableRoles,
+            expenseCategories,
+            cashMovements,
+            cashOpeningBalance,
             lessons,
             attendance,
             subjectNotes,
@@ -291,7 +420,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCloudConnected(false);
       });
 
-    // 2. Subscribe to Server-Sent Events (/api/events) for sub-second real-time sync
     let es: EventSource | null = null;
     try {
       es = new EventSource('/api/events');
@@ -318,7 +446,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Ignore SSE errors
     }
 
-    // 3. Subscribe to BroadcastChannel for instant multi-tab sync
     try {
       const bc = new BroadcastChannel('quartimbra_cloud_channel');
       bc.onmessage = (ev) => {
@@ -350,9 +477,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(STORAGE_KEYS.VOICE, String(voiceEnabled));
   }, [voiceEnabled]);
 
-  // Persist to localStorage & sync to Cloud when state changes locally
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
+    localStorage.setItem(STORAGE_KEYS.ROLES, JSON.stringify(availableRoles));
+    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(expenseCategories));
+    localStorage.setItem(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(cashMovements));
+    localStorage.setItem(STORAGE_KEYS.CASH_BALANCE, String(cashOpeningBalance));
     localStorage.setItem(STORAGE_KEYS.LESSONS, JSON.stringify(lessons));
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendance));
     localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(subjectNotes));
@@ -362,6 +492,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!isApplyingRemoteRef.current) {
       pushCloudSnapshot({
         profiles,
+        availableRoles,
+        expenseCategories,
+        cashMovements,
+        cashOpeningBalance,
         lessons,
         attendance,
         subjectNotes,
@@ -370,7 +504,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updatedAt: new Date().toISOString(),
       });
     }
-  }, [profiles, lessons, attendance, subjectNotes, visualHeadcounts, liveFeed]);
+  }, [
+    profiles,
+    availableRoles,
+    expenseCategories,
+    cashMovements,
+    cashOpeningBalance,
+    lessons,
+    attendance,
+    subjectNotes,
+    visualHeadcounts,
+    liveFeed,
+  ]);
 
   useEffect(() => {
     if (currentUser) {
@@ -427,20 +572,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   }, [attendance, currentUser, todayIsoPrefix]);
 
-  // Member login: accepts member card numbers (and secret code 000 for admin)
+  // Login: 7796 logs in as Giampiero Pilia (Super Admin), 000 logs in as Ufficio Presenze, other numbers log in as Socio
   const signInMember = (rawCardNumber: string): { error: string | null } => {
     const cleaned = rawCardNumber.trim();
     if (!cleaned) {
       return { error: 'Digita il numero della tua tessera per entrare.' };
     }
 
-    if (cleaned === '000') {
-      const adminProfile = profiles.find((p) => p.role === 'admin') || INITIAL_PROFILES[0];
-      setCurrentUser(adminProfile);
+    if (cleaned === '7796') {
+      const superAdminProfile =
+        profiles.find((p) => p.member_number === '7796' || p.is_super_admin) || INITIAL_PROFILES[0];
+      setCurrentUser(superAdminProfile);
+      setActiveSection('admin_dashboard');
       return { error: null };
     }
 
-    // Prevent anyone from entering "admin" in the member login box
+    if (cleaned === '000') {
+      const staffProfile =
+        profiles.find((p) => p.member_number === '000') || INITIAL_PROFILES[1] || INITIAL_PROFILES[0];
+      setCurrentUser(staffProfile);
+      setActiveSection('admin_dashboard');
+      return { error: null };
+    }
+
     if (cleaned.toLowerCase() === 'admin' || cleaned.includes('@')) {
       return {
         error: 'Inserisci un numero di tessera socio valido (solo cifre).',
@@ -456,6 +610,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (matched) {
       setCurrentUser(matched);
+      setActiveSection('presenze');
       return { error: null };
     }
 
@@ -466,10 +621,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         full_name: `Socio Tessera N° ${cleaned}`,
         sede: Number(cleaned) >= 200 && Number(cleaned) < 300 ? 'Soleminis' : 'Quartu',
         role: 'member',
+        is_cd: false,
+        roles: ['Socio'],
         joined_year: new Date().getFullYear(),
       };
       setProfiles((prev) => [...prev, autoProfile]);
       setCurrentUser(autoProfile);
+      setActiveSection('presenze');
       return { error: null };
     }
 
@@ -478,12 +636,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   };
 
-  // Dedicated Staff / Ufficio Presenze login protected by secret code 000
   const signInAdmin = (secretCode: string): { error: string | null } => {
     const cleaned = secretCode.trim().toLowerCase();
+    if (cleaned === '7796') {
+      const superAdminProfile =
+        profiles.find((p) => p.member_number === '7796' || p.is_super_admin) || INITIAL_PROFILES[0];
+      setCurrentUser(superAdminProfile);
+      setActiveSection('admin_dashboard');
+      return { error: null };
+    }
     if (cleaned === '000') {
-      const adminProfile = profiles.find((p) => p.role === 'admin') || INITIAL_PROFILES[0];
-      setCurrentUser(adminProfile);
+      const staffProfile =
+        profiles.find((p) => p.member_number === '000') || INITIAL_PROFILES[1] || INITIAL_PROFILES[0];
+      setCurrentUser(staffProfile);
+      setActiveSection('admin_dashboard');
       return { error: null };
     }
     return { error: 'Codice riservato non valido.' };
@@ -491,44 +657,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const signOut = () => {
     setCurrentUser(null);
+    setActiveSection('presenze');
   };
 
   const registerAttendance = (room: ClassroomKey) => {
     if (!currentUser) {
-      return { ok: false, message: 'Effettua prima l\'accesso.' };
+      return { ok: false, message: "Effettua prima l'accesso." };
     }
+
     const activeLesson = getActiveLessonForRoom(room);
     if (!activeLesson) {
       return {
         ok: false,
-        message: 'Nessuna lezione attiva in questa aula in questo momento.',
+        message: 'Nessuna lezione attiva in questo momento in questa aula.',
       };
     }
 
-    const alreadyThisLesson = myTodayAttendance.some(
-      (a) => a.lesson_id === activeLesson.id
+    const already = attendance.some(
+      (a) =>
+        a.user_id === currentUser.id &&
+        a.lesson_id === activeLesson.id &&
+        a.created_at.slice(0, 10) === todayIsoPrefix
     );
-    if (alreadyThisLesson) {
+
+    if (already) {
       return {
         ok: false,
-        message: 'Hai già timbrato la tua presenza per questa lezione.',
-      };
-    }
-
-    const overlapping = myTodayAttendance.find((att) => {
-      const otherLesson = activeLessons.find((l) => l.id === att.lesson_id);
-      if (!otherLesson || otherLesson.id === activeLesson.id) return false;
-      return (
-        otherLesson.start_time <= activeLesson.end_time &&
-        otherLesson.end_time >= activeLesson.start_time
-      );
-    });
-
-    if (overlapping) {
-      const otherRoomName = CLASSROOM_LABELS[overlapping.classroom] || overlapping.classroom;
-      return {
-        ok: false,
-        message: `Hai già registrato la presenza in ${otherRoomName} per questo orario. Se hai toccato l'aula sbagliata, premi prima "Annulla" in alto.`,
+        message: `Hai già registrato la tua presenza oggi per "${activeLesson.subject}".`,
       };
     }
 
@@ -555,22 +710,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLiveFeed((prev) => [feedItem, ...prev.slice(0, 49)]);
 
     playSuccessSound(
-      `Presenza registrata in ${CLASSROOM_LABELS[room]}`,
+      `Presenza registrata in ${
+        room === 'polifunzionale' ? 'Aula Polifunzionale' : `Aula ${room}`
+      } per ${activeLesson.subject}`,
       voiceEnabled
     );
 
     return {
       ok: true,
-      message: 'Presenza Registrata con Successo',
+      message: `Presenza confermata per "${activeLesson.subject}"!`,
       attendanceId: newRecord.id,
       lesson: activeLesson,
     };
   };
 
-  // Allows office staff in the classroom to stamp on behalf of a seated member
   const registerAssistedAttendance = (room: ClassroomKey, memberCardNumber: string) => {
     const cleanNum = memberCardNumber.trim();
-    if (!cleanNum) return { ok: false, message: 'Inserisci il numero di tessera del socio.' };
+    if (!cleanNum) {
+      return { ok: false, message: 'Inserisci il numero di tessera del socio.' };
+    }
 
     const activeLesson = getActiveLessonForRoom(room);
     if (!activeLesson) {
@@ -588,6 +746,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         full_name: `Socio Tessera N° ${cleanNum}`,
         sede: room === 'polifunzionale' ? 'Soleminis' : 'Quartu',
         role: 'member',
+        is_cd: false,
+        roles: ['Socio'],
         joined_year: new Date().getFullYear(),
       };
       setProfiles((prev) => [...prev, member!]);
@@ -653,23 +813,119 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  // Roles & CD Management (only Giampiero Pilia 7796 / Super Admin)
+  const addCustomRole = (roleName: string) => {
+    const clean = roleName.trim();
+    if (!clean) return { ok: false, message: 'Inserisci il nome del ruolo.' };
+    if (availableRoles.some((r) => r.toLowerCase() === clean.toLowerCase())) {
+      return { ok: false, message: 'Questo ruolo esiste già.' };
+    }
+    setAvailableRoles((prev) => [...prev, clean]);
+    return { ok: true };
+  };
+
+  const toggleMemberCD = (userId: string, isCd: boolean) => {
+    setProfiles((prev) =>
+      prev.map((p) => {
+        if (p.id !== userId) return p;
+        const currentRoles = p.roles || ['Socio'];
+        const nextRoles = isCd
+          ? Array.from(new Set([...currentRoles, 'CD']))
+          : currentRoles.filter((r) => r !== 'CD');
+        return {
+          ...p,
+          is_cd: isCd,
+          roles: nextRoles.length > 0 ? nextRoles : ['Socio'],
+        };
+      })
+    );
+  };
+
+  const toggleMemberRole = (userId: string, roleName: string) => {
+    setProfiles((prev) =>
+      prev.map((p) => {
+        if (p.id !== userId) return p;
+        const currentRoles = p.roles || ['Socio'];
+        const hasRole = currentRoles.includes(roleName);
+        const nextRoles = hasRole
+          ? currentRoles.filter((r) => r !== roleName)
+          : [...currentRoles, roleName];
+        const finalRoles = nextRoles.length > 0 ? nextRoles : ['Socio'];
+        const nextIsCd = roleName === 'CD' ? !hasRole : Boolean(p.is_cd || finalRoles.includes('CD'));
+        return {
+          ...p,
+          is_cd: nextIsCd,
+          roles: finalRoles,
+        };
+      })
+    );
+  };
+
+  // Piccola Cassa Management
+  const setCashOpeningBalance = (amount: number) => {
+    setCashOpeningBalanceState(amount);
+  };
+
+  const addExpenseCategory = (name: string, description?: string) => {
+    const clean = name.trim();
+    if (!clean) return;
+    const newCat: ExpenseCategory = {
+      id: `cat-${Date.now()}`,
+      name: clean,
+      description: description?.trim() || '',
+      is_active: true,
+    };
+    setExpenseCategories((prev) => [...prev, newCat]);
+  };
+
+  const updateExpenseCategory = (id: string, data: Partial<ExpenseCategory>) => {
+    setExpenseCategories((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
+  };
+
+  const deleteExpenseCategory = (id: string) => {
+    setExpenseCategories((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const addCashMovement = (movementData: Omit<CashMovement, 'id' | 'created_at'>): CashMovement => {
+    const newMov: CashMovement = {
+      ...movementData,
+      id: `cash-${Date.now()}`,
+      created_at: new Date().toISOString(),
+    };
+    setCashMovements((prev) => [newMov, ...prev]);
+    return newMov;
+  };
+
+  const updateCashMovement = (id: string, data: Partial<CashMovement>) => {
+    setCashMovements((prev) => prev.map((m) => (m.id === id ? { ...m, ...data } : m)));
+  };
+
+  const deleteCashMovement = (id: string) => {
+    setCashMovements((prev) => prev.filter((m) => m.id !== id));
+  };
+
   const addMember = (
     member_number: string,
     full_name: string,
     sede: 'Quartu' | 'Soleminis',
-    phone?: string
+    phone?: string,
+    is_cd = false,
+    roles?: string[]
   ) => {
     const cleanNum = member_number.trim();
     if (!cleanNum) return { ok: false, message: 'Inserisci il numero di tessera.' };
     if (profiles.some((p) => p.member_number.toLowerCase() === cleanNum.toLowerCase())) {
       return { ok: false, message: 'Esiste già un socio con questo numero di tessera.' };
     }
+    const assignedRoles = roles && roles.length > 0 ? roles : is_cd ? ['Socio', 'CD'] : ['Socio'];
     const newProfile: Profile = {
       id: `u-${Date.now()}`,
       member_number: cleanNum,
       full_name: full_name.trim() || `Socio ${cleanNum}`,
       sede,
       role: 'member',
+      is_cd: is_cd || assignedRoles.includes('CD'),
+      roles: assignedRoles,
       phone: phone?.trim() || '',
       joined_year: new Date().getFullYear(),
     };
@@ -718,6 +974,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const resetDemoData = () => {
     setProfiles(INITIAL_PROFILES);
+    setAvailableRoles(DEFAULT_AVAILABLE_ROLES);
+    setExpenseCategories(INITIAL_EXPENSE_CATEGORIES);
+    setCashMovements(INITIAL_CASH_MOVEMENTS);
+    setCashOpeningBalanceState(500);
     setLessons(INITIAL_LESSONS);
     setAttendance(generateInitialAttendance());
     setSubjectNotes(INITIAL_SUBJECT_NOTES);
@@ -729,7 +989,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider
       value={{
         currentUser,
+        isSuperAdmin,
+        isCDMember,
+        activeSection,
+        setActiveSection,
         profiles,
+        availableRoles,
+        addCustomRole,
+        toggleMemberCD,
+        toggleMemberRole,
+        expenseCategories,
+        addExpenseCategory,
+        updateExpenseCategory,
+        deleteExpenseCategory,
+        cashMovements,
+        cashOpeningBalance,
+        setCashOpeningBalance,
+        addCashMovement,
+        updateCashMovement,
+        deleteCashMovement,
         lessons,
         attendance,
         subjectNotes,

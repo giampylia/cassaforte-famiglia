@@ -27,8 +27,52 @@ export interface Profile {
   full_name: string;
   sede: 'Quartu' | 'Soleminis';
   role: 'member' | 'admin';
+  is_super_admin?: boolean;
+  is_cd?: boolean;
+  roles?: string[];
   phone?: string;
   joined_year?: number;
+}
+
+export const DEFAULT_AVAILABLE_ROLES: string[] = [
+  'Socio',
+  'CD',
+  'Amministrativo',
+  'Didattica',
+  'Viaggi',
+];
+
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+}
+
+export type CashMovementType = 'spesa' | 'entrata';
+export type CashMovementStatus = 'inviato' | 'approvato' | 'pagato';
+
+export interface CashMovement {
+  id: string;
+  user_id: string;
+  member_number: string;
+  first_name: string;
+  last_name: string;
+  entry_type: CashMovementType; // 'spesa' = Richiesta Rimborso, 'entrata' = Versamento
+  request_date: string;         // YYYY-MM-DD (Data richiesta)
+  receipt_date: string;         // YYYY-MM-DD (Data scontrino)
+  receipt_number?: string;      // N° scontrino
+  amount_requested: number;     // Importo (€)
+  amount_paid?: number | null;  // Importo versato/rimborsato (€)
+  category_id?: string | null;
+  category_name: string;        // Causale
+  custom_category?: string | null;
+  description: string;          // Descrizione / Note
+  receipt_image_url?: string | null;
+  status: CashMovementStatus;   // 'inviato' | 'approvato' | 'pagato'
+  signed_by_requester?: boolean;
+  signed_by_treasurer?: boolean;
+  created_at: string;
 }
 
 export interface Lesson {
@@ -215,25 +259,107 @@ export function getSubjectMeta(subject: string): SubjectMeta {
 }
 
 export const INITIAL_PROFILES: Profile[] = [
-  { id: 'admin-1', member_number: 'admin', full_name: 'Segreteria Settore Didattica QU3', sede: 'Quartu', role: 'admin', phone: '070 881234', joined_year: 2018 },
-  { id: 'u-101', member_number: '101', full_name: 'Maria Bonaria Melis', sede: 'Quartu', role: 'member', phone: '347 1122334', joined_year: 2021 },
-  { id: 'u-102', member_number: '102', full_name: 'Efisio Piras', sede: 'Quartu', role: 'member', phone: '348 2233445', joined_year: 2020 },
-  { id: 'u-103', member_number: '103', full_name: 'Anna Rita Cao', sede: 'Quartu', role: 'member', phone: '349 3344556', joined_year: 2022 },
-  { id: 'u-104', member_number: '104', full_name: 'Giampaolo Sanna', sede: 'Quartu', role: 'member', phone: '340 4455667', joined_year: 2019 },
-  { id: 'u-105', member_number: '105', full_name: 'Rosalba Atzeni', sede: 'Quartu', role: 'member', phone: '333 5566778', joined_year: 2023 },
-  { id: 'u-106', member_number: '106', full_name: 'Salvatore Palmas', sede: 'Quartu', role: 'member', phone: '335 6677889', joined_year: 2021 },
-  { id: 'u-107', member_number: '107', full_name: 'Graziella Lai', sede: 'Quartu', role: 'member', phone: '338 7788990', joined_year: 2022 },
-  { id: 'u-108', member_number: '108', full_name: 'Antonio Luigi Deiana', sede: 'Quartu', role: 'member', phone: '339 8899001', joined_year: 2020 },
-  { id: 'u-109', member_number: '109', full_name: 'Franca Murgia', sede: 'Quartu', role: 'member', phone: '328 9900112', joined_year: 2024 },
-  { id: 'u-110', member_number: '110', full_name: 'Vincenzo Fadda', sede: 'Quartu', role: 'member', phone: '329 1011121', joined_year: 2021 },
-  { id: 'u-111', member_number: '111', full_name: 'Lucia Serra', sede: 'Quartu', role: 'member', phone: '347 2021223', joined_year: 2023 },
-  { id: 'u-112', member_number: '112', full_name: 'Raimondo Vacca', sede: 'Quartu', role: 'member', phone: '348 3031324', joined_year: 2022 },
-  { id: 'u-113', member_number: '113', full_name: 'Teresa Usai', sede: 'Quartu', role: 'member', phone: '349 4041425', joined_year: 2020 },
-  { id: 'u-114', member_number: '114', full_name: 'Pietro Paolo Loi', sede: 'Quartu', role: 'member', phone: '340 5051526', joined_year: 2024 },
-  { id: 'u-201', member_number: '201', full_name: 'Assunta Corda', sede: 'Soleminis', role: 'member', phone: '333 6061627', joined_year: 2022 },
-  { id: 'u-202', member_number: '202', full_name: 'Ignazio Spiga', sede: 'Soleminis', role: 'member', phone: '338 7071728', joined_year: 2021 },
-  { id: 'u-203', member_number: '203', full_name: 'Caterina Mura', sede: 'Soleminis', role: 'member', phone: '347 8081829', joined_year: 2023 },
-  { id: 'u-204', member_number: '204', full_name: 'Gavino Carta', sede: 'Soleminis', role: 'member', phone: '349 9091920', joined_year: 2022 },
+  { id: 'admin-7796', member_number: '7796', full_name: 'Giampiero Pilia', sede: 'Quartu', role: 'admin', is_super_admin: true, is_cd: true, roles: ['Socio', 'CD', 'Amministrativo', 'Didattica', 'Viaggi'], phone: '070 881234', joined_year: 2018 },
+  { id: 'admin-1', member_number: '000', full_name: 'Ufficio Presenze QU3', sede: 'Quartu', role: 'admin', is_super_admin: false, is_cd: false, roles: ['Didattica'], phone: '070 881234', joined_year: 2018 },
+  { id: 'u-101', member_number: '101', full_name: 'Maria Bonaria Melis', sede: 'Quartu', role: 'member', is_cd: true, roles: ['Socio', 'CD'], phone: '347 1122334', joined_year: 2021 },
+  { id: 'u-102', member_number: '102', full_name: 'Efisio Piras', sede: 'Quartu', role: 'member', is_cd: true, roles: ['Socio', 'CD', 'Amministrativo'], phone: '348 2233445', joined_year: 2020 },
+  { id: 'u-103', member_number: '103', full_name: 'Anna Rita Cao', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '349 3344556', joined_year: 2022 },
+  { id: 'u-104', member_number: '104', full_name: 'Giampaolo Sanna', sede: 'Quartu', role: 'member', is_cd: true, roles: ['Socio', 'CD', 'Viaggi'], phone: '340 4455667', joined_year: 2019 },
+  { id: 'u-105', member_number: '105', full_name: 'Rosalba Atzeni', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '333 5566778', joined_year: 2023 },
+  { id: 'u-106', member_number: '106', full_name: 'Salvatore Palmas', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '335 6677889', joined_year: 2021 },
+  { id: 'u-107', member_number: '107', full_name: 'Graziella Lai', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio', 'Didattica'], phone: '338 7788990', joined_year: 2022 },
+  { id: 'u-108', member_number: '108', full_name: 'Antonio Luigi Deiana', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '339 8899001', joined_year: 2020 },
+  { id: 'u-109', member_number: '109', full_name: 'Franca Murgia', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '328 9900112', joined_year: 2024 },
+  { id: 'u-110', member_number: '110', full_name: 'Vincenzo Fadda', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '329 1011121', joined_year: 2021 },
+  { id: 'u-111', member_number: '111', full_name: 'Lucia Serra', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '347 2021223', joined_year: 2023 },
+  { id: 'u-112', member_number: '112', full_name: 'Raimondo Vacca', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '348 3031324', joined_year: 2022 },
+  { id: 'u-113', member_number: '113', full_name: 'Teresa Usai', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '349 4041425', joined_year: 2020 },
+  { id: 'u-114', member_number: '114', full_name: 'Pietro Paolo Loi', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '340 5051526', joined_year: 2024 },
+  { id: 'u-201', member_number: '201', full_name: 'Assunta Corda', sede: 'Soleminis', role: 'member', is_cd: false, roles: ['Socio'], phone: '333 6061627', joined_year: 2022 },
+  { id: 'u-202', member_number: '202', full_name: 'Ignazio Spiga', sede: 'Soleminis', role: 'member', is_cd: false, roles: ['Socio'], phone: '338 7071728', joined_year: 2021 },
+  { id: 'u-203', member_number: '203', full_name: 'Caterina Mura', sede: 'Soleminis', role: 'member', is_cd: false, roles: ['Socio'], phone: '347 8081829', joined_year: 2023 },
+  { id: 'u-204', member_number: '204', full_name: 'Gavino Carta', sede: 'Soleminis', role: 'member', is_cd: false, roles: ['Socio'], phone: '349 9091920', joined_year: 2022 },
+];
+
+export const INITIAL_EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  { id: 'cat-1', name: 'Cancelleria e Stampati', description: 'Carta, toner, cartellette, materiale segreteria', is_active: true },
+  { id: 'cat-2', name: 'Materiale Didattico e Corsi', description: 'Dispense, attrezzature aule, supporti per docenti', is_active: true },
+  { id: 'cat-3', name: 'Pulizia e Igiene Aule', description: 'Prodotti sanificazione e pulizia sedi Quartu e Soleminis', is_active: true },
+  { id: 'cat-4', name: 'Rinfreschi, Eventi e Convegni', description: 'Inaugurazione anno accademico, incontri culturali', is_active: true },
+  { id: 'cat-5', name: 'Manutenzione e Piccole Riparazioni', description: 'Interventi tecnici, lampadine, microfoni, chiavi', is_active: true },
+  { id: 'cat-6', name: 'Spese Postali, Bolli e Segreteria', description: 'Francobolli, raccomandate, marche da bollo', is_active: true },
+  { id: 'cat-7', name: 'Trasferte, Viaggi ed Escursioni', description: 'Rimborsi organizzazione uscite culturali e visite guidate', is_active: true },
+  { id: 'cat-8', name: 'Quote e Versamenti Soci', description: 'Versamento quote associative o contributi in cassa', is_active: true },
+  { id: 'cat-9', name: 'Contributi ed Erogazioni', description: 'Entrate e versamenti straordinari in piccola cassa', is_active: true },
+];
+
+export const INITIAL_CASH_MOVEMENTS: CashMovement[] = [
+  {
+    id: 'cash-1',
+    user_id: 'u-101',
+    member_number: '101',
+    first_name: 'Maria Bonaria',
+    last_name: 'Melis',
+    entry_type: 'spesa',
+    request_date: '2026-10-20',
+    receipt_date: '2026-10-19',
+    receipt_number: '0042-0018',
+    amount_requested: 24.50,
+    amount_paid: 24.50,
+    category_id: 'cat-1',
+    category_name: 'Cancelleria e Stampati',
+    custom_category: null,
+    description: 'Acquisto 5 risme carta A4 e pennarelli per lavagna Aula Verde',
+    receipt_image_url: null,
+    status: 'pagato',
+    signed_by_requester: true,
+    signed_by_treasurer: true,
+    created_at: '2026-10-20T10:15:00.000Z',
+  },
+  {
+    id: 'cash-2',
+    user_id: 'u-102',
+    member_number: '102',
+    first_name: 'Efisio',
+    last_name: 'Piras',
+    entry_type: 'entrata',
+    request_date: '2026-10-22',
+    receipt_date: '2026-10-22',
+    receipt_number: 'VERS-12',
+    amount_requested: 150.00,
+    amount_paid: 150.00,
+    category_id: 'cat-8',
+    category_name: 'Quote e Versamenti Soci',
+    custom_category: null,
+    description: 'Versamento fondo cassa da quote iscrizione laboratorio',
+    receipt_image_url: null,
+    status: 'pagato',
+    signed_by_requester: true,
+    signed_by_treasurer: true,
+    created_at: '2026-10-22T11:30:00.000Z',
+  },
+  {
+    id: 'cash-3',
+    user_id: 'u-104',
+    member_number: '104',
+    first_name: 'Giampaolo',
+    last_name: 'Sanna',
+    entry_type: 'spesa',
+    request_date: '2026-10-26',
+    receipt_date: '2026-10-25',
+    receipt_number: '0119-0084',
+    amount_requested: 18.90,
+    amount_paid: null,
+    category_id: 'cat-3',
+    category_name: 'Pulizia e Igiene Aule',
+    custom_category: null,
+    description: 'Detergenti e carta asciugamani per bagni sede Quartu',
+    receipt_image_url: null,
+    status: 'inviato',
+    signed_by_requester: true,
+    signed_by_treasurer: false,
+    created_at: '2026-10-26T09:40:00.000Z',
+  },
 ];
 
 export const INITIAL_LESSONS: Lesson[] = [
