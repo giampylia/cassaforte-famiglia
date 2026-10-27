@@ -53,7 +53,7 @@ export const AccessibilityTopBar: React.FC = () => {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <img
-              src="/q3-icon.jpeg"
+              src="/q3-icon-512.png?v=8"
               alt="Q3"
               className="h-7 w-7 rounded-lg object-cover border border-slate-200"
             />
@@ -132,7 +132,7 @@ export const AccessibilityTopBar: React.FC = () => {
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex items-center gap-3">
                 <img
-                  src="/q3-icon.jpeg"
+                  src="/q3-icon-512.png?v=8"
                   alt="Q3"
                   className="h-14 w-14 rounded-2xl border border-slate-200 shadow-sm"
                 />

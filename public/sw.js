@@ -1,12 +1,12 @@
-const CACHE_NAME = 'q3-fast-v7';
+const CACHE_NAME = 'q3-fast-v8';
 const CORE_ASSETS = [
   '/',
   '/index.html',
-  '/app.bundle.js?v=7',
-  '/app.bundle.css?v=7',
-  '/q3.webmanifest?v=6',
-  '/q3-icon-192.png?v=5',
-  '/q3-icon-512.png?v=5',
+  '/app.bundle.js?v=8',
+  '/app.bundle.css?v=8',
+  '/q3.webmanifest?v=8',
+  '/q3-icon-192.png?v=8',
+  '/q3-icon-512.png?v=8',
   '/q3-icon.jpeg',
 ];
 
@@ -30,7 +30,6 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.pathname.startsWith('/api/')) return;
 
-  // Stale-While-Revalidate: serve immediately from phone cache (0.05s) and update in background
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const networkFetch = fetch(event.request)

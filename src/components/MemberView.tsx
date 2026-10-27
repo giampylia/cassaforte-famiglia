@@ -195,7 +195,7 @@ export const MemberView: React.FC = () => {
         <header className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
           <div className="flex items-center gap-3.5 min-w-0">
             <img
-              src="/q3-icon.jpeg"
+              src="/q3-icon-512.png?v=8"
               alt="Q3"
               className="h-12 w-12 rounded-2xl object-cover border border-slate-200 shrink-0"
             />

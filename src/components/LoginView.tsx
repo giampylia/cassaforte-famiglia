@@ -50,7 +50,7 @@ export const LoginView: React.FC = () => {
         <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm text-center">
           <div className="mx-auto mb-4 flex items-center justify-center">
             <img
-              src="/q3-icon.jpeg"
+              src="/q3-icon-512.png?v=8"
               alt="Logo Q3"
               className="w-24 h-24 rounded-2xl object-cover shadow-sm border border-slate-200"
             />
