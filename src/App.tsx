@@ -61,7 +61,6 @@ const MainRouter: React.FC = () => {
   const menuItems = [
     {
       key: 'presenze' as const,
-      shortLabel: 'Timbra Ora',
       label: 'Timbratura e Corsi',
       sublabel: 'Ingresso Aule e Orario Lezioni',
       icon: Hand,
@@ -70,7 +69,6 @@ const MainRouter: React.FC = () => {
       ? [
           {
             key: 'admin_dashboard' as const,
-            shortLabel: 'Timbrature Aule',
             label: 'Gestione Timbrature Aule',
             sublabel: 'Riscontri Aule Live, Orari e Registri',
             icon: ClipboardCheck,
@@ -81,7 +79,6 @@ const MainRouter: React.FC = () => {
       ? [
           {
             key: 'anagrafica_soci' as const,
-            shortLabel: 'Anagrafica Soci',
             label: 'Anagrafica Soci',
             sublabel: 'Elenco, Import CSV/Excel e Ruoli',
             icon: Users,
@@ -92,7 +89,6 @@ const MainRouter: React.FC = () => {
       ? [
           {
             key: 'piccola_cassa' as const,
-            shortLabel: 'Piccola Cassa',
             label: 'Piccola Cassa',
             sublabel: 'Rimborsi, Versamenti e Scontrini',
             icon: Wallet,
@@ -118,47 +114,14 @@ const MainRouter: React.FC = () => {
         onOpenSideMenu={() => setMobileDrawerOpen(true)}
       />
 
-      {/* Selettore rapido su mobile: griglia pulita 2x2 o 1xN ben leggibile */}
-      <div className="lg:hidden bg-white border-b border-slate-200 px-3 py-2">
-        <div
-          className={`mx-auto max-w-4xl grid gap-1.5 ${
-            menuItems.length === 4
-              ? 'grid-cols-2 sm:grid-cols-4'
-              : menuItems.length === 3
-              ? 'grid-cols-3'
-              : 'grid-cols-2'
-          }`}
-        >
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const active = activeSection === item.key;
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setActiveSection(item.key)}
-                className={`flex items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs sm:text-sm font-medium transition border ${
-                  active
-                    ? 'bg-emerald-700 text-white border-emerald-700 shadow-2xs'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="truncate">{item.shortLabel}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Contenitore principale: Menu Laterale a sinistra (su schermi grandi) + Contenuto */}
+      {/* Contenitore principale: Menu Laterale a sinistra (su PC) + Contenuto */}
       <div className="flex-1 flex">
         {/* MENU LATERALE DESKTOP */}
-        <aside className="hidden lg:flex w-64 shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4">
+        <aside className="hidden lg:flex w-72 shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4">
           <div className="space-y-5">
             {/* Riepilogo Utente essenziale con UN SOLO RUOLO indicato chiaramente */}
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3.5 space-y-1">
-              <p className="text-sm font-medium text-slate-900 truncate">
+              <p className="text-sm font-medium text-slate-900 leading-snug">
                 {currentUser.full_name}
               </p>
               <p className="text-xs font-normal text-slate-600">
@@ -195,9 +158,9 @@ const MainRouter: React.FC = () => {
                         }`}
                       />
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{item.label}</p>
+                        <p className="text-sm font-medium leading-snug">{item.label}</p>
                         <p
-                          className={`text-[11px] font-normal truncate ${
+                          className={`text-[11px] font-normal leading-snug ${
                             isActive ? 'text-emerald-100' : 'text-slate-500'
                           }`}
                         >
@@ -228,14 +191,14 @@ const MainRouter: React.FC = () => {
           </div>
         </aside>
 
-        {/* DRAWER MENU LATERALE A SCOMPARSA (Quando si tocca "☰ Menu" in alto a sinistra) */}
+        {/* DRAWER MENU LATERALE A SCOMPARSA SU SMARTPHONE (Quando si tocca "☰ Menu" in alto a sinistra) */}
         {mobileDrawerOpen && (
           <div className="fixed inset-0 z-50 flex">
             <div
               className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"
               onClick={() => setMobileDrawerOpen(false)}
             />
-            <div className="relative z-10 w-72 max-w-[85vw] bg-white h-full p-4 flex flex-col justify-between shadow-2xl">
+            <div className="relative z-10 w-80 max-w-[88vw] bg-white h-full p-4 flex flex-col justify-between shadow-2xl overflow-y-auto">
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2.5">
@@ -245,7 +208,7 @@ const MainRouter: React.FC = () => {
                       className="h-8 w-8 rounded-lg border border-slate-200"
                     />
                     <span className="text-base font-medium text-slate-900">
-                      Menu Q3
+                      Menu Principale
                     </span>
                   </div>
                   <button
@@ -257,22 +220,23 @@ const MainRouter: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Riepilogo Utente con UN SOLO RUOLO */}
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 space-y-1">
-                  <p className="text-sm font-medium text-slate-900">
+                {/* Riepilogo Utente con UN SOLO RUOLO identico al PC */}
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 space-y-1">
+                  <p className="text-sm font-medium text-slate-900 leading-snug">
                     {currentUser.full_name}
                   </p>
                   <p className="text-xs text-slate-600">
                     Tessera N° {currentUser.member_number} · Sede {currentUser.sede}
                   </p>
-                  <p className="text-xs font-medium text-emerald-800 pt-0.5">
-                    Ruolo nell&apos;app: {userSingleRoleLabel}
-                  </p>
+                  <div className="flex items-center gap-1.5 pt-1 text-xs font-medium text-emerald-800">
+                    <ShieldCheck className="h-4 w-4 text-emerald-700 shrink-0" />
+                    <span>Ruolo nell&apos;app: {userSingleRoleLabel}</span>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <p className="px-1 text-xs font-medium uppercase tracking-wider text-slate-400">
-                    Sezioni
+                <div className="space-y-1.5">
+                  <p className="px-2 text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                    Menu Principale
                   </p>
                   {menuItems.map((item) => {
                     const Icon = item.icon;
@@ -298,9 +262,9 @@ const MainRouter: React.FC = () => {
                             }`}
                           />
                           <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{item.label}</p>
+                            <p className="text-sm font-medium leading-snug">{item.label}</p>
                             <p
-                              className={`text-xs font-normal truncate ${
+                              className={`text-xs font-normal leading-snug ${
                                 isActive ? 'text-emerald-100' : 'text-slate-500'
                               }`}
                             >
@@ -321,10 +285,10 @@ const MainRouter: React.FC = () => {
                   setMobileDrawerOpen(false);
                   signOut();
                 }}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-600 text-white py-3 text-sm font-medium"
+                className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-rose-600 text-white py-3 text-sm font-medium"
               >
                 <LogOut className="h-4 w-4" />
-                <span>Esci</span>
+                <span>Esci dalla sessione</span>
               </button>
             </div>
           </div>

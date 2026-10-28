@@ -67,59 +67,68 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-30 w-full bg-white border-b border-slate-200 text-slate-800 px-3 py-2.5 shadow-2xs">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-2">
-          {/* Lato Sinistro: Pulsante Menu Laterale (se CD/Admin) + Logo Q3 + Nome Utente o Titolo */}
-          <div className="flex items-center gap-2.5 min-w-0">
-            {showMenuButton && onOpenSideMenu && (
+      <header className="sticky top-0 z-30 w-full bg-white border-b border-slate-200 text-slate-800 px-2.5 sm:px-4 py-2 shadow-2xs">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2">
+          {/* Lato Sinistro: Pulsante Menu Laterale (su mobile/tablet) + Nome Utente ben leggibile */}
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {showMenuButton && onOpenSideMenu ? (
               <button
                 type="button"
                 onClick={onOpenSideMenu}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 text-xs sm:text-sm font-medium shadow-xs transition active:scale-95 shrink-0"
+                className="lg:hidden inline-flex items-center gap-1 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-2.5 py-2 text-xs font-medium shadow-xs transition active:scale-95 shrink-0"
                 title="Apri Menu Laterale"
               >
-                <Menu className="h-5 w-5" />
+                <Menu className="h-4 w-4" />
                 <span>Menu</span>
               </button>
+            ) : (
+              <img
+                src="/q3-icon-512.png?v=8"
+                alt="Q3"
+                className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl object-cover border border-slate-200 shrink-0"
+              />
             )}
 
-            <img
-              src="/q3-icon-512.png?v=8"
-              alt="Q3"
-              className="h-9 w-9 rounded-xl object-cover border border-slate-200 shrink-0"
-            />
+            {/* Su desktop mostra anche il logo Q3 accanto al nome */}
+            {showMenuButton && (
+              <img
+                src="/q3-icon-512.png?v=8"
+                alt="Q3"
+                className="hidden lg:block h-9 w-9 rounded-xl object-cover border border-slate-200 shrink-0"
+              />
+            )}
 
             {currentUser ? (
-              <div className="min-w-0">
-                <p className="text-sm sm:text-base font-medium text-slate-900 truncate leading-tight">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm sm:text-base font-medium text-slate-900 leading-tight truncate">
                   {currentUser.full_name}
                 </p>
-                <p className="text-xs font-normal text-slate-500 truncate leading-tight">
+                <p className="text-[11px] sm:text-xs font-normal text-slate-500 leading-tight truncate">
                   Tessera {currentUser.member_number} · {currentUser.sede || 'Quartu'}
                 </p>
               </div>
             ) : (
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm sm:text-base font-medium text-slate-800 truncate">
                   Q3 · Università Terza Età
                 </p>
                 <p className="text-xs font-normal text-slate-500 truncate">
-                  Quartu Sant'Elena e Soleminis
+                  Quartu Sant&apos;Elena e Soleminis
                 </p>
               </div>
             )}
           </div>
 
-          {/* Lato Destro: Controlli compatti su una sola riga */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          {/* Lato Destro: Controlli compatti per lasciare tutto lo spazio al nome */}
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {/* Dimensione caratteri compatta */}
             <button
               type="button"
               onClick={cycleFontScale}
               title="Cambia grandezza testo"
-              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 active:scale-95 px-2.5 py-2 text-xs sm:text-sm font-medium text-slate-700 transition"
+              className="inline-flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 active:scale-95 px-2 py-1.5 text-xs font-medium text-slate-700 transition"
             >
-              <Type className="h-4 w-4 text-emerald-700" />
+              <Type className="h-3.5 w-3.5 text-emerald-700 hidden sm:inline" />
               <span>{fontShortLabel}</span>
             </button>
 
@@ -128,7 +137,7 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
               type="button"
               onClick={() => setVoiceEnabled(!voiceEnabled)}
               title={voiceEnabled ? 'Audio attivo' : 'Audio disattivato'}
-              className={`inline-flex items-center justify-center rounded-xl border p-2 transition ${
+              className={`inline-flex items-center justify-center rounded-xl border p-1.5 sm:p-2 transition ${
                 voiceEnabled
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                   : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
@@ -141,26 +150,26 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
               )}
             </button>
 
-            {/* Pulsante Installa visibile nella schermata di Login per non affollare la Home interna */}
+            {/* Pulsante Installa visibile nella schermata di Login */}
             {!currentUser && (
               <button
                 type="button"
                 onClick={() => setShowInstallModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 text-xs sm:text-sm font-normal shadow-xs transition active:scale-95"
+                className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-2.5 py-1.5 text-xs sm:text-sm font-normal shadow-xs transition active:scale-95"
               >
                 <Smartphone className="h-4 w-4" />
                 <span>Installa</span>
               </button>
             )}
 
-            {/* Unico Tasto Esci pulito e sempre visibile quando si è loggati */}
+            {/* Tasto Esci */}
             {currentUser && (
               <button
                 type="button"
                 onClick={signOut}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 text-xs sm:text-sm font-medium shadow-xs transition active:scale-95"
+                className="inline-flex items-center gap-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-medium shadow-xs transition active:scale-95"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-3.5 w-3.5" />
                 <span>Esci</span>
               </button>
             )}
