@@ -490,185 +490,137 @@ export const AdminDashboard: React.FC = () => {
     'bg-slate-50 border border-slate-300 text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none';
 
   return (
-    <div className="min-h-[calc(100vh-52px)] bg-slate-50 pb-12 text-slate-800">
-      {/* Intestazione Piattaforma Ufficio Presenze & Didattica */}
-      <header className="border-b border-slate-200 bg-white px-4 py-4">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <img
-              src="/q3-icon-512.png?v=8"
-              alt="Q3"
-              className="h-12 w-12 rounded-2xl object-cover border border-slate-200"
-            />
+    <div className="min-h-[calc(100vh-56px)] bg-slate-50 pb-12 text-slate-800">
+      {/* Barra Navigazione Amministrazione Compatta e Ordinata */}
+      <header className="border-b border-slate-200 bg-white px-3 py-3 sm:px-4">
+        <div className="mx-auto max-w-6xl space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-normal text-emerald-800">
-                  Ufficio Presenze & Settore Didattica
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-normal text-emerald-700">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  {cloudConnected
-                    ? `Cloud Sincronizzato (${connectedDevices} disp. online)`
-                    : 'Sincronizzazione locale attiva'}
-                  {lastCloudSync && ` · Agg. ${lastCloudSync}`}
-                </span>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-medium text-slate-900 mt-0.5">
-                Q3 — Piattaforma Monitoraggio Soci e Corsi
+              <h1 className="text-base sm:text-lg font-medium text-slate-900">
+                Pannello Amministrazione e Gestione Soci
               </h1>
+              <p className="text-xs font-normal text-slate-500">
+                {cloudConnected
+                  ? `Sincronizzato in tempo reale (${connectedDevices} disp. connessi)`
+                  : 'Sincronizzazione attiva'}
+              </p>
             </div>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowShareModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs sm:text-sm font-normal text-white shadow-sm transition"
-            >
-              <Share2 className="h-4 w-4" />
-              <span>Link & QR per i Soci</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowTimeSim(!showTimeSim)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-2 text-xs sm:text-sm font-normal text-slate-700 transition"
-            >
-              <SlidersHorizontal className="h-4 w-4 text-slate-500" />
-              <span>
-                {DAYS_IT[effectiveDay]} · {effectiveTime}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={resetDemoData}
-              title="Ripristina dati dimostrativi"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-2 text-xs sm:text-sm font-normal text-slate-700 transition"
-            >
-              <RotateCcw className="h-4 w-4 text-slate-500" />
-              <span className="hidden sm:inline">Ripristina Demo</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={signOut}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 px-4 py-2 text-xs sm:text-sm font-medium text-white shadow-sm transition"
-            >
-              <LogOut className="h-4 w-4" />
-              <span>Esci dall'Ufficio</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Barra simulazione orario (opzionale per testare diverse fasce orarie) */}
-        {showTimeSim && (
-          <div className="mx-auto mt-3 max-w-6xl rounded-2xl border border-slate-200 bg-slate-50 p-3 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs sm:text-sm font-normal text-slate-600 flex items-center gap-1.5">
-              <Clock className="h-4 w-4 text-emerald-700" />
-              Simula fascia oraria lezione:
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { label: 'Lun 10:00', day: 1, time: '10:00' },
-                { label: 'Mar 10:00', day: 2, time: '10:00' },
-                { label: 'Mer 10:15', day: 3, time: '10:15' },
-                { label: 'Gio 10:30 (Oggi)', day: 4, time: '10:30' },
-                { label: 'Ven 10:15', day: 5, time: '10:15' },
-              ].map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  onClick={() => {
-                    setIsSimulatingTime(true);
-                    setSimulatedDay(p.day);
-                    setSimulatedTime(p.time);
-                  }}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-normal border transition ${
-                    isSimulatingTime && effectiveDay === p.day && effectiveTime === p.time
-                      ? 'bg-emerald-700 text-white border-emerald-700'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-              {isSimulatingTime && (
-                <button
-                  type="button"
-                  onClick={() => setIsSimulatingTime(false)}
-                  className="rounded-lg bg-slate-700 text-white px-2.5 py-1 text-xs font-normal"
-                >
-                  Orario reale
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Menu Sezioni Piattaforma */}
-        <div className="mx-auto mt-4 max-w-6xl grid grid-cols-2 lg:grid-cols-5 gap-2">
-          {[
-            {
-              key: 'live' as const,
-              label: 'Soci Timbrati in Aula (Live)',
-              icon: Radio,
-              badge: 'Tempo reale',
-            },
-            {
-              key: 'analytics' as const,
-              label: 'Efficacia e Utilità Materie',
-              icon: TrendingUp,
-              badge: `${subjectEffectivenessRows.length} corsi`,
-            },
-            {
-              key: 'users' as const,
-              label: 'Anagrafica e Singoli Soci',
-              icon: Users,
-              badge: `${profiles.filter((p) => p.role === 'member').length} soci`,
-            },
-            {
-              key: 'schedule' as const,
-              label: 'Programma Orario Aule',
-              icon: Calendar,
-              badge: `${lessons.length} lezioni`,
-            },
-            {
-              key: 'reports' as const,
-              label: 'Registri PDF e CSV',
-              icon: FileBarChart,
-              badge: `${attendance.length} presenze`,
-            },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.key;
-            return (
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
-                key={tab.key}
                 type="button"
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center justify-between gap-2 rounded-2xl border px-3.5 py-3 text-left font-normal transition ${
-                  isActive
-                    ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm'
-                    : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
-                }`}
+                onClick={() => setShowShareModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 text-xs font-normal text-emerald-900 transition"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Icon className="h-4 w-4 shrink-0 stroke-[1.75]" />
-                  <span className="text-xs sm:text-sm truncate">{tab.label}</span>
-                </div>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-normal shrink-0 ${
-                    isActive
-                      ? 'bg-white/20 text-white'
-                      : 'bg-emerald-50 text-emerald-700'
-                  }`}
-                >
-                  {tab.badge}
+                <Share2 className="h-3.5 w-3.5 text-emerald-700" />
+                <span>QR Soci</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowTimeSim(!showTimeSim)}
+                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 text-xs font-normal text-slate-700 transition"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5 text-slate-500" />
+                <span>
+                  {DAYS_IT[effectiveDay].slice(0, 3)} {effectiveTime}
                 </span>
               </button>
-            );
-          })}
+            </div>
+          </div>
+
+          {showTimeSim && (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-normal text-slate-600 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-emerald-700" />
+                Simula orario:
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {[
+                  { label: 'Lun 10:00', day: 1, time: '10:00' },
+                  { label: 'Mar 10:00', day: 2, time: '10:00' },
+                  { label: 'Mer 10:15', day: 3, time: '10:15' },
+                  { label: 'Gio 10:30', day: 4, time: '10:30' },
+                  { label: 'Ven 10:15', day: 5, time: '10:15' },
+                ].map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => {
+                      setIsSimulatingTime(true);
+                      setSimulatedDay(p.day);
+                      setSimulatedTime(p.time);
+                    }}
+                    className={`rounded-lg px-2 py-1 text-xs font-normal border transition ${
+                      isSimulatingTime && effectiveDay === p.day && effectiveTime === p.time
+                        ? 'bg-emerald-700 text-white border-emerald-700'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                {isSimulatingTime && (
+                  <button
+                    type="button"
+                    onClick={() => setIsSimulatingTime(false)}
+                    className="rounded-lg bg-slate-700 text-white px-2 py-1 text-xs font-normal"
+                  >
+                    Ora reale
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Menu Sezioni Amministrazione pulito e leggibile */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+            {[
+              {
+                key: 'live' as const,
+                label: 'Aule in Diretta',
+                icon: Radio,
+              },
+              {
+                key: 'users' as const,
+                label: 'Soci e Ruoli CD',
+                icon: Users,
+              },
+              {
+                key: 'schedule' as const,
+                label: 'Orario Corsi',
+                icon: Calendar,
+              },
+              {
+                key: 'analytics' as const,
+                label: 'Gradimento Corsi',
+                icon: TrendingUp,
+              },
+              {
+                key: 'reports' as const,
+                label: 'Stampa Registri',
+                icon: FileBarChart,
+              },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs sm:text-sm font-medium transition ${
+                    isActive
+                      ? 'bg-emerald-700 text-white border-emerald-700 shadow-2xs'
+                      : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </header>
 

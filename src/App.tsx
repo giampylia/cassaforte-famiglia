@@ -3,11 +3,11 @@ import {
   Wallet,
   BookOpen,
   LayoutDashboard,
-  Menu,
   X,
   ShieldCheck,
   ChevronRight,
   LogOut,
+  Hand,
 } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { AccessibilityTopBar } from './components/AccessibilityTopBar';
@@ -24,7 +24,6 @@ const MainRouter: React.FC = () => {
     activeSection,
     setActiveSection,
     signOut,
-    cashMovements,
   } = useApp();
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
@@ -40,34 +39,33 @@ const MainRouter: React.FC = () => {
 
   // Mostra il Menu Laterale solo ai soci con ruolo CD e all'Amministratore Generale 7796 (Giampiero Pilia)
   const showCDSideMenu = isCDMember || isSuperAdmin;
-  const pendingCassaCount = cashMovements.filter((m) => m.status === 'inviato').length;
 
   const menuItems = [
+    {
+      key: 'presenze' as const,
+      shortLabel: 'Timbra Aule',
+      label: 'Timbratura e Corsi',
+      sublabel: 'Ingresso Aule e Orario Lezioni',
+      icon: Hand,
+    },
+    {
+      key: 'piccola_cassa' as const,
+      shortLabel: 'Piccola Cassa',
+      label: 'Piccola Cassa',
+      sublabel: 'Rimborsi, Versamenti e Scontrini',
+      icon: Wallet,
+    },
     ...(currentUser.role === 'admin' || isSuperAdmin
       ? [
           {
             key: 'admin_dashboard' as const,
-            label: 'Gestione Soci & Ruoli',
-            sublabel: 'Anagrafica, Check CD e Presenze',
+            shortLabel: 'Amministrazione',
+            label: 'Amministrazione & Soci',
+            sublabel: 'Aule Live, Ruoli CD e Registri',
             icon: LayoutDashboard,
-            badge: isSuperAdmin ? 'Admin 7796' : 'Ufficio',
           },
         ]
       : []),
-    {
-      key: 'piccola_cassa' as const,
-      label: 'Piccola Cassa',
-      sublabel: 'Rimborsi, Versamenti e Scontrini',
-      icon: Wallet,
-      badge: pendingCassaCount > 0 ? `${pendingCassaCount} in attesa` : 'Attivo',
-    },
-    {
-      key: 'presenze' as const,
-      label: 'Timbratura e Corsi',
-      sublabel: 'Ingresso Aule e Orario Lezioni',
-      icon: BookOpen,
-      badge: 'Aule',
-    },
   ];
 
   // Se l'utente NON è del CD (es. socio ordinario o ufficio presenze base 000)
@@ -82,20 +80,18 @@ const MainRouter: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
-      <AccessibilityTopBar />
+      <AccessibilityTopBar
+        showMenuButton={true}
+        onOpenSideMenu={() => setMobileDrawerOpen(true)}
+      />
 
-      {/* Barra rapida mobile per aprire il Menu Laterale CD / passare a Piccola Cassa */}
-      <div className="lg:hidden bg-white border-b border-slate-200 px-3 py-2.5 flex items-center justify-between gap-2 shadow-2xs">
-        <button
-          type="button"
-          onClick={() => setMobileDrawerOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs sm:text-sm font-normal text-white shadow-xs transition"
+      {/* Selettore rapido su mobile: griglia pulita senza barre di scorrimento né scritte tagliate */}
+      <div className="lg:hidden bg-white border-b border-slate-200 px-3 py-2">
+        <div
+          className={`mx-auto max-w-4xl grid gap-1.5 ${
+            menuItems.length === 3 ? 'grid-cols-3' : 'grid-cols-2'
+          }`}
         >
-          <Menu className="h-4 w-4" />
-          <span>Menu Laterale CD</span>
-        </button>
-
-        <div className="flex items-center gap-1.5 overflow-x-auto">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const active = activeSection === item.key;
@@ -104,41 +100,33 @@ const MainRouter: React.FC = () => {
                 key={item.key}
                 type="button"
                 onClick={() => setActiveSection(item.key)}
-                className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-normal border whitespace-nowrap transition ${
+                className={`flex items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs sm:text-sm font-medium transition border ${
                   active
-                    ? 'bg-emerald-50 border-emerald-600 text-emerald-900 font-medium'
-                    : 'bg-slate-50 border-slate-200 text-slate-600'
+                    ? 'bg-emerald-700 text-white border-emerald-700 shadow-2xs'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
-                <span>{item.label}</span>
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="truncate">{item.shortLabel}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Contenitore principale: Menu Laterale a sinistra + Contenuto a destra */}
+      {/* Contenitore principale: Menu Laterale a sinistra (su schermi grandi) + Contenuto */}
       <div className="flex-1 flex">
-        {/* MENU LATERALE DESKTOP (Fisso a sinistra per Soci CD e Admin 7796) */}
-        <aside className="hidden lg:flex w-72 shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4">
+        {/* MENU LATERALE DESKTOP */}
+        <aside className="hidden lg:flex w-64 shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4">
           <div className="space-y-5">
-            {/* Profilo Utente CD / Super Admin */}
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 space-y-1.5">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">
-                    {currentUser.full_name}
-                  </p>
-                  <p className="text-xs font-normal text-emerald-800">
-                    Tessera N° {currentUser.member_number}
-                  </p>
-                </div>
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3.5 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-emerald-700 shrink-0" />
+                <span className="text-xs font-medium text-emerald-900">
+                  {isSuperAdmin ? 'Amministratore Generale' : 'Consiglio Direttivo (CD)'}
+                </span>
               </div>
-              <div className="flex flex-wrap gap-1 pt-1">
+              <div className="flex flex-wrap gap-1 pt-0.5">
                 {(currentUser.roles && currentUser.roles.length > 0
                   ? currentUser.roles
                   : ['Socio', 'CD']
@@ -153,10 +141,9 @@ const MainRouter: React.FC = () => {
               </div>
             </div>
 
-            {/* Voci Menu Laterale */}
             <div className="space-y-1.5">
               <p className="px-2 text-[11px] font-medium uppercase tracking-wider text-slate-400">
-                Menu Consiglio Direttivo
+                Sezioni Disponibili
               </p>
               {menuItems.map((item) => {
                 const Icon = item.icon;
@@ -168,7 +155,7 @@ const MainRouter: React.FC = () => {
                     onClick={() => setActiveSection(item.key)}
                     className={`w-full flex items-center justify-between gap-2.5 rounded-2xl px-3.5 py-3 text-left transition border ${
                       isActive
-                        ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                        ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
                         : 'bg-white hover:bg-slate-50 text-slate-700 border-transparent hover:border-slate-200'
                     }`}
                   >
@@ -200,7 +187,7 @@ const MainRouter: React.FC = () => {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 space-y-2">
+          <div className="pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={signOut}
@@ -212,14 +199,14 @@ const MainRouter: React.FC = () => {
           </div>
         </aside>
 
-        {/* DRAWER MENU LATERALE MOBILE */}
+        {/* DRAWER MENU LATERALE A SCOMPARSA (Quando si tocca "☰ Menu" in alto a sinistra) */}
         {mobileDrawerOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div className="fixed inset-0 z-50 flex">
             <div
               className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"
               onClick={() => setMobileDrawerOpen(false)}
             />
-            <div className="relative z-10 w-76 max-w-[85vw] bg-white h-full p-4 flex flex-col justify-between shadow-2xl">
+            <div className="relative z-10 w-72 max-w-[85vw] bg-white h-full p-4 flex flex-col justify-between shadow-2xl">
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2.5">
@@ -228,14 +215,14 @@ const MainRouter: React.FC = () => {
                       alt="Q3"
                       className="h-8 w-8 rounded-lg border border-slate-200"
                     />
-                    <span className="text-sm font-medium text-slate-900">
-                      Menu Consiglio Direttivo
+                    <span className="text-base font-medium text-slate-900">
+                      Menu Q3
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setMobileDrawerOpen(false)}
-                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+                    className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -244,11 +231,15 @@ const MainRouter: React.FC = () => {
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 space-y-1">
                   <p className="text-sm font-medium text-slate-900">{currentUser.full_name}</p>
                   <p className="text-xs text-emerald-800">
-                    Tessera N° {currentUser.member_number}
+                    Tessera N° {currentUser.member_number} ·{' '}
+                    {isSuperAdmin ? 'Amministratore' : 'Consiglio Direttivo'}
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-2">
+                  <p className="px-1 text-xs font-medium uppercase tracking-wider text-slate-400">
+                    Sezioni
+                  </p>
                   {menuItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = activeSection === item.key;
@@ -262,7 +253,7 @@ const MainRouter: React.FC = () => {
                         }}
                         className={`w-full flex items-center justify-between gap-2.5 rounded-2xl px-3.5 py-3 text-left transition border ${
                           isActive
-                            ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                            ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
                             : 'bg-slate-50 text-slate-700 border-slate-200'
                         }`}
                       >
@@ -275,7 +266,7 @@ const MainRouter: React.FC = () => {
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{item.label}</p>
                             <p
-                              className={`text-[11px] font-normal truncate ${
+                              className={`text-xs font-normal truncate ${
                                 isActive ? 'text-emerald-100' : 'text-slate-500'
                               }`}
                             >
@@ -296,7 +287,7 @@ const MainRouter: React.FC = () => {
                   setMobileDrawerOpen(false);
                   signOut();
                 }}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-600 text-white py-2.5 text-sm font-normal"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-600 text-white py-3 text-sm font-medium"
               >
                 <LogOut className="h-4 w-4" />
                 <span>Esci</span>

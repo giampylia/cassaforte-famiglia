@@ -676,84 +676,10 @@ export const PiccolaCassaView: React.FC = () => {
     'bg-slate-50 border border-slate-300 text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none';
 
   return (
-    <div className="min-h-[calc(100vh-52px)] bg-slate-50 pb-14 text-slate-800">
-      {/* Intestazione Piccola Cassa (stile QUfficio3) */}
-      <header className="border-b border-slate-200 bg-white px-4 py-5">
-        <div className="mx-auto max-w-6xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-700 text-white shadow-sm">
-              <Wallet className="h-6 w-6 stroke-[1.75]" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-normal text-emerald-800">
-                  Consiglio Direttivo (CD) · QU3
-                </span>
-                {isSuperAdmin && (
-                  <span className="rounded-lg bg-amber-50 border border-amber-300 px-2.5 py-0.5 text-xs font-medium text-amber-900">
-                    Amministratore Generale: Giampiero Pilia (7796) — Controllo Totale
-                  </span>
-                )}
-              </div>
-              <h1 className="text-xl sm:text-2xl font-medium text-slate-900 mt-0.5">
-                Piccola Cassa — Richieste di Rimborso e Versamenti
-              </h1>
-              <p className="text-xs sm:text-sm font-normal text-slate-500">
-                Gestione rimborsi spese, versamenti dei soci del CD e scansione automatica scontrini
-              </p>
-            </div>
-          </div>
-
-          {/* Pulsanti principali: Richiesta Rimborso / Versamento / Gestione Admin 7796 */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => openNewForm('spesa')}
-              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2.5 text-sm font-normal text-white shadow-sm transition"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Richiesta di Rimborso</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => openNewForm('entrata')}
-              className="inline-flex items-center gap-2 rounded-2xl border border-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-4 py-2.5 text-sm font-normal text-emerald-900 transition"
-            >
-              <ArrowDownLeft className="h-4 w-4 text-emerald-700" />
-              <span>Registra Versamento</span>
-            </button>
-
-            {isSuperAdmin && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowCategoriesModal(true)}
-                  className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2.5 text-xs sm:text-sm font-normal text-slate-700 transition"
-                >
-                  <Settings className="h-4 w-4 text-slate-500" />
-                  <span>Causali</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpeningBalanceInput(String(cashOpeningBalance));
-                    setShowOpeningBalanceModal(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2.5 text-xs sm:text-sm font-normal text-slate-700 transition"
-                >
-                  <Banknote className="h-4 w-4 text-emerald-700" />
-                  <span>Saldo Iniziale</span>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-4 pt-6 space-y-6">
+    <div className="min-h-[calc(100vh-56px)] bg-slate-50 px-3 py-3 sm:px-5 sm:py-5 pb-14 text-slate-800">
+      <main className="mx-auto max-w-4xl space-y-4">
         {feedbackBanner && (
-          <div className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-normal text-emerald-900 flex items-center justify-between shadow-sm">
+          <div className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-normal text-emerald-900 flex items-center justify-between shadow-2xs">
             <span>{feedbackBanner}</span>
             <button
               type="button"
@@ -765,102 +691,132 @@ export const PiccolaCassaView: React.FC = () => {
           </div>
         )}
 
-        {/* 4 Card Statistiche (identiche a qufficio3.lovable.app) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex items-center gap-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-              <Wallet className="h-5 w-5 stroke-[1.75]" />
-            </div>
+        {/* BLOCCO 1: INTESTAZIONE COMPATTA + 2 PULSANTI GRANDI E CHIARI */}
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-xs font-normal text-slate-500">Totale Operazioni</p>
-              <p className="text-2xl font-medium text-slate-900 tabular-nums">{stats.totalCount}</p>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm flex items-center gap-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
-              <Clock className="h-5 w-5 stroke-[1.75]" />
-            </div>
-            <div>
-              <p className="text-xs font-normal text-slate-500">In Attesa</p>
-              <p className="text-2xl font-medium text-amber-800 tabular-nums">
-                {stats.pendingCount}
+              <h1 className="text-lg sm:text-xl font-medium text-slate-900">
+                Piccola Cassa Consiglio Direttivo
+              </h1>
+              <p className="text-xs sm:text-sm font-normal text-slate-500">
+                Richiedi un rimborso spese (anche fotografando lo scontrino) o registra un versamento
               </p>
             </div>
+
+            {isSuperAdmin && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowCategoriesModal(true)}
+                  className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 text-xs font-normal text-slate-700"
+                >
+                  <Settings className="h-3.5 w-3.5 text-slate-500" />
+                  <span>Causali</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpeningBalanceInput(String(cashOpeningBalance));
+                    setShowOpeningBalanceModal(true);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 text-xs font-normal text-slate-700"
+                >
+                  <Banknote className="h-3.5 w-3.5 text-emerald-700" />
+                  <span>Saldo Iniziale</span>
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm flex items-center gap-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
-              <CheckCircle2 className="h-5 w-5 stroke-[1.75]" />
-            </div>
-            <div>
-              <p className="text-xs font-normal text-slate-500">Approvate</p>
-              <p className="text-2xl font-medium text-sky-800 tabular-nums">
-                {stats.approvedCount}
-              </p>
-            </div>
+          {/* I 2 pulsanti principali grandi e immediati */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => openNewForm('spesa')}
+              className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 py-3.5 px-4 text-base font-medium text-white shadow-xs transition active:scale-[0.99]"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Richiesta di Rimborso</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => openNewForm('entrata')}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-700 bg-emerald-50 hover:bg-emerald-100 py-3.5 px-4 text-base font-medium text-emerald-900 transition active:scale-[0.99]"
+            >
+              <ArrowDownLeft className="h-5 w-5 text-emerald-700" />
+              <span>Registra Versamento</span>
+            </button>
           </div>
 
-          <div className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm flex items-center gap-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-              <Banknote className="h-5 w-5 stroke-[1.75]" />
+          {/* Riepilogo Saldo in 4 caselle pulite */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+            <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3">
+              <span className="text-[11px] font-normal text-slate-500 block">Saldo Iniziale</span>
+              <span className="text-base sm:text-lg font-medium text-slate-800 tabular-nums">
+                € {cashOpeningBalance.toFixed(2)}
+              </span>
             </div>
-            <div>
-              <p className="text-xs font-normal text-slate-500">Pagate / Registrate</p>
-              <p className="text-2xl font-medium text-emerald-800 tabular-nums">{stats.paidCount}</p>
+            <div className="rounded-2xl bg-emerald-50/60 border border-emerald-200 p-3">
+              <span className="text-[11px] font-normal text-emerald-800 block">+ Versamenti</span>
+              <span className="text-base sm:text-lg font-medium text-emerald-700 tabular-nums">
+                + € {stats.totalEntrate.toFixed(2)}
+              </span>
+            </div>
+            <div className="rounded-2xl bg-rose-50/60 border border-rose-200 p-3">
+              <span className="text-[11px] font-normal text-rose-800 block">- Rimborsi</span>
+              <span className="text-base sm:text-lg font-medium text-rose-700 tabular-nums">
+                - € {stats.totalSpese.toFixed(2)}
+              </span>
+            </div>
+            <div className="rounded-2xl bg-emerald-700 text-white p-3">
+              <span className="text-[11px] font-normal text-emerald-100 block">Saldo Cassa</span>
+              <span className="text-base sm:text-lg font-medium tabular-nums">
+                € {stats.finalBalance.toFixed(2)}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Barra di Ricerca, Filtri ed Esportazione */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {/* BLOCCO 2: ELENCO OPERAZIONI LEGGIBILE A SCHEDE */}
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="relative flex-1">
               <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Cerca per socio CD, causale, descrizione o n° scontrino..."
+                placeholder="Cerca per socio, causale o descrizione..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full h-11 rounded-xl pl-10 pr-3 text-sm font-normal ${inputClass}`}
+                className={`w-full h-10 rounded-xl pl-10 pr-3 text-sm font-normal ${inputClass}`}
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as any)}
-                className={`h-11 rounded-xl px-3 text-sm font-normal ${inputClass}`}
-              >
-                <option value="all">Tutti i tipi (Rimborsi + Versamenti)</option>
-                <option value="spesa">Solo Richieste di Rimborso (Uscite)</option>
-                <option value="entrata">Solo Versamenti (Entrate)</option>
-              </select>
-
+            <div className="flex flex-wrap items-center gap-1.5">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className={`h-11 rounded-xl px-3 text-sm font-normal ${inputClass}`}
+                className={`h-10 rounded-xl px-3 text-xs sm:text-sm font-normal ${inputClass}`}
               >
-                <option value="all">Tutti gli stati</option>
-                <option value="inviato">In attesa</option>
-                <option value="approvato">Approvato</option>
-                <option value="pagato">Pagato</option>
+                <option value="all">Tutti gli stati ({cashMovements.length})</option>
+                <option value="inviato">In attesa ({stats.pendingCount})</option>
+                <option value="approvato">Approvati ({stats.approvedCount})</option>
+                <option value="pagato">Pagati ({stats.paidCount})</option>
               </select>
 
               <button
                 type="button"
                 onClick={handleExportRegisterPdf}
-                className="h-11 inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 text-xs sm:text-sm font-normal text-white shadow-sm transition"
+                className="h-10 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 text-xs sm:text-sm font-normal text-slate-700 transition"
               >
-                <FileDown className="h-4 w-4" />
-                <span>PDF Registro</span>
+                <FileDown className="h-4 w-4 text-emerald-700" />
+                <span>PDF</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleExportRegisterCsv}
-                className="h-11 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 text-xs sm:text-sm font-normal text-slate-700 transition"
+                className="h-10 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 text-xs sm:text-sm font-normal text-slate-700 transition"
               >
                 <FileDown className="h-4 w-4 text-slate-500" />
                 <span>CSV</span>
@@ -868,228 +824,162 @@ export const PiccolaCassaView: React.FC = () => {
             </div>
           </div>
 
-          {/* Tabella Movimenti Piccola Cassa */}
-          <div className="overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-normal uppercase tracking-wider text-slate-500">
-                  <th className="p-3.5">Data Richiesta</th>
-                  <th className="p-3.5">Data Scontrino</th>
-                  <th className="p-3.5">Tipo</th>
-                  <th className="p-3.5">Socio CD</th>
-                  <th className="p-3.5">Causale</th>
-                  <th className="p-3.5">Descrizione</th>
-                  <th className="p-3.5 text-right">Importo</th>
-                  <th className="p-3.5">Stato</th>
-                  <th className="p-3.5 text-right">Azioni</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleMovements.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="p-8 text-center text-sm font-normal text-slate-500">
-                      Nessun movimento di Piccola Cassa trovato. Clicca su{' '}
-                      <strong>"Richiesta di Rimborso"</strong> o{' '}
-                      <strong>"Registra Versamento"</strong> per inserire una nuova operazione.
-                    </td>
-                  </tr>
-                ) : (
-                  visibleMovements.map((mov) => {
-                    const isEntrata = mov.entry_type === 'entrata';
-                    const canEdit =
-                      isSuperAdmin ||
-                      (mov.requester_id === currentUser?.id && mov.status === 'inviato');
+          {/* Lista Operazioni in formato Scheda chiara (nessuno scorrimento orizzontale su smartphone) */}
+          {visibleMovements.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm font-normal text-slate-500">
+              Nessun movimento trovato. Tocca <strong>"Richiesta di Rimborso"</strong> o{' '}
+              <strong>"Registra Versamento"</strong> in alto per iniziare.
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {visibleMovements.map((mov) => {
+                const isEntrata = mov.entry_type === 'entrata';
+                const canEdit =
+                  isSuperAdmin ||
+                  (mov.requester_id === currentUser?.id && mov.status === 'inviato');
 
-                    return (
-                      <tr
-                        key={mov.id}
-                        className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition cursor-pointer"
-                        onClick={() => setSelectedMovement(mov)}
-                      >
-                        <td className="p-3.5 text-sm font-normal text-slate-700 tabular-nums whitespace-nowrap">
-                          {new Date(`${mov.request_date}T12:00:00`).toLocaleDateString('it-IT')}
-                        </td>
-                        <td className="p-3.5 text-sm font-normal text-slate-600 tabular-nums whitespace-nowrap">
-                          {mov.receipt_date
-                            ? new Date(`${mov.receipt_date}T12:00:00`).toLocaleDateString('it-IT')
-                            : '—'}
-                          {mov.receipt_image_data && (
-                            <span
-                              title="Scontrino scannerizzato allegato"
-                              className="ml-1.5 inline-flex items-center rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700 border border-emerald-200"
-                            >
-                              📷 Foto
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3.5 whitespace-nowrap">
-                          {isEntrata ? (
-                            <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-normal text-emerald-800">
-                              <ArrowDownLeft className="h-3.5 w-3.5" /> Versamento
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 rounded-lg bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-xs font-normal text-rose-800">
-                              <ArrowUpRight className="h-3.5 w-3.5" /> Rimborso
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3.5 text-sm font-medium text-slate-900">
-                          {mov.requester_name}
-                        </td>
-                        <td className="p-3.5 text-sm font-normal text-slate-700">
-                          <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
+                return (
+                  <div
+                    key={mov.id}
+                    onClick={() => setSelectedMovement(mov)}
+                    className="rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-white p-3.5 sm:p-4 transition cursor-pointer space-y-2.5"
+                  >
+                    {/* Riga alta: Socio + Causale a sinistra, Importo + Stato a destra */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium ${
+                              isEntrata
+                                ? 'bg-emerald-100 text-emerald-900'
+                                : 'bg-rose-100 text-rose-900'
+                            }`}
+                          >
+                            {isEntrata ? 'Versamento' : 'Rimborso'}
+                          </span>
+                          <span className="rounded-lg bg-white border border-slate-200 px-2 py-0.5 text-xs font-normal text-slate-700">
                             {mov.category_name}
                           </span>
-                        </td>
-                        <td className="p-3.5 text-sm font-normal text-slate-600 max-w-[220px] truncate">
-                          {mov.description || '—'}
-                        </td>
-                        <td
-                          className={`p-3.5 text-sm font-medium text-right tabular-nums whitespace-nowrap ${
+                          {mov.receipt_image_data && (
+                            <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-xs text-emerald-800">
+                              📷 Scontrino
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-base font-medium text-slate-900">
+                          {mov.requester_name}
+                        </p>
+                        {mov.description && (
+                          <p className="text-xs sm:text-sm font-normal text-slate-600">
+                            {mov.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="text-right shrink-0 space-y-1">
+                        <p
+                          className={`text-lg sm:text-xl font-medium tabular-nums ${
                             isEntrata ? 'text-emerald-700' : 'text-rose-700'
                           }`}
                         >
                           {isEntrata ? '+' : '-'} € {Number(mov.amount_requested).toFixed(2)}
-                        </td>
-                        <td className="p-3.5 whitespace-nowrap">{statusBadge(mov.status)}</td>
-                        <td
-                          className="p-3.5 text-right whitespace-nowrap space-x-1"
-                          onClick={(e) => e.stopPropagation()}
+                        </p>
+                        <div>{statusBadge(mov.status)}</div>
+                      </div>
+                    </div>
+
+                    {/* Riga bassa: Date a sinistra, Pulsanti azione a destra */}
+                    <div
+                      className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/70 text-xs text-slate-500"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span>
+                          Richiesta:{' '}
+                          <strong>
+                            {new Date(`${mov.request_date}T12:00:00`).toLocaleDateString('it-IT')}
+                          </strong>
+                        </span>
+                        {mov.receipt_date && (
+                          <span>
+                            Scontrino:{' '}
+                            <strong>
+                              {new Date(`${mov.receipt_date}T12:00:00`).toLocaleDateString('it-IT')}
+                            </strong>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMovement(mov)}
+                          className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 px-2.5 py-1.5 text-xs font-normal text-slate-700"
                         >
+                          <Printer className="h-3.5 w-3.5" />
+                          <span>Ricevuta</span>
+                        </button>
+
+                        {canEdit && (
                           <button
                             type="button"
-                            onClick={() => setSelectedMovement(mov)}
-                            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100"
-                            title="Vedi dettaglio e ricevuta"
+                            onClick={() => openEditForm(mov)}
+                            className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 text-xs font-normal text-emerald-800"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Edit3 className="h-3.5 w-3.5" />
+                            <span>Modifica</span>
                           </button>
+                        )}
 
-                          {canEdit && (
-                            <button
-                              type="button"
-                              onClick={() => openEditForm(mov)}
-                              className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 p-2 text-emerald-800 hover:bg-emerald-100"
-                              title="Modifica movimento"
-                            >
-                              <Edit3 className="h-4 w-4" />
-                            </button>
-                          )}
+                        {isSuperAdmin && mov.status === 'inviato' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateCashMovement(mov.id, { status: 'approvato' });
+                              showToast('✓ Richiesta approvata.');
+                            }}
+                            className="inline-flex items-center gap-1 rounded-xl bg-sky-600 hover:bg-sky-700 px-2.5 py-1.5 text-xs font-normal text-white"
+                          >
+                            <Check className="h-3.5 w-3.5" /> Approva
+                          </button>
+                        )}
 
-                          {isSuperAdmin && mov.status === 'inviato' && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                updateCashMovement(mov.id, { status: 'approvato' });
-                                showToast('✓ Richiesta approvata.');
-                              }}
-                              className="inline-flex items-center gap-1 rounded-xl bg-sky-600 hover:bg-sky-700 px-2.5 py-1.5 text-xs font-normal text-white"
-                              title="Approva richiesta"
-                            >
-                              <Check className="h-3.5 w-3.5" /> Approva
-                            </button>
-                          )}
+                        {isSuperAdmin && mov.status !== 'pagato' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateCashMovement(mov.id, {
+                                status: 'pagato',
+                                payment_date: new Date().toISOString(),
+                              });
+                              showToast('✓ Movimento segnato come Pagato.');
+                            }}
+                            className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-2.5 py-1.5 text-xs font-normal text-white"
+                          >
+                            <Banknote className="h-3.5 w-3.5" /> Paga
+                          </button>
+                        )}
 
-                          {isSuperAdmin && mov.status !== 'pagato' && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                updateCashMovement(mov.id, {
-                                  status: 'pagato',
-                                  payment_date: new Date().toISOString(),
-                                });
-                                showToast('✓ Movimento segnato come Pagato.');
-                              }}
-                              className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-2.5 py-1.5 text-xs font-normal text-white"
-                              title="Segna come pagato"
-                            >
-                              <Banknote className="h-3.5 w-3.5" /> Paga
-                            </button>
-                          )}
-
-                          {isSuperAdmin && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                deleteCashMovement(mov.id);
-                                showToast('Movimento eliminato dal registro.');
-                              }}
-                              className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-white p-2 text-rose-600 hover:bg-rose-50"
-                              title="Elimina movimento"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Riepilogo Contabile Fondo Pagina (identico a qufficio3.lovable.app) */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                Riepilogo Contabile Piccola Cassa
-              </h3>
-              {isSuperAdmin && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpeningBalanceInput(String(cashOpeningBalance));
-                    setShowOpeningBalanceModal(true);
-                  }}
-                  className="text-xs font-normal text-emerald-700 hover:underline flex items-center gap-1"
-                >
-                  <Edit3 className="h-3 w-3" /> Modifica Saldo Iniziale
-                </button>
-              )}
+                        {isSuperAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              deleteCashMovement(mov.id);
+                              showToast('Movimento eliminato.');
+                            }}
+                            className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-white p-1.5 text-rose-600 hover:bg-rose-50"
+                            title="Elimina"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="rounded-xl bg-white border border-slate-200 p-3">
-                <span className="text-xs font-normal text-slate-500 block">
-                  Saldo Iniziale Cassa
-                </span>
-                <span className="text-lg font-medium text-slate-900 tabular-nums">
-                  € {cashOpeningBalance.toFixed(2)}
-                </span>
-              </div>
-
-              <div className="rounded-xl bg-white border border-emerald-200 p-3">
-                <span className="text-xs font-normal text-slate-500 block">
-                  + Totale Versamenti (Entrate)
-                </span>
-                <span className="text-lg font-medium text-emerald-700 tabular-nums">
-                  + € {stats.totalEntrate.toFixed(2)}
-                </span>
-              </div>
-
-              <div className="rounded-xl bg-white border border-rose-200 p-3">
-                <span className="text-xs font-normal text-slate-500 block">
-                  - Totale Rimborsi (Spese)
-                </span>
-                <span className="text-lg font-medium text-rose-700 tabular-nums">
-                  - € {stats.totalSpese.toFixed(2)}
-                </span>
-              </div>
-
-              <div className="rounded-xl bg-emerald-50/80 border border-emerald-300 p-3">
-                <span className="text-xs font-normal text-emerald-900 block">
-                  = Saldo Attuale Piccola Cassa
-                </span>
-                <span
-                  className={`text-xl font-medium tabular-nums ${
-                    stats.finalBalance >= 0 ? 'text-emerald-800' : 'text-rose-700'
-                  }`}
-                >
-                  € {stats.finalBalance.toFixed(2)}
-                </span>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </main>
 
