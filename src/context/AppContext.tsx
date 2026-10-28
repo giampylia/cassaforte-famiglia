@@ -2,8 +2,10 @@ import React, { createContext, useContext, useEffect, useState, useMemo, useRef 
 import {
   AttendanceRecord,
   CashMovement,
+  CLASSROOM_LABELS,
   ClassroomKey,
   DEFAULT_AVAILABLE_ROLES,
+  doLessonsOverlap,
   ExpenseCategory,
   generateInitialAttendance,
   INITIAL_CASH_MOVEMENTS,
@@ -13,6 +15,7 @@ import {
   INITIAL_SUBJECT_NOTES,
   Lesson,
   Profile,
+  sanitizeSimultaneousAttendance,
   SubjectDidacticNote,
   getSubjectMeta,
 } from '../data/initialData';
@@ -258,7 +261,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
-      return saved ? JSON.parse(saved) : generateInitialAttendance();
+      const raw: AttendanceRecord[] = saved ? JSON.parse(saved) : generateInitialAttendance();
+      return sanitizeSimultaneousAttendance(raw, INITIAL_LESSONS);
     } catch {
       return generateInitialAttendance();
     }
@@ -411,14 +415,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCashOpeningBalanceState(db.cashOpeningBalance);
     }
     if (Array.isArray(db.lessons)) setLessons(db.lessons);
-    if (Array.isArray(db.attendance)) setAttendance(db.attendance);
+    let cleanedDuplicates = false;
+    if (Array.isArray(db.attendance)) {
+      const lessonsToUse = Array.isArray(db.lessons) ? db.lessons : lessons;
+      const sanitized = sanitizeSimultaneousAttendance(db.attendance, lessonsToUse);
+      if (sanitized.length !== db.attendance.length) {
+        cleanedDuplicates = true;
+      }
+      setAttendance(sanitized);
+    }
     if (Array.isArray(db.subjectNotes)) setSubjectNotes(db.subjectNotes);
     if (db.visualHeadcounts) setVisualHeadcounts(db.visualHeadcounts);
     if (Array.isArray(db.liveFeed)) setLiveFeed(db.liveFeed);
     setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
-    setTimeout(() => {
+    if (cleanedDuplicates) {
       isApplyingRemoteRef.current = false;
-    }, 50);
+    } else {
+      setTimeout(() => {
+        isApplyingRemoteRef.current = false;
+      }, 50);
+    }
   };
 
   useEffect(() => {
@@ -719,6 +735,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
+    // Impedisce di essere presenti in 2 aule contemporaneamente (stesso orario / fasce orarie sovrapposte)
+    const conflictingAtt = attendance.find((a) => {
+      if (a.user_id !== currentUser.id) return false;
+      if (a.created_at.slice(0, 10) !== todayIsoPrefix) return false;
+      if (a.lesson_id === activeLesson.id) return false;
+      const otherLesson = lessons.find((l) => l.id === a.lesson_id);
+      if (otherLesson) {
+        return doLessonsOverlap(otherLesson, activeLesson);
+      }
+      return false;
+    });
+
+    if (conflictingAtt) {
+      const conflictLesson = lessons.find((l) => l.id === conflictingAtt.lesson_id);
+      const conflictRoomLabel = CLASSROOM_LABELS[conflictingAtt.classroom] || conflictingAtt.classroom;
+      return {
+        ok: false,
+        message: `Non puoi essere presente in 2 aule contemporaneamente! Risulti già registrato nello stesso orario in ${conflictRoomLabel}${
+          conflictLesson
+            ? ` (${conflictLesson.subject}, ${conflictLesson.start_time.slice(0, 5)}–${conflictLesson.end_time.slice(0, 5)})`
+            : ''
+        }. Se hai sbagliato aula, premi prima "Annulla" sulla presenza registrata in alto.`,
+      };
+    }
+
     const nowIso = new Date().toISOString();
     const newRecord: AttendanceRecord = {
       id: `att-${Date.now()}`,
@@ -796,6 +837,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return {
         ok: false,
         message: `${member.full_name} (Tessera ${member.member_number}) risulta già registrato in quest'aula.`,
+      };
+    }
+
+    const conflictingAtt = attendance.find((a) => {
+      if (a.user_id !== member!.id) return false;
+      if (a.created_at.slice(0, 10) !== todayIsoPrefix) return false;
+      if (a.lesson_id === activeLesson.id) return false;
+      const otherLesson = lessons.find((l) => l.id === a.lesson_id);
+      if (otherLesson) {
+        return doLessonsOverlap(otherLesson, activeLesson);
+      }
+      return false;
+    });
+
+    if (conflictingAtt) {
+      const conflictLesson = lessons.find((l) => l.id === conflictingAtt.lesson_id);
+      const conflictRoomLabel = CLASSROOM_LABELS[conflictingAtt.classroom] || conflictingAtt.classroom;
+      return {
+        ok: false,
+        message: `Impossibile registrare: ${member.full_name} (Tessera ${member.member_number}) risulta già presente nello stesso orario in ${conflictRoomLabel}${
+          conflictLesson ? ` (${conflictLesson.subject})` : ''
+        }.`,
       };
     }
 

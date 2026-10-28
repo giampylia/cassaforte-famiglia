@@ -588,5 +588,65 @@ export function generateInitialAttendance(): AttendanceRecord[] {
     }
   });
 
-  return records;
+  return sanitizeSimultaneousAttendance(records, INITIAL_LESSONS);
 }
+
+/**
+ * Restituisce true se due lezioni hanno orari che si sovrappongono (stessa fascia oraria)
+ */
+export function doLessonsOverlap(a: Lesson, b: Lesson): boolean {
+  if (a.id === b.id) return true;
+  const toMinutes = (t: string) => {
+    const [h, m] = (t || '00:00').slice(0, 5).split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+  const startA = toMinutes(a.start_time);
+  const endA = toMinutes(a.end_time);
+  const startB = toMinutes(b.start_time);
+  const endB = toMinutes(b.end_time);
+  return startA < endB && startB < endA;
+}
+
+/**
+ * Rimuove eventuali doppie presenze dello stesso socio nello stesso giorno in lezioni con orario sovrapposto,
+ * mantenendo solo la timbratura più recente.
+ */
+export function sanitizeSimultaneousAttendance(
+  records: AttendanceRecord[],
+  lessonsList: Lesson[]
+): AttendanceRecord[] {
+  const lessonMap = new Map<string, Lesson>();
+  lessonsList.forEach((l) => lessonMap.set(l.id, l));
+
+  // Ordina dalla più recente alla meno recente così teniamo l'ultima timbratura valida
+  const sorted = [...records].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const keptByUserDay = new Map<string, AttendanceRecord[]>();
+  const validIds = new Set<string>();
+
+  for (const rec of sorted) {
+    const dayKey = `${rec.user_id}__${rec.created_at.slice(0, 10)}`;
+    const existingForDay = keptByUserDay.get(dayKey) || [];
+    const recLesson = lessonMap.get(rec.lesson_id);
+
+    const hasConflict = existingForDay.some((kept) => {
+      if (kept.lesson_id === rec.lesson_id) return true;
+      const keptLesson = lessonMap.get(kept.lesson_id);
+      if (recLesson && keptLesson) {
+        return doLessonsOverlap(recLesson, keptLesson);
+      }
+      // Se due timbrature sono avvenute a meno di 90 minuti l'una dall'altra nello stesso giorno
+      const diffMinutes =
+        Math.abs(new Date(kept.created_at).getTime() - new Date(rec.created_at).getTime()) / 60000;
+      return diffMinutes < 90;
+    });
+
+    if (!hasConflict) {
+      existingForDay.push(rec);
+      keptByUserDay.set(dayKey, existingForDay);
+      validIds.add(rec.id);
+    }
+  }
+
+  return records.filter((r) => validIds.has(r.id));
+}
+

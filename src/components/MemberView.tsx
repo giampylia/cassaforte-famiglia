@@ -16,6 +16,7 @@ import {
   CLASSROOM_LABELS,
   ClassroomInfo,
   DAYS_IT,
+  doLessonsOverlap,
   getSubjectMeta,
   Lesson,
 } from '../data/initialData';
@@ -318,6 +319,14 @@ export const MemberView: React.FC = () => {
                 const isAlreadyStamped = activeLesson
                   ? myTodayAttendance.some((a) => a.lesson_id === activeLesson.id)
                   : false;
+                const conflictingAtt =
+                  activeLesson && !isAlreadyStamped
+                    ? myTodayAttendance.find((a) => {
+                        if (a.lesson_id === activeLesson.id) return false;
+                        const otherLesson = lessons.find((l) => l.id === a.lesson_id);
+                        return otherLesson ? doLessonsOverlap(otherLesson, activeLesson) : false;
+                      })
+                    : undefined;
                 const count = activeLesson
                   ? getTodayAttendanceCountForLesson(activeLesson.id)
                   : 0;
@@ -329,11 +338,13 @@ export const MemberView: React.FC = () => {
                   <button
                     key={room.key}
                     type="button"
-                    disabled={!activeLesson || isAlreadyStamped}
+                    disabled={!activeLesson || isAlreadyStamped || Boolean(conflictingAtt)}
                     onClick={() => handleRoomStamp(room)}
                     className={`relative flex flex-col justify-between rounded-2xl border bg-white p-4 text-left transition-all duration-150 overflow-hidden ${
                       isAlreadyStamped
                         ? 'border-2 border-emerald-600 bg-emerald-50/40 shadow-xs'
+                        : conflictingAtt
+                        ? 'border-slate-200 bg-slate-50/90 opacity-75 cursor-not-allowed'
                         : activeLesson
                         ? 'border-slate-200 hover:border-emerald-500 shadow-xs hover:shadow-md active:scale-[0.99] cursor-pointer'
                         : 'border-slate-200 bg-white/80 opacity-75 cursor-not-allowed'
@@ -395,11 +406,15 @@ export const MemberView: React.FC = () => {
                             className={`mt-2 rounded-xl py-2 px-3 text-center text-sm font-medium ${
                               isAlreadyStamped
                                 ? 'bg-emerald-100 text-emerald-900'
+                                : conflictingAtt
+                                ? 'bg-slate-200 text-slate-600 font-normal'
                                 : 'bg-emerald-700 text-white'
                             }`}
                           >
                             {isAlreadyStamped
                               ? '✓ Presenza già registrata'
+                              : conflictingAtt
+                              ? `Già presente in ${CLASSROOM_LABELS[conflictingAtt.classroom]} in questo orario`
                               : 'Tocca qui per timbrare la presenza'}
                           </div>
                         </div>
