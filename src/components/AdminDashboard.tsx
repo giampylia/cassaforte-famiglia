@@ -497,12 +497,10 @@ export const AdminDashboard: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h1 className="text-base sm:text-lg font-medium text-slate-900">
-                Pannello Amministrazione e Gestione Soci
+                Gestione Timbrature Aule
               </h1>
               <p className="text-xs font-normal text-slate-500">
-                {cloudConnected
-                  ? `Sincronizzato in tempo reale (${connectedDevices} disp. connessi)`
-                  : 'Sincronizzazione attiva'}
+                Riscontri timbrature aule in diretta, registri giornalieri, orario corsi e gradimento didattica
               </p>
             </div>
 
@@ -573,8 +571,8 @@ export const AdminDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* Menu Sezioni Amministrazione pulito e leggibile */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+          {/* Menu Sezioni Gestione Timbrature Aule */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
             {[
               {
                 key: 'live' as const,
@@ -582,9 +580,9 @@ export const AdminDashboard: React.FC = () => {
                 icon: Radio,
               },
               {
-                key: 'users' as const,
-                label: 'Soci e Ruoli CD',
-                icon: Users,
+                key: 'reports' as const,
+                label: 'Registri e Riscontri',
+                icon: FileBarChart,
               },
               {
                 key: 'schedule' as const,
@@ -595,11 +593,6 @@ export const AdminDashboard: React.FC = () => {
                 key: 'analytics' as const,
                 label: 'Gradimento Corsi',
                 icon: TrendingUp,
-              },
-              {
-                key: 'reports' as const,
-                label: 'Stampa Registri',
-                icon: FileBarChart,
               },
             ].map((tab) => {
               const Icon = tab.icon;

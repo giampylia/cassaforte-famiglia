@@ -1,26 +1,29 @@
 import React, { useState } from 'react';
 import {
   Wallet,
-  BookOpen,
-  LayoutDashboard,
   X,
   ShieldCheck,
   ChevronRight,
   LogOut,
   Hand,
+  ClipboardCheck,
+  Users,
 } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
+import { getMemberParts } from './data/initialData';
 import { AccessibilityTopBar } from './components/AccessibilityTopBar';
 import { LoginView } from './components/LoginView';
 import { MemberView } from './components/MemberView';
 import { AdminDashboard } from './components/AdminDashboard';
 import { PiccolaCassaView } from './components/PiccolaCassaView';
+import { AnagraficaSociView } from './components/AnagraficaSociView';
 
 const MainRouter: React.FC = () => {
   const {
     currentUser,
     isSuperAdmin,
     isCDMember,
+    isDidatticaMember,
     activeSection,
     setActiveSection,
     signOut,
@@ -37,43 +40,73 @@ const MainRouter: React.FC = () => {
     );
   }
 
-  // Mostra il Menu Laterale solo ai soci con ruolo CD e all'Amministratore Generale 7796 (Giampiero Pilia)
-  const showCDSideMenu = isCDMember || isSuperAdmin;
+  // Mostra il Menu Laterale a Super Admin (7796), soci con ruolo CD, Didattica o Admin
+  const showSideMenu = isSuperAdmin || isCDMember || isDidatticaMember || currentUser.role === 'admin';
+
+  // Calcola l'unico ruolo principale da mostrare chiaramente sotto il nome dell'utente
+  const userSingleRoleLabel = isSuperAdmin
+    ? 'Amministratore'
+    : currentUser.role === 'admin'
+    ? 'Ufficio Presenze / Admin'
+    : getMemberParts(currentUser).primaryRole;
+
+  const canSeeTimbratureAule =
+    isSuperAdmin || currentUser.role === 'admin' || isDidatticaMember;
+
+  const canSeeAnagraficaSoci =
+    isSuperAdmin || currentUser.role === 'admin' || isCDMember;
+
+  const canSeePiccolaCassa = isSuperAdmin || isCDMember;
 
   const menuItems = [
     {
       key: 'presenze' as const,
-      shortLabel: 'Timbra Aule',
+      shortLabel: 'Timbra Ora',
       label: 'Timbratura e Corsi',
       sublabel: 'Ingresso Aule e Orario Lezioni',
       icon: Hand,
     },
-    {
-      key: 'piccola_cassa' as const,
-      shortLabel: 'Piccola Cassa',
-      label: 'Piccola Cassa',
-      sublabel: 'Rimborsi, Versamenti e Scontrini',
-      icon: Wallet,
-    },
-    ...(currentUser.role === 'admin' || isSuperAdmin
+    ...(canSeeTimbratureAule
       ? [
           {
             key: 'admin_dashboard' as const,
-            shortLabel: 'Amministrazione',
-            label: 'Amministrazione & Soci',
-            sublabel: 'Aule Live, Ruoli CD e Registri',
-            icon: LayoutDashboard,
+            shortLabel: 'Timbrature Aule',
+            label: 'Gestione Timbrature Aule',
+            sublabel: 'Riscontri Aule Live, Orari e Registri',
+            icon: ClipboardCheck,
+          },
+        ]
+      : []),
+    ...(canSeeAnagraficaSoci
+      ? [
+          {
+            key: 'anagrafica_soci' as const,
+            shortLabel: 'Anagrafica Soci',
+            label: 'Anagrafica Soci',
+            sublabel: 'Elenco, Import CSV/Excel e Ruoli',
+            icon: Users,
+          },
+        ]
+      : []),
+    ...(canSeePiccolaCassa
+      ? [
+          {
+            key: 'piccola_cassa' as const,
+            shortLabel: 'Piccola Cassa',
+            label: 'Piccola Cassa',
+            sublabel: 'Rimborsi, Versamenti e Scontrini',
+            icon: Wallet,
           },
         ]
       : []),
   ];
 
-  // Se l'utente NON è del CD (es. socio ordinario o ufficio presenze base 000)
-  if (!showCDSideMenu) {
+  // Se l'utente è un socio ordinario senza ruoli speciali
+  if (!showSideMenu) {
     return (
       <div className="min-h-screen flex flex-col bg-slate-50">
         <AccessibilityTopBar />
-        {currentUser.role === 'admin' ? <AdminDashboard /> : <MemberView />}
+        <MemberView />
       </div>
     );
   }
@@ -85,11 +118,15 @@ const MainRouter: React.FC = () => {
         onOpenSideMenu={() => setMobileDrawerOpen(true)}
       />
 
-      {/* Selettore rapido su mobile: griglia pulita senza barre di scorrimento né scritte tagliate */}
+      {/* Selettore rapido su mobile: griglia pulita 2x2 o 1xN ben leggibile */}
       <div className="lg:hidden bg-white border-b border-slate-200 px-3 py-2">
         <div
           className={`mx-auto max-w-4xl grid gap-1.5 ${
-            menuItems.length === 3 ? 'grid-cols-3' : 'grid-cols-2'
+            menuItems.length === 4
+              ? 'grid-cols-2 sm:grid-cols-4'
+              : menuItems.length === 3
+              ? 'grid-cols-3'
+              : 'grid-cols-2'
           }`}
         >
           {menuItems.map((item) => {
@@ -119,31 +156,23 @@ const MainRouter: React.FC = () => {
         {/* MENU LATERALE DESKTOP */}
         <aside className="hidden lg:flex w-64 shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4">
           <div className="space-y-5">
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3.5 space-y-1.5">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-emerald-700 shrink-0" />
-                <span className="text-xs font-medium text-emerald-900">
-                  {isSuperAdmin ? 'Amministratore Generale' : 'Consiglio Direttivo (CD)'}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1 pt-0.5">
-                {(currentUser.roles && currentUser.roles.length > 0
-                  ? currentUser.roles
-                  : ['Socio', 'CD']
-                ).map((r) => (
-                  <span
-                    key={r}
-                    className="rounded-md bg-white border border-emerald-200 px-2 py-0.5 text-[11px] font-normal text-emerald-900"
-                  >
-                    {r}
-                  </span>
-                ))}
+            {/* Riepilogo Utente essenziale con UN SOLO RUOLO indicato chiaramente */}
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3.5 space-y-1">
+              <p className="text-sm font-medium text-slate-900 truncate">
+                {currentUser.full_name}
+              </p>
+              <p className="text-xs font-normal text-slate-600">
+                Tessera N° {currentUser.member_number} · Sede {currentUser.sede}
+              </p>
+              <div className="flex items-center gap-1.5 pt-1 text-xs font-medium text-emerald-800">
+                <ShieldCheck className="h-4 w-4 text-emerald-700 shrink-0" />
+                <span>Ruolo nell&apos;app: {userSingleRoleLabel}</span>
               </div>
             </div>
 
             <div className="space-y-1.5">
               <p className="px-2 text-[11px] font-medium uppercase tracking-wider text-slate-400">
-                Sezioni Disponibili
+                Menu Principale
               </p>
               {menuItems.map((item) => {
                 const Icon = item.icon;
@@ -228,11 +257,16 @@ const MainRouter: React.FC = () => {
                   </button>
                 </div>
 
+                {/* Riepilogo Utente con UN SOLO RUOLO */}
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 space-y-1">
-                  <p className="text-sm font-medium text-slate-900">{currentUser.full_name}</p>
-                  <p className="text-xs text-emerald-800">
-                    Tessera N° {currentUser.member_number} ·{' '}
-                    {isSuperAdmin ? 'Amministratore' : 'Consiglio Direttivo'}
+                  <p className="text-sm font-medium text-slate-900">
+                    {currentUser.full_name}
+                  </p>
+                  <p className="text-xs text-slate-600">
+                    Tessera N° {currentUser.member_number} · Sede {currentUser.sede}
+                  </p>
+                  <p className="text-xs font-medium text-emerald-800 pt-0.5">
+                    Ruolo nell&apos;app: {userSingleRoleLabel}
                   </p>
                 </div>
 
@@ -298,10 +332,11 @@ const MainRouter: React.FC = () => {
 
         {/* Area Contenuto Principale */}
         <div className="flex-1 min-w-0">
-          {activeSection === 'piccola_cassa' ? (
+          {activeSection === 'piccola_cassa' && canSeePiccolaCassa ? (
             <PiccolaCassaView />
-          ) : activeSection === 'admin_dashboard' &&
-            (currentUser.role === 'admin' || isSuperAdmin) ? (
+          ) : activeSection === 'anagrafica_soci' && canSeeAnagraficaSoci ? (
+            <AnagraficaSociView />
+          ) : activeSection === 'admin_dashboard' && canSeeTimbratureAule ? (
             <AdminDashboard />
           ) : (
             <MemberView />

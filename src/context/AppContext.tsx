@@ -19,7 +19,15 @@ import {
 import { playSuccessSound } from '../utils/soundAndPdf';
 
 export type FontScale = 'normal' | 'large' | 'xlarge';
-export type AppSection = 'presenze' | 'piccola_cassa' | 'admin_dashboard';
+export type AppSection = 'presenze' | 'piccola_cassa' | 'admin_dashboard' | 'anagrafica_soci';
+
+export interface ImportedMemberRow {
+  member_number: string;
+  first_name: string;
+  last_name: string;
+  sede: 'Quartu' | 'Soleminis';
+  roleName: string;
+}
 
 export interface LiveFeedEvent {
   id: string;
@@ -49,6 +57,7 @@ interface AppContextType {
   currentUser: Profile | null;
   isSuperAdmin: boolean;
   isCDMember: boolean;
+  isDidatticaMember: boolean;
   activeSection: AppSection;
   setActiveSection: (sec: AppSection) => void;
   profiles: Profile[];
@@ -56,6 +65,7 @@ interface AppContextType {
   addCustomRole: (roleName: string) => { ok: boolean; message?: string };
   toggleMemberCD: (userId: string, isCd: boolean) => void;
   toggleMemberRole: (userId: string, roleName: string) => void;
+  importMembersBatch: (rows: ImportedMemberRow[]) => { added: number; updated: number };
   expenseCategories: ExpenseCategory[];
   addExpenseCategory: (name: string, description?: string) => void;
   updateExpenseCategory: (id: string, data: Partial<ExpenseCategory>) => void;
@@ -154,19 +164,34 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
     list[existingIdx] = {
       ...list[existingIdx],
       member_number: '7796',
+      first_name: 'Giampiero',
+      last_name: 'Pilia',
       full_name: 'Giampiero Pilia',
       role: 'admin',
       is_super_admin: true,
       is_cd: true,
-      roles: Array.from(new Set([...(list[existingIdx].roles || []), 'Socio', 'CD', 'Amministrativo', 'Didattica', 'Viaggi'])),
+      roles: ['Amministratore'],
     };
   }
   return list.map((p) => {
+    if (p.member_number === '7796' || p.is_super_admin) {
+      return {
+        ...p,
+        first_name: p.first_name || 'Giampiero',
+        last_name: p.last_name || 'Pilia',
+        full_name: 'Giampiero Pilia',
+        is_super_admin: true,
+        is_cd: true,
+        roles: ['Amministratore'],
+      };
+    }
     const initialMatch = INITIAL_PROFILES.find((ip) => ip.member_number === p.member_number);
     const roles = p.roles && p.roles.length > 0 ? p.roles : initialMatch?.roles || ['Socio'];
     const is_cd = typeof p.is_cd === 'boolean' ? p.is_cd : roles.includes('CD') || Boolean(initialMatch?.is_cd);
     return {
       ...p,
+      first_name: p.first_name || initialMatch?.first_name,
+      last_name: p.last_name || initialMatch?.last_name,
       is_cd,
       roles: is_cd && !roles.includes('CD') ? [...roles, 'CD'] : roles,
     };
@@ -295,6 +320,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (isSuperAdmin ||
         currentUser.is_cd ||
         (currentUser.roles && currentUser.roles.includes('CD')))
+  );
+
+  const isDidatticaMember = Boolean(
+    currentUser &&
+      (isSuperAdmin ||
+        currentUser.role === 'admin' ||
+        (currentUser.roles && currentUser.roles.includes('Didattica')))
   );
 
   const [fontScale, setFontScale] = useState<FontScale>(() => {
@@ -917,11 +949,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (profiles.some((p) => p.member_number.toLowerCase() === cleanNum.toLowerCase())) {
       return { ok: false, message: 'Esiste già un socio con questo numero di tessera.' };
     }
-    const assignedRoles = roles && roles.length > 0 ? roles : is_cd ? ['Socio', 'CD'] : ['Socio'];
+    const cleanFullName = full_name.trim() || `Socio ${cleanNum}`;
+    const nameParts = cleanFullName.split(/\s+/);
+    const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : cleanFullName;
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+    const assignedRoles = roles && roles.length > 0 ? roles : is_cd ? ['CD'] : ['Socio'];
     const newProfile: Profile = {
       id: `u-${Date.now()}`,
       member_number: cleanNum,
-      full_name: full_name.trim() || `Socio ${cleanNum}`,
+      first_name: firstName,
+      last_name: lastName,
+      full_name: cleanFullName,
       sede,
       role: 'member',
       is_cd: is_cd || assignedRoles.includes('CD'),
@@ -931,6 +969,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setProfiles((prev) => [...prev, newProfile]);
     return { ok: true };
+  };
+
+  const importMembersBatch = (rows: ImportedMemberRow[]) => {
+    let added = 0;
+    let updated = 0;
+    const discoveredRoles = new Set(availableRoles);
+
+    setProfiles((prev) => {
+      const next = [...prev];
+      rows.forEach((row, idx) => {
+        const cleanNum = String(row.member_number || '').trim();
+        if (!cleanNum) return;
+
+        const firstName = String(row.first_name || '').trim();
+        const lastName = String(row.last_name || '').trim();
+        const fullName = `${firstName} ${lastName}`.trim() || `Socio ${cleanNum}`;
+        const sede: 'Quartu' | 'Soleminis' =
+          String(row.sede || '')
+            .trim()
+            .toLowerCase()
+            .includes('soleminis')
+            ? 'Soleminis'
+            : 'Quartu';
+
+        const rawRole = String(row.roleName || 'Socio').trim() || 'Socio';
+        const roleList = rawRole
+          .split(/[,;/]+/)
+          .map((r) => r.trim())
+          .filter(Boolean);
+        const finalRoles = roleList.length > 0 ? roleList : ['Socio'];
+        finalRoles.forEach((r) => discoveredRoles.add(r));
+
+        const isCd = finalRoles.some((r) => r.toUpperCase() === 'CD' || r.toLowerCase() === 'amministratore');
+        const isSuper = cleanNum === '7796' || finalRoles.some((r) => r.toLowerCase() === 'amministratore');
+
+        const existingIndex = next.findIndex(
+          (p) => p.member_number.toLowerCase() === cleanNum.toLowerCase()
+        );
+
+        if (existingIndex >= 0) {
+          next[existingIndex] = {
+            ...next[existingIndex],
+            member_number: cleanNum,
+            first_name: firstName || next[existingIndex].first_name,
+            last_name: lastName || next[existingIndex].last_name,
+            full_name: fullName,
+            sede,
+            is_cd: isCd,
+            is_super_admin: isSuper || next[existingIndex].is_super_admin,
+            role: isSuper ? 'admin' : next[existingIndex].role,
+            roles: finalRoles,
+          };
+          updated++;
+        } else {
+          next.push({
+            id: `u-imp-${Date.now()}-${idx}`,
+            member_number: cleanNum,
+            first_name: firstName,
+            last_name: lastName,
+            full_name: fullName,
+            sede,
+            role: isSuper ? 'admin' : 'member',
+            is_super_admin: isSuper,
+            is_cd: isCd,
+            roles: finalRoles,
+            joined_year: new Date().getFullYear(),
+          });
+          added++;
+        }
+      });
+      return next;
+    });
+
+    setAvailableRoles(Array.from(discoveredRoles));
+    return { added, updated };
   };
 
   const updateMember = (id: string, data: Partial<Profile>) => {
@@ -991,6 +1104,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentUser,
         isSuperAdmin,
         isCDMember,
+        isDidatticaMember,
         activeSection,
         setActiveSection,
         profiles,
@@ -998,6 +1112,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addCustomRole,
         toggleMemberCD,
         toggleMemberRole,
+        importMembersBatch,
         expenseCategories,
         addExpenseCategory,
         updateExpenseCategory,

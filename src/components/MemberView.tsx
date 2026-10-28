@@ -55,7 +55,17 @@ export const MemberView: React.FC = () => {
   const visibleClassrooms = CLASSROOMS.filter((room) => {
     if (isSoleminisMember) return room.key === 'polifunzionale';
     return room.key !== 'polifunzionale';
+  }).sort((a, b) => {
+    const aActive = Boolean(getActiveLessonForRoom(a.key));
+    const bActive = Boolean(getActiveLessonForRoom(b.key));
+    if (aActive && !bActive) return -1;
+    if (!aActive && bActive) return 1;
+    return 0;
   });
+
+  const visibleActiveCount = visibleClassrooms.filter((room) =>
+    Boolean(getActiveLessonForRoom(room.key))
+  ).length;
 
   const handleRoomStamp = (room: ClassroomInfo) => {
     setFeedbackBanner(null);
@@ -297,7 +307,7 @@ export const MemberView: React.FC = () => {
                 Tocca l'aula in cui ti trovi per timbrare:
               </p>
               <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-normal text-emerald-800 shrink-0">
-                {activeLessons.length} attive ora
+                {visibleActiveCount} {visibleActiveCount === 1 ? 'lezione attiva ora' : 'lezioni attive ora'}
               </span>
             </div>
 

@@ -24,6 +24,8 @@ export interface ClassroomInfo {
 export interface Profile {
   id: string;
   member_number: string;
+  first_name?: string;
+  last_name?: string;
   full_name: string;
   sede: 'Quartu' | 'Soleminis';
   role: 'member' | 'admin';
@@ -40,7 +42,41 @@ export const DEFAULT_AVAILABLE_ROLES: string[] = [
   'Amministrativo',
   'Didattica',
   'Viaggi',
+  'Amministratore',
 ];
+
+export function getMemberParts(p: Profile): {
+  firstName: string;
+  lastName: string;
+  primaryRole: string;
+} {
+  let firstName = (p.first_name || '').trim();
+  let lastName = (p.last_name || '').trim();
+
+  if (!firstName && !lastName && p.full_name) {
+    const parts = p.full_name.trim().split(/\s+/);
+    if (parts.length === 1) {
+      firstName = parts[0];
+      lastName = '';
+    } else {
+      // Ultima parola come cognome, precedenti come nome (es. "Maria Bonaria Melis" -> Nome: "Maria Bonaria", Cognome: "Melis")
+      lastName = parts[parts.length - 1];
+      firstName = parts.slice(0, -1).join(' ');
+    }
+  }
+
+  let primaryRole = 'Socio';
+  if (p.member_number === '7796' || p.is_super_admin) {
+    primaryRole = 'Amministratore';
+  } else if (p.roles && p.roles.length > 0) {
+    const nonSocio = p.roles.filter((r) => r !== 'Socio');
+    primaryRole = nonSocio.length > 0 ? nonSocio.join(', ') : 'Socio';
+  } else if (p.is_cd) {
+    primaryRole = 'CD';
+  }
+
+  return { firstName, lastName, primaryRole };
+}
 
 export interface ExpenseCategory {
   id: string;
@@ -259,26 +295,26 @@ export function getSubjectMeta(subject: string): SubjectMeta {
 }
 
 export const INITIAL_PROFILES: Profile[] = [
-  { id: 'admin-7796', member_number: '7796', full_name: 'Giampiero Pilia', sede: 'Quartu', role: 'admin', is_super_admin: true, is_cd: true, roles: ['Socio', 'CD', 'Amministrativo', 'Didattica', 'Viaggi'], phone: '070 881234', joined_year: 2018 },
-  { id: 'admin-1', member_number: '000', full_name: 'Ufficio Presenze QU3', sede: 'Quartu', role: 'admin', is_super_admin: false, is_cd: false, roles: ['Didattica'], phone: '070 881234', joined_year: 2018 },
-  { id: 'u-101', member_number: '101', full_name: 'Maria Bonaria Melis', sede: 'Quartu', role: 'member', is_cd: true, roles: ['Socio', 'CD'], phone: '347 1122334', joined_year: 2021 },
-  { id: 'u-102', member_number: '102', full_name: 'Efisio Piras', sede: 'Quartu', role: 'member', is_cd: true, roles: ['Socio', 'CD', 'Amministrativo'], phone: '348 2233445', joined_year: 2020 },
-  { id: 'u-103', member_number: '103', full_name: 'Anna Rita Cao', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '349 3344556', joined_year: 2022 },
-  { id: 'u-104', member_number: '104', full_name: 'Giampaolo Sanna', sede: 'Quartu', role: 'member', is_cd: true, roles: ['Socio', 'CD', 'Viaggi'], phone: '340 4455667', joined_year: 2019 },
-  { id: 'u-105', member_number: '105', full_name: 'Rosalba Atzeni', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '333 5566778', joined_year: 2023 },
-  { id: 'u-106', member_number: '106', full_name: 'Salvatore Palmas', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '335 6677889', joined_year: 2021 },
-  { id: 'u-107', member_number: '107', full_name: 'Graziella Lai', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio', 'Didattica'], phone: '338 7788990', joined_year: 2022 },
-  { id: 'u-108', member_number: '108', full_name: 'Antonio Luigi Deiana', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '339 8899001', joined_year: 2020 },
-  { id: 'u-109', member_number: '109', full_name: 'Franca Murgia', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '328 9900112', joined_year: 2024 },
-  { id: 'u-110', member_number: '110', full_name: 'Vincenzo Fadda', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '329 1011121', joined_year: 2021 },
-  { id: 'u-111', member_number: '111', full_name: 'Lucia Serra', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '347 2021223', joined_year: 2023 },
-  { id: 'u-112', member_number: '112', full_name: 'Raimondo Vacca', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '348 3031324', joined_year: 2022 },
-  { id: 'u-113', member_number: '113', full_name: 'Teresa Usai', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '349 4041425', joined_year: 2020 },
-  { id: 'u-114', member_number: '114', full_name: 'Pietro Paolo Loi', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '340 5051526', joined_year: 2024 },
-  { id: 'u-201', member_number: '201', full_name: 'Assunta Corda', sede: 'Soleminis', role: 'member', is_cd: false, roles: ['Socio'], phone: '333 6061627', joined_year: 2022 },
-  { id: 'u-202', member_number: '202', full_name: 'Ignazio Spiga', sede: 'Soleminis', role: 'member', is_cd: false, roles: ['Socio'], phone: '338 7071728', joined_year: 2021 },
-  { id: 'u-203', member_number: '203', full_name: 'Caterina Mura', sede: 'Soleminis', role: 'member', is_cd: false, roles: ['Socio'], phone: '347 8081829', joined_year: 2023 },
-  { id: 'u-204', member_number: '204', full_name: 'Gavino Carta', sede: 'Soleminis', role: 'member', is_cd: false, roles: ['Socio'], phone: '349 9091920', joined_year: 2022 },
+  { id: 'admin-7796', member_number: '7796', first_name: 'Giampiero', last_name: 'Pilia', full_name: 'Giampiero Pilia', sede: 'Quartu', role: 'admin', is_super_admin: true, is_cd: true, roles: ['Amministratore'], phone: '070 881234', joined_year: 2018 },
+  { id: 'admin-1', member_number: '000', first_name: 'Ufficio', last_name: 'Presenze QU3', full_name: 'Ufficio Presenze QU3', sede: 'Quartu', role: 'admin', is_super_admin: false, is_cd: false, roles: ['Didattica'], phone: '070 881234', joined_year: 2018 },
+  { id: 'u-101', member_number: '101', first_name: 'Maria Bonaria', last_name: 'Melis', full_name: 'Maria Bonaria Melis', sede: 'Quartu', role: 'member', is_cd: true, roles: ['CD'], phone: '347 1122334', joined_year: 2021 },
+  { id: 'u-102', member_number: '102', first_name: 'Efisio', last_name: 'Piras', full_name: 'Efisio Piras', sede: 'Quartu', role: 'member', is_cd: true, roles: ['CD', 'Amministrativo'], phone: '348 2233445', joined_year: 2020 },
+  { id: 'u-103', member_number: '103', first_name: 'Anna Rita', last_name: 'Cao', full_name: 'Anna Rita Cao', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '349 3344556', joined_year: 2022 },
+  { id: 'u-104', member_number: '104', first_name: 'Giampaolo', last_name: 'Sanna', full_name: 'Giampaolo Sanna', sede: 'Quartu', role: 'member', is_cd: true, roles: ['CD', 'Viaggi'], phone: '340 4455667', joined_year: 2019 },
+  { id: 'u-105', member_number: '105', first_name: 'Rosalba', last_name: 'Atzeni', full_name: 'Rosalba Atzeni', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '333 5566778', joined_year: 2023 },
+  { id: 'u-106', member_number: '106', first_name: 'Salvatore', last_name: 'Palmas', full_name: 'Salvatore Palmas', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '335 6677889', joined_year: 2021 },
+  { id: 'u-107', member_number: '107', first_name: 'Graziella', last_name: 'Lai', full_name: 'Graziella Lai', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Didattica'], phone: '338 7788990', joined_year: 2022 },
+  { id: 'u-108', member_number: '108', first_name: 'Antonio Luigi', last_name: 'Deiana', full_name: 'Antonio Luigi Deiana', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '339 8899001', joined_year: 2020 },
+  { id: 'u-109', member_number: '109', first_name: 'Franca', last_name: 'Murgia', full_name: 'Franca Murgia', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '328 9900112', joined_year: 2024 },
+  { id: 'u-110', member_number: '110', first_name: 'Vincenzo', last_name: 'Fadda', full_name: 'Vincenzo Fadda', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '329 1011121', joined_year: 2021 },
+  { id: 'u-111', member_number: '111', first_name: 'Lucia', last_name: 'Serra', full_name: 'Lucia Serra', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '347 2021223', joined_year: 2023 },
+  { id: 'u-112', member_number: '112', first_name: 'Raimondo', last_name: 'Vacca', full_name: 'Raimondo Vacca', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '348 3031324', joined_year: 2022 },
+  { id: 'u-113', member_number: '113', first_name: 'Teresa', last_name: 'Usai', full_name: 'Teresa Usai', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '349 4041425', joined_year: 2020 },
+  { id: 'u-114', member_number: '114', first_name: 'Pietro Paolo', last_name: 'Loi', full_name: 'Pietro Paolo Loi', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '340 5051526', joined_year: 2024 },
+  { id: 'u-201', member_number: '201', first_name: 'Assunta', last_name: 'Corda', full_name: 'Assunta Corda', sede: 'Soleminis', role: 'member', is_cd: false, roles: ['Socio'], phone: '333 6061627', joined_year: 2022 },
+  { id: 'u-202', member_number: '202', first_name: 'Ignazio', last_name: 'Spiga', full_name: 'Ignazio Spiga', sede: 'Soleminis', role: 'member', is_cd: false, roles: ['Socio'], phone: '338 7071728', joined_year: 2021 },
+  { id: 'u-203', member_number: '203', first_name: 'Caterina', last_name: 'Mura', full_name: 'Caterina Mura', sede: 'Soleminis', role: 'member', is_cd: false, roles: ['Socio'], phone: '347 8081829', joined_year: 2023 },
+  { id: 'u-204', member_number: '204', first_name: 'Gavino', last_name: 'Carta', full_name: 'Gavino Carta', sede: 'Soleminis', role: 'member', is_cd: false, roles: ['Socio'], phone: '349 9091920', joined_year: 2022 },
 ];
 
 export const INITIAL_EXPENSE_CATEGORIES: ExpenseCategory[] = [
