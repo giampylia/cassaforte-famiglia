@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { CashMovement, getMemberParts } from '../data/initialData';
-import { exportCsv, exportOfficialPdf } from '../utils/soundAndPdf';
+import { ASSOCIATION_LOGO_URL, exportCsv, exportOfficialPdf } from '../utils/soundAndPdf';
 
 // Calcola l'Anno Contabile (dal 1° Luglio di ogni anno al 30 Giugno dell'anno successivo)
 export function getAccountingYearForDate(dateStr?: string): string {
@@ -606,11 +606,11 @@ export const PiccolaCassaView: React.FC = () => {
     };
   }, [accountingYearMovements, cashOpeningBalance]);
 
-  // Stampa ricevuta singola
+  // Stampa ricevuta singola con Logo Ufficiale dell'Associazione
   const handlePrintSingleReceipt = (mov: CashMovement) => {
     const isEntrata = mov.entry_type === 'entrata';
     const title = isEntrata ? "RICEVUTA D'INCASSO" : 'RICHIESTA DI RIMBORSO SPESE';
-    const printWin = window.open('', '_blank', 'width=800,height=700');
+    const printWin = window.open('', '_blank', 'width=800,height=740');
     if (!printWin) return;
 
     const reqDateStr = mov.request_date
@@ -623,6 +623,7 @@ export const PiccolaCassaView: React.FC = () => {
     const beneficiaryName =
       mov.requester_name || `${mov.first_name || ''} ${mov.last_name || ''}`.trim() || '—';
     const compilerName = mov.compiled_by_name || beneficiaryName;
+    const logoUrl = `${window.location.origin}${ASSOCIATION_LOGO_URL}`;
 
     printWin.document.write(`
       <!DOCTYPE html>
@@ -632,9 +633,12 @@ export const PiccolaCassaView: React.FC = () => {
         <title>${title} - Q3 Piccola Cassa</title>
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1e293b; padding: 32px; max-width: 720px; margin: 0 auto; }
-          .header { text-align: center; border-bottom: 2px solid #0f766e; padding-bottom: 16px; margin-bottom: 24px; }
-          .header h1 { font-size: 20px; margin: 0; font-weight: 600; color: #0f766e; }
-          .header p { font-size: 13px; color: #64748b; margin: 4px 0 0; }
+          .header { display: flex; align-items: center; gap: 18px; border-bottom: 2px solid #0f3d2e; padding-bottom: 16px; margin-bottom: 24px; }
+          .header img { width: 84px; height: 84px; object-fit: contain; flex-shrink: 0; }
+          .header-text { flex: 1; }
+          .header-assoc { font-size: 13px; font-weight: 700; color: #0f3d2e; letter-spacing: 0.02em; text-transform: uppercase; margin: 0 0 4px; }
+          .header h1 { font-size: 20px; margin: 0; font-weight: 700; color: #0f172a; }
+          .header p { font-size: 12.5px; color: #475569; margin: 4px 0 0; }
           .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; font-size: 14px; margin-bottom: 20px; }
           .box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; }
           .label { font-size: 11px; text-transform: uppercase; color: #64748b; display: block; margin-bottom: 2px; }
@@ -647,8 +651,12 @@ export const PiccolaCassaView: React.FC = () => {
       </head>
       <body>
         <div class="header">
-          <h1>${title}</h1>
-          <p>QU3 — Università della Terza Età di Quartu Sant'Elena · Anno Contabile ${movAccYear} (${formatAccountingYearRange(movAccYear)})</p>
+          <img id="assoc-logo" src="${logoUrl}" alt="Logo Università della Terza Età di Quartu S. Elena APS" />
+          <div class="header-text">
+            <div class="header-assoc">Università della Terza Età di Quartu S. Elena — APS</div>
+            <h1>${title}</h1>
+            <p>Anno Contabile ${movAccYear} (${formatAccountingYearRange(movAccYear)})</p>
+          </div>
         </div>
         <div class="grid">
           <div class="box"><span class="label">Tipo Operazione</span><span class="val">${isEntrata ? 'Entrata / Versamento' : 'Rimborso Spesa'}</span></div>
@@ -674,7 +682,22 @@ export const PiccolaCassaView: React.FC = () => {
           <div><div class="sig-line"></div>Firma Revisore</div>
         </div>
         <script>
-          window.onload = function() { window.print(); };
+          (function() {
+            var img = document.getElementById('assoc-logo');
+            var printed = false;
+            function triggerPrint() {
+              if (printed) return;
+              printed = true;
+              setTimeout(function() { window.print(); }, 120);
+            }
+            if (img && !img.complete) {
+              img.onload = triggerPrint;
+              img.onerror = triggerPrint;
+              setTimeout(triggerPrint, 1200);
+            } else {
+              window.onload = triggerPrint;
+            }
+          })();
         </script>
       </body>
       </html>

@@ -1,9 +1,12 @@
+export const ASSOCIATION_LOGO_URL = '/logo-associazione-qu3.png?v=15';
+
 let cachedLogoDataUrl: string | null = null;
 
-async function getLogoDataUrl(): Promise<string | null> {
+export async function getLogoDataUrl(): Promise<string | null> {
   if (cachedLogoDataUrl) return cachedLogoDataUrl;
   try {
-    const response = await fetch('/q3-icon.jpeg');
+    const response = await fetch(ASSOCIATION_LOGO_URL);
+    if (!response.ok) throw new Error('Logo non trovato');
     const blob = await response.blob();
     cachedLogoDataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -86,6 +89,92 @@ export interface PdfExportOptions {
   landscape?: boolean;
 }
 
+// Helper centralizzato per disegnare l'intestazione ufficiale con il logo dell'Associazione su ogni report PDF presente e futuro
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function drawOfficialPdfHeaderAndFooter(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  doc: any,
+  logo: string | null,
+  title: string,
+  subtitle: string | undefined,
+  timestamp: string,
+  currentPage: number,
+  totalPages: number
+) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // Logo Ufficiale Associazione in alto a sinistra
+  if (logo) {
+    try {
+      doc.addImage(logo, 'PNG', 14, 8, 24, 24);
+    } catch {
+      // Ignore image error
+    }
+  }
+
+  const textStartX = logo ? 42 : 14;
+
+  // Intestazione Associazione
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(15, 61, 46);
+  doc.text("UNIVERSITÀ DELLA TERZA ETÀ DI QUARTU S. ELENA — APS", textStartX, 15);
+
+  // Titolo del Report
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(30, 41, 59);
+  doc.text(title, textStartX, 22);
+
+  // Sottotitolo (se presente)
+  if (subtitle) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text(subtitle, textStartX, 28);
+  }
+
+  // Data/Ora di stampa in alto a destra
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Stampato il ${timestamp}`, pageWidth - 14, 14, { align: 'right' });
+
+  // Linea divisoria verde istituzionale sotto l'intestazione
+  doc.setDrawColor(15, 61, 46);
+  doc.setLineWidth(0.4);
+  doc.line(14, 34, pageWidth - 14, 34);
+
+  // Piè di pagina con mini-logo e numerazione pagine
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.25);
+  doc.line(14, pageHeight - 13, pageWidth - 14, pageHeight - 13);
+
+  if (logo) {
+    try {
+      doc.addImage(logo, 'PNG', 14, pageHeight - 11.5, 6.5, 6.5);
+    } catch {
+      // Ignore image error
+    }
+  }
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  doc.text(
+    "QU3 — Università della Terza Età di Quartu S. Elena APS",
+    logo ? 22.5 : 14,
+    pageHeight - 7.5
+  );
+  doc.text(
+    `Pagina ${currentPage} di ${totalPages}`,
+    pageWidth - 14,
+    pageHeight - 7.5,
+    { align: 'right' }
+  );
+}
+
 export async function exportOfficialPdf(options: PdfExportOptions) {
   const { title, subtitle, head, body, fileName, landscape } = options;
 
@@ -100,35 +189,8 @@ export async function exportOfficialPdf(options: PdfExportOptions) {
     format: 'a4',
   });
 
-  const pageWidth = doc.internal.pageSize.getWidth();
   const logo = await getLogoDataUrl();
-
-  if (logo) {
-    try {
-      doc.addImage(logo, 'JPEG', 14, 10, 22, 22);
-    } catch {
-      // Ignore image error
-    }
-  }
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(17);
-  doc.setTextColor(20, 83, 45);
-  doc.text("Q3 — Università della Terza Età di Quartu S. Elena", logo ? 40 : 14, 18);
-
-  doc.setFontSize(13);
-  doc.setTextColor(30, 41, 59);
-  doc.text(title, logo ? 40 : 14, 26);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(100, 116, 139);
   const timestamp = new Date().toLocaleString('it-IT');
-  doc.text(`Stampato il ${timestamp}`, pageWidth - 14, 14, { align: 'right' });
-
-  if (subtitle) {
-    doc.text(subtitle, logo ? 40 : 14, 32);
-  }
 
   doc.autoTable({
     startY: 38,
@@ -139,27 +201,22 @@ export async function exportOfficialPdf(options: PdfExportOptions) {
       cellPadding: 2.5,
     },
     headStyles: {
-      fillColor: [22, 90, 60],
+      fillColor: [15, 61, 46],
       textColor: 255,
       fontStyle: 'bold',
     },
     alternateRowStyles: {
       fillColor: [240, 247, 244],
     },
-    margin: { left: 14, right: 14 },
-    didDrawPage: () => {
-      const totalPages = doc.getNumberOfPages();
-      const currentPage = doc.internal.getCurrentPageInfo().pageNumber;
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text(
-        `Q3 — Settore Didattica QU3 · Pagina ${currentPage} di ${totalPages}`,
-        pageWidth - 14,
-        doc.internal.pageSize.getHeight() - 8,
-        { align: 'right' }
-      );
-    },
+    margin: { top: 38, left: 14, right: 14, bottom: 16 },
   });
+
+  // Disegna intestazione con logo e piè di pagina su tutte le pagine del documento
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p += 1) {
+    doc.setPage(p);
+    drawOfficialPdfHeaderAndFooter(doc, logo, title, subtitle, timestamp, p, totalPages);
+  }
 
   doc.save(fileName);
 }
