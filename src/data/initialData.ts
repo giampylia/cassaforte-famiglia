@@ -90,21 +90,27 @@ export type CashMovementStatus = 'inviato' | 'approvato' | 'pagato';
 
 export interface CashMovement {
   id: string;
-  user_id: string;
-  member_number: string;
-  first_name: string;
-  last_name: string;
+  requester_id: string;
+  requester_name: string;       // Fruitore del rimborso / Beneficiario / Versante
+  compiled_by_id?: string;      // ID utente autenticato che ha compilato la pratica
+  compiled_by_name?: string;    // Nome utente autenticato che ha compilato la pratica
+  user_id?: string;
+  member_number?: string;
+  first_name?: string;
+  last_name?: string;
   entry_type: CashMovementType; // 'spesa' = Richiesta Rimborso, 'entrata' = Versamento
   request_date: string;         // YYYY-MM-DD (Data richiesta)
-  receipt_date: string;         // YYYY-MM-DD (Data scontrino)
+  receipt_date?: string;        // YYYY-MM-DD (Data scontrino)
   receipt_number?: string;      // N° scontrino
   amount_requested: number;     // Importo (€)
   amount_paid?: number | null;  // Importo versato/rimborsato (€)
   category_id?: string | null;
   category_name: string;        // Causale
   custom_category?: string | null;
-  description: string;          // Descrizione / Note
+  description?: string;         // Descrizione / Note
+  receipt_image_data?: string;
   receipt_image_url?: string | null;
+  payment_date?: string;
   status: CashMovementStatus;   // 'inviato' | 'approvato' | 'pagato'
   signed_by_requester?: boolean;
   signed_by_treasurer?: boolean;
@@ -332,6 +338,10 @@ export const INITIAL_EXPENSE_CATEGORIES: ExpenseCategory[] = [
 export const INITIAL_CASH_MOVEMENTS: CashMovement[] = [
   {
     id: 'cash-1',
+    requester_id: 'u-101',
+    requester_name: 'Maria Bonaria Melis',
+    compiled_by_id: 'u-101',
+    compiled_by_name: 'Maria Bonaria Melis',
     user_id: 'u-101',
     member_number: '101',
     first_name: 'Maria Bonaria',
@@ -354,6 +364,10 @@ export const INITIAL_CASH_MOVEMENTS: CashMovement[] = [
   },
   {
     id: 'cash-2',
+    requester_id: 'u-102',
+    requester_name: 'Efisio Piras',
+    compiled_by_id: 'u-102',
+    compiled_by_name: 'Efisio Piras',
     user_id: 'u-102',
     member_number: '102',
     first_name: 'Efisio',
@@ -376,6 +390,10 @@ export const INITIAL_CASH_MOVEMENTS: CashMovement[] = [
   },
   {
     id: 'cash-3',
+    requester_id: 'u-104',
+    requester_name: 'Giampaolo Sanna',
+    compiled_by_id: 'u-101',
+    compiled_by_name: 'Maria Bonaria Melis',
     user_id: 'u-104',
     member_number: '104',
     first_name: 'Giampaolo',
