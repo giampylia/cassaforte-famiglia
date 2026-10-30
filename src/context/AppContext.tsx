@@ -122,6 +122,7 @@ interface AppContextType {
   addMember: (member_number: string, full_name: string, sede: 'Quartu' | 'Soleminis', phone?: string, is_cd?: boolean, roles?: string[]) => { ok: boolean; message?: string };
   updateMember: (id: string, data: Partial<Profile>) => void;
   deleteMember: (id: string) => void;
+  deleteMembersBatch: (ids: string[]) => void;
   addLesson: (lesson: Omit<Lesson, 'id'>) => void;
   updateLesson: (id: string, data: Partial<Lesson>) => void;
   deleteLesson: (id: string) => void;
@@ -1117,7 +1118,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteMember = (id: string) => {
-    setProfiles((prev) => prev.filter((p) => p.id !== id));
+    setProfiles((prev) => prev.filter((p) => p.id !== id && p.member_number !== '7796' ? true : p.id !== id));
+  };
+
+  const deleteMembersBatch = (ids: string[]) => {
+    const idSet = new Set(ids);
+    setProfiles((prev) =>
+      prev.filter((p) => p.member_number === '7796' || p.is_super_admin || !idSet.has(p.id))
+    );
   };
 
   const addLesson = (lessonData: Omit<Lesson, 'id'>) => {
@@ -1223,6 +1231,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addMember,
         updateMember,
         deleteMember,
+        deleteMembersBatch,
         addLesson,
         updateLesson,
         deleteLesson,

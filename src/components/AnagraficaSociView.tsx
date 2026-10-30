@@ -41,6 +41,7 @@ type SortField = 'member_number' | 'first_name' | 'last_name' | 'sede' | 'role';
 
 export const AnagraficaSociView: React.FC = () => {
   const {
+    currentUser,
     profiles,
     isSuperAdmin,
     availableRoles,
@@ -49,7 +50,14 @@ export const AnagraficaSociView: React.FC = () => {
     importMembersBatch,
     updateMember,
     deleteMember,
+    deleteMembersBatch,
   } = useApp();
+
+  // Sia Giampiero Pilia (7796) sia l'accesso Amministratore (000) possono gestire/eliminare soci in Anagrafica
+  const canManageMembers = Boolean(isSuperAdmin || currentUser?.role === 'admin');
+
+  // Selezione multipla soci per eliminazione rapida di gruppo
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Stato ordinamento (cliccabile su tutti i campi: Tessera, Nome, Cognome, Sede, Ruolo)
   const [sortField, setSortField] = useState<SortField>('member_number');
@@ -487,7 +495,7 @@ export const AnagraficaSociView: React.FC = () => {
 
             {/* Pulsanti Importazione Excel / CSV ed Esportazione */}
             <div className="flex flex-wrap items-center gap-2">
-              {isSuperAdmin && (
+              {canManageMembers && (
                 <>
                   <input
                     ref={fileInputRef}
@@ -541,7 +549,7 @@ export const AnagraficaSociView: React.FC = () => {
           </div>
 
           {/* Nota formato file per l'amministratore */}
-          {isSuperAdmin && (
+          {canManageMembers && (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-normal text-slate-600 flex flex-wrap items-center justify-between gap-2">
               <span>
                 💡 <strong>Formato file Excel / CSV:</strong> 5 colonne nell'ordine{' '}
@@ -573,8 +581,8 @@ export const AnagraficaSociView: React.FC = () => {
             </div>
           )}
 
-          {/* Form inserimento rapido singolo socio (riservato a Giampiero Pilia 7796) */}
-          {isSuperAdmin && (
+          {/* Form inserimento rapido singolo socio */}
+          {canManageMembers && (
             <form
               onSubmit={handleAddSingleMember}
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5 pt-2 border-t border-slate-100"
@@ -690,11 +698,85 @@ export const AnagraficaSociView: React.FC = () => {
             </select>
           </div>
 
+          {/* BARRA SELEZIONE ED ELIMINAZIONE SOCI (Singola o Multipla) */}
+          {canManageMembers && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                <span>
+                  Per eliminare soci: clicca su <strong>Elimina</strong> a destra della riga, oppure spunta le caselle a sinistra per eliminarne più d&apos;uno insieme.
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedIds.length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const count = selectedIds.length;
+                        if (
+                          window.confirm(
+                            `Confermi l'eliminazione definitiva dei ${count} soci selezionati?`
+                          )
+                        ) {
+                          deleteMembersBatch(selectedIds);
+                          setSelectedIds([]);
+                          showNotice('success', `✓ Eliminati ${count} soci dall'Anagrafica.`);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 px-3.5 py-2 text-xs font-medium text-white shadow-2xs transition"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Elimina Selezionati ({selectedIds.length})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIds([])}
+                      className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 px-2.5 py-2 text-xs text-slate-600"
+                    >
+                      <span>Deseleziona</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* TABELLA ANAGRAFICA SOCI CON INTESTAZIONI CLICCABILI PER ORDINARE */}
           <div className="overflow-x-auto rounded-2xl border border-slate-200">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium uppercase tracking-wider text-slate-600 select-none">
+                  {canManageMembers && (
+                    <th className="p-3.5 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        title="Seleziona / Deseleziona tutti i soci visualizzati"
+                        checked={
+                          sortedMembers.filter((m) => m.member_number !== '7796').length > 0 &&
+                          sortedMembers
+                            .filter((m) => m.member_number !== '7796')
+                            .every((m) => selectedIds.includes(m.id))
+                        }
+                        onChange={(e) => {
+                          const deletableVisibleIds = sortedMembers
+                            .filter((m) => m.member_number !== '7796')
+                            .map((m) => m.id);
+                          if (e.target.checked) {
+                            setSelectedIds(
+                              Array.from(new Set([...selectedIds, ...deletableVisibleIds]))
+                            );
+                          } else {
+                            setSelectedIds((prev) =>
+                              prev.filter((id) => !deletableVisibleIds.includes(id))
+                            );
+                          }
+                        }}
+                        className="h-4 w-4 accent-emerald-700 rounded cursor-pointer"
+                      />
+                    </th>
+                  )}
                   <th
                     onClick={() => handleSortClick('member_number')}
                     className="p-3.5 cursor-pointer hover:bg-slate-100 transition whitespace-nowrap"
@@ -726,7 +808,7 @@ export const AnagraficaSociView: React.FC = () => {
                     Ruolo {renderSortIcon('role')}
                   </th>
                   <th className="p-3.5 text-center whitespace-nowrap">CD (Sì/No)</th>
-                  {isSuperAdmin && (
+                  {canManageMembers && (
                     <th className="p-3.5 text-right whitespace-nowrap">Azioni</th>
                   )}
                 </tr>
@@ -735,14 +817,18 @@ export const AnagraficaSociView: React.FC = () => {
                 {sortedMembers.map((m) => {
                   const isEditing = editingId === m.id;
                   const isCd = Boolean(m.is_cd || m.roles?.includes('CD'));
+                  const isSelected = selectedIds.includes(m.id);
 
                   return (
                     <tr
                       key={m.id}
-                      className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition"
+                      className={`border-b border-slate-100 last:border-0 transition ${
+                        isSelected ? 'bg-rose-50/40' : 'hover:bg-slate-50/80'
+                      }`}
                     >
                       {isEditing ? (
                         <>
+                          {canManageMembers && <td className="p-3" />}
                           <td className="p-3">
                             <input
                               value={editRow.member_number}
@@ -838,6 +924,24 @@ export const AnagraficaSociView: React.FC = () => {
                         </>
                       ) : (
                         <>
+                          {canManageMembers && (
+                            <td className="p-3.5 text-center">
+                              {m.member_number !== '7796' && (
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedIds((prev) => [...prev, m.id]);
+                                    } else {
+                                      setSelectedIds((prev) => prev.filter((id) => id !== m.id));
+                                    }
+                                  }}
+                                  className="h-4 w-4 accent-rose-600 rounded cursor-pointer"
+                                />
+                              )}
+                            </td>
+                          )}
                           <td className="p-3.5 font-medium tabular-nums whitespace-nowrap">
                             <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-sm text-emerald-900">
                               {m.member_number}
@@ -853,7 +957,7 @@ export const AnagraficaSociView: React.FC = () => {
                             {m.sede}
                           </td>
                           <td className="p-3.5 whitespace-nowrap">
-                            {isSuperAdmin && m.member_number !== '7796' ? (
+                            {canManageMembers && m.member_number !== '7796' ? (
                               <select
                                 value={m.parsedRole.split(',')[0].trim() || 'Socio'}
                                 onChange={(e) => {
@@ -879,7 +983,7 @@ export const AnagraficaSociView: React.FC = () => {
                             )}
                           </td>
                           <td className="p-3.5 text-center whitespace-nowrap">
-                            {isSuperAdmin && m.member_number !== '7796' ? (
+                            {canManageMembers && m.member_number !== '7796' ? (
                               <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
                                 <input
                                   type="checkbox"
@@ -905,8 +1009,8 @@ export const AnagraficaSociView: React.FC = () => {
                               </span>
                             )}
                           </td>
-                          {isSuperAdmin && (
-                            <td className="p-3.5 text-right whitespace-nowrap space-x-1">
+                          {canManageMembers && (
+                            <td className="p-3.5 text-right whitespace-nowrap space-x-1.5">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -919,19 +1023,34 @@ export const AnagraficaSociView: React.FC = () => {
                                     roleName: m.parsedRole.split(',')[0].trim() || 'Socio',
                                   });
                                 }}
-                                className="inline-flex items-center justify-center rounded-xl border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100"
+                                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-100"
                                 title="Modifica socio"
                               >
-                                <Edit3 className="h-4 w-4" />
+                                <Edit3 className="h-3.5 w-3.5" />
+                                <span>Modifica</span>
                               </button>
                               {m.member_number !== '7796' && (
                                 <button
                                   type="button"
-                                  onClick={() => deleteMember(m.id)}
-                                  className="inline-flex items-center justify-center rounded-xl border border-rose-200 p-1.5 text-rose-600 hover:bg-rose-50"
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(
+                                        `Vuoi eliminare il socio ${m.full_name} (Tessera ${m.member_number})?`
+                                      )
+                                    ) {
+                                      deleteMember(m.id);
+                                      setSelectedIds((prev) => prev.filter((id) => id !== m.id));
+                                      showNotice(
+                                        'success',
+                                        `✓ Socio ${m.full_name} (Tessera ${m.member_number}) eliminato.`
+                                      );
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50/70 px-2.5 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100"
                                   title="Elimina socio"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <span>Elimina</span>
                                 </button>
                               )}
                             </td>
