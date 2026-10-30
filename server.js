@@ -834,9 +834,11 @@ async function handleRequest(req, res) {
           if (lastKnown && lastKnown.lat && lastKnown.lng) {
             lat = lastKnown.lat;
             lng = lastKnown.lng;
+            const cleanShort = String(lastKnown.addressShort || 'Ultima posizione nota').replace(/\s*\(GPS.*$/i, '').trim();
+            const cleanAddr = String(lastKnown.address || 'Posizione precedente').replace(/\s*-\s*Rilevato spegnimento.*$/i, '').trim();
             geo = {
-              addressShort: `${lastKnown.addressShort || 'Ultima posizione nota'} (GPS in timeout)`,
-              address: `${lastKnown.address || 'Posizione precedente'} - Rilevato spegnimento motore ma GPS Android bloccato`
+              addressShort: cleanShort,
+              address: cleanAddr
             };
           } else {
             lat = 0;
