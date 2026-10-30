@@ -68,6 +68,9 @@ export const AnagraficaSociView: React.FC = () => {
   const [sedeFilter, setSedeFilter] = useState<'ALL' | 'Quartu' | 'Soleminis'>('ALL');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
 
+  // Mostra/nascondi form aggiunta manuale singolo socio (così in alto c'è solo la barra di ricerca socio)
+  const [showAddMemberForm, setShowAddMemberForm] = useState(false);
+
   // Form aggiunta singolo socio
   const [newTessera, setNewTessera] = useState('');
   const [newFirstName, setNewFirstName] = useState('');
@@ -129,9 +132,11 @@ export const AnagraficaSociView: React.FC = () => {
       });
   }, [profiles]);
 
-  // Filtro e Ordinamento per tutti i campi (Tessera, Nome, Cognome, Sede, Ruolo)
+  // Filtro e Ordinamento per tutti i campi (Tessera, Nome, Cognome, Sede, Ruolo) con ricerca multi-parola
   const sortedMembers = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
+    const words = q.split(/\s+/).filter(Boolean);
+
     const filtered = enrichedProfiles.filter((m) => {
       if (sedeFilter !== 'ALL' && m.sede !== sedeFilter) return false;
       if (roleFilter === 'ONLY_CD') {
@@ -145,15 +150,19 @@ export const AnagraficaSociView: React.FC = () => {
           return false;
         }
       }
-      if (!q) return true;
-      return (
-        m.member_number.toLowerCase().includes(q) ||
-        m.parsedFirstName.toLowerCase().includes(q) ||
-        m.parsedLastName.toLowerCase().includes(q) ||
-        m.full_name.toLowerCase().includes(q) ||
-        m.sede.toLowerCase().includes(q) ||
-        m.parsedRole.toLowerCase().includes(q)
-      );
+      if (words.length === 0) return true;
+      const searchableBlob = [
+        m.member_number,
+        m.parsedFirstName,
+        m.parsedLastName,
+        m.full_name,
+        m.sede,
+        m.parsedRole,
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return words.every((w) => searchableBlob.includes(w));
     });
 
     const factor = sortDir === 'asc' ? 1 : -1;
@@ -476,7 +485,7 @@ export const AnagraficaSociView: React.FC = () => {
           </div>
         )}
 
-        {/* BLOCCO 1: INTESTAZIONE + UPLOAD DA EXCEL / CSV */}
+        {/* BLOCCO 1: RICERCA RAPIDA SOCIO SINGOLO IN PRIMO PIANO + AZIONI */}
         <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -493,10 +502,19 @@ export const AnagraficaSociView: React.FC = () => {
               </div>
             </div>
 
-            {/* Pulsanti Importazione Excel / CSV ed Esportazione */}
+            {/* Pulsanti Importazione Excel / CSV, Nuovo Socio ed Esportazione */}
             <div className="flex flex-wrap items-center gap-2">
               {canManageMembers && (
                 <>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddMemberForm((prev) => !prev)}
+                    className="inline-flex items-center gap-1.5 rounded-2xl border border-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3.5 py-2.5 text-xs sm:text-sm font-medium text-emerald-900 transition"
+                  >
+                    <Plus className="h-4 w-4 text-emerald-700" />
+                    <span>{showAddMemberForm ? 'Chiudi Nuovo Socio' : 'Nuovo Socio Manuale'}</span>
+                  </button>
+
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -512,18 +530,18 @@ export const AnagraficaSociView: React.FC = () => {
                   >
                     <Upload className="h-4 w-4" />
                     <span>
-                      {isImporting ? 'Caricamento...' : 'Carica Soci da Excel / CSV'}
+                      {isImporting ? 'Caricamento...' : 'Carica da Excel / CSV'}
                     </span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleDownloadTemplate}
-                    className="inline-flex items-center gap-1.5 rounded-2xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-3.5 py-2.5 text-xs sm:text-sm font-normal text-emerald-900 transition"
+                    className="inline-flex items-center gap-1.5 rounded-2xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-3 py-2.5 text-xs sm:text-sm font-normal text-emerald-900 transition"
                     title="Scarica un file di esempio pronto da compilare con Excel"
                   >
                     <FileSpreadsheet className="h-4 w-4 text-emerald-700" />
-                    <span>Scarica Modello Excel/CSV</span>
+                    <span>Modello Excel/CSV</span>
                   </button>
                 </>
               )}
@@ -548,155 +566,194 @@ export const AnagraficaSociView: React.FC = () => {
             </div>
           </div>
 
-          {/* Nota formato file per l'amministratore */}
-          {canManageMembers && (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-normal text-slate-600 flex flex-wrap items-center justify-between gap-2">
-              <span>
-                💡 <strong>Formato file Excel / CSV:</strong> 5 colonne nell'ordine{' '}
-                <strong>Tessera</strong> (che sarà la password), <strong>Nome</strong>,{' '}
-                <strong>Cognome</strong>, <strong>Sede</strong> (Quartu o Soleminis),{' '}
-                <strong>Ruolo</strong> (Socio, CD, Didattica, Amministrativo, Viaggi).
-              </span>
-              <div className="flex items-center gap-1.5">
+          {/* GRANDE BARRA DI RICERCA SOCIO SINGOLO SUBITO IN ALTO */}
+          <div className="rounded-2xl border-2 border-emerald-600 bg-emerald-50/50 p-3.5 sm:p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label
+                htmlFor="single-member-search"
+                className="text-xs sm:text-sm font-semibold text-emerald-950 flex items-center gap-1.5"
+              >
+                <Search className="h-4 w-4 text-emerald-700" />
+                <span>CERCA UN SOCIO SINGOLO (per N° Tessera, Cognome o Nome):</span>
+              </label>
+              {searchQuery.trim() && (
+                <span className="rounded-full bg-emerald-700 px-2.5 py-0.5 text-xs font-medium text-white">
+                  Trovati: {sortedMembers.length} soci
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search className="h-5 w-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-700" />
                 <input
+                  id="single-member-search"
                   type="text"
-                  placeholder="Nuovo ruolo (es. Biblioteca)"
-                  value={newCustomRole}
-                  onChange={(e) => setNewCustomRole(e.target.value)}
-                  className="h-8 rounded-lg border border-slate-300 bg-white px-2.5 text-xs"
+                  placeholder="Scrivi qui il N° Tessera (es. 102), il Cognome o il Nome del socio..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-12 rounded-xl border border-emerald-400 bg-white pl-11 pr-10 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-700 focus:outline-none shadow-2xs"
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-slate-100 hover:bg-slate-200 p-1 text-slate-600"
+                    title="Cancella ricerca"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!newCustomRole.trim()) return;
-                    addCustomRole(newCustomRole);
-                    showNotice('success', `✓ Nuovo ruolo "${newCustomRole.trim()}" aggiunto!`);
-                    setNewCustomRole('');
-                  }}
-                  className="h-8 rounded-lg bg-emerald-700 text-white px-2.5 text-xs font-normal"
+                  onClick={() => setSearchQuery('')}
+                  className="h-12 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 px-4 text-xs sm:text-sm font-medium text-slate-700 shrink-0"
                 >
-                  + Crea Ruolo
+                  Mostra tutti ({enrichedProfiles.length})
                 </button>
-              </div>
+              )}
             </div>
-          )}
 
-          {/* Form inserimento rapido singolo socio */}
-          {canManageMembers && (
-            <form
-              onSubmit={handleAddSingleMember}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5 pt-2 border-t border-slate-100"
-            >
-              <input
-                type="text"
-                placeholder="Tessera / Password *"
-                value={newTessera}
-                onChange={(e) => setNewTessera(e.target.value)}
-                className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
-              />
-              <input
-                type="text"
-                placeholder="Nome *"
-                value={newFirstName}
-                onChange={(e) => setNewFirstName(e.target.value)}
-                className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
-              />
-              <input
-                type="text"
-                placeholder="Cognome *"
-                value={newLastName}
-                onChange={(e) => setNewLastName(e.target.value)}
-                className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
-              />
+            {/* Filtri rapidi Sede, Ruolo e Ordinamento */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
               <select
-                value={newSede}
-                onChange={(e) => setNewSede(e.target.value as 'Quartu' | 'Soleminis')}
-                className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
+                value={sedeFilter}
+                onChange={(e) => setSedeFilter(e.target.value as any)}
+                className={`h-10 rounded-xl px-3 text-xs sm:text-sm font-normal bg-white border border-slate-300 text-slate-800`}
               >
-                <option value="Quartu">Sede: Quartu</option>
-                <option value="Soleminis">Sede: Soleminis</option>
+                <option value="ALL">Tutte le Sedi (Quartu + Soleminis)</option>
+                <option value="Quartu">Solo Sede Quartu</option>
+                <option value="Soleminis">Solo Sede Soleminis</option>
               </select>
+
               <select
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value)}
-                className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className={`h-10 rounded-xl px-3 text-xs sm:text-sm font-normal bg-white border border-slate-300 text-slate-800`}
               >
+                <option value="ALL">Tutti i Ruoli</option>
+                <option value="ONLY_CD">Solo Consiglio Direttivo (CD)</option>
                 {availableRoles.map((r) => (
                   <option key={r} value={r}>
                     Ruolo: {r}
                   </option>
                 ))}
               </select>
-              <button
-                type="submit"
-                className="h-10 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium flex items-center justify-center gap-1.5 shadow-2xs transition"
+
+              <select
+                value={`${sortField}:${sortDir}`}
+                onChange={(e) => {
+                  const [f, d] = e.target.value.split(':') as [SortField, 'asc' | 'desc'];
+                  setSortField(f);
+                  setSortDir(d);
+                }}
+                className={`h-10 rounded-xl px-3 text-xs sm:text-sm font-normal bg-white border border-slate-300 text-slate-800`}
               >
-                <Plus className="h-4 w-4" />
-                <span>Aggiungi Socio</span>
-              </button>
-            </form>
+                <option value="member_number:asc">Ordina per: Tessera (Crescente)</option>
+                <option value="member_number:desc">Ordina per: Tessera (Decrescente)</option>
+                <option value="first_name:asc">Ordina per: Nome (A → Z)</option>
+                <option value="first_name:desc">Ordina per: Nome (Z → A)</option>
+                <option value="last_name:asc">Ordina per: Cognome (A → Z)</option>
+                <option value="last_name:desc">Ordina per: Cognome (Z → A)</option>
+                <option value="sede:asc">Ordina per: Sede (Quartu → Soleminis)</option>
+                <option value="sede:desc">Ordina per: Sede (Soleminis → Quartu)</option>
+                <option value="role:asc">Ordina per: Ruolo (A → Z)</option>
+                <option value="role:desc">Ordina per: Ruolo (Z → A)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Form inserimento rapido singolo socio (apribile a richiesta cliccando "Nuovo Socio Manuale") */}
+          {canManageMembers && showAddMemberForm && (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+                  Inserimento Nuovo Socio Manuale
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    placeholder="Nuovo ruolo (es. Biblioteca)"
+                    value={newCustomRole}
+                    onChange={(e) => setNewCustomRole(e.target.value)}
+                    className="h-8 rounded-lg border border-slate-300 bg-white px-2.5 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newCustomRole.trim()) return;
+                      addCustomRole(newCustomRole);
+                      showNotice('success', `✓ Nuovo ruolo "${newCustomRole.trim()}" aggiunto!`);
+                      setNewCustomRole('');
+                    }}
+                    className="h-8 rounded-lg bg-emerald-700 text-white px-2.5 text-xs font-normal"
+                  >
+                    + Crea Ruolo
+                  </button>
+                </div>
+              </div>
+
+              <form
+                onSubmit={handleAddSingleMember}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5"
+              >
+                <input
+                  type="text"
+                  placeholder="Tessera / Password *"
+                  value={newTessera}
+                  onChange={(e) => setNewTessera(e.target.value)}
+                  className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
+                />
+                <input
+                  type="text"
+                  placeholder="Nome *"
+                  value={newFirstName}
+                  onChange={(e) => setNewFirstName(e.target.value)}
+                  className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
+                />
+                <input
+                  type="text"
+                  placeholder="Cognome *"
+                  value={newLastName}
+                  onChange={(e) => setNewLastName(e.target.value)}
+                  className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
+                />
+                <select
+                  value={newSede}
+                  onChange={(e) => setNewSede(e.target.value as 'Quartu' | 'Soleminis')}
+                  className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
+                >
+                  <option value="Quartu">Sede: Quartu</option>
+                  <option value="Soleminis">Sede: Soleminis</option>
+                </select>
+                <select
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value)}
+                  className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
+                >
+                  {availableRoles.map((r) => (
+                    <option key={r} value={r}>
+                      Ruolo: {r}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  className="h-10 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium flex items-center justify-center gap-1.5 shadow-2xs transition"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Salva Socio</span>
+                </button>
+              </form>
+            </div>
           )}
         </div>
 
-        {/* BLOCCO 2: RICERCA, FILTRI E PULSANTI DI ORDINAMENTO RAPIDO */}
+        {/* BLOCCO 2: ELENCO RISULTATI ED ELIMINAZIONE SOCI */}
         <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-            <div className="relative">
-              <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Cerca tessera, nome, cognome..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full h-10 rounded-xl pl-10 pr-3 text-sm font-normal ${inputClass}`}
-              />
-            </div>
-
-            <select
-              value={sedeFilter}
-              onChange={(e) => setSedeFilter(e.target.value as any)}
-              className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
-            >
-              <option value="ALL">Tutte le Sedi (Quartu + Soleminis)</option>
-              <option value="Quartu">Solo Sede Quartu</option>
-              <option value="Soleminis">Solo Sede Soleminis</option>
-            </select>
-
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
-            >
-              <option value="ALL">Tutti i Ruoli</option>
-              <option value="ONLY_CD">Solo Consiglio Direttivo (CD)</option>
-              {availableRoles.map((r) => (
-                <option key={r} value={r}>
-                  Ruolo: {r}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={`${sortField}:${sortDir}`}
-              onChange={(e) => {
-                const [f, d] = e.target.value.split(':') as [SortField, 'asc' | 'desc'];
-                setSortField(f);
-                setSortDir(d);
-              }}
-              className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
-            >
-              <option value="member_number:asc">Ordina per: Tessera (Crescente)</option>
-              <option value="member_number:desc">Ordina per: Tessera (Decrescente)</option>
-              <option value="first_name:asc">Ordina per: Nome (A → Z)</option>
-              <option value="first_name:desc">Ordina per: Nome (Z → A)</option>
-              <option value="last_name:asc">Ordina per: Cognome (A → Z)</option>
-              <option value="last_name:desc">Ordina per: Cognome (Z → A)</option>
-              <option value="sede:asc">Ordina per: Sede (Quartu → Soleminis)</option>
-              <option value="sede:desc">Ordina per: Sede (Soleminis → Quartu)</option>
-              <option value="role:asc">Ordina per: Ruolo (A → Z)</option>
-              <option value="role:desc">Ordina per: Ruolo (Z → A)</option>
-            </select>
-          </div>
 
           {/* BARRA SELEZIONE ED ELIMINAZIONE SOCI (Singola o Multipla) */}
           {canManageMembers && (

@@ -306,6 +306,9 @@ export const PiccolaCassaView: React.FC = () => {
     setTimeout(() => setFeedbackBanner(null), 4000);
   };
 
+  // Ricerca rapida del Fruitore del Rimborso senza dover scorrere tutto l'elenco
+  const [beneficiarySearch, setBeneficiarySearch] = useState<string>('');
+
   // Elenco soci selezionabili come fruitori del rimborso: SOLO chi ha un ruolo diverso da semplice "Socio"
   // (es. CD, Amministratore, Amministrativo, Didattica, Viaggi, ecc.) + l'utente autenticato
   const eligibleBeneficiaries = useMemo(() => {
@@ -326,6 +329,16 @@ export const PiccolaCassaView: React.FC = () => {
       return a.full_name.localeCompare(b.full_name, 'it', { sensitivity: 'base' });
     });
   }, [profiles, currentUser]);
+
+  const filteredBeneficiaries = useMemo(() => {
+    const q = beneficiarySearch.trim().toLowerCase();
+    if (!q) return eligibleBeneficiaries;
+    const words = q.split(/\s+/).filter(Boolean);
+    return eligibleBeneficiaries.filter((p) => {
+      const blob = `${p.member_number} ${p.full_name} ${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
+      return words.every((w) => blob.includes(w));
+    });
+  }, [eligibleBeneficiaries, beneficiarySearch]);
 
   // Elenco Anni Contabili disponibili (1° Luglio – 30 Giugno)
   const availableAccountingYears = useMemo(() => {
@@ -1326,15 +1339,52 @@ export const PiccolaCassaView: React.FC = () => {
               {/* 1. In alto: Nome selezionabile del Fruitore del Rimborso (solo ruoli diversi da semplice Socio)
                   2. Sotto: Fisso il nome di chi si è autenticato come compilatore della pratica a nome del fruitore */}
               <div className="space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5">
-                <div>
-                  <label className="text-xs font-medium text-slate-700 flex items-center gap-1.5 mb-1">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-700 flex items-center gap-1.5">
                     <User className="h-3.5 w-3.5 text-emerald-700" />
                     <span>
                       {entryType === 'spesa'
-                        ? 'Fruitore del Rimborso (selezionabile tra i ruoli diversi da Socio)'
-                        : 'Intestatario del Versamento (selezionabile tra i ruoli diversi da Socio)'}
+                        ? 'Fruitore del Rimborso (cerca per nome/tessera o scegli dall\'elenco dei ruoli diversi da Socio)'
+                        : 'Intestatario del Versamento (cerca per nome/tessera o scegli dall\'elenco dei ruoli diversi da Socio)'}
                     </span>
                   </label>
+
+                  {/* Casella di ricerca rapida per trovare subito un singolo socio senza scorrere l'elenco */}
+                  <div className="relative">
+                    <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={beneficiarySearch}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setBeneficiarySearch(val);
+                        const q = val.trim().toLowerCase();
+                        if (q) {
+                          const words = q.split(/\s+/).filter(Boolean);
+                          const match = eligibleBeneficiaries.find((p) => {
+                            const blob = `${p.member_number} ${p.full_name} ${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
+                            return words.every((w) => blob.includes(w));
+                          });
+                          if (match) {
+                            setRequesterId(match.id);
+                            setRequesterName(match.full_name);
+                          }
+                        }
+                      }}
+                      placeholder="Cerca socio per nome, cognome o N° tessera..."
+                      className={`w-full h-10 rounded-xl pl-9 pr-8 text-xs sm:text-sm font-normal ${inputClass}`}
+                    />
+                    {beneficiarySearch && (
+                      <button
+                        type="button"
+                        onClick={() => setBeneficiarySearch('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
                   <select
                     value={requesterId}
                     onChange={(e) => {
@@ -1346,14 +1396,18 @@ export const PiccolaCassaView: React.FC = () => {
                     className={`w-full h-11 rounded-xl px-3 text-sm font-medium ${inputClass}`}
                     required
                   >
-                    {eligibleBeneficiaries.map((p) => {
-                      const roleLabel = getMemberParts(p).primaryRole;
-                      return (
-                        <option key={p.id} value={p.id}>
-                          {p.full_name} — Ruolo: {roleLabel} (Tessera {p.member_number})
-                        </option>
-                      );
-                    })}
+                    {filteredBeneficiaries.length === 0 ? (
+                      <option value={requesterId}>{requesterName} (Nessun altro risultato per &quot;{beneficiarySearch}&quot;)</option>
+                    ) : (
+                      filteredBeneficiaries.map((p) => {
+                        const roleLabel = getMemberParts(p).primaryRole;
+                        return (
+                          <option key={p.id} value={p.id}>
+                            {p.full_name} — Ruolo: {roleLabel} (Tessera {p.member_number})
+                          </option>
+                        );
+                      })
+                    )}
                   </select>
                 </div>
 
