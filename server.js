@@ -784,37 +784,70 @@ async function handleRequest(req, res) {
         let rawLng = parsedUrl.searchParams.get('lng') || parsedUrl.searchParams.get('lon') || body.lng || body.lon;
         const rawLoc = parsedUrl.searchParams.get('loc') || parsedUrl.searchParams.get('location') || body.loc || body.location;
 
-        if ((!rawLat || !rawLng) && rawLoc && typeof rawLoc === 'string' && rawLoc.includes(',')) {
+        // Se rawLat e rawLng sono presenti entrambi, converti l'eventuale virgola decimale (es. 45,4642 inviato da MacroDroid italiano) in punto (45.4642)
+        if (rawLat && rawLng) {
+          rawLat = String(rawLat).trim().replace(',', '.');
+          rawLng = String(rawLng).trim().replace(',', '.');
+        } else if ((!rawLat || !rawLng) && rawLoc && typeof rawLoc === 'string' && rawLoc.includes(',')) {
           const parts = rawLoc.split(',');
-          rawLat = parts[0].trim();
-          rawLng = parts[1].trim();
-        } else if (rawLat && typeof rawLat === 'string' && rawLat.includes(',')) {
+          if (parts.length === 4) {
+            // Caso loc="45,4642,9,1900"
+            rawLat = `${parts[0].trim()}.${parts[1].trim()}`;
+            rawLng = `${parts[2].trim()}.${parts[3].trim()}`;
+          } else {
+            rawLat = parts[0].trim().replace(',', '.');
+            rawLng = parts[1].trim().replace(',', '.');
+          }
+        } else if (rawLat && typeof rawLat === 'string' && rawLat.includes(',') && !rawLng) {
           const parts = rawLat.split(',');
           rawLat = parts[0].trim();
-          if (!rawLng) rawLng = parts[1].trim();
+          rawLng = parts[1].trim();
         }
 
-        if (!rawLat || !rawLng) {
-          return sendJSON(res, 400, { error: 'Coordinate lat e lng mancanti.' });
+        // Pulisci eventuali placeholder non risolti da MacroDroid (es. "[last_loc_lat]", "0.0", "null")
+        const isPlaceholder = (v) => !v || v.includes('[') || v.includes('{') || v === 'null' || v === 'undefined' || v === '0' || v === '0.0';
+
+        let lat = isPlaceholder(rawLat) ? NaN : parseFloat(rawLat);
+        let lng = isPlaceholder(rawLng) ? NaN : parseFloat(rawLng);
+        if (lat === 0 && lng === 0) {
+          lat = NaN;
+          lng = NaN;
         }
 
-        const lat = parseFloat(rawLat);
-        const lng = parseFloat(rawLng);
-        if (isNaN(lat) || isNaN(lng)) {
-          return sendJSON(res, 400, { error: 'Coordinate lat e lng numeriche non valide.' });
-        }
-
-        const accuracy = Math.round(parseFloat(parsedUrl.searchParams.get('accuracy') || body.accuracy || 5));
+        const accuracy = Math.round(parseFloat(String(parsedUrl.searchParams.get('accuracy') || body.accuracy || 5).replace(',', '.')) || 5);
         const trigger = parsedUrl.searchParams.get('trigger') || body.trigger || 'bluetooth_auto';
         const notes = (parsedUrl.searchParams.get('notes') || body.notes || '').trim();
 
-        const geo = await reverseGeocodeServer(lat, lng);
         const parkingStore = loadParking();
         if (!parkingStore[user]) {
           parkingStore[user] = { active: null, history: [] };
         }
         if (!Array.isArray(parkingStore[user].history)) {
           parkingStore[user].history = [];
+        }
+
+        // Se il GPS del telefono è andato in Timeout (Forced Location Update: Timeout) e non ha inviato coordinate valide,
+        // registriamo comunque l'evento di parcheggio usando l'ultima posizione nota o segnalando l'orario esatto di spegnimento motore
+        let geo;
+        if (isNaN(lat) || isNaN(lng)) {
+          const lastKnown = parkingStore[user].active || (parkingStore[user].history.length > 0 ? parkingStore[user].history[0] : null);
+          if (lastKnown && lastKnown.lat && lastKnown.lng) {
+            lat = lastKnown.lat;
+            lng = lastKnown.lng;
+            geo = {
+              addressShort: `${lastKnown.addressShort || 'Ultima posizione nota'} (GPS in timeout)`,
+              address: `${lastKnown.address || 'Posizione precedente'} - Rilevato spegnimento motore ma GPS Android bloccato`
+            };
+          } else {
+            lat = 0;
+            lng = 0;
+            geo = {
+              addressShort: `Parcheggio registrato (Posizione GPS disattivata sul telefono)`,
+              address: `Motore spento rilevato via Bluetooth - Attiva il GPS sul telefono per la via esatta`
+            };
+          }
+        } else {
+          geo = await reverseGeocodeServer(lat, lng);
         }
 
         // Se c'era già un parcheggio attivo, archivialo nello storico
