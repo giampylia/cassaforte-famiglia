@@ -152,9 +152,44 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await readJsonBody(req);
       if (body && body.db) {
-        saveDb(body.db);
+        const existingDb = loadDb();
+        const incomingDb = { ...body.db };
+
+        if (existingDb) {
+          // Protezione Anagrafica Soci e Ruoli: non sovrascrivere mai con dati più vecchi o demo (profilesUpdatedAt minore)
+          const existingProfTs = Number(existingDb.profilesUpdatedAt || 0);
+          const incomingProfTs = Number(incomingDb.profilesUpdatedAt || 0);
+          if (existingProfTs > incomingProfTs && Array.isArray(existingDb.profiles)) {
+            incomingDb.profiles = existingDb.profiles;
+            incomingDb.availableRoles = existingDb.availableRoles || incomingDb.availableRoles;
+            incomingDb.profilesUpdatedAt = existingProfTs;
+          }
+
+          // Protezione Piccola Cassa: non sovrascrivere mai con dati più vecchi
+          const existingCashTs = Number(existingDb.cashUpdatedAt || 0);
+          const incomingCashTs = Number(incomingDb.cashUpdatedAt || 0);
+          if (existingCashTs > incomingCashTs && Array.isArray(existingDb.cashMovements)) {
+            incomingDb.cashMovements = existingDb.cashMovements;
+            incomingDb.expenseCategories = existingDb.expenseCategories || incomingDb.expenseCategories;
+            incomingDb.cashOpeningBalance =
+              typeof existingDb.cashOpeningBalance === 'number'
+                ? existingDb.cashOpeningBalance
+                : incomingDb.cashOpeningBalance;
+            incomingDb.cashUpdatedAt = existingCashTs;
+          }
+
+          // Protezione Orario Lezioni: non sovrascrivere mai con dati più vecchi
+          const existingLessonsTs = Number(existingDb.lessonsUpdatedAt || 0);
+          const incomingLessonsTs = Number(incomingDb.lessonsUpdatedAt || 0);
+          if (existingLessonsTs > incomingLessonsTs && Array.isArray(existingDb.lessons)) {
+            incomingDb.lessons = existingDb.lessons;
+            incomingDb.lessonsUpdatedAt = existingLessonsTs;
+          }
+        }
+
+        saveDb(incomingDb);
         broadcastUpdate('STATE_SYNC', {
-          db: body.db,
+          db: incomingDb,
           eventLabel: body.eventLabel || null,
         });
       }

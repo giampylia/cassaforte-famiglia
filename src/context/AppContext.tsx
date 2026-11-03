@@ -45,10 +45,13 @@ export interface LiveFeedEvent {
 interface CloudDbSnapshot {
   profiles: Profile[];
   availableRoles?: string[];
+  profilesUpdatedAt?: number;
   expenseCategories?: ExpenseCategory[];
   cashMovements?: CashMovement[];
   cashOpeningBalance?: number;
+  cashUpdatedAt?: number;
   lessons: Lesson[];
+  lessonsUpdatedAt?: number;
   attendance: AttendanceRecord[];
   subjectNotes: SubjectDidacticNote[];
   visualHeadcounts: Record<ClassroomKey, number>;
@@ -134,10 +137,14 @@ const STORAGE_KEYS = {
   USER: 'quartimbra_current_user_v4',
   PROFILES: 'quartimbra_profiles_v4',
   ROLES: 'quartimbra_available_roles_v4',
+  PROFILES_TS: 'quartimbra_profiles_updated_at_v4',
+  PROTECTED_ANAGRAFICA: 'quartimbra_protected_anagrafica_backup_v1',
   CATEGORIES: 'quartimbra_expense_categories_v4',
   CASH_MOVEMENTS: 'quartimbra_cash_movements_v4',
   CASH_BALANCE: 'quartimbra_cash_opening_balance_v4',
+  CASH_TS: 'quartimbra_cash_updated_at_v4',
   LESSONS: 'quartimbra_lessons_v3',
+  LESSONS_TS: 'quartimbra_lessons_updated_at_v4',
   ATTENDANCE: 'quartimbra_attendance_v3',
   NOTES: 'quartimbra_subject_notes_v3',
   HEADCOUNTS: 'quartimbra_headcounts_v3',
@@ -157,6 +164,22 @@ const DEFAULT_HEADCOUNTS: Record<ClassroomKey, number> = {
   ferrini: 30,
   polifunzionale: 35,
 };
+
+// Verifica se un elenco di soci contiene modifiche/importazioni rispetto ai dati demo iniziali
+function isCustomizedProfiles(list: Profile[]): boolean {
+  if (!Array.isArray(list)) return false;
+  if (list.length !== INITIAL_PROFILES.length) return true;
+  for (const p of list) {
+    if (p.id.startsWith('u-imp-') || p.id.startsWith('u-17')) return true;
+    const init = INITIAL_PROFILES.find((ip) => ip.member_number === p.member_number);
+    if (!init) return true;
+    if (p.full_name !== init.full_name || Boolean(p.is_cd) !== Boolean(init.is_cd)) return true;
+    const r1 = (p.roles || ['Socio']).join(',');
+    const r2 = (init.roles || ['Socio']).join(',');
+    if (r1 !== r2) return true;
+  }
+  return false;
+}
 
 function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
   const list = [...rawProfiles];
@@ -207,8 +230,23 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profiles, setProfiles] = useState<Profile[]>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.PROFILES);
-      return saved ? ensureSuperAdminAndRoles(JSON.parse(saved)) : INITIAL_PROFILES;
+      // Controlla prima il backup protetto dell'Anagrafica Soci
+      const protectedRaw = localStorage.getItem(STORAGE_KEYS.PROTECTED_ANAGRAFICA);
+      const savedRaw = localStorage.getItem(STORAGE_KEYS.PROFILES);
+      const savedList: Profile[] | null = savedRaw ? JSON.parse(savedRaw) : null;
+
+      if (protectedRaw) {
+        const parsedBackup = JSON.parse(protectedRaw);
+        if (
+          parsedBackup &&
+          Array.isArray(parsedBackup.profiles) &&
+          parsedBackup.profiles.length > 0 &&
+          (!savedList || !isCustomizedProfiles(savedList))
+        ) {
+          return ensureSuperAdminAndRoles(parsedBackup.profiles);
+        }
+      }
+      return savedList ? ensureSuperAdminAndRoles(savedList) : INITIAL_PROFILES;
     } catch {
       return INITIAL_PROFILES;
     }
@@ -216,10 +254,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [availableRoles, setAvailableRoles] = useState<string[]>(() => {
     try {
+      const protectedRaw = localStorage.getItem(STORAGE_KEYS.PROTECTED_ANAGRAFICA);
+      if (protectedRaw) {
+        const parsedBackup = JSON.parse(protectedRaw);
+        if (parsedBackup && Array.isArray(parsedBackup.availableRoles) && parsedBackup.availableRoles.length > 0) {
+          return parsedBackup.availableRoles;
+        }
+      }
       const saved = localStorage.getItem(STORAGE_KEYS.ROLES);
       return saved ? JSON.parse(saved) : DEFAULT_AVAILABLE_ROLES;
     } catch {
       return DEFAULT_AVAILABLE_ROLES;
+    }
+  });
+
+  const [profilesUpdatedAt, setProfilesUpdatedAt] = useState<number>(() => {
+    try {
+      const savedTs = Number(localStorage.getItem(STORAGE_KEYS.PROFILES_TS) || 0);
+      if (savedTs > 0) return savedTs;
+      const protectedRaw = localStorage.getItem(STORAGE_KEYS.PROTECTED_ANAGRAFICA);
+      if (protectedRaw) {
+        const parsedBackup = JSON.parse(protectedRaw);
+        if (parsedBackup?.updatedAt) return Number(parsedBackup.updatedAt);
+      }
+      const savedRaw = localStorage.getItem(STORAGE_KEYS.PROFILES);
+      if (savedRaw) {
+        const savedList = JSON.parse(savedRaw);
+        if (isCustomizedProfiles(savedList)) return Date.now();
+      }
+      return 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  const [cashUpdatedAt, setCashUpdatedAt] = useState<number>(() => {
+    try {
+      return Number(localStorage.getItem(STORAGE_KEYS.CASH_TS) || 0);
+    } catch {
+      return 0;
+    }
+  });
+
+  const [lessonsUpdatedAt, setLessonsUpdatedAt] = useState<number>(() => {
+    try {
+      return Number(localStorage.getItem(STORAGE_KEYS.LESSONS_TS) || 0);
+    } catch {
+      return 0;
     }
   });
 
@@ -354,7 +435,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
 
   const isApplyingRemoteRef = useRef(false);
+  const hasHydratedRef = useRef(false);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  const profilesUpdatedAtRef = useRef(profilesUpdatedAt);
+  profilesUpdatedAtRef.current = profilesUpdatedAt;
+  const cashUpdatedAtRef = useRef(cashUpdatedAt);
+  cashUpdatedAtRef.current = cashUpdatedAt;
+  const lessonsUpdatedAtRef = useRef(lessonsUpdatedAt);
+  lessonsUpdatedAtRef.current = lessonsUpdatedAt;
 
   // Real clock vs simulated clock
   const [isSimulatingTime, setIsSimulatingTime] = useState<boolean>(false);
@@ -402,20 +490,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const applyRemoteSnapshot = (db: CloudDbSnapshot) => {
     if (!db) return;
     isApplyingRemoteRef.current = true;
-    if (Array.isArray(db.profiles)) setProfiles(ensureSuperAdminAndRoles(db.profiles));
-    if (Array.isArray(db.availableRoles) && db.availableRoles.length > 0) {
-      setAvailableRoles(db.availableRoles);
+
+    const remoteProfTs = Number(db.profilesUpdatedAt || 0);
+    const localProfTs = profilesUpdatedAtRef.current;
+    let shouldPushBackLocalProtected = false;
+
+    // Protezione Anagrafica Soci e Ruoli: applica da remoto solo se è più recente o se in locale abbiamo solo i demo di default
+    if (Array.isArray(db.profiles) && db.profiles.length > 0) {
+      if (remoteProfTs >= localProfTs && (remoteProfTs > 0 || localProfTs === 0)) {
+        setProfiles(ensureSuperAdminAndRoles(db.profiles));
+        if (remoteProfTs > 0) setProfilesUpdatedAt(remoteProfTs);
+        if (Array.isArray(db.availableRoles) && db.availableRoles.length > 0) {
+          setAvailableRoles(db.availableRoles);
+        }
+      } else if (localProfTs > remoteProfTs) {
+        shouldPushBackLocalProtected = true;
+      }
     }
-    if (Array.isArray(db.expenseCategories) && db.expenseCategories.length > 0) {
-      setExpenseCategories(db.expenseCategories);
+
+    const remoteCashTs = Number(db.cashUpdatedAt || 0);
+    const localCashTs = cashUpdatedAtRef.current;
+    if (remoteCashTs >= localCashTs) {
+      if (Array.isArray(db.expenseCategories) && db.expenseCategories.length > 0) {
+        setExpenseCategories(db.expenseCategories);
+      }
+      if (Array.isArray(db.cashMovements)) {
+        setCashMovements(db.cashMovements);
+      }
+      if (typeof db.cashOpeningBalance === 'number') {
+        setCashOpeningBalanceState(db.cashOpeningBalance);
+      }
+      if (remoteCashTs > 0) setCashUpdatedAt(remoteCashTs);
+    } else {
+      shouldPushBackLocalProtected = true;
     }
-    if (Array.isArray(db.cashMovements)) {
-      setCashMovements(db.cashMovements);
+
+    const remoteLessonsTs = Number(db.lessonsUpdatedAt || 0);
+    const localLessonsTs = lessonsUpdatedAtRef.current;
+    if (remoteLessonsTs >= localLessonsTs) {
+      if (Array.isArray(db.lessons)) setLessons(db.lessons);
+      if (remoteLessonsTs > 0) setLessonsUpdatedAt(remoteLessonsTs);
+    } else {
+      shouldPushBackLocalProtected = true;
     }
-    if (typeof db.cashOpeningBalance === 'number') {
-      setCashOpeningBalanceState(db.cashOpeningBalance);
-    }
-    if (Array.isArray(db.lessons)) setLessons(db.lessons);
+
     let cleanedDuplicates = false;
     if (Array.isArray(db.attendance)) {
       const lessonsToUse = Array.isArray(db.lessons) ? db.lessons : lessons;
@@ -429,12 +547,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (db.visualHeadcounts) setVisualHeadcounts(db.visualHeadcounts);
     if (Array.isArray(db.liveFeed)) setLiveFeed(db.liveFeed);
     setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
-    if (cleanedDuplicates) {
+
+    if (cleanedDuplicates || shouldPushBackLocalProtected) {
       isApplyingRemoteRef.current = false;
+      if (shouldPushBackLocalProtected) {
+        setTimeout(() => {
+          pushCloudSnapshot({
+            profiles,
+            availableRoles,
+            profilesUpdatedAt: profilesUpdatedAtRef.current,
+            expenseCategories,
+            cashMovements,
+            cashOpeningBalance,
+            cashUpdatedAt: cashUpdatedAtRef.current,
+            lessons,
+            lessonsUpdatedAt: lessonsUpdatedAtRef.current,
+            attendance: Array.isArray(db.attendance) ? db.attendance : attendance,
+            subjectNotes: Array.isArray(db.subjectNotes) ? db.subjectNotes : subjectNotes,
+            visualHeadcounts: db.visualHeadcounts || visualHeadcounts,
+            liveFeed: Array.isArray(db.liveFeed) ? db.liveFeed : liveFeed,
+            updatedAt: new Date().toISOString(),
+          });
+        }, 120);
+      }
     } else {
       setTimeout(() => {
         isApplyingRemoteRef.current = false;
-      }, 50);
+      }, 80);
     }
   };
 
@@ -447,16 +586,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (typeof data.connectedDevices === 'number') {
           setConnectedDevices(Math.max(1, data.connectedDevices));
         }
-        if (data.db && data.db.attendance && data.db.attendance.length > 0) {
+        const serverHasData =
+          data.db &&
+          ((Array.isArray(data.db.attendance) && data.db.attendance.length > 0) ||
+            Number(data.db.profilesUpdatedAt || 0) > 0 ||
+            Number(data.db.cashUpdatedAt || 0) > 0);
+
+        if (serverHasData) {
           applyRemoteSnapshot(data.db);
+          hasHydratedRef.current = true;
         } else {
+          hasHydratedRef.current = true;
           pushCloudSnapshot({
             profiles,
             availableRoles,
+            profilesUpdatedAt: profilesUpdatedAtRef.current,
             expenseCategories,
             cashMovements,
             cashOpeningBalance,
+            cashUpdatedAt: cashUpdatedAtRef.current,
             lessons,
+            lessonsUpdatedAt: lessonsUpdatedAtRef.current,
             attendance,
             subjectNotes,
             visualHeadcounts,
@@ -466,6 +616,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       })
       .catch(() => {
+        hasHydratedRef.current = true;
         setCloudConnected(false);
       });
 
@@ -529,23 +680,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
     localStorage.setItem(STORAGE_KEYS.ROLES, JSON.stringify(availableRoles));
+    localStorage.setItem(STORAGE_KEYS.PROFILES_TS, String(profilesUpdatedAt));
+    if (profilesUpdatedAt > 0 || isCustomizedProfiles(profiles)) {
+      localStorage.setItem(
+        STORAGE_KEYS.PROTECTED_ANAGRAFICA,
+        JSON.stringify({
+          profiles,
+          availableRoles,
+          updatedAt: profilesUpdatedAt || Date.now(),
+        })
+      );
+    }
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(expenseCategories));
     localStorage.setItem(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(cashMovements));
     localStorage.setItem(STORAGE_KEYS.CASH_BALANCE, String(cashOpeningBalance));
+    localStorage.setItem(STORAGE_KEYS.CASH_TS, String(cashUpdatedAt));
     localStorage.setItem(STORAGE_KEYS.LESSONS, JSON.stringify(lessons));
+    localStorage.setItem(STORAGE_KEYS.LESSONS_TS, String(lessonsUpdatedAt));
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendance));
     localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(subjectNotes));
     localStorage.setItem(STORAGE_KEYS.HEADCOUNTS, JSON.stringify(visualHeadcounts));
     localStorage.setItem(STORAGE_KEYS.LIVE_FEED, JSON.stringify(liveFeed));
 
-    if (!isApplyingRemoteRef.current) {
+    // Invia al cloud solo DOPO che il client ha completato il caricamento iniziale da /api/state
+    if (!isApplyingRemoteRef.current && hasHydratedRef.current) {
       pushCloudSnapshot({
         profiles,
         availableRoles,
+        profilesUpdatedAt,
         expenseCategories,
         cashMovements,
         cashOpeningBalance,
+        cashUpdatedAt,
         lessons,
+        lessonsUpdatedAt,
         attendance,
         subjectNotes,
         visualHeadcounts,
@@ -556,10 +724,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [
     profiles,
     availableRoles,
+    profilesUpdatedAt,
     expenseCategories,
     cashMovements,
     cashOpeningBalance,
+    cashUpdatedAt,
     lessons,
+    lessonsUpdatedAt,
     attendance,
     subjectNotes,
     visualHeadcounts,
@@ -917,6 +1088,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { ok: false, message: 'Questo ruolo esiste già.' };
     }
     setAvailableRoles((prev) => [...prev, clean]);
+    setProfilesUpdatedAt(Date.now());
     return { ok: true };
   };
 
@@ -935,6 +1107,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       })
     );
+    setProfilesUpdatedAt(Date.now());
   };
 
   const toggleMemberRole = (userId: string, roleName: string) => {
@@ -955,11 +1128,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       })
     );
+    setProfilesUpdatedAt(Date.now());
   };
 
   // Piccola Cassa Management
   const setCashOpeningBalance = (amount: number) => {
     setCashOpeningBalanceState(amount);
+    setCashUpdatedAt(Date.now());
   };
 
   const addExpenseCategory = (name: string, description?: string) => {
@@ -972,14 +1147,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       is_active: true,
     };
     setExpenseCategories((prev) => [...prev, newCat]);
+    setCashUpdatedAt(Date.now());
   };
 
   const updateExpenseCategory = (id: string, data: Partial<ExpenseCategory>) => {
     setExpenseCategories((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
+    setCashUpdatedAt(Date.now());
   };
 
   const deleteExpenseCategory = (id: string) => {
     setExpenseCategories((prev) => prev.filter((c) => c.id !== id));
+    setCashUpdatedAt(Date.now());
   };
 
   const addCashMovement = (movementData: Omit<CashMovement, 'id' | 'created_at'>): CashMovement => {
@@ -989,15 +1167,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       created_at: new Date().toISOString(),
     };
     setCashMovements((prev) => [newMov, ...prev]);
+    setCashUpdatedAt(Date.now());
     return newMov;
   };
 
   const updateCashMovement = (id: string, data: Partial<CashMovement>) => {
     setCashMovements((prev) => prev.map((m) => (m.id === id ? { ...m, ...data } : m)));
+    setCashUpdatedAt(Date.now());
   };
 
   const deleteCashMovement = (id: string) => {
     setCashMovements((prev) => prev.filter((m) => m.id !== id));
+    setCashUpdatedAt(Date.now());
   };
 
   const addMember = (
@@ -1032,6 +1213,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       joined_year: new Date().getFullYear(),
     };
     setProfiles((prev) => [...prev, newProfile]);
+    setProfilesUpdatedAt(Date.now());
     return { ok: true };
   };
 
@@ -1107,6 +1289,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     setAvailableRoles(Array.from(discoveredRoles));
+    setProfilesUpdatedAt(Date.now());
     return { added, updated };
   };
 
@@ -1115,10 +1298,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (currentUser?.id === id) {
       setCurrentUser((prev) => (prev ? { ...prev, ...data } : null));
     }
+    setProfilesUpdatedAt(Date.now());
   };
 
   const deleteMember = (id: string) => {
     setProfiles((prev) => prev.filter((p) => p.id !== id && p.member_number !== '7796' ? true : p.id !== id));
+    setProfilesUpdatedAt(Date.now());
   };
 
   const deleteMembersBatch = (ids: string[]) => {
@@ -1126,6 +1311,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setProfiles((prev) =>
       prev.filter((p) => p.member_number === '7796' || p.is_super_admin || !idSet.has(p.id))
     );
+    setProfilesUpdatedAt(Date.now());
   };
 
   const addLesson = (lessonData: Omit<Lesson, 'id'>) => {
@@ -1136,14 +1322,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `les-${Date.now()}`,
     };
     setLessons((prev) => [...prev, newLesson]);
+    setLessonsUpdatedAt(Date.now());
   };
 
   const updateLesson = (id: string, data: Partial<Lesson>) => {
     setLessons((prev) => prev.map((l) => (l.id === id ? { ...l, ...data } : l)));
+    setLessonsUpdatedAt(Date.now());
   };
 
   const deleteLesson = (id: string) => {
     setLessons((prev) => prev.filter((l) => l.id !== id));
+    setLessonsUpdatedAt(Date.now());
   };
 
   const saveSubjectNote = (note: SubjectDidacticNote) => {
@@ -1157,12 +1346,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetDemoData = () => {
-    setProfiles(INITIAL_PROFILES);
-    setAvailableRoles(DEFAULT_AVAILABLE_ROLES);
-    setExpenseCategories(INITIAL_EXPENSE_CATEGORIES);
-    setCashMovements(INITIAL_CASH_MOVEMENTS);
-    setCashOpeningBalanceState(500);
-    setLessons(INITIAL_LESSONS);
     setAttendance(generateInitialAttendance());
     setSubjectNotes(INITIAL_SUBJECT_NOTES);
     setVisualHeadcounts(DEFAULT_HEADCOUNTS);
