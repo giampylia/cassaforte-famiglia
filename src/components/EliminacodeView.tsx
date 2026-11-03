@@ -608,8 +608,49 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     return queueState.items.find((it) => it.number === queueState.currentNumber) || null;
   }, [queueState.items, queueState.currentNumber]);
 
+  // Verifica se il Monitor in Sala d'Attesa è in modalità Standby ("In attesa di prima chiamata" / "In pausa" / "Chiuso")
+  const isStandby =
+    queueState.currentNumber <= 0 ||
+    (Boolean(queueState.standbyMode) && queueState.standbyMode !== 'none');
+
+  const standbyDisplay = useMemo(() => {
+    const mode = queueState.standbyMode || (queueState.currentNumber <= 0 ? 'waiting' : 'none');
+    if (mode === 'paused') {
+      return {
+        badge: 'AVVISO SALA D’ATTESA',
+        title: queueState.standbyMessage || 'SERVIZIO TEMPORANEAMENTE IN PAUSA',
+        subtitle: 'Le chiamate riprenderanno a breve — Grazie per l’attesa',
+      };
+    }
+    if (mode === 'closed') {
+      return {
+        badge: 'AVVISO SALA D’ATTESA',
+        title: queueState.standbyMessage || 'SPORTELLO CHIUSO — NON OPERATIVO',
+        subtitle: 'Il servizio di chiamata turni non è attivo in questo momento',
+      };
+    }
+    return {
+      badge: 'AVVISO SALA D’ATTESA',
+      title: queueState.standbyMessage || 'IN ATTESA DI PRIMA CHIAMATA',
+      subtitle: 'Il servizio inizierà a breve — Attendere l’avvio delle chiamate',
+    };
+  }, [queueState.standbyMode, queueState.standbyMessage, queueState.currentNumber]);
+
   // Prossimo socio in coda
   const nextItem = useMemo(() => {
+    if (isStandby) {
+      const firstNum =
+        queueState.currentNumber > 0
+          ? queueState.currentNumber
+          : queueState.items.length > 0
+          ? queueState.items[0].number
+          : 1;
+      const foundFirst = queueState.items.find((it) => it.number === firstNum);
+      return {
+        number: firstNum,
+        name: foundFirst?.name || '',
+      };
+    }
     const nextNum = queueState.currentNumber + 1;
     const found = queueState.items.find((it) => it.number === nextNum);
     if (!found && queueState.items.length > 0) {
@@ -620,7 +661,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
       number: nextNum,
       name: found?.name || '',
     };
-  }, [queueState.items, queueState.currentNumber]);
+  }, [queueState.items, queueState.currentNumber, isStandby]);
 
   // Effetto sonoro e lampeggio sia sullo Schermo Sala d'Attesa sia in Segreteria quando arriva un nuovo impulso
   useEffect(() => {
@@ -629,15 +670,15 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     setFlashActive(true);
     const timer = setTimeout(() => setFlashActive(false), 2400);
 
-    if (soundEnabled) {
+    if (soundEnabled && !isStandby && queueState.currentNumber > 0) {
       const matched = queueState.items.find((it) => it.number === queueState.currentNumber);
       playQueueCallChime(queueState.currentNumber, matched?.name || '', true);
     }
 
     return () => clearTimeout(timer);
-  }, [queueState.callPulse, queueState.currentNumber, queueState.items, soundEnabled]);
+  }, [queueState.callPulse, queueState.currentNumber, queueState.items, soundEnabled, isStandby]);
 
-  // Integra i nuovi nominativi (es. dal 25 al 36) SENZA cancellare i precedenti (1..24) e SENZA spostare il turno attuale
+  // Integra i nuovi nominativi (es. dal 25 al 36) SENZA cancellare i precedenti (1..24) e SENZA uscire da "In Attesa Prima Chiamata" finché non si preme AVANTI
   const integrateExtractedItems = (extracted: QueueItem[], sourceLabel: string) => {
     updateQueueState((prev) => {
       const mapByNum = new Map<number, QueueItem>();
@@ -665,8 +706,6 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
       }
 
       const mergedList = Array.from(mapByNum.values()).sort((a, b) => a.number - b.number);
-      const wasEmpty = prev.items.length === 0;
-      const nextCurrentNum = wasEmpty && mergedList.length > 0 ? mergedList[0].number : prev.currentNumber;
 
       setTimeout(() => {
         if (newlyAddedCount > 0) {
@@ -690,9 +729,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
       return {
         ...prev,
         items: mergedList,
-        currentNumber: nextCurrentNum,
         pdfFileName: sourceLabel,
-        callPulse: wasEmpty ? Date.now() : prev.callPulse,
       };
     });
   };
@@ -941,12 +978,22 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
   const handleNext = () => {
     unlockAudioEngine();
     let targetNum = queueState.currentNumber + 1;
-    if (queueState.items.length > 0) {
+
+    if (isStandby) {
+      // Se eravamo in "Attesa Prima Chiamata" (currentNumber <= 0), parte dal 1° numero in lista (o da 1)
+      if (queueState.currentNumber <= 0) {
+        targetNum = queueState.items.length > 0 ? queueState.items[0].number : 1;
+      } else {
+        // Se eravamo in Pausa a metà giornata, riprende dal turno corrente (o dal successivo)
+        targetNum = queueState.currentNumber;
+      }
+    } else if (queueState.items.length > 0) {
       const nextInList = queueState.items.find((it) => it.number > queueState.currentNumber);
       if (nextInList) {
         targetNum = nextInList.number;
       }
     }
+
     const targetItem = queueState.items.find((it) => it.number === targetNum);
     const pulseNow = Date.now();
     lastPlayedPulseRef.current = pulseNow;
@@ -956,6 +1003,8 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     updateQueueState((prev) => ({
       ...prev,
       currentNumber: targetNum,
+      standbyMode: 'none',
+      standbyMessage: '',
       callPulse: pulseNow,
     }));
   };
@@ -980,21 +1029,46 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     updateQueueState((prev) => ({
       ...prev,
       currentNumber: finalNum,
+      standbyMode: 'none',
+      standbyMessage: '',
       callPulse: pulseNow,
     }));
   };
 
   const handleRecall = () => {
     unlockAudioEngine();
+    const callNum =
+      queueState.currentNumber > 0
+        ? queueState.currentNumber
+        : queueState.items.length > 0
+        ? queueState.items[0].number
+        : 1;
     const pulseNow = Date.now();
     lastPlayedPulseRef.current = pulseNow;
-    const targetItem = queueState.items.find((it) => it.number === queueState.currentNumber);
+    const targetItem = queueState.items.find((it) => it.number === callNum);
     // Quando si preme "Richiama Turno (Suono)", riproduce SEMPRE il suono + voce!
-    playQueueCallChime(queueState.currentNumber, targetItem?.name || '', true);
+    playQueueCallChime(callNum, targetItem?.name || '', true);
     updateQueueState((prev) => ({
       ...prev,
+      currentNumber: callNum,
+      standbyMode: 'none',
+      standbyMessage: '',
       callPulse: pulseNow,
     }));
+  };
+
+  const handleSetStandbyStatus = (
+    mode: 'waiting' | 'paused' | 'closed',
+    msg: string,
+    resetNumberToZero = false
+  ) => {
+    updateQueueState((prev) => ({
+      ...prev,
+      currentNumber: resetNumberToZero ? 0 : prev.currentNumber,
+      standbyMode: mode,
+      standbyMessage: msg,
+    }));
+    showNotice('success', `✓ Schermo Sala d'Attesa impostato su: "${msg}"`);
   };
 
   const handleSetStartingNumber = (e?: React.FormEvent) => {
@@ -1011,6 +1085,8 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     updateQueueState((prev) => ({
       ...prev,
       currentNumber: num,
+      standbyMode: 'none',
+      standbyMessage: '',
       callPulse: pulseNow,
     }));
     setShowStartNumberModal(false);
@@ -1055,27 +1131,26 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     }));
   };
 
-  // AZZERA TUTTO per il giorno successivo / nuova fila in Sala d'Attesa
+  // AZZERA TUTTO per il giorno successivo / nuova fila in Sala d'Attesa -> mostra "IN ATTESA DI PRIMA CHIAMATA"
   const handleFullResetForNewDay = () => {
-    const startFromRaw = window.prompt(
-      "AZZERAMENTO COMPLETO PER NUOVA FILA:\nTutti i nominativi in elenco verranno cancellati.\n\nDa quale numero progressivo vuoi far partire la nuova fila? (Scrivi 1 oppure il numero desiderato):",
-      '1'
+    const confirmed = window.confirm(
+      "AZZERAMENTO COMPLETO PER NUOVA GIORNATA / NUOVA FILA:\n\nTutti i nominativi in elenco verranno cancellati e il Monitor in Sala d'Attesa verrà messo su:\n«IN ATTESA DI PRIMA CHIAMATA».\n\nConfermi l'azzeramento?"
     );
-    if (startFromRaw === null) return; // Annullato dall'utente
-    const parsedStart = Math.max(1, parseInt(startFromRaw.trim(), 10) || 1);
+    if (!confirmed) return;
 
     updateQueueState((prev) => ({
       ...prev,
       items: [],
-      currentNumber: parsedStart,
+      currentNumber: 0,
+      standbyMode: 'waiting',
+      standbyMessage: 'IN ATTESA DI PRIMA CHIAMATA',
       pdfFileName: '',
-      callPulse: Date.now(),
     }));
     setLastSheetPhotoUrl(null);
-    setStartNumberInput(String(parsedStart));
+    setStartNumberInput('1');
     showNotice(
       'success',
-      `✓ Eliminacode completamente azzerato! Nuova fila pronta a partire dal N° ${parsedStart}.`
+      '✓ Eliminacode azzerato! Il Monitor in Sala d’Attesa ora mostra «IN ATTESA DI PRIMA CHIAMATA».'
     );
   };
 
@@ -1121,8 +1196,10 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           if (!audioUnlocked) {
             unlockAudioEngine();
             setAudioUnlocked(true);
-            if (soundEnabled) {
+            if (soundEnabled && !isStandby && queueState.currentNumber > 0) {
               playQueueCallChime(queueState.currentNumber, currentItem?.name || '', true);
+            } else if (soundEnabled) {
+              playQueueCallChime(1, '', false);
             }
           }
         }}
@@ -1150,7 +1227,11 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                   unlockAudioEngine();
                   setAudioUnlocked(true);
                   setSoundEnabled(true);
-                  playQueueCallChime(queueState.currentNumber, currentItem?.name || '', true);
+                  if (!isStandby && queueState.currentNumber > 0) {
+                    playQueueCallChime(queueState.currentNumber, currentItem?.name || '', true);
+                  } else {
+                    playQueueCallChime(1, '', false);
+                  }
                 }}
                 className="flex items-center gap-2 rounded-xl bg-white text-emerald-950 px-4 py-2 text-xs sm:text-sm font-extrabold border-2 border-white shadow-md animate-pulse cursor-pointer"
               >
@@ -1168,7 +1249,11 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 const nextVal = !soundEnabled;
                 setSoundEnabled(nextVal);
                 if (nextVal) {
-                  playQueueCallChime(queueState.currentNumber, currentItem?.name || '', true);
+                  if (!isStandby && queueState.currentNumber > 0) {
+                    playQueueCallChime(queueState.currentNumber, currentItem?.name || '', true);
+                  } else {
+                    playQueueCallChime(1, '', false);
+                  }
                 }
               }}
               className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold border transition cursor-pointer ${
@@ -1209,40 +1294,68 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           </div>
         </header>
 
-        {/* RIQUADRO CENTRALE SALA D'ATTESA: SFONDO BEL VERDE, CORNICE BIANCA, TURNO CHIAMATO + NOME E COGNOME */}
+        {/* RIQUADRO CENTRALE SALA D'ATTESA: SFONDO BEL VERDE, CORNICE BIANCA */}
         <main className="flex-1 flex flex-col items-center justify-center px-6 py-6 text-center">
           <div
             className={`w-full max-w-6xl rounded-[2.5rem] border-4 border-white px-8 py-10 sm:py-14 transition-all duration-500 flex flex-col items-center justify-center shadow-2xl ${
               flashActive ? 'bg-emerald-600 scale-[1.02]' : 'bg-emerald-800/90'
             }`}
           >
-            <div className="rounded-full border-2 border-white bg-white/15 px-8 py-2 text-lg sm:text-3xl font-extrabold uppercase tracking-[0.2em] text-white mb-4">
-              TURNO CHIAMATO
-            </div>
+            {isStandby ? (
+              <>
+                <div className="rounded-full border-2 border-white bg-white/15 px-8 py-2 text-lg sm:text-2xl font-extrabold uppercase tracking-[0.2em] text-white mb-6">
+                  {standbyDisplay.badge}
+                </div>
 
-            {/* NUMERO GIGANTE BIANCO */}
-            <div
-              className="font-black tabular-nums leading-none tracking-tight text-white drop-shadow-md"
-              style={{ fontSize: 'clamp(8rem, 25vw, 18rem)' }}
-            >
-              {queueState.currentNumber}
-            </div>
+                <div
+                  className="font-black uppercase tracking-wide text-white leading-tight drop-shadow-md py-4"
+                  style={{ fontSize: 'clamp(2.8rem, 7vw, 6.2rem)' }}
+                >
+                  {standbyDisplay.title}
+                </div>
 
-            {/* NOME E COGNOME SOTTO IL NUMERO */}
-            <div className="mt-6 w-full border-t-2 border-white/60 pt-6">
-              <div
-                className="font-bold text-white tracking-wide leading-tight break-words"
-                style={{ fontSize: 'clamp(2.4rem, 6vw, 5rem)' }}
-              >
-                {currentItem?.name || '\u00A0'}
-              </div>
-            </div>
+                <div className="mt-6 w-full border-t-2 border-white/60 pt-6">
+                  <div
+                    className="font-semibold text-emerald-100 tracking-wide leading-snug"
+                    style={{ fontSize: 'clamp(1.4rem, 3.2vw, 2.6rem)' }}
+                  >
+                    {standbyDisplay.subtitle}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="rounded-full border-2 border-white bg-white/15 px-8 py-2 text-lg sm:text-3xl font-extrabold uppercase tracking-[0.2em] text-white mb-4">
+                  TURNO CHIAMATO
+                </div>
+
+                {/* NUMERO GIGANTE BIANCO */}
+                <div
+                  className="font-black tabular-nums leading-none tracking-tight text-white drop-shadow-md"
+                  style={{ fontSize: 'clamp(8rem, 25vw, 18rem)' }}
+                >
+                  {queueState.currentNumber}
+                </div>
+
+                {/* NOME E COGNOME SOTTO IL NUMERO */}
+                <div className="mt-6 w-full border-t-2 border-white/60 pt-6">
+                  <div
+                    className="font-bold text-white tracking-wide leading-tight break-words"
+                    style={{ fontSize: 'clamp(2.4rem, 6vw, 5rem)' }}
+                  >
+                    {currentItem?.name || '\u00A0'}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </main>
 
         {/* PIE' DI PAGINA PULITO */}
         <footer className="px-6 py-3 bg-emerald-800/80 border-t border-white/25 text-center text-sm sm:text-lg font-medium text-emerald-100">
-          Attendere la chiamata del proprio numero e nome
+          {isStandby
+            ? 'Segreteria Università della Terza Età — Quartu Sant’Elena'
+            : 'Attendere la chiamata del proprio numero e nome'}
         </footer>
       </div>
     );
@@ -1442,7 +1555,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
       </div>
 
       {/* ====================================================================
-          PASSO 2: TELECOMANDO SEGRETERIA (AVANTI / DA CHE NUMERO PARTIRE / AZZERA TUTTO)
+          PASSO 2: TELECOMANDO SEGRETERIA (AVANTI / STATO MONITOR / DA CHE NUMERO PARTIRE / AZZERA TUTTO)
          ==================================================================== */}
       <div className="rounded-3xl border-2 border-slate-200 bg-white p-5 sm:p-6 shadow-sm space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1463,23 +1576,41 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         {/* ANTEPRIMA DELLO SCHERMO SALA D'ATTESA (VERDE CON CORNICE BIANCA) */}
         <div className="rounded-3xl bg-emerald-700 p-4 sm:p-5 text-white shadow-md">
           <div className="rounded-2xl border-4 border-white bg-emerald-800/90 p-5 text-center space-y-2">
-            <div className="inline-block rounded-full border border-white bg-white/15 px-4 py-0.5 text-xs font-extrabold uppercase tracking-[0.18em] text-white">
-              TURNO CHIAMATO (IN SALA D&apos;ATTESA)
-            </div>
-            <div className="text-6xl sm:text-7xl font-black tabular-nums text-white leading-none py-1">
-              {queueState.currentNumber}
-            </div>
-            <div className="pt-2 border-t border-white/40">
-              <p className="text-xl sm:text-3xl font-bold text-white break-words">
-                {currentItem?.name || '— Nessun nome associato a questo numero —'}
-              </p>
-            </div>
+            {isStandby ? (
+              <>
+                <div className="inline-block rounded-full border border-white bg-white/15 px-4 py-0.5 text-xs font-extrabold uppercase tracking-[0.18em] text-white">
+                  {standbyDisplay.badge} (IN SALA D&apos;ATTESA)
+                </div>
+                <div className="text-2xl sm:text-4xl font-black uppercase text-white leading-tight py-3">
+                  {standbyDisplay.title}
+                </div>
+                <div className="pt-2 border-t border-white/40">
+                  <p className="text-sm sm:text-base font-medium text-emerald-100">
+                    {standbyDisplay.subtitle}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="inline-block rounded-full border border-white bg-white/15 px-4 py-0.5 text-xs font-extrabold uppercase tracking-[0.18em] text-white">
+                  TURNO CHIAMATO (IN SALA D&apos;ATTESA)
+                </div>
+                <div className="text-6xl sm:text-7xl font-black tabular-nums text-white leading-none py-1">
+                  {queueState.currentNumber}
+                </div>
+                <div className="pt-2 border-t border-white/40">
+                  <p className="text-xl sm:text-3xl font-bold text-white break-words">
+                    {currentItem?.name || '— Nessun nome associato a questo numero —'}
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           {nextItem && (
             <div className="mt-3 flex items-center justify-between px-2 text-xs sm:text-sm text-emerald-100">
               <span>
-                Prossimo turno:{' '}
+                {isStandby ? 'Primo turno pronto da chiamare: ' : 'Prossimo turno: '}
                 <strong className="text-white">
                   N° {nextItem.number} {nextItem.name ? `— ${nextItem.name}` : ''}
                 </strong>
@@ -1494,21 +1625,75 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           <button
             type="button"
             onClick={handleNext}
-            className="sm:col-span-2 order-1 sm:order-2 flex items-center justify-center gap-3 rounded-3xl bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] text-white py-5 px-6 text-2xl sm:text-3xl font-black shadow-lg transition cursor-pointer"
+            className="sm:col-span-2 order-1 sm:order-2 flex items-center justify-center gap-3 rounded-3xl bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] text-white py-5 px-6 text-xl sm:text-3xl font-black shadow-lg transition cursor-pointer"
           >
-            <span>AVANTI (+1)</span>
+            <span>
+              {isStandby
+                ? `▶ INIZIA CHIAMATE (Dal N° ${nextItem.number})`
+                : 'AVANTI (+1)'}
+            </span>
             <ChevronRight className="h-8 w-8 stroke-[2.5]" />
           </button>
 
           <button
             type="button"
             onClick={handlePrev}
-            disabled={queueState.currentNumber <= 1}
+            disabled={isStandby || queueState.currentNumber <= 1}
             className="order-2 sm:order-1 flex items-center justify-center gap-2 rounded-3xl border-2 border-slate-300 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 py-5 px-5 text-lg font-bold transition cursor-pointer"
           >
             <ChevronLeft className="h-6 w-6" />
             <span>INDIETRO</span>
           </button>
+        </div>
+
+        {/* BARRA STATO MONITOR PRIMA DI INIZIARE O IN PAUSA/CHIUSURA */}
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 space-y-2">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-600">
+            Messaggio di Attesa / Chiusura sul Monitor (quando non stai chiamando i numeri):
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                handleSetStandbyStatus('waiting', 'IN ATTESA DI PRIMA CHIAMATA', true)
+              }
+              className={`rounded-xl px-3 py-2.5 text-xs font-bold border transition cursor-pointer ${
+                isStandby && (queueState.standbyMode === 'waiting' || !queueState.standbyMode)
+                  ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                  : 'bg-white text-slate-800 border-slate-300 hover:bg-emerald-50'
+              }`}
+            >
+              ⏳ In Attesa di Prima Chiamata
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleSetStandbyStatus('paused', 'SERVIZIO TEMPORANEAMENTE IN PAUSA', false)
+              }
+              className={`rounded-xl px-3 py-2.5 text-xs font-bold border transition cursor-pointer ${
+                isStandby && queueState.standbyMode === 'paused'
+                  ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                  : 'bg-white text-slate-800 border-slate-300 hover:bg-amber-50'
+              }`}
+            >
+              ⏸️ Servizio in Pausa
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleSetStandbyStatus('closed', 'SPORTELLO CHIUSO — NON OPERATIVO', false)
+              }
+              className={`rounded-xl px-3 py-2.5 text-xs font-bold border transition cursor-pointer ${
+                isStandby && queueState.standbyMode === 'closed'
+                  ? 'bg-rose-700 text-white border-rose-700 shadow-xs'
+                  : 'bg-white text-slate-800 border-slate-300 hover:bg-rose-50'
+              }`}
+            >
+              🔒 Sportello Chiuso / Non Operativo
+            </button>
+          </div>
         </div>
 
         {/* PULSANTI BEN VISIBILI: DA CHE NUMERO PARTIRE / RICHIAMA / AZZERA TUTTO */}
@@ -1517,13 +1702,15 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           <button
             type="button"
             onClick={() => {
-              setStartNumberInput(String(queueState.currentNumber || 1));
+              setStartNumberInput(String(queueState.currentNumber > 0 ? queueState.currentNumber : 1));
               setShowStartNumberModal(true);
             }}
             className="flex items-center justify-center gap-2 rounded-2xl border-2 border-emerald-600 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 py-3.5 px-4 text-sm font-bold shadow-2xs transition cursor-pointer"
           >
             <Hash className="h-4 w-4 text-emerald-700" />
-            <span>Scegli da che N° partire (Oggi: {queueState.currentNumber})</span>
+            <span>
+              Scegli da che N° partire {queueState.currentNumber > 0 ? `(Ora: ${queueState.currentNumber})` : ''}
+            </span>
           </button>
 
           {/* TASTO RICHIAMA CAMPANELLA */}

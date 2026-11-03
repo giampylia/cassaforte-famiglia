@@ -38,6 +38,8 @@ export interface QueueState {
   callPulse: number;
   updatedAt: number;
   pdfFileName?: string;
+  standbyMode?: 'none' | 'waiting' | 'paused' | 'closed';
+  standbyMessage?: string;
 }
 
 export interface ImportedMemberRow {
@@ -176,11 +178,13 @@ const STORAGE_KEYS = {
 
 const DEFAULT_QUEUE_STATE: QueueState = {
   title: "Università della Terza Età — Quartu Sant'Elena",
-  currentNumber: 1,
+  currentNumber: 0,
   items: [],
   callPulse: 0,
   updatedAt: 0,
   pdfFileName: '',
+  standbyMode: 'waiting',
+  standbyMessage: 'IN ATTESA DI PRIMA CHIAMATA',
 };
 
 const DEFAULT_HEADCOUNTS: Record<ClassroomKey, number> = {
