@@ -8,6 +8,7 @@ import {
   Hand,
   ClipboardCheck,
   Users,
+  Monitor,
 } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { getMemberParts } from './data/initialData';
@@ -17,6 +18,7 @@ import { MemberView } from './components/MemberView';
 import { AdminDashboard } from './components/AdminDashboard';
 import { PiccolaCassaView } from './components/PiccolaCassaView';
 import { AnagraficaSociView } from './components/AnagraficaSociView';
+import { EliminacodeView } from './components/EliminacodeView';
 
 const MainRouter: React.FC = () => {
   const {
@@ -31,6 +33,15 @@ const MainRouter: React.FC = () => {
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
+  // Permette di aprire direttamente lo schermo del Monitor d'Aula tramite ?monitor=eliminacode
+  const isDirectMonitorUrl =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('monitor') === 'eliminacode';
+
+  if (isDirectMonitorUrl) {
+    return <EliminacodeView forceMonitorMode={true} />;
+  }
+
   if (!currentUser) {
     return (
       <div className="min-h-screen flex flex-col bg-slate-50">
@@ -40,7 +51,7 @@ const MainRouter: React.FC = () => {
     );
   }
 
-  // Mostra il Menu Laterale a Super Admin (7796), soci con ruolo CD, Didattica o Admin
+  // Mostra il Menu Laterale a Super Admin (7726), soci con ruolo CD, Didattica o Admin
   const showSideMenu = isSuperAdmin || isCDMember || isDidatticaMember || currentUser.role === 'admin';
 
   // Calcola l'unico ruolo principale da mostrare chiaramente sotto il nome dell'utente
@@ -57,6 +68,9 @@ const MainRouter: React.FC = () => {
     isSuperAdmin || currentUser.role === 'admin' || isCDMember;
 
   const canSeePiccolaCassa = isSuperAdmin || isCDMember;
+
+  // Eliminacode visibile per ora SOLO da 7726 (Giampiero Pilia — Super Admin)
+  const canSeeEliminacode = isSuperAdmin;
 
   const menuItems = [
     {
@@ -92,6 +106,16 @@ const MainRouter: React.FC = () => {
             label: 'Piccola Cassa',
             sublabel: 'Rimborsi, Versamenti e Scontrini',
             icon: Wallet,
+          },
+        ]
+      : []),
+    ...(canSeeEliminacode
+      ? [
+          {
+            key: 'eliminacode' as const,
+            label: 'Eliminacode',
+            sublabel: 'Telecomando e Monitor Numeri PDF',
+            icon: Monitor,
           },
         ]
       : []),
@@ -296,7 +320,9 @@ const MainRouter: React.FC = () => {
 
         {/* Area Contenuto Principale */}
         <div className="flex-1 min-w-0">
-          {activeSection === 'piccola_cassa' && canSeePiccolaCassa ? (
+          {activeSection === 'eliminacode' && canSeeEliminacode ? (
+            <EliminacodeView />
+          ) : activeSection === 'piccola_cassa' && canSeePiccolaCassa ? (
             <PiccolaCassaView />
           ) : activeSection === 'anagrafica_soci' && canSeeAnagraficaSoci ? (
             <AnagraficaSociView />

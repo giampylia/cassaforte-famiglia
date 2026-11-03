@@ -23,7 +23,22 @@ import {
 import { playSuccessSound } from '../utils/soundAndPdf';
 
 export type FontScale = 'normal' | 'large' | 'xlarge';
-export type AppSection = 'presenze' | 'piccola_cassa' | 'admin_dashboard' | 'anagrafica_soci';
+export type AppSection = 'presenze' | 'piccola_cassa' | 'admin_dashboard' | 'anagrafica_soci' | 'eliminacode';
+
+export interface QueueItem {
+  number: number;
+  name: string;
+  notes?: string;
+}
+
+export interface QueueState {
+  title: string;
+  currentNumber: number;
+  items: QueueItem[];
+  callPulse: number;
+  updatedAt: number;
+  pdfFileName?: string;
+}
 
 export interface ImportedMemberRow {
   member_number: string;
@@ -57,6 +72,7 @@ interface CloudDbSnapshot {
   subjectNotes: SubjectDidacticNote[];
   visualHeadcounts: Record<ClassroomKey, number>;
   liveFeed: LiveFeedEvent[];
+  queueState?: QueueState;
   updatedAt: string;
 }
 
@@ -88,6 +104,8 @@ interface AppContextType {
   subjectNotes: SubjectDidacticNote[];
   visualHeadcounts: Record<ClassroomKey, number>;
   liveFeed: LiveFeedEvent[];
+  queueState: QueueState;
+  updateQueueState: (updater: (prev: QueueState) => QueueState) => void;
   cloudConnected: boolean;
   connectedDevices: number;
   lastCloudSync: string | null;
@@ -150,9 +168,19 @@ const STORAGE_KEYS = {
   NOTES: 'quartimbra_subject_notes_v3',
   HEADCOUNTS: 'quartimbra_headcounts_v3',
   LIVE_FEED: 'quartimbra_live_feed_v3',
+  QUEUE_STATE: 'quartimbra_eliminacode_v1',
   FONT_SCALE: 'quartimbra_font_scale_v3',
   LIGHT_THEME: 'quartimbra_light_theme_v3',
   VOICE: 'quartimbra_voice_v3',
+};
+
+const DEFAULT_QUEUE_STATE: QueueState = {
+  title: "Università della Terza Età — Quartu Sant'Elena",
+  currentNumber: 1,
+  items: [],
+  callPulse: 0,
+  updatedAt: 0,
+  pdfFileName: '',
 };
 
 const DEFAULT_HEADCOUNTS: Record<ClassroomKey, number> = {
@@ -408,6 +436,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [queueState, setQueueState] = useState<QueueState>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.QUEUE_STATE);
+      return saved ? { ...DEFAULT_QUEUE_STATE, ...JSON.parse(saved) } : DEFAULT_QUEUE_STATE;
+    } catch {
+      return DEFAULT_QUEUE_STATE;
+    }
+  });
+
   const [currentUser, setCurrentUser] = useState<Profile | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.USER);
@@ -482,6 +519,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   cashUpdatedAtRef.current = cashUpdatedAt;
   const lessonsUpdatedAtRef = useRef(lessonsUpdatedAt);
   lessonsUpdatedAtRef.current = lessonsUpdatedAt;
+  const queueUpdatedAtRef = useRef(queueState.updatedAt || 0);
+  queueUpdatedAtRef.current = queueState.updatedAt || 0;
 
   // Real clock vs simulated clock
   const [isSimulatingTime, setIsSimulatingTime] = useState<boolean>(false);
@@ -524,6 +563,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {
       // Offline fallback
     }
+  };
+
+  const updateQueueState = (updater: (prev: QueueState) => QueueState) => {
+    setQueueState((prev) => {
+      const next = {
+        ...updater(prev),
+        updatedAt: Date.now(),
+      };
+      localStorage.setItem(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(next));
+      try {
+        if (broadcastChannelRef.current) {
+          broadcastChannelRef.current.postMessage({ type: 'QUEUE_SYNC', queueState: next });
+        }
+      } catch {
+        // Ignore
+      }
+      fetch('/api/queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ queueState: next }),
+      }).catch(() => {});
+      return next;
+    });
   };
 
   const applyRemoteSnapshot = (db: CloudDbSnapshot) => {
@@ -573,6 +635,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       shouldPushBackLocalProtected = true;
     }
 
+    if (db.queueState) {
+      const remoteQueueTs = Number(db.queueState.updatedAt || 0);
+      if (remoteQueueTs >= queueUpdatedAtRef.current) {
+        setQueueState(db.queueState);
+        localStorage.setItem(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(db.queueState));
+      }
+    }
+
     let cleanedDuplicates = false;
     if (Array.isArray(db.attendance)) {
       const lessonsToUse = Array.isArray(db.lessons) ? db.lessons : lessons;
@@ -605,6 +675,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             subjectNotes: Array.isArray(db.subjectNotes) ? db.subjectNotes : subjectNotes,
             visualHeadcounts: db.visualHeadcounts || visualHeadcounts,
             liveFeed: Array.isArray(db.liveFeed) ? db.liveFeed : liveFeed,
+            queueState,
             updatedAt: new Date().toISOString(),
           });
         }, 120);
@@ -629,7 +700,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           data.db &&
           ((Array.isArray(data.db.attendance) && data.db.attendance.length > 0) ||
             Number(data.db.profilesUpdatedAt || 0) > 0 ||
-            Number(data.db.cashUpdatedAt || 0) > 0);
+            Number(data.db.cashUpdatedAt || 0) > 0 ||
+            Number(data.db.queueState?.updatedAt || 0) > 0);
 
         if (serverHasData) {
           applyRemoteSnapshot(data.db);
@@ -650,6 +722,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             subjectNotes,
             visualHeadcounts,
             liveFeed,
+            queueState,
             updatedAt: new Date().toISOString(),
           });
         }
@@ -671,6 +744,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setConnectedDevices(Math.max(1, parsed.connectedClients));
           } else if (parsed.type === 'STATE_SYNC' && parsed.payload?.db) {
             applyRemoteSnapshot(parsed.payload.db);
+          } else if (parsed.type === 'QUEUE_SYNC' && parsed.payload?.queueState) {
+            const incomingQ = parsed.payload.queueState as QueueState;
+            if (Number(incomingQ.updatedAt || 0) >= queueUpdatedAtRef.current) {
+              setQueueState(incomingQ);
+              localStorage.setItem(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(incomingQ));
+              setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
+            }
           } else if (parsed.type === 'PUBLIC_URL' && parsed.payload?.publicUrl) {
             setPublicUrl(parsed.payload.publicUrl);
           }
@@ -690,6 +770,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       bc.onmessage = (ev) => {
         if (ev.data?.type === 'STATE_SYNC' && ev.data.db) {
           applyRemoteSnapshot(ev.data.db);
+        } else if (ev.data?.type === 'QUEUE_SYNC' && ev.data.queueState) {
+          const incomingQ = ev.data.queueState as QueueState;
+          if (Number(incomingQ.updatedAt || 0) >= queueUpdatedAtRef.current) {
+            setQueueState(incomingQ);
+            localStorage.setItem(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(incomingQ));
+          }
         }
       };
       broadcastChannelRef.current = bc;
@@ -1455,6 +1541,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         subjectNotes,
         visualHeadcounts,
         liveFeed,
+        queueState,
+        updateQueueState,
         cloudConnected,
         connectedDevices,
         lastCloudSync,

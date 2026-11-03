@@ -234,6 +234,13 @@ const server = http.createServer(async (req, res) => {
             incomingDb.lessons = existingDb.lessons;
             incomingDb.lessonsUpdatedAt = existingLessonsTs;
           }
+
+          // Protezione Eliminacode: non sovrascrivere mai con dati più vecchi
+          const existingQueueTs = Number(existingDb.queueState?.updatedAt || 0);
+          const incomingQueueTs = Number(incomingDb.queueState?.updatedAt || 0);
+          if (existingQueueTs > incomingQueueTs && existingDb.queueState) {
+            incomingDb.queueState = existingDb.queueState;
+          }
         }
 
         // Garantisce che 7726 Giampiero Pilia non venga MAI cancellato dal database del server
@@ -301,6 +308,29 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, {
         ok: true,
         publicUrl: publicCloudUrl,
+        connectedDevices: sseClients.size,
+      });
+    } catch (e) {
+      sendJson(res, 400, { ok: false, error: e.message });
+    }
+    return;
+  }
+
+  // Endpoint ultra-veloce dedicato per il telecomando Eliminacode -> Monitor Aula
+  if (parsedUrl === '/api/queue' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      if (body && body.queueState) {
+        const existingDb = loadDb() || {};
+        existingDb.queueState = body.queueState;
+        existingDb.updatedAt = new Date().toISOString();
+        saveDb(existingDb);
+        broadcastUpdate('QUEUE_SYNC', {
+          queueState: body.queueState,
+        });
+      }
+      sendJson(res, 200, {
+        ok: true,
         connectedDevices: sseClients.size,
       });
     } catch (e) {
