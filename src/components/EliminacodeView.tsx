@@ -73,19 +73,127 @@ function loadTesseract(): Promise<any> {
   return tesseractPromise;
 }
 
-// Suono "Din-Don" professionale da tabellone sala d'attesa + sintesi vocale opzionale
-function playQueueCallChime(number: number, name: string, voiceActive: boolean) {
+// AudioContext condiviso + Generatore WAV 16-bit in memoria per garantire che il suono "Din-Don" si senta FORTE sia sul cellulare che sul Monitor TV
+let sharedAudioCtx: AudioContext | null = null;
+let cachedChimeWavUrl: string | null = null;
+
+function getChimeWavUrl(): string {
+  if (cachedChimeWavUrl) return cachedChimeWavUrl;
+  const sampleRate = 44100;
+  const durationSec = 1.15;
+  const numSamples = Math.floor(sampleRate * durationSec);
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+
+  const writeStr = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
+  };
+
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true); // PCM
+  view.setUint16(20, 1, true); // Linear quantization
+  view.setUint16(22, 1, true); // Mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, numSamples * 2, true);
+
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    let sample = 0;
+
+    // 1ª nota "DIN" (Mi5 = 659.25 Hz + armonica)
+    if (t < 0.55) {
+      const env1 = Math.exp(-t * 5.2);
+      sample +=
+        env1 *
+        (0.65 * Math.sin(2 * Math.PI * 659.25 * t) +
+          0.25 * Math.sin(2 * Math.PI * 1318.5 * t) +
+          0.1 * Math.sin(2 * Math.PI * 1977.75 * t));
+    }
+
+    // 2ª nota "DON" (Do5 = 523.25 Hz + armonica)
+    if (t >= 0.32) {
+      const t2 = t - 0.32;
+      const env2 = Math.exp(-t2 * 3.8);
+      sample +=
+        env2 *
+        (0.7 * Math.sin(2 * Math.PI * 523.25 * t2) +
+          0.22 * Math.sin(2 * Math.PI * 1046.5 * t2) +
+          0.08 * Math.sin(2 * Math.PI * 1569.75 * t2));
+    }
+
+    const clamped = Math.max(-1, Math.min(1, sample * 0.92));
+    view.setInt16(44 + i * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+  }
+
+  const blob = new Blob([buffer], { type: 'audio/wav' });
+  cachedChimeWavUrl = URL.createObjectURL(blob);
+  return cachedChimeWavUrl;
+}
+
+export function unlockAudioEngine() {
   try {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
     if (AudioCtx) {
-      const ctx = new AudioCtx();
+      if (!sharedAudioCtx) {
+        sharedAudioCtx = new AudioCtx();
+      }
+      if (sharedAudioCtx.state === 'suspended') {
+        sharedAudioCtx.resume().catch(() => {});
+      }
+    }
+  } catch {
+    // Ignore
+  }
+}
+
+// Suono "Din-Don" professionale da tabellone sala d'attesa + sintesi vocale opzionale
+function playQueueCallChime(number: number, name: string, voiceActive: boolean) {
+  let playedWav = false;
+  try {
+    const wavUrl = getChimeWavUrl();
+    const audio = new Audio(wavUrl);
+    audio.volume = 1.0;
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.then === 'function') {
+      playedWav = true;
+      playPromise.catch(() => {
+        // Fallback WebAudio se l'elemento HTMLAudio viene bloccato
+        playWebAudioFallback();
+      });
+    } else {
+      playedWav = true;
+    }
+  } catch {
+    // Fallback
+  }
+
+  function playWebAudioFallback() {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!sharedAudioCtx) {
+        sharedAudioCtx = new AudioCtx();
+      }
+      if (sharedAudioCtx.state === 'suspended') {
+        sharedAudioCtx.resume().catch(() => {});
+      }
+      const ctx = sharedAudioCtx;
       const now = ctx.currentTime;
 
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
-      osc1.type = 'sine';
+      osc1.type = 'triangle';
       osc1.frequency.setValueAtTime(659.25, now);
-      gain1.gain.setValueAtTime(0.35, now);
+      gain1.gain.setValueAtTime(0.65, now);
       gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
       osc1.connect(gain1);
       gain1.connect(ctx.destination);
@@ -94,27 +202,35 @@ function playQueueCallChime(number: number, name: string, voiceActive: boolean) 
 
       const osc2 = ctx.createOscillator();
       const gain2 = ctx.createGain();
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(523.25, now + 0.28);
-      gain2.gain.setValueAtTime(0.38, now + 0.28);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.05);
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(523.25, now + 0.32);
+      gain2.gain.setValueAtTime(0.7, now + 0.32);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
       osc2.connect(gain2);
       gain2.connect(ctx.destination);
-      osc2.start(now + 0.28);
-      osc2.stop(now + 1.05);
+      osc2.start(now + 0.32);
+      osc2.stop(now + 1.1);
+    } catch {
+      // Ignore audio context restrictions
     }
-  } catch {
-    // Ignore audio context restrictions
+  }
+
+  if (!playedWav) {
+    playWebAudioFallback();
   }
 
   if (voiceActive && 'speechSynthesis' in window) {
     try {
       window.speechSynthesis.cancel();
       setTimeout(() => {
-        const text = name ? `Turno ${number}, ${name}` : `Turno numero ${number}`;
+        const text = name ? `Turno numero ${number}, ${name}` : `Turno numero ${number}`;
         const utter = new SpeechSynthesisUtterance(text);
         utter.lang = 'it-IT';
+        utter.volume = 1.0;
         utter.rate = 0.95;
+        const voices = window.speechSynthesis.getVoices?.() || [];
+        const itVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith('it'));
+        if (itVoice) utter.voice = itVoice;
         window.speechSynthesis.speak(utter);
       }, 650);
     } catch {
@@ -123,40 +239,51 @@ function playQueueCallChime(number: number, name: string, voiceActive: boolean) 
   }
 }
 
-// Parole di altre colonne (es. materie dei corsi, sedi, intestazioni) da rimuovere per tenere SOLO Nome e Cognome
+// Parole di altre colonne (es. materie dei corsi, sedi, intestazioni, barra formule) da rimuovere per tenere SOLO Nome e Cognome
 const EXTRA_COLUMN_WORDS = new RegExp(
-  '\\b(inglese|spagnolo|francese|tedesco|informatica|computer|smartphone|ginnastica|posturale|dolce|yoga|pilates|ballo|danza|storia|arte|sardegna|pittura|disegno|acquerello|teatro|coro|musica|canto|psicologia|filosofia|letteratura|poesia|fotografia|cucito|ricamo|scacchi|burraco|bridge|viaggi|quartu|soleminis|base|avanzato|intermedio|corso|materia|firma|pagato|acconto|saldo|mattina|pomeriggio|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì])\\b.*$',
+  '\\b(inglese|spagnolo|francese|tedesco|informatica|computer|smartphone|ginnastica|posturale|dolce|yoga|pilates|ballo|danza|storia|arte|sardegna|pittura|disegno|acquerello|teatro|coro|musica|canto|psicologia|filosofia|letteratura|poesia|fotografia|cucito|ricamo|scacchi|burraco|bridge|viaggi|quartu|soleminis|base|avanzato|intermedio|corso|materia|firma|pagato|acconto|saldo|mattina|pomeriggio|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|enter\\s+text|formula\\s+here|volte)\\b.*$',
   'i'
 );
 
 const HEADER_NOISE =
-  /^(pagina|page|elenco|lista|universit|quartu|soleminis|data|stampato|totale|prog\.?\s*nome|n[°.]?\s*nome|num\.?\s*cognome|cognome\s+e\s+nome|nome\s+e\s+cognome|materia|firma)/i;
+  /^(pagina|page|elenco|lista|universit|quartu|soleminis|data|stampato|totale|prog\.?\s*nome|n[°.]?\s*nome|num\.?\s*cognome|cognome\s+e\s+nome|nome\s+e\s+cognome|materia|firma|enter\s+text|formula\s+here|fx\b)/i;
 
 // Pulisce la parte testuale tenendo solo Nome e Cognome (ed eventualmente confrontando con l'Anagrafica Soci)
 function extractCleanNameOnly(rawRest: string, knownProfiles: Profile[]): string {
-  // Se ci sono separatori di colonna evidenti (| o tab o doppi spazi lunghi o trattini), prende la prima colonna alfabetica (Nome e Cognome)
-  let text = rawRest
+  // Se c'è il separatore di colonna | (inserito anche dal rilevatore geometrico delle colonne), tiene solo la colonna del Nome e Cognome
+  let firstCol = rawRest.split('|')[0] || rawRest;
+
+  let text = firstCol
     .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, ' ') // rimuove date
+    .replace(/\b\d{1,2}:\d{2}\b/g, ' ') // rimuove orari tipo 19:00
     .replace(/\b\d{6,12}\b/g, ' ') // rimuove numeri di telefono
     .replace(/€\s*\d+([.,]\d+)?/g, ' ') // rimuove importi
+    .replace(/\b\d{1,3}[.,]\d{1,3}\b/g, ' ') // rimuove decimali tipo 1.01, 1.02
+    .replace(/\b[A-Za-z]{1,4}\d+[A-Za-z0-9]*\b/g, ' ') // rimuove codici alfanumerici extra colonna tipo RB1, WR1, TE1, QB1
+    .replace(/\b\d+[A-Za-z]{1,4}\b/g, ' ')
     .trim();
-
-  // Rimuove eventuale numero tessera iniziale se seguito dal nome
-  const secondNumMatch = text.match(/^(\d{1,5})\s+([A-Za-zÀ-ÿ].+)$/);
-  if (secondNumMatch) {
-    text = secondNumMatch[2].trim();
-  }
 
   // Taglia via eventuali colonne successive (es. Materia prescelta)
   text = text.replace(EXTRA_COLUMN_WORDS, '').trim();
 
-  // Tiene solo caratteri validi per un nome e cognome (fino a max 4 parole per evitare colonne extra residue)
-  const cleanWords = text
+  // Tiene solo caratteri validi per un nome e cognome
+  let cleanWords = text
     .replace(/[^A-Za-zÀ-ÿ'\s.-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .split(' ')
-    .filter((w) => w.length >= 2 || /^[A-Za-zÀ-ÿ]\.$/.test(w));
+    .filter((w) => w.length >= 2 || /^[A-Za-zÀ-ÿ]\.(?:[A-Za-zÀ-ÿ]\.)?$/.test(w));
+
+  // Se il nome e cognome è seguito in fondo alla riga da sigle brevi maiuscole di altre colonne (es. ATL, NYG, LV, PHI, WR, RB, TE, QB), le rimuove!
+  const hasLowercaseInName = cleanWords.slice(0, 2).some((w) => /[a-zà-ÿ]/.test(w));
+  if (hasLowercaseInName && cleanWords.length > 2) {
+    while (
+      cleanWords.length > 2 &&
+      /^[A-Z]{2,4}$/.test(cleanWords[cleanWords.length - 1])
+    ) {
+      cleanWords.pop();
+    }
+  }
 
   const candidateName = cleanWords.slice(0, 4).join(' ').trim();
   if (!candidateName || candidateName.length < 2) return '';
@@ -178,7 +305,112 @@ function extractCleanNameOnly(rawRest: string, knownProfiles: Profile[]): string
   return candidateName;
 }
 
-// Analizza le righe estratte dal foglio fotografato o dal PDF per ricavare [Numero Progressivo (1ª colonna), Nome e Cognome (2ª colonna)]
+// Ricostruisce le righe ORIZZONTALI usando le coordinate (x, y) delle parole lette da Tesseract,
+// evitando che le tabelle vengano lette in verticale colonna per colonna e separando con '|' le colonne a destra del Nome!
+function reconstructRowsFromTesseractData(data: any): string[] {
+  if (!data) return [];
+  const rawWords: { text: string; x0: number; y0: number; x1: number; y1: number }[] = [];
+
+  const collectWord = (w: any) => {
+    const t = String(w?.text || '').trim();
+    if (!t) return;
+    const b = w?.bbox;
+    if (b && typeof b.x0 === 'number' && typeof b.y0 === 'number') {
+      rawWords.push({ text: t, x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 });
+    }
+  };
+
+  if (Array.isArray(data.words) && data.words.length > 0) {
+    data.words.forEach(collectWord);
+  } else if (Array.isArray(data.lines) && data.lines.length > 0) {
+    data.lines.forEach((l: any) => {
+      if (Array.isArray(l?.words) && l.words.length > 0) {
+        l.words.forEach(collectWord);
+      } else {
+        collectWord(l);
+      }
+    });
+  } else if (Array.isArray(data.blocks)) {
+    data.blocks.forEach((blk: any) =>
+      blk?.paragraphs?.forEach((p: any) =>
+        p?.lines?.forEach((l: any) => {
+          if (Array.isArray(l?.words) && l.words.length > 0) {
+            l.words.forEach(collectWord);
+          } else {
+            collectWord(l);
+          }
+        })
+      )
+    );
+  }
+
+  if (rawWords.length === 0) return [];
+
+  // Calcola l'altezza media delle parole per raggruppare con precisione le parole sulla stessa riga orizzontale
+  const heights = rawWords
+    .map((w) => Math.max(4, w.y1 - w.y0))
+    .sort((a, b) => a - b);
+  const medianHeight = heights[Math.floor(heights.length / 2)] || 18;
+  const rowTolerance = Math.max(8, medianHeight * 0.58);
+
+  const rowGroups: {
+    cy: number;
+    words: { text: string; x0: number; y0: number; x1: number; y1: number }[];
+  }[] = [];
+
+  // Ordina prima per Y crescente così la formazione delle righe segue l'ordine dall'alto in basso
+  const sortedByY = [...rawWords].sort((a, b) => (a.y0 + a.y1) / 2 - (b.y0 + b.y1) / 2);
+
+  for (const w of sortedByY) {
+    const cy = (w.y0 + w.y1) / 2;
+    let bestGroup: (typeof rowGroups)[0] | null = null;
+    let bestDist = Infinity;
+    for (const g of rowGroups) {
+      const d = Math.abs(g.cy - cy);
+      if (d <= rowTolerance && d < bestDist) {
+        bestDist = d;
+        bestGroup = g;
+      }
+    }
+    if (!bestGroup) {
+      rowGroups.push({ cy, words: [w] });
+    } else {
+      bestGroup.words.push(w);
+      // Aggiorna centro verticale medio della riga
+      bestGroup.cy =
+        bestGroup.words.reduce((acc, item) => acc + (item.y0 + item.y1) / 2, 0) /
+        bestGroup.words.length;
+    }
+  }
+
+  rowGroups.sort((a, b) => a.cy - b.cy);
+
+  return rowGroups.map((g) => {
+    g.words.sort((a, b) => a.x0 - b.x0);
+    let lineStr = '';
+    let alphaWordsSeen = 0;
+    for (let i = 0; i < g.words.length; i++) {
+      const curr = g.words[i];
+      if (i > 0) {
+        const prev = g.words[i - 1];
+        const gap = curr.x0 - prev.x1;
+        // Se abbiamo già visto il Nome e Cognome (almeno 2 parole alfabetiche) e c'è un salto netto di colonna, inseriamo '|'
+        if (alphaWordsSeen >= 2 && gap > medianHeight * 1.45) {
+          lineStr += ' | ';
+        } else {
+          lineStr += ' ';
+        }
+      }
+      lineStr += curr.text;
+      if (/[A-Za-zÀ-ÿ]{2,}/.test(curr.text)) {
+        alphaWordsSeen++;
+      }
+    }
+    return lineStr.trim();
+  });
+}
+
+// Analizza le righe estratte dal foglio fotografato o dal PDF per ricavare [Numero Progressivo, Nome e Cognome]
 function parseSheetLinesIntoQueueItems(
   lines: string[],
   knownProfiles: Profile[],
@@ -191,34 +423,92 @@ function parseSheetLinesIntoQueueItems(
   for (const rawLine of lines) {
     const line = rawLine
       .replace(/\u00A0/g, ' ')
-      .replace(/[|;]+/g, ' ')
+      .replace(/;+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
     if (!line || line.length < 2) continue;
     if (HEADER_NOISE.test(line)) continue;
+    if (/^\d{1,2}:\d{2}\b/.test(line)) continue; // salta barra orologio telefono (es. 19:00)
 
-    // Cerca 1ª colonna = Numero Progressivo (es. "1 Mario Rossi Inglese", "24) Melis Maria", "25 - Sanna Giampaolo")
-    const matchStart = line.match(
-      /^(?:n[°º.]?\s*|#\s*)?(\d{1,4})(?:[.)\-:\s]+)(.+)$/i
+    // Trova l'inizio del Nome e Cognome (prima parola alfabetica di almeno 2 lettere, oppure iniziali tipo A.J.)
+    // ignorando prefissi come "N°", "n.", "#"
+    const withoutPrefixLabel = line.replace(/^(?:n[°º.]?\s*|#\s*)/i, '').trim();
+    const nameStartMatch = withoutPrefixLabel.match(
+      /([A-Za-zÀ-ÿ]{2,}|[A-Za-zÀ-ÿ]\.[A-Za-zÀ-ÿ]\.)/
     );
 
-    if (matchStart) {
-      const num = parseInt(matchStart[1], 10);
-      const cleanName = extractCleanNameOnly(matchStart[2], knownProfiles);
-      if (num > 0 && num <= 999 && cleanName && !HEADER_NOISE.test(cleanName)) {
-        if (!seenNumbers.has(num)) {
-          seenNumbers.add(num);
-          results.push({ number: num, name: cleanName });
+    if (nameStartMatch && typeof nameStartMatch.index === 'number') {
+      const prefixBeforeName = withoutPrefixLabel.slice(0, nameStartMatch.index).trim();
+      const restFromName = withoutPrefixLabel.slice(nameStartMatch.index).trim();
+
+      if (prefixBeforeName.length > 0) {
+        // Rimuove eventuali codici decimali (es. 1.01, 1.02, 2.09) dal prefisso numerico
+        // così "1.01 1 Bijan Robinson" o "1.02 2 Malik Nabers" non scambia MAI "1.02" per il numero 1!
+        const prefixWithoutDecimals = prefixBeforeName.replace(/\b\d{1,3}[.,]\d{1,3}\b/g, ' ');
+        const intMatches = prefixWithoutDecimals.match(/\b\d{1,4}\b/g) || [];
+        const validInts = intMatches
+          .map((m) => parseInt(m, 10))
+          .filter((n) => !isNaN(n) && n > 0 && n <= 500);
+
+        let chosenNum: number | null = null;
+        if (validInts.length > 0) {
+          // Prende l'intero immediatamente precedente al Nome e Cognome (es. in "3 1.01 1 Bijan Robinson" prende 1; in "4 1.02 2 Malik Nabers" prende 2)
+          chosenNum = validInts[validInts.length - 1];
+        } else {
+          // Se nel prefisso c'era solo un decimale tipo "1.07" (perché il 7 era sbiadito), usa la parte dopo il punto o il progressivo successivo
+          const decMatch = prefixBeforeName.match(/\b(\d{1,2})[.,](\d{2})\b/);
+          if (decMatch) {
+            const prevNum = results.length > 0 ? results[results.length - 1].number : existingMaxNumber;
+            chosenNum = prevNum + 1;
+          }
         }
-        continue;
+
+        const cleanName = extractCleanNameOnly(restFromName, knownProfiles);
+        if (chosenNum !== null && cleanName && !HEADER_NOISE.test(cleanName)) {
+          // Se per un errore ottico dell'OCR il numero letto era già uscito ma siamo in una tabella sequenziale, assegna il successivo
+          if (seenNumbers.has(chosenNum) && results.length > 0) {
+            const expectedNext = results[results.length - 1].number + 1;
+            if (!seenNumbers.has(expectedNext)) {
+              chosenNum = expectedNext;
+            }
+          }
+          if (!seenNumbers.has(chosenNum)) {
+            seenNumbers.add(chosenNum);
+            results.push({ number: chosenNum, name: cleanName });
+          }
+          continue;
+        }
       }
     }
 
-    // Fallback: se l'OCR non ha letto il numerino a inizio riga ma ha letto chiaramente Nome e Cognome
+    // Fallback: se su una riga l'OCR ha letto chiaramente Nome e Cognome ma il numerino era fuori inquadratura
     const cleanOnlyName = extractCleanNameOnly(line, knownProfiles);
     if (cleanOnlyName && cleanOnlyName.includes(' ') && cleanOnlyName.length >= 5) {
+      if (results.length > 0) {
+        // Se siamo già dentro una tabella numerata e una singola riga aveva il numero illeggibile, le dà il numero successivo!
+        const nextSequential = results[results.length - 1].number + 1;
+        if (!seenNumbers.has(nextSequential)) {
+          seenNumbers.add(nextSequential);
+          results.push({ number: nextSequential, name: cleanOnlyName });
+          continue;
+        }
+      }
       fallbackNamesOnly.push(cleanOnlyName);
+    }
+  }
+
+  // Se la maggior parte delle righe aveva solo il nome (es. colonna numeri tagliata nella foto), integra anche fallbackNamesOnly!
+  if (fallbackNamesOnly.length > 0 && results.length <= 2) {
+    let startN =
+      results.length > 0
+        ? Math.max(...results.map((r) => r.number))
+        : existingMaxNumber;
+    for (const name of fallbackNamesOnly) {
+      if (!results.some((r) => r.name.toLowerCase() === name.toLowerCase())) {
+        startN++;
+        results.push({ number: startN, name });
+      }
     }
   }
 
@@ -226,7 +516,6 @@ function parseSheetLinesIntoQueueItems(
     return results.sort((a, b) => a.number - b.number);
   }
 
-  // Se nella foto del foglio l'OCR ha letto i nomi ma la colonna dei numeri era tagliata, numera a partire da existingMaxNumber + 1
   return fallbackNamesOnly.map((name, idx) => ({
     number: existingMaxNumber + idx + 1,
     name,
@@ -245,6 +534,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     forceMonitorMode ? 'monitor' : 'remote'
   );
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [audioUnlocked, setAudioUnlocked] = useState<boolean>(!forceMonitorMode);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [flashActive, setFlashActive] = useState<boolean>(false);
 
@@ -276,6 +566,22 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
   const monitorContainerRef = useRef<HTMLDivElement | null>(null);
   const quickNameInputRef = useRef<HTMLInputElement | null>(null);
   const lastPlayedPulseRef = useRef<number>(queueState.callPulse || 0);
+
+  // Sblocca automaticamente l'audio al primo tocco o clic su qualsiasi punto della pagina
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      unlockAudioEngine();
+      setAudioUnlocked(true);
+    };
+    window.addEventListener('click', handleFirstInteraction, { passive: true });
+    window.addEventListener('touchstart', handleFirstInteraction, { passive: true });
+    window.addEventListener('keydown', handleFirstInteraction, { passive: true });
+    return () => {
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+      window.removeEventListener('keydown', handleFirstInteraction);
+    };
+  }, []);
 
   // Sincronizza il campo "Numero da cui partire" quando cambia il numero attuale
   useEffect(() => {
@@ -316,20 +622,20 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     };
   }, [queueState.items, queueState.currentNumber]);
 
-  // Effetto sonoro e lampeggio sullo Schermo Sala d'Attesa quando la Segreteria preme AVANTI o RICHIAMA
+  // Effetto sonoro e lampeggio sia sullo Schermo Sala d'Attesa sia in Segreteria quando arriva un nuovo impulso
   useEffect(() => {
     if (!queueState.callPulse || queueState.callPulse === lastPlayedPulseRef.current) return;
     lastPlayedPulseRef.current = queueState.callPulse;
     setFlashActive(true);
     const timer = setTimeout(() => setFlashActive(false), 2400);
 
-    if (viewMode === 'monitor' && soundEnabled) {
+    if (soundEnabled) {
       const matched = queueState.items.find((it) => it.number === queueState.currentNumber);
       playQueueCallChime(queueState.currentNumber, matched?.name || '', true);
     }
 
     return () => clearTimeout(timer);
-  }, [queueState.callPulse, queueState.currentNumber, queueState.items, viewMode, soundEnabled]);
+  }, [queueState.callPulse, queueState.currentNumber, queueState.items, soundEnabled]);
 
   // Integra i nuovi nominativi (es. dal 25 al 36) SENZA cancellare i precedenti (1..24) e SENZA spostare il turno attuale
   const integrateExtractedItems = (extracted: QueueItem[], sourceLabel: string) => {
@@ -352,7 +658,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           newlyAddedCount++;
           if (item.number < minAdded) minAdded = item.number;
           if (item.number > maxAdded) maxAdded = item.number;
-        } else if (!already.name && item.name) {
+        } else if (item.name && already.name !== item.name) {
           mapByNum.set(item.number, item);
           updatedCount++;
         }
@@ -366,7 +672,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         if (newlyAddedCount > 0) {
           showNotice(
             'success',
-            `✓ Integrati ${newlyAddedCount} nuovi nominativi (dal N° ${minAdded} al N° ${maxAdded}). Totale in lista: ${mergedList.length} soci.`
+            `✓ Letti e integrati ${newlyAddedCount} nuovi nominativi (dal N° ${minAdded} al N° ${maxAdded}). Totale in lista: ${mergedList.length} soci.`
           );
         } else if (updatedCount > 0) {
           showNotice(
@@ -391,7 +697,9 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     });
   };
 
-  // Migliora contrasto dell'immagine fotografata per facilitare la lettura OCR di numeri e nomi
+  // Pre-elaborazione adattiva per leggere sia foto di fogli cartacei sia screenshot di tabelle Excel/cellulare:
+  // 1) Sbianca le barre scure del telefono (orologio in alto, barra formula nera in basso, intestazioni grigio scuro)
+  // 2) Rimuove le griglie colorate (blu/verdi) delle tabelle Excel lasciando il testo nero nitidissimo su fondo bianco
   const preprocessImageForOcr = (fileOrBlob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(fileOrBlob);
@@ -416,16 +724,63 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         ctx.drawImage(img, 0, 0, w, h);
         const imgData = ctx.getImageData(0, 0, w, h);
         const data = imgData.data;
-        // Aumenta il contrasto su foglio bianco
-        for (let i = 0; i < data.length; i += 4) {
-          const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-          const contrasted = gray < 165 ? Math.max(0, gray * 0.65) : Math.min(255, gray * 1.15);
-          data[i] = contrasted;
-          data[i + 1] = contrasted;
-          data[i + 2] = contrasted;
+
+        // Calcola la luminosità media su blocchi 24x24 per distinguere il foglio bianco dalle barre scure del cellulare/tavolo
+        const blockSize = 24;
+        const cols = Math.ceil(w / blockSize);
+        const rows = Math.ceil(h / blockSize);
+        const blockAvg = new Float32Array(cols * rows);
+
+        for (let by = 0; by < rows; by++) {
+          for (let bx = 0; bx < cols; bx++) {
+            let sum = 0;
+            let count = 0;
+            const yStart = by * blockSize;
+            const yEnd = Math.min(h, yStart + blockSize);
+            const xStart = bx * blockSize;
+            const xEnd = Math.min(w, xStart + blockSize);
+            for (let y = yStart; y < yEnd; y += 2) {
+              for (let x = xStart; x < xEnd; x += 2) {
+                const idx = (y * w + x) * 4;
+                sum += 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+                count++;
+              }
+            }
+            blockAvg[by * cols + bx] = count > 0 ? sum / count : 255;
+          }
         }
+
+        for (let y = 0; y < h; y++) {
+          const by = Math.min(rows - 1, Math.floor(y / blockSize));
+          for (let x = 0; x < w; x++) {
+            const bx = Math.min(cols - 1, Math.floor(x / blockSize));
+            const localBg = blockAvg[by * cols + bx];
+            const idx = (y * w + x) * 4;
+            const r = data[idx];
+            const g = data[idx + 1];
+            const b = data[idx + 2];
+            const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+            const colorSpread = Math.max(r, g, b) - Math.min(r, g, b);
+
+            // Se il blocco locale ha sfondo scuro (es. barra nera telefono, colonna numeri riga Excel scura)
+            // oppure è una linea di griglia colorata (azzurra/verde), la trasforma in bianco puro (255)
+            if (localBg < 110 || (colorSpread > 35 && gray > 75)) {
+              data[idx] = 255;
+              data[idx + 1] = 255;
+              data[idx + 2] = 255;
+            } else {
+              // Sul foglio/tabella bianca: rende scuro e netto l'inchiostro del testo ed elimina griglie chiare e ombre
+              const isInk = gray < Math.min(165, localBg - 22);
+              const val = isInk ? Math.max(0, gray * 0.35) : 255;
+              data[idx] = val;
+              data[idx + 1] = val;
+              data[idx + 2] = val;
+            }
+          }
+        }
+
         ctx.putImageData(imgData, 0, 0);
-        resolve(canvas.toDataURL('image/jpeg', 0.92));
+        resolve(canvas.toDataURL('image/jpeg', 0.94));
       };
       img.onerror = (err) => reject(err);
       img.src = url;
@@ -453,11 +808,12 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         const previewUrl = URL.createObjectURL(file);
         setLastSheetPhotoUrl(previewUrl);
 
-        setScanStatusText('Lettura ottica (OCR) della foto del foglio in corso...');
+        setScanStatusText('Lettura ottica (OCR) di tutte le righe del foglio in corso...');
         const processedDataUrl = await preprocessImageForOcr(file);
         const Tesseract = await loadTesseract();
 
         const result = await Tesseract.recognize(processedDataUrl, 'ita', {
+          tessedit_pageseg_mode: '6',
           logger: (m: any) => {
             if (m.status === 'recognizing text' && typeof m.progress === 'number') {
               setScanProgress(Math.round(15 + m.progress * 80));
@@ -465,16 +821,24 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           },
         });
 
-        const rawLines = String(result?.data?.text || '').split(/\r?\n/);
-        const parsed = parseSheetLinesIntoQueueItems(rawLines, profiles, existingMax);
+        // 1) Ricostruzione geometrica riga per riga tramite coordinate (x, y) delle parole
+        const geomLines = reconstructRowsFromTesseractData(result?.data);
+        const parsedGeom = parseSheetLinesIntoQueueItems(geomLines, profiles, existingMax);
 
-        if (parsed.length > 0) {
-          integrateExtractedItems(parsed, `Foto: ${file.name}`);
+        // 2) Parsing del testo grezzo lineare
+        const rawLines = String(result?.data?.text || '').split(/\r?\n/);
+        const parsedRaw = parseSheetLinesIntoQueueItems(rawLines, profiles, existingMax);
+
+        // Sceglie il risultato più completo (quello che ha estratto più righe valide!)
+        const bestParsed = parsedGeom.length >= parsedRaw.length ? parsedGeom : parsedRaw;
+
+        if (bestParsed.length > 0) {
+          integrateExtractedItems(bestParsed, `Foto: ${file.name}`);
         } else {
           setShowPhotoModal(true);
           showNotice(
             'error',
-            'La scrittura a mano sul foglio è molto leggera: ho aperto la foto qui sotto così puoi inserire o confermare i nomi velocemente!'
+            'La scrittura sul foglio è molto leggera: ho aperto la foto qui sotto così puoi inserire o confermare i nomi velocemente!'
           );
         }
       } else if (ext === 'pdf' || file.type === 'application/pdf') {
@@ -531,13 +895,15 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               const pageDataUrl = canvas.toDataURL('image/jpeg', 0.92);
               if (pageNum === 1) setLastSheetPhotoUrl(pageDataUrl);
               const res = await Tesseract.recognize(pageDataUrl, 'ita', {
+                tessedit_pageseg_mode: '6',
                 logger: (m: any) => {
                   if (m.status === 'recognizing text' && typeof m.progress === 'number') {
                     setScanProgress(Math.round(40 + m.progress * 55));
                   }
                 },
               });
-              ocrLines.push(...String(res?.data?.text || '').split(/\r?\n/));
+              const geom = reconstructRowsFromTesseractData(res?.data);
+              ocrLines.push(...(geom.length > 0 ? geom : String(res?.data?.text || '').split(/\r?\n/)));
             }
           }
           parsed = parseSheetLinesIntoQueueItems(ocrLines, profiles, existingMax);
@@ -571,46 +937,63 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     }
   };
 
-  // Comandi Telecomando Segreteria
+  // Comandi Telecomando Segreteria (suona subito anche sul dispositivo in Segreteria oltre che sul Monitor!)
   const handleNext = () => {
-    updateQueueState((prev) => {
-      let nextNum = prev.currentNumber + 1;
-      if (prev.items.length > 0) {
-        const nextInList = prev.items.find((it) => it.number > prev.currentNumber);
-        if (nextInList) {
-          nextNum = nextInList.number;
-        }
+    unlockAudioEngine();
+    let targetNum = queueState.currentNumber + 1;
+    if (queueState.items.length > 0) {
+      const nextInList = queueState.items.find((it) => it.number > queueState.currentNumber);
+      if (nextInList) {
+        targetNum = nextInList.number;
       }
-      return {
-        ...prev,
-        currentNumber: nextNum,
-        callPulse: Date.now(),
-      };
-    });
+    }
+    const targetItem = queueState.items.find((it) => it.number === targetNum);
+    const pulseNow = Date.now();
+    lastPlayedPulseRef.current = pulseNow;
+    if (soundEnabled) {
+      playQueueCallChime(targetNum, targetItem?.name || '', true);
+    }
+    updateQueueState((prev) => ({
+      ...prev,
+      currentNumber: targetNum,
+      callPulse: pulseNow,
+    }));
   };
 
   const handlePrev = () => {
-    updateQueueState((prev) => {
-      if (prev.currentNumber <= 1) return prev;
-      let prevNum = prev.currentNumber - 1;
-      if (prev.items.length > 0) {
-        const lowerItems = prev.items.filter((it) => it.number < prev.currentNumber);
-        if (lowerItems.length > 0) {
-          prevNum = lowerItems[lowerItems.length - 1].number;
-        }
+    if (queueState.currentNumber <= 1) return;
+    unlockAudioEngine();
+    let prevNum = queueState.currentNumber - 1;
+    if (queueState.items.length > 0) {
+      const lowerItems = queueState.items.filter((it) => it.number < queueState.currentNumber);
+      if (lowerItems.length > 0) {
+        prevNum = lowerItems[lowerItems.length - 1].number;
       }
-      return {
-        ...prev,
-        currentNumber: Math.max(1, prevNum),
-        callPulse: Date.now(),
-      };
-    });
+    }
+    const finalNum = Math.max(1, prevNum);
+    const targetItem = queueState.items.find((it) => it.number === finalNum);
+    const pulseNow = Date.now();
+    lastPlayedPulseRef.current = pulseNow;
+    if (soundEnabled) {
+      playQueueCallChime(finalNum, targetItem?.name || '', true);
+    }
+    updateQueueState((prev) => ({
+      ...prev,
+      currentNumber: finalNum,
+      callPulse: pulseNow,
+    }));
   };
 
   const handleRecall = () => {
+    unlockAudioEngine();
+    const pulseNow = Date.now();
+    lastPlayedPulseRef.current = pulseNow;
+    const targetItem = queueState.items.find((it) => it.number === queueState.currentNumber);
+    // Quando si preme "Richiama Turno (Suono)", riproduce SEMPRE il suono + voce!
+    playQueueCallChime(queueState.currentNumber, targetItem?.name || '', true);
     updateQueueState((prev) => ({
       ...prev,
-      callPulse: Date.now(),
+      callPulse: pulseNow,
     }));
   };
 
@@ -618,10 +1001,17 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     if (e) e.preventDefault();
     const num = parseInt(startNumberInput.trim(), 10);
     if (isNaN(num) || num < 1) return;
+    unlockAudioEngine();
+    const pulseNow = Date.now();
+    lastPlayedPulseRef.current = pulseNow;
+    const targetItem = queueState.items.find((it) => it.number === num);
+    if (soundEnabled) {
+      playQueueCallChime(num, targetItem?.name || '', true);
+    }
     updateQueueState((prev) => ({
       ...prev,
       currentNumber: num,
-      callPulse: Date.now(),
+      callPulse: pulseNow,
     }));
     setShowStartNumberModal(false);
     showNotice('success', `✓ Turno impostato sul N° ${num}. Lo schermo in Sala d'Attesa è aggiornato!`);
@@ -727,6 +1117,15 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     return (
       <div
         ref={monitorContainerRef}
+        onClick={() => {
+          if (!audioUnlocked) {
+            unlockAudioEngine();
+            setAudioUnlocked(true);
+            if (soundEnabled) {
+              playQueueCallChime(queueState.currentNumber, currentItem?.name || '', true);
+            }
+          }
+        }}
         className="fixed inset-0 z-50 flex flex-col justify-between bg-emerald-700 text-white select-none overflow-hidden"
       >
         {/* BARRA SUPERIORE DISCRETA PER CONTROLLI SCHERMO SALA D'ATTESA */}
@@ -743,9 +1142,29 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           </div>
 
           <div className="flex items-center gap-2.5">
+            {!audioUnlocked && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  unlockAudioEngine();
+                  setAudioUnlocked(true);
+                  setSoundEnabled(true);
+                  playQueueCallChime(queueState.currentNumber, currentItem?.name || '', true);
+                }}
+                className="flex items-center gap-2 rounded-xl bg-white text-emerald-950 px-4 py-2 text-xs sm:text-sm font-extrabold border-2 border-white shadow-md animate-pulse cursor-pointer"
+              >
+                <Volume2 className="h-4 w-4 text-emerald-700" />
+                <span>Clicca qui per attivare il Suono sul Monitor</span>
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
+                unlockAudioEngine();
+                setAudioUnlocked(true);
                 const nextVal = !soundEnabled;
                 setSoundEnabled(nextVal);
                 if (nextVal) {
@@ -760,7 +1179,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             >
               {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
               <span className="hidden sm:inline">
-                {soundEnabled ? 'Audio Attivo' : 'Audio Muto'}
+                {soundEnabled ? 'Audio Attivo (Prova)' : 'Audio Muto'}
               </span>
             </button>
 

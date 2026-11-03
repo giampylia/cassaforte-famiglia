@@ -316,7 +316,17 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Endpoint ultra-veloce dedicato per il telecomando Eliminacode -> Monitor Aula
+  // Endpoint ultra-veloce dedicato per il telecomando Eliminacode -> Monitor Sala d'Attesa
+  if (parsedUrl === '/api/queue' && req.method === 'GET') {
+    const existingDb = loadDb() || {};
+    sendJson(res, 200, {
+      ok: true,
+      queueState: existingDb.queueState || null,
+      connectedDevices: sseClients.size,
+    });
+    return;
+  }
+
   if (parsedUrl === '/api/queue' && req.method === 'POST') {
     try {
       const body = await readJsonBody(req);

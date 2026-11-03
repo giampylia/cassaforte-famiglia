@@ -783,7 +783,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // BroadcastChannel not supported
     }
 
+    // Polling leggero di sicurezza per Eliminacode (/api/queue) così il Monitor Sala d'Attesa riceve sempre il turno anche se SSE viene bufferizzato
+    const queuePollTimer = setInterval(() => {
+      fetch('/api/queue')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data && data.ok && data.queueState) {
+            const incomingQ = data.queueState as QueueState;
+            if (Number(incomingQ.updatedAt || 0) > queueUpdatedAtRef.current) {
+              setQueueState(incomingQ);
+              localStorage.setItem(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(incomingQ));
+            }
+          }
+        })
+        .catch(() => {});
+    }, 1800);
+
     return () => {
+      clearInterval(queuePollTimer);
       if (es) es.close();
       if (broadcastChannelRef.current) broadcastChannelRef.current.close();
     };
