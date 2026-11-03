@@ -834,25 +834,58 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
   // ============================================================================
   return (
     <div className="mx-auto max-w-4xl p-4 sm:p-6 space-y-5">
-      {/* BARRA DI SCELTA MODALITÀ CHIARISSIMA */}
-      <div className="rounded-2xl bg-emerald-800 text-white p-4 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-lg sm:text-xl font-bold">
-            Eliminacode — Gestione Segreteria e Sala d&apos;Attesa
-          </h1>
-          <p className="text-xs sm:text-sm text-emerald-100">
-            Fotografa il foglio firmato dai soci (es. 1–24, poi 25–36) e fai avanzare il turno in Sala d&apos;Attesa.
-          </p>
+      {/* BARRA DI SCELTA MODALITÀ E LINK DIRETTO PER IL MONITOR SALA D'ATTESA */}
+      <div className="rounded-2xl bg-emerald-800 text-white p-4 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-lg sm:text-xl font-bold">
+              Eliminacode — Gestione Segreteria e Sala d&apos;Attesa
+            </h1>
+            <p className="text-xs sm:text-sm text-emerald-100">
+              Fotografa il foglio firmato dai soci (es. 1–24, poi 25–36) e fai avanzare il turno in Sala d&apos;Attesa.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setViewMode('monitor')}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-white bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white transition shrink-0 cursor-pointer"
+          >
+            <Monitor className="h-4 w-4" />
+            <span>Mostra Schermo Sala d&apos;Attesa</span>
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setViewMode('monitor')}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-white bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white transition shrink-0 cursor-pointer"
-        >
-          <Monitor className="h-4 w-4" />
-          <span>Mostra Schermo Sala d&apos;Attesa</span>
-        </button>
+        {/* LINK DIRETTO DA APRIRE SUL MONITOR / TV IN SALA D'ATTESA (SENZA LOGIN) */}
+        <div className="rounded-xl bg-emerald-900/80 border border-white/30 px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="text-xs sm:text-sm">
+            <span className="font-semibold text-emerald-200">
+              📺 Link diretto per il Monitor in Sala d&apos;Attesa (senza login):{' '}
+            </span>
+            <a
+              href="https://qu3.onrender.com/monitor"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono font-bold text-white underline break-all"
+            >
+              https://qu3.onrender.com/monitor
+            </a>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const url = `${window.location.origin}/monitor`;
+              navigator.clipboard?.writeText(url);
+              showNotice(
+                'success',
+                `✓ Link copiato (${url})! Aprilo sul browser del Monitor in Sala d'Attesa.`
+              );
+            }}
+            className="inline-flex items-center justify-center rounded-lg bg-white text-emerald-900 hover:bg-emerald-50 px-3 py-1.5 text-xs font-bold transition shrink-0 cursor-pointer"
+          >
+            Copia Link Monitor
+          </button>
+        </div>
       </div>
 
       {feedback && (

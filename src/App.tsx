@@ -33,10 +33,14 @@ const MainRouter: React.FC = () => {
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
-  // Permette di aprire direttamente lo schermo del Monitor d'Aula tramite ?monitor=eliminacode
+  // Permette di aprire direttamente lo schermo del Monitor Sala d'Attesa tramite /monitor, /sala o ?monitor=eliminacode senza login
   const isDirectMonitorUrl =
     typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('monitor') === 'eliminacode';
+    (['/monitor', '/sala', '/coda', '/eliminacode'].includes(
+      window.location.pathname.toLowerCase().replace(/\/+$/, '')
+    ) ||
+      new URLSearchParams(window.location.search).get('monitor') === 'eliminacode' ||
+      new URLSearchParams(window.location.search).get('eliminacode') === 'monitor');
 
   if (isDirectMonitorUrl) {
     return <EliminacodeView forceMonitorMode={true} />;
