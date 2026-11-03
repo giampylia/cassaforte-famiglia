@@ -15,7 +15,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useApp, ImportedMemberRow } from '../context/AppContext';
-import { getMemberParts, Profile } from '../data/initialData';
+import { getMemberParts, isProtectedSuperAdmin, Profile } from '../data/initialData';
 import { exportCsv, exportOfficialPdf } from '../utils/soundAndPdf';
 
 // Caricamento dinamico di SheetJS (xlsx) per leggere file .xlsx / .xls nativi di Excel
@@ -809,16 +809,16 @@ export const AnagraficaSociView: React.FC = () => {
                     <th className="p-3.5 w-10 text-center">
                       <input
                         type="checkbox"
-                        title="Seleziona / Deseleziona tutti i soci visualizzati"
+                        title="Seleziona / Deseleziona tutti i soci visualizzati (escluso Amministratore 7726)"
                         checked={
-                          sortedMembers.filter((m) => m.member_number !== '7796').length > 0 &&
+                          sortedMembers.filter((m) => !isProtectedSuperAdmin(m)).length > 0 &&
                           sortedMembers
-                            .filter((m) => m.member_number !== '7796')
+                            .filter((m) => !isProtectedSuperAdmin(m))
                             .every((m) => selectedIds.includes(m.id))
                         }
                         onChange={(e) => {
                           const deletableVisibleIds = sortedMembers
-                            .filter((m) => m.member_number !== '7796')
+                            .filter((m) => !isProtectedSuperAdmin(m))
                             .map((m) => m.id);
                           if (e.target.checked) {
                             setSelectedIds(
@@ -875,6 +875,8 @@ export const AnagraficaSociView: React.FC = () => {
                   const isEditing = editingId === m.id;
                   const isCd = Boolean(m.is_cd || m.roles?.includes('CD'));
                   const isSelected = selectedIds.includes(m.id);
+                  const isProtectedAdmin = isProtectedSuperAdmin(m);
+                  const canEditThisRow = canManageMembers && (!isProtectedAdmin || isSuperAdmin);
 
                   return (
                     <tr
@@ -961,7 +963,9 @@ export const AnagraficaSociView: React.FC = () => {
                                   full_name: fullName,
                                   sede: editRow.sede,
                                   is_cd: nextIsCd,
-                                  roles: [editRow.roleName],
+                                  roles: isProtectedAdmin
+                                    ? Array.from(new Set(['Amministratore', editRow.roleName]))
+                                    : [editRow.roleName],
                                 });
                                 setEditingId(null);
                                 showNotice('success', '✓ Dati socio aggiornati.');
@@ -983,7 +987,7 @@ export const AnagraficaSociView: React.FC = () => {
                         <>
                           {canManageMembers && (
                             <td className="p-3.5 text-center">
-                              {m.member_number !== '7796' && (
+                              {!isProtectedAdmin && (
                                 <input
                                   type="checkbox"
                                   checked={isSelected}
@@ -1014,15 +1018,17 @@ export const AnagraficaSociView: React.FC = () => {
                             {m.sede}
                           </td>
                           <td className="p-3.5 whitespace-nowrap">
-                            {canManageMembers && m.member_number !== '7796' ? (
+                            {canEditThisRow ? (
                               <select
                                 value={m.parsedRole.split(',')[0].trim() || 'Socio'}
                                 onChange={(e) => {
                                   const chosen = e.target.value;
                                   const nextIsCd = chosen === 'CD' || chosen === 'Amministratore';
                                   updateMember(m.id, {
-                                    roles: [chosen],
-                                    is_cd: nextIsCd,
+                                    roles: isProtectedAdmin
+                                      ? Array.from(new Set(['Amministratore', chosen]))
+                                      : [chosen],
+                                    is_cd: isProtectedAdmin ? true : nextIsCd,
                                   });
                                 }}
                                 className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 hover:border-emerald-500 focus:outline-none"
@@ -1040,7 +1046,7 @@ export const AnagraficaSociView: React.FC = () => {
                             )}
                           </td>
                           <td className="p-3.5 text-center whitespace-nowrap">
-                            {canManageMembers && m.member_number !== '7796' ? (
+                            {canEditThisRow ? (
                               <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
                                 <input
                                   type="checkbox"
@@ -1068,25 +1074,27 @@ export const AnagraficaSociView: React.FC = () => {
                           </td>
                           {canManageMembers && (
                             <td className="p-3.5 text-right whitespace-nowrap space-x-1.5">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingId(m.id);
-                                  setEditRow({
-                                    member_number: m.member_number,
-                                    first_name: m.parsedFirstName,
-                                    last_name: m.parsedLastName,
-                                    sede: m.sede,
-                                    roleName: m.parsedRole.split(',')[0].trim() || 'Socio',
-                                  });
-                                }}
-                                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-100"
-                                title="Modifica socio"
-                              >
-                                <Edit3 className="h-3.5 w-3.5" />
-                                <span>Modifica</span>
-                              </button>
-                              {m.member_number !== '7796' && (
+                              {canEditThisRow && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingId(m.id);
+                                    setEditRow({
+                                      member_number: m.member_number,
+                                      first_name: m.parsedFirstName,
+                                      last_name: m.parsedLastName,
+                                      sede: m.sede,
+                                      roleName: m.parsedRole.split(',')[0].trim() || 'Socio',
+                                    });
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-100"
+                                  title="Modifica socio"
+                                >
+                                  <Edit3 className="h-3.5 w-3.5" />
+                                  <span>Modifica</span>
+                                </button>
+                              )}
+                              {!isProtectedAdmin ? (
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1109,6 +1117,13 @@ export const AnagraficaSociView: React.FC = () => {
                                   <Trash2 className="h-3.5 w-3.5" />
                                   <span>Elimina</span>
                                 </button>
+                              ) : (
+                                <span
+                                  className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-800"
+                                  title="Account Amministratore Principale protetto da cancellazione"
+                                >
+                                  Protetto
+                                </span>
                               )}
                             </td>
                           )}

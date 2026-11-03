@@ -13,6 +13,7 @@ import {
   INITIAL_LESSONS,
   INITIAL_PROFILES,
   INITIAL_SUBJECT_NOTES,
+  isProtectedSuperAdmin,
   Lesson,
   Profile,
   sanitizeSimultaneousAttendance,
@@ -181,36 +182,66 @@ function isCustomizedProfiles(list: Profile[]): boolean {
   return false;
 }
 
+function normalizeSuperAdminProfile(p?: Partial<Profile> | null): Profile {
+  const base = INITIAL_PROFILES[0]; // 7726 Giampiero Pilia
+  const rawName = (p?.full_name || '').trim();
+  const isAutoName = !rawName || rawName.toLowerCase().startsWith('socio tessera');
+  const firstName = isAutoName ? 'Giampiero' : (p?.first_name || 'Giampiero').trim();
+  const lastName = isAutoName ? 'Pilia' : (p?.last_name || 'Pilia').trim();
+  const fullName = isAutoName ? 'Giampiero Pilia' : `${firstName} ${lastName}`.trim() || 'Giampiero Pilia';
+  const rawNum = String(p?.member_number || '').trim();
+  // Usa 7726 come numero tessera principale (anche se in precedenza era rimasto 7796)
+  const memberNumber = !rawNum || rawNum === '7796' ? '7726' : rawNum;
+  const existingRoles = Array.isArray(p?.roles) ? p!.roles!.filter((r) => r !== 'Socio') : [];
+  const mergedRoles = Array.from(new Set(['Amministratore', ...existingRoles]));
+
+  return {
+    ...base,
+    ...(p || {}),
+    id: p?.id && p.id !== 'admin-7796' ? p.id : 'admin-7726',
+    member_number: memberNumber,
+    first_name: firstName,
+    last_name: lastName,
+    full_name: fullName,
+    sede: p?.sede || 'Quartu',
+    role: 'admin',
+    is_super_admin: true,
+    is_cd: p?.is_cd !== undefined ? Boolean(p.is_cd) : true,
+    roles: mergedRoles,
+  };
+}
+
 function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
-  const list = [...rawProfiles];
-  const superAdmin = INITIAL_PROFILES[0]; // Giampiero Pilia (7796)
-  const existingIdx = list.findIndex((p) => p.member_number === '7796' || p.id === 'admin-7796');
-  if (existingIdx === -1) {
-    list.unshift(superAdmin);
+  const list = Array.isArray(rawProfiles) ? [...rawProfiles] : [];
+  // Trova tutti gli eventuali record riconducibili a Giampiero Pilia (7726 / 7796 / is_super_admin)
+  const superIndices: number[] = [];
+  list.forEach((p, idx) => {
+    if (isProtectedSuperAdmin(p)) {
+      superIndices.push(idx);
+    }
+  });
+
+  if (superIndices.length === 0) {
+    // Non deve MAI sparire: se non c'è, lo reinserisce in cima
+    list.unshift(normalizeSuperAdminProfile(INITIAL_PROFILES[0]));
   } else {
-    list[existingIdx] = {
-      ...list[existingIdx],
-      member_number: '7796',
-      first_name: 'Giampiero',
-      last_name: 'Pilia',
-      full_name: 'Giampiero Pilia',
-      role: 'admin',
-      is_super_admin: true,
-      is_cd: true,
-      roles: ['Amministratore'],
-    };
+    // Se c'è sia un record 7726 che un vecchio 7796, privilegia i dati di 7726 e rimuove il duplicato
+    const preferredIdx =
+      superIndices.find((idx) => String(list[idx].member_number).trim() === '7726') ?? superIndices[0];
+    const mergedSuper = normalizeSuperAdminProfile(list[preferredIdx]);
+    list[preferredIdx] = mergedSuper;
+    // Rimuove eventuali duplicati (es. vecchio 7796 + nuovo 7726) partendo dal fondo
+    for (let i = superIndices.length - 1; i >= 0; i--) {
+      const idx = superIndices[i];
+      if (idx !== preferredIdx) {
+        list.splice(idx, 1);
+      }
+    }
   }
+
   return list.map((p) => {
-    if (p.member_number === '7796' || p.is_super_admin) {
-      return {
-        ...p,
-        first_name: p.first_name || 'Giampiero',
-        last_name: p.last_name || 'Pilia',
-        full_name: 'Giampiero Pilia',
-        is_super_admin: true,
-        is_cd: true,
-        roles: ['Amministratore'],
-      };
+    if (isProtectedSuperAdmin(p)) {
+      return normalizeSuperAdminProfile(p);
     }
     const initialMatch = INITIAL_PROFILES.find((ip) => ip.member_number === p.member_number);
     const roles = p.roles && p.roles.length > 0 ? p.roles : initialMatch?.roles || ['Socio'];
@@ -380,7 +411,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUser] = useState<Profile | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.USER);
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed: Profile = JSON.parse(saved);
+      return isProtectedSuperAdmin(parsed) ? normalizeSuperAdminProfile(parsed) : parsed;
     } catch {
       return null;
     }
@@ -391,15 +424,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Keep currentUser synchronized with updated roles/CD status in profiles
   useEffect(() => {
     if (!currentUser) return;
+    if (isProtectedSuperAdmin(currentUser)) {
+      const superProfile =
+        profiles.find((p) => isProtectedSuperAdmin(p)) || normalizeSuperAdminProfile(currentUser);
+      if (JSON.stringify(superProfile) !== JSON.stringify(currentUser)) {
+        setCurrentUser(superProfile);
+      }
+      return;
+    }
     const updated = profiles.find((p) => p.id === currentUser.id || p.member_number === currentUser.member_number);
     if (updated && JSON.stringify(updated) !== JSON.stringify(currentUser)) {
       setCurrentUser(updated);
     }
   }, [profiles, currentUser]);
 
-  const isSuperAdmin = Boolean(
-    currentUser && (currentUser.member_number === '7796' || currentUser.is_super_admin)
-  );
+  const isSuperAdmin = Boolean(currentUser && isProtectedSuperAdmin(currentUser));
 
   const isCDMember = Boolean(
     currentUser &&
@@ -792,16 +831,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   }, [attendance, currentUser, todayIsoPrefix]);
 
-  // Login: 7796 logs in as Giampiero Pilia (Super Admin), 000 logs in as Ufficio Presenze, other numbers log in as Socio
+  // Login: 7726 (and 7796) logs in as Giampiero Pilia (Super Admin), 000 logs in as Ufficio Presenze, other numbers log in as Socio
   const signInMember = (rawCardNumber: string): { error: string | null } => {
     const cleaned = rawCardNumber.trim();
     if (!cleaned) {
       return { error: 'Digita il numero della tua tessera per entrare.' };
     }
 
-    if (cleaned === '7796') {
-      const superAdminProfile =
-        profiles.find((p) => p.member_number === '7796' || p.is_super_admin) || INITIAL_PROFILES[0];
+    if (cleaned === '7726' || cleaned === '7796') {
+      const superAdminProfile = normalizeSuperAdminProfile(
+        profiles.find((p) => isProtectedSuperAdmin(p)) || INITIAL_PROFILES[0]
+      );
+      setProfiles((prev) => ensureSuperAdminAndRoles(prev));
       setCurrentUser(superAdminProfile);
       setActiveSection('admin_dashboard');
       return { error: null };
@@ -823,14 +864,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const matched = profiles.find(
       (p) =>
-        p.role === 'member' &&
-        (p.member_number.toLowerCase() === cleaned.toLowerCase() ||
-          p.full_name.toLowerCase() === cleaned.toLowerCase())
+        p.member_number.toLowerCase() === cleaned.toLowerCase() ||
+        p.full_name.toLowerCase() === cleaned.toLowerCase()
     );
 
     if (matched) {
+      if (isProtectedSuperAdmin(matched)) {
+        const superAdminProfile = normalizeSuperAdminProfile(matched);
+        setCurrentUser(superAdminProfile);
+        setActiveSection('admin_dashboard');
+        return { error: null };
+      }
       setCurrentUser(matched);
-      setActiveSection('presenze');
+      setActiveSection(matched.role === 'admin' ? 'admin_dashboard' : 'presenze');
       return { error: null };
     }
 
@@ -858,9 +904,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const signInAdmin = (secretCode: string): { error: string | null } => {
     const cleaned = secretCode.trim().toLowerCase();
-    if (cleaned === '7796') {
-      const superAdminProfile =
-        profiles.find((p) => p.member_number === '7796' || p.is_super_admin) || INITIAL_PROFILES[0];
+    if (cleaned === '7726' || cleaned === '7796') {
+      const superAdminProfile = normalizeSuperAdminProfile(
+        profiles.find((p) => isProtectedSuperAdmin(p)) || INITIAL_PROFILES[0]
+      );
+      setProfiles((prev) => ensureSuperAdminAndRoles(prev));
       setCurrentUser(superAdminProfile);
       setActiveSection('admin_dashboard');
       return { error: null };
@@ -1248,44 +1296,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         finalRoles.forEach((r) => discoveredRoles.add(r));
 
         const isCd = finalRoles.some((r) => r.toUpperCase() === 'CD' || r.toLowerCase() === 'amministratore');
-        const isSuper = cleanNum === '7796' || finalRoles.some((r) => r.toLowerCase() === 'amministratore');
+        const isSuper =
+          cleanNum === '7726' ||
+          cleanNum === '7796' ||
+          (fullName.toLowerCase().includes('giampiero') && fullName.toLowerCase().includes('pilia')) ||
+          finalRoles.some((r) => r.toLowerCase() === 'amministratore');
 
         const existingIndex = next.findIndex(
-          (p) => p.member_number.toLowerCase() === cleanNum.toLowerCase()
+          (p) =>
+            p.member_number.toLowerCase() === cleanNum.toLowerCase() ||
+            (isSuper && isProtectedSuperAdmin(p))
         );
 
         if (existingIndex >= 0) {
           next[existingIndex] = {
             ...next[existingIndex],
-            member_number: cleanNum,
+            member_number: isSuper ? '7726' : cleanNum,
             first_name: firstName || next[existingIndex].first_name,
             last_name: lastName || next[existingIndex].last_name,
             full_name: fullName,
             sede,
-            is_cd: isCd,
+            is_cd: isSuper ? true : isCd,
             is_super_admin: isSuper || next[existingIndex].is_super_admin,
             role: isSuper ? 'admin' : next[existingIndex].role,
-            roles: finalRoles,
+            roles: isSuper ? Array.from(new Set(['Amministratore', ...finalRoles.filter((r) => r !== 'Socio')])) : finalRoles,
           };
           updated++;
         } else {
           next.push({
-            id: `u-imp-${Date.now()}-${idx}`,
-            member_number: cleanNum,
+            id: isSuper ? 'admin-7726' : `u-imp-${Date.now()}-${idx}`,
+            member_number: isSuper ? '7726' : cleanNum,
             first_name: firstName,
             last_name: lastName,
             full_name: fullName,
             sede,
             role: isSuper ? 'admin' : 'member',
             is_super_admin: isSuper,
-            is_cd: isCd,
-            roles: finalRoles,
+            is_cd: isSuper ? true : isCd,
+            roles: isSuper ? Array.from(new Set(['Amministratore', ...finalRoles.filter((r) => r !== 'Socio')])) : finalRoles,
             joined_year: new Date().getFullYear(),
           });
           added++;
         }
       });
-      return next;
+      return ensureSuperAdminAndRoles(next);
     });
 
     setAvailableRoles(Array.from(discoveredRoles));
@@ -1294,22 +1348,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateMember = (id: string, data: Partial<Profile>) => {
-    setProfiles((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)));
+    setProfiles((prev) =>
+      ensureSuperAdminAndRoles(
+        prev.map((p) => {
+          if (p.id !== id) return p;
+          const merged = { ...p, ...data };
+          if (isProtectedSuperAdmin(p) || isProtectedSuperAdmin(merged)) {
+            return normalizeSuperAdminProfile(merged);
+          }
+          return merged;
+        })
+      )
+    );
     if (currentUser?.id === id) {
-      setCurrentUser((prev) => (prev ? { ...prev, ...data } : null));
+      setCurrentUser((prev) => {
+        if (!prev) return null;
+        const merged = { ...prev, ...data };
+        return isProtectedSuperAdmin(prev) || isProtectedSuperAdmin(merged)
+          ? normalizeSuperAdminProfile(merged)
+          : merged;
+      });
     }
     setProfilesUpdatedAt(Date.now());
   };
 
   const deleteMember = (id: string) => {
-    setProfiles((prev) => prev.filter((p) => p.id !== id && p.member_number !== '7796' ? true : p.id !== id));
+    setProfiles((prev) =>
+      ensureSuperAdminAndRoles(prev.filter((p) => isProtectedSuperAdmin(p) || p.id !== id))
+    );
     setProfilesUpdatedAt(Date.now());
   };
 
   const deleteMembersBatch = (ids: string[]) => {
     const idSet = new Set(ids);
     setProfiles((prev) =>
-      prev.filter((p) => p.member_number === '7796' || p.is_super_admin || !idSet.has(p.id))
+      ensureSuperAdminAndRoles(prev.filter((p) => isProtectedSuperAdmin(p) || !idSet.has(p.id)))
     );
     setProfilesUpdatedAt(Date.now());
   };

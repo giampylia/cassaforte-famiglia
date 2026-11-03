@@ -138,6 +138,55 @@ const server = http.createServer(async (req, res) => {
 
   if (parsedUrl === '/api/state' && req.method === 'GET') {
     const db = loadDb();
+    if (db && Array.isArray(db.profiles)) {
+      const has7726 = db.profiles.some(
+        (p) => p && (String(p.member_number).trim() === '7726' || p.is_super_admin)
+      );
+      if (!has7726) {
+        db.profiles.unshift({
+          id: 'admin-7726',
+          member_number: '7726',
+          first_name: 'Giampiero',
+          last_name: 'Pilia',
+          full_name: 'Giampiero Pilia',
+          sede: 'Quartu',
+          role: 'admin',
+          is_super_admin: true,
+          is_cd: true,
+          roles: ['Amministratore'],
+          phone: '070 881234',
+          joined_year: 2018,
+        });
+      } else {
+        db.profiles = db.profiles.map((p) => {
+          if (
+            p &&
+            (String(p.member_number).trim() === '7726' ||
+              String(p.member_number).trim() === '7796' ||
+              p.is_super_admin)
+          ) {
+            return {
+              ...p,
+              id: p.id && p.id !== 'admin-7796' ? p.id : 'admin-7726',
+              member_number: String(p.member_number).trim() === '7796' ? '7726' : p.member_number || '7726',
+              first_name: p.first_name || 'Giampiero',
+              last_name: p.last_name || 'Pilia',
+              full_name:
+                !p.full_name || String(p.full_name).toLowerCase().startsWith('socio tessera')
+                  ? 'Giampiero Pilia'
+                  : p.full_name,
+              role: 'admin',
+              is_super_admin: true,
+              is_cd: true,
+              roles: Array.from(
+                new Set(['Amministratore', ...((p.roles || []).filter((r) => r !== 'Socio'))])
+              ),
+            };
+          }
+          return p;
+        });
+      }
+    }
     sendJson(res, 200, {
       ok: true,
       db,
@@ -184,6 +233,62 @@ const server = http.createServer(async (req, res) => {
           if (existingLessonsTs > incomingLessonsTs && Array.isArray(existingDb.lessons)) {
             incomingDb.lessons = existingDb.lessons;
             incomingDb.lessonsUpdatedAt = existingLessonsTs;
+          }
+        }
+
+        // Garantisce che 7726 Giampiero Pilia non venga MAI cancellato dal database del server
+        if (Array.isArray(incomingDb.profiles)) {
+          const hasSuper = incomingDb.profiles.some(
+            (p) =>
+              p &&
+              (String(p.member_number).trim() === '7726' ||
+                String(p.member_number).trim() === '7796' ||
+                p.is_super_admin)
+          );
+          if (!hasSuper) {
+            incomingDb.profiles.unshift({
+              id: 'admin-7726',
+              member_number: '7726',
+              first_name: 'Giampiero',
+              last_name: 'Pilia',
+              full_name: 'Giampiero Pilia',
+              sede: 'Quartu',
+              role: 'admin',
+              is_super_admin: true,
+              is_cd: true,
+              roles: ['Amministratore'],
+              phone: '070 881234',
+              joined_year: 2018,
+            });
+          } else {
+            incomingDb.profiles = incomingDb.profiles.map((p) => {
+              if (
+                p &&
+                (String(p.member_number).trim() === '7726' ||
+                  String(p.member_number).trim() === '7796' ||
+                  p.is_super_admin)
+              ) {
+                return {
+                  ...p,
+                  id: p.id && p.id !== 'admin-7796' ? p.id : 'admin-7726',
+                  member_number:
+                    String(p.member_number).trim() === '7796' ? '7726' : p.member_number || '7726',
+                  first_name: p.first_name || 'Giampiero',
+                  last_name: p.last_name || 'Pilia',
+                  full_name:
+                    !p.full_name || String(p.full_name).toLowerCase().startsWith('socio tessera')
+                      ? 'Giampiero Pilia'
+                      : p.full_name,
+                  role: 'admin',
+                  is_super_admin: true,
+                  is_cd: true,
+                  roles: Array.from(
+                    new Set(['Amministratore', ...((p.roles || []).filter((r) => r !== 'Socio'))])
+                  ),
+                };
+              }
+              return p;
+            });
           }
         }
 

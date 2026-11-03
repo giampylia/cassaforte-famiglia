@@ -314,7 +314,13 @@ export const PiccolaCassaView: React.FC = () => {
   const eligibleBeneficiaries = useMemo(() => {
     const list = profiles.filter((p) => {
       if (currentUser && p.id === currentUser.id) return true;
-      if (p.is_super_admin || p.member_number === '7796' || p.is_cd || p.role === 'admin') {
+      if (
+        p.is_super_admin ||
+        p.member_number === '7726' ||
+        p.member_number === '7796' ||
+        p.is_cd ||
+        p.role === 'admin'
+      ) {
         return true;
       }
       if (p.roles && p.roles.length > 0) {

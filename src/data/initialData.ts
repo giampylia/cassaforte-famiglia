@@ -45,6 +45,20 @@ export const DEFAULT_AVAILABLE_ROLES: string[] = [
   'Amministratore',
 ];
 
+export function isProtectedSuperAdmin(p?: Partial<Profile> | null): boolean {
+  if (!p) return false;
+  const num = String(p.member_number || '').trim();
+  const full = `${p.first_name || ''} ${p.last_name || ''} ${p.full_name || ''}`.toLowerCase();
+  return (
+    Boolean(p.is_super_admin) ||
+    num === '7726' ||
+    num === '7796' ||
+    p.id === 'admin-7726' ||
+    p.id === 'admin-7796' ||
+    (full.includes('giampiero') && full.includes('pilia'))
+  );
+}
+
 export function getMemberParts(p: Profile): {
   firstName: string;
   lastName: string;
@@ -66,8 +80,9 @@ export function getMemberParts(p: Profile): {
   }
 
   let primaryRole = 'Socio';
-  if (p.member_number === '7796' || p.is_super_admin) {
-    primaryRole = 'Amministratore';
+  if (isProtectedSuperAdmin(p)) {
+    const customRoles = (p.roles || []).filter((r) => r !== 'Socio');
+    primaryRole = customRoles.length > 0 ? customRoles.join(', ') : 'Amministratore';
   } else if (p.roles && p.roles.length > 0) {
     const nonSocio = p.roles.filter((r) => r !== 'Socio');
     primaryRole = nonSocio.length > 0 ? nonSocio.join(', ') : 'Socio';
@@ -301,7 +316,7 @@ export function getSubjectMeta(subject: string): SubjectMeta {
 }
 
 export const INITIAL_PROFILES: Profile[] = [
-  { id: 'admin-7796', member_number: '7796', first_name: 'Giampiero', last_name: 'Pilia', full_name: 'Giampiero Pilia', sede: 'Quartu', role: 'admin', is_super_admin: true, is_cd: true, roles: ['Amministratore'], phone: '070 881234', joined_year: 2018 },
+  { id: 'admin-7726', member_number: '7726', first_name: 'Giampiero', last_name: 'Pilia', full_name: 'Giampiero Pilia', sede: 'Quartu', role: 'admin', is_super_admin: true, is_cd: true, roles: ['Amministratore'], phone: '070 881234', joined_year: 2018 },
   { id: 'admin-1', member_number: '000', first_name: 'Ufficio', last_name: 'Presenze QU3', full_name: 'Ufficio Presenze QU3', sede: 'Quartu', role: 'admin', is_super_admin: false, is_cd: false, roles: ['Didattica'], phone: '070 881234', joined_year: 2018 },
   { id: 'u-101', member_number: '101', first_name: 'Maria Bonaria', last_name: 'Melis', full_name: 'Maria Bonaria Melis', sede: 'Quartu', role: 'member', is_cd: true, roles: ['CD'], phone: '347 1122334', joined_year: 2021 },
   { id: 'u-102', member_number: '102', first_name: 'Efisio', last_name: 'Piras', full_name: 'Efisio Piras', sede: 'Quartu', role: 'member', is_cd: true, roles: ['CD', 'Amministrativo'], phone: '348 2233445', joined_year: 2020 },

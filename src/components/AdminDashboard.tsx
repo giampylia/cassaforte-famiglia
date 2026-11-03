@@ -1418,7 +1418,7 @@ export const AdminDashboard: React.FC = () => {
                               </td>
                               <td className="p-3.5 font-medium text-base text-slate-900">
                                 {m.full_name}
-                                {m.member_number === '7796' && (
+                                {(m.member_number === '7726' || m.member_number === '7796' || m.is_super_admin) && (
                                   <span className="ml-2 rounded-md bg-amber-100 border border-amber-300 px-2 py-0.5 text-[11px] font-normal text-amber-900">
                                     Amministratore
                                   </span>
@@ -1572,7 +1572,7 @@ export const AdminDashboard: React.FC = () => {
                                     >
                                       <Edit3 className="h-4 w-4" />
                                     </button>
-                                    {m.member_number !== '7796' && m.role !== 'admin' && (
+                                    {m.member_number !== '7726' && m.member_number !== '7796' && !m.is_super_admin && m.role !== 'admin' && (
                                       <button
                                         type="button"
                                         onClick={() => deleteMember(m.id)}
