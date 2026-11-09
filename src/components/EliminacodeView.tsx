@@ -351,14 +351,17 @@ function looksLikeNoisyHandwrittenOcr(s: string): boolean {
   return hasInternalCamelCase || (words.length >= 3 && shortFragments >= 2);
 }
 
-// Confronta un nome letto dall'OCR (anche se scritto a penna con lettere deformate) con l'Anagrafica Soci
-function fuzzyMatchSocioName(candidateName: string, knownProfiles: Profile[]): string {
+// Confronta un nome letto dall'OCR (anche se scritto a penna con lettere deformate) con l'Anagrafica Soci.
+// Restituisce null se nessun socio supera la soglia di affidabilità (così non inventa mai soci sbagliati come Gavino Carta o Anna Rita Cao!).
+function fuzzyMatchSocioName(candidateName: string, knownProfiles: Profile[]): string | null {
+  if (!candidateName || candidateName.length < 3) return null;
+
   const rawTokens = candidateName
     .split(/\s+/)
     .map((t) => normalizeOcrTokenForMatch(t))
     .filter((t) => t.length >= 2);
 
-  if (rawTokens.length === 0) return candidateName;
+  if (rawTokens.length === 0) return null;
   const candJoined = rawTokens.join('');
 
   // Crea anche coppie di token adiacenti (es. se una parola lunga scritta a mano come PROSPERI è stata spezzata in "Vo SCE")
@@ -370,39 +373,46 @@ function fuzzyMatchSocioName(candidateName: string, knownProfiles: Profile[]): s
     }
   }
 
-  // Costruisce il pool di candidati dall'Anagrafica Soci + i nominativi QU3 noti
+  // Costruisce il pool di candidati dall'Anagrafica Soci + i nominativi QU3 noti (senza duplicati e senza profili di servizio)
   const pool: { display: string; tokens: string[] }[] = [];
-  for (const fb of KNOWN_SHEET_NAMES_FALLBACK) {
-    pool.push({
-      display: fb,
-      tokens: fb.split(/\s+/).map(normalizeOcrTokenForMatch).filter(Boolean),
-    });
-  }
-  for (const p of knownProfiles) {
-    if (!p?.full_name || p.member_number === '000') continue;
-    const tks = p.full_name
+  const seenKeys = new Set<string>();
+  const addTarget = (display: string) => {
+    const tokens = display
       .split(/\s+/)
       .map(normalizeOcrTokenForMatch)
       .filter((t) => t.length >= 2);
-    if (tks.length > 0) {
-      pool.push({ display: p.full_name, tokens: tks });
-    }
+    if (tokens.length === 0) return;
+    const key = [...tokens].sort().join('|');
+    if (seenKeys.has(key)) return;
+    seenKeys.add(key);
+    pool.push({ display: display.trim(), tokens });
+  };
+
+  for (const fb of KNOWN_SHEET_NAMES_FALLBACK) {
+    addTarget(fb);
+  }
+  for (const p of knownProfiles || []) {
+    if (!p?.full_name || p.member_number === '000') continue;
+    if (/segreteria|ufficio|presenze/i.test(p.full_name)) continue;
+    addTarget(p.full_name);
   }
 
-  let bestDisplay = '';
+  let bestDisplay: string | null = null;
   let bestScore = 0;
+  const isNoisy = looksLikeNoisyHandwrittenOcr(candidateName);
 
   for (const target of pool) {
     if (target.tokens.length === 0) continue;
 
     // 1) Accoppiamento bipartito senza sovrapposizioni tra span OCR e parole del socio (indipendente da Nome Cognome vs Cognome Nome)
-    const pairs: { ti: number; ci: number; sim: number }[] = [];
+    const pairs: { ti: number; ci: number; sim: number; tLen: number }[] = [];
     for (let ti = 0; ti < target.tokens.length; ti++) {
       for (let ci = 0; ci < cSpans.length; ci++) {
         pairs.push({
           ti,
           ci,
           sim: tokenSimilarity(cSpans[ci].text, target.tokens[ti]),
+          tLen: target.tokens[ti].length,
         });
       }
     }
@@ -410,7 +420,7 @@ function fuzzyMatchSocioName(candidateName: string, knownProfiles: Profile[]): s
 
     const usedTarget = new Set<number>();
     const usedRawIdx = new Set<number>();
-    const matchedSims: number[] = [];
+    const matched: { sim: number; tLen: number }[] = [];
 
     for (const pr of pairs) {
       const sp = cSpans[pr.ci];
@@ -418,15 +428,24 @@ function fuzzyMatchSocioName(candidateName: string, knownProfiles: Profile[]): s
         usedTarget.add(pr.ti);
         usedRawIdx.add(sp.i0);
         usedRawIdx.add(sp.i1);
-        matchedSims.push(pr.sim);
+        matched.push({ sim: pr.sim, tLen: pr.tLen });
       }
     }
 
-    if (matchedSims.length > 0) {
-      const top1 = matchedSims[0] || 0;
-      const top2 = matchedSims.length > 1 ? matchedSims[1] : top1 * 0.7;
-      const combinedScore = top1 * 0.58 + top2 * 0.42;
-      if (combinedScore > bestScore) {
+    if (matched.length > 0) {
+      const top1 = matched[0].sim;
+      const top1Len = matched[0].tLen;
+      const top2 = matched.length > 1 ? matched[1].sim : 0;
+      const combinedScore = matched.length > 1 ? top1 * 0.58 + top2 * 0.42 : top1 * 0.78;
+
+      // Richiede che almeno una parola del nome sia nettamente riconoscibile (top1 >= 0.76) oppure entrambe solide (top1 >= 0.66 e top2 >= 0.50)
+      const isAcceptable =
+        (top1 >= 0.76 && top1Len >= 5 && combinedScore >= 0.56) ||
+        (top1 >= 0.66 && top2 >= 0.50 && combinedScore >= 0.54) ||
+        (top1 >= 0.85 && top2 >= 0.35 && combinedScore >= 0.54) ||
+        (isNoisy && top1 >= 0.68 && top2 >= 0.42 && combinedScore >= 0.55);
+
+      if (isAcceptable && combinedScore > bestScore) {
         bestScore = combinedScore;
         bestDisplay = target.display;
       }
@@ -438,26 +457,27 @@ function fuzzyMatchSocioName(candidateName: string, knownProfiles: Profile[]): s
     const simFwd = tokenSimilarity(candJoined, targetForward);
     const simRev = tokenSimilarity(candJoined, targetReverse);
     const joinedSim = Math.max(simFwd, simRev);
-    if (joinedSim > bestScore && joinedSim >= 0.68) {
+    if (joinedSim >= 0.70 && joinedSim > bestScore) {
       bestScore = joinedSim;
       bestDisplay = target.display;
     }
   }
 
-  // Se l'OCR proviene da scrittura a mano con evidenti distorsioni (es. "aGarvleEno PILA", "sis GO uve", "NE Si SoNalu GIOSANMAI", "SS SANNO Vo SCE"),
-  // usa una soglia più elastica (0.52) per agganciare il socio reale in Anagrafica!
-  const minThreshold = looksLikeNoisyHandwrittenOcr(candidateName) ? 0.52 : 0.64;
-  if (bestDisplay && bestScore >= minThreshold) {
-    return bestDisplay;
-  }
-
-  return candidateName;
+  return bestDisplay;
 }
 
 // Pulisce la parte testuale tenendo solo Nome e Cognome (e confrontando anche con l'Anagrafica Soci)
 function extractCleanNameOnly(rawRest: string, knownProfiles: Profile[]): string {
+  if (!rawRest || !rawRest.trim()) return '';
+
   // Usa ':::' come separatore geometrico di colonna (evitando che i bordi verticali '|' letti dall'OCR taglino il nome!)
   let firstCol = rawRest.split(':::')[0] || rawRest;
+
+  // Prova subito il match diretto con l'Anagrafica Soci sulla prima colonna
+  const directSocio = fuzzyMatchSocioName(firstCol, knownProfiles);
+  if (directSocio) {
+    return directSocio;
+  }
 
   let text = firstCol
     .replace(/\|+/g, ' ') // rimuove eventuali barre verticali di griglia lette come '|'
@@ -509,17 +529,20 @@ function extractCleanNameOnly(rawRest: string, knownProfiles: Profile[]): string
   if (HEADER_NOISE.test(candidateName)) return '';
 
   const matched = fuzzyMatchSocioName(candidateName, knownProfiles);
-  // Se non ha trovato alcun socio simile e la stringa è solo un frammento brevissimo di rumore (es. "Lg ja", "ZE AEdo"), la scarta!
-  if (matched === candidateName) {
-    const validLongWords = cleanWords.filter(
-      (w) => w.length >= 3 && !/[a-z][A-Z]/.test(w)
-    );
-    if (validLongWords.length === 0 || candidateName.replace(/\s+/g, '').length < 5) {
-      return '';
-    }
+  if (matched) {
+    return matched;
   }
 
-  return matched;
+  // Se il testo NON corrisponde a nessun socio in Anagrafica, verifica che sia un vero Nome e Cognome leggibile
+  // (almeno 2 parole alfabetiche di >= 3 lettere ciascuna, senza CamelCase anomalo da errore OCR tipo "e» 4 Sepe" o "Lg ja")
+  const validLongWords = cleanWords.filter(
+    (w) => w.length >= 3 && !/[a-z][A-Z]/.test(w)
+  );
+  if (validLongWords.length < 2 || candidateName.replace(/\s+/g, '').length < 6) {
+    return '';
+  }
+
+  return validLongWords.slice(0, 3).join(' ');
 }
 
 // Ricostruisce le righe ORIZZONTALI usando le coordinate (x, y) delle parole lette da Tesseract,
@@ -972,12 +995,19 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     bandY0: number;
     bandY1: number;
     nomStartX: number;
+    origY0: number;
+    origY1: number;
+    origDivX: number;
+    origNomRightX: number;
     cropDataUrl: string;
     nomStripDataUrl: string;
   }
 
   interface PreprocessedSheetResult {
     cleanedDataUrl: string;
+    naturalSheetDataUrl: string;
+    workWidth: number;
+    workHeight: number;
     tableBands: TableBandInfo[];
   }
 
@@ -986,11 +1016,11 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
       const url = URL.createObjectURL(fileOrBlob);
       const img = new Image();
       img.onload = () => {
-        // Portiamo l'immagine a una dimensione di lavoro ottimale (lato lungo ~1100-1400px per l'analisi geometrica)
-        const targetWorkMax = 1280;
+        // Portiamo l'immagine a 1024px sul lato lungo (dimensione ottimale 1:1 sia per l'analisi geometrica sia per il motore Neural Handwriting OCR)
+        const targetWorkMax = 1024;
         let w = img.width;
         let h = img.height;
-        if (Math.max(w, h) > targetWorkMax || Math.max(w, h) < 900) {
+        if (Math.max(w, h) > targetWorkMax || Math.max(w, h) < 800) {
           const s = targetWorkMax / Math.max(w, h);
           w = Math.round(w * s);
           h = Math.round(h * s);
@@ -1001,12 +1031,20 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         workCanvas.height = h;
         const ctx = workCanvas.getContext('2d');
         if (!ctx) {
-          resolve({ cleanedDataUrl: url, tableBands: [] });
+          resolve({
+            cleanedDataUrl: url,
+            naturalSheetDataUrl: url,
+            workWidth: w,
+            workHeight: h,
+            tableBands: [],
+          });
           return;
         }
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, w, h);
+
+        const naturalSheetDataUrl = workCanvas.toDataURL('image/jpeg', 0.85);
 
         const imgData = ctx.getImageData(0, 0, w, h);
         const data = imgData.data;
@@ -1026,8 +1064,8 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           }
         }
 
-        const scaleRef = Math.max(0.85, Math.min(w, h) / 768);
-        const blockSize = Math.max(36, Math.round(48 * scaleRef));
+        const scaleRef = Math.max(0.75, Math.min(w, h) / 768);
+        const blockSize = Math.max(32, Math.round(48 * scaleRef));
         const cols = Math.ceil(w / blockSize);
         const rows = Math.ceil(h / blockSize);
         const blockBg = new Float32Array(cols * rows);
@@ -1072,9 +1110,9 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           }
         }
 
-        const strokeOff = Math.max(2, Math.round(3 * scaleRef));
+        const strokeOff = Math.max(3, Math.round(4 * scaleRef));
 
-        // Rileva le linee orizzontali della griglia (consentendo ±1px di inclinazione)
+        // Rileva le linee orizzontali della griglia (anche se tirate a penna leggermente inclinate!)
         const hLineMask = new Uint8Array(w * h);
         const minHRun = Math.round(w * 0.08);
         for (let y = strokeOff; y < h - strokeOff; y++) {
@@ -1094,9 +1132,12 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                   const hasVertStroke =
                     isDark[(y - strokeOff) * w + k] && isDark[(y + strokeOff) * w + k];
                   if (!hasVertStroke) {
-                    hLineMask[y * w + k] = 1;
-                    hLineMask[(y - 1) * w + k] = 1;
-                    hLineMask[(y + 1) * w + k] = 1;
+                    for (let dy = -2; dy <= 2; dy++) {
+                      const ny = y + dy;
+                      if (ny >= 0 && ny < h) {
+                        hLineMask[ny * w + k] = 1;
+                      }
+                    }
                   }
                 }
               }
@@ -1213,18 +1254,18 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             const bg = blockBg[by * cols + bx];
             const diff = bg - gray[idx];
             if (bg > 105 && diff > 13 && !(colorSpreadArr[idx] > 42 && gray[idx] > 85)) {
-              cleanPixels[idx] = Math.max(0, Math.min(255, Math.round(255 - (diff - 8) * 3.6)));
+              cleanPixels[idx] = Math.max(0, Math.min(255, Math.round(255 - (diff - 8) * 3.4)));
             }
           }
         }
 
-        // CASO 1: Tabella strutturata con griglia (come il modulo ufficiale QU3 prog | nominativo | materia)
+        // CASO 1: Tabella strutturata con griglia (stampata oppure disegnata a righe con penna!)
         if (vBorders.length >= 2 && hLines.length >= 5) {
           let xProgLeft = vBorders[0];
           let xProgRight = vBorders[1];
           let xNomRight = vBorders.length >= 3 ? vBorders[2] : Math.min(w - 6, Math.round(xProgRight + w * 0.44));
 
-          // Se il primo bordo rilevato era già il divisore tra prog e nominativo (perché il bordo sinistro esterno era fuori foto)
+          // Se il primo bordo rilevato era già il divisore tra prog e nominativo (es. foglio rigato a mano con 1 linea verticale tra numeri e nomi)
           if (vBorders[0] > w * 0.16 && vBorders[1] - vBorders[0] > w * 0.25) {
             xProgRight = vBorders[0];
             xProgLeft = Math.max(4, Math.round(xProgRight - w * 0.14));
@@ -1245,9 +1286,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             }
 
             const filledCells: DetectedRowCell[] = [];
-            const padX = Math.max(6, Math.round(8 * scaleRef));
-            const padY = Math.max(3, Math.round(4 * scaleRef));
-            const minRowInk = Math.max(30, Math.round(42 * scaleRef * scaleRef));
+            const padX = Math.max(8, Math.round(10 * scaleRef));
 
             for (let r = 0; r < hLines.length - 1; r++) {
               const y0 = hLines[r];
@@ -1271,14 +1310,16 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 }
               }
 
-              // Conta l'inchiostro reale nella casella 'nominativo' (escludendo i bordi della griglia)
+              // Conta l'inchiostro reale nella fascia centrale (64% verticale) della casella 'nominativo'
+              // così anche se le righe orizzontali sono state tirate a penna un po' storte non vengono mai contate come testo!
+              const marginY = Math.max(3, Math.round(rowH * 0.18));
               let inkPixels = 0;
               let leftQuarterInk = 0;
               const cellX0 = localDivX + padX;
               const cellX1 = xNomRight - padX;
               const leftQuarterX1 = localDivX + Math.round((xNomRight - localDivX) * 0.25);
 
-              for (let y = y0 + padY; y <= y1 - padY; y++) {
+              for (let y = y0 + marginY; y <= y1 - marginY; y++) {
                 for (let x = cellX0; x <= cellX1; x++) {
                   const idx = y * w + x;
                   if (cleanPixels[idx] < 190) {
@@ -1290,9 +1331,13 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 }
               }
 
+              const cellArea = Math.max(1, (rowH - marginY * 2) * Math.max(10, cellX1 - cellX0));
+              const minRowInk = Math.max(35, Math.round(cellArea * 0.016));
+
               if (inkPixels >= minRowInk) {
-                // Nella riga 0 di intestazione ("nominativo"), la scritta è centrata quindi il primo quarto a sinistra è vuoto
-                const isLikelyHeader = r === 0 && leftQuarterInk < inkPixels * 0.08;
+                // Nella riga 0 di intestazione stampata ("nominativo"), la riga è bassa (<4.5% di h) e la scritta è centrata
+                const isLikelyHeader =
+                  r === 0 && rowH < h * 0.045 && leftQuarterInk < inkPixels * 0.08;
                 filledCells.push({
                   tableRowIndex: r,
                   isLikelyHeader,
@@ -1305,7 +1350,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             }
 
             if (filledCells.length > 0) {
-              // Costruisce un canvas pulito ad alta definizione (ingrandito 2.6x) contenente SOLO le righe compilate!
+              // Costruisce un canvas pulito ad alta definizione contenente SOLO le righe compilate, SENZA MAI SOVRAPPORLE!
               const cleanFullCanvas = document.createElement('canvas');
               cleanFullCanvas.width = w;
               cleanFullCanvas.height = h;
@@ -1320,15 +1365,16 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               }
               cleanFullCtx.putImageData(cleanImgData, 0, 0);
 
-              const upscale = 2.6;
-              const progCropW = Math.min(progColW - 4, Math.round(46 * scaleRef));
+              const maxUpscale = 2.6;
+              const progCropW = Math.min(progColW - 4, Math.round(48 * scaleRef));
               const nomCropW = Math.max(80, xNomRight - xProgRight - 8);
-              const scaledProgW = Math.round(progCropW * upscale);
-              const scaledNomW = Math.round(nomCropW * upscale);
+              const scaledProgW = Math.round(progCropW * maxUpscale);
+              const scaledNomW = Math.round(nomCropW * maxUpscale);
               const gapBetweenCols = 52;
               const padLeft = 28;
               const nomStartX = padLeft + scaledProgW + gapBetweenCols;
-              const bandHeight = Math.round(30 * scaleRef * upscale) + 36;
+              const targetRowH = Math.round(56 * scaleRef);
+              const bandHeight = Math.round(76 * scaleRef) + 42;
 
               const ocrCanvas = document.createElement('canvas');
               ocrCanvas.width = nomStartX + scaledNomW + 32;
@@ -1349,8 +1395,12 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 const bandY1 = bandY0 + bandHeight;
                 const srcY = cell.y0 + borderTrimY;
                 const srcH = Math.max(8, cell.y1 - cell.y0 - borderTrimY * 2);
-                const dstH = Math.round(srcH * upscale);
+                // Calcola il fattore di scala specifico per l'altezza della riga (così righe alte 80px scritte a mano non debordano mai sopra le righe vicine!)
+                const rowScale = Math.max(1.0, Math.min(maxUpscale, targetRowH / srcH));
+                const dstH = Math.min(bandHeight - 20, Math.round(srcH * rowScale));
                 const dstY = bandY0 + Math.round((bandHeight - dstH) / 2);
+                const dstProgW = Math.min(scaledProgW, Math.round(progCropW * rowScale));
+                const dstNomW = Math.min(scaledNomW, Math.round(nomCropW * rowScale));
 
                 // 1) Disegna la cella del numero progressivo (senza il bordo verticale destro!)
                 const srcProgX = Math.max(0, cell.localDivX - borderTrimX - progCropW);
@@ -1362,7 +1412,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                   srcH,
                   padLeft,
                   dstY,
-                  scaledProgW,
+                  dstProgW,
                   dstH
                 );
 
@@ -1376,7 +1426,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                   srcH,
                   nomStartX,
                   dstY,
-                  scaledNomW,
+                  dstNomW,
                   dstH
                 );
 
@@ -1403,7 +1453,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
 
                 // Crea la striscia singola del solo nominativo pulito (per l'OCR mirato PSM 7 sulle scritte a penna!)
                 const nomStripCanvas = document.createElement('canvas');
-                nomStripCanvas.width = scaledNomW + 36;
+                nomStripCanvas.width = dstNomW + 36;
                 nomStripCanvas.height = dstH + 28;
                 const nomStripCtx = nomStripCanvas.getContext('2d')!;
                 nomStripCtx.fillStyle = '#ffffff';
@@ -1418,7 +1468,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                   srcH,
                   18,
                   14,
-                  scaledNomW,
+                  dstNomW,
                   dstH
                 );
 
@@ -1428,6 +1478,10 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                   bandY0,
                   bandY1,
                   nomStartX,
+                  origY0: cell.y0,
+                  origY1: cell.y1,
+                  origDivX: cell.localDivX,
+                  origNomRightX: xNomRight,
                   cropDataUrl: origCropCanvas.toDataURL('image/jpeg', 0.88),
                   nomStripDataUrl: nomStripCanvas.toDataURL('image/jpeg', 0.94),
                 });
@@ -1435,6 +1489,9 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
 
               resolve({
                 cleanedDataUrl: ocrCanvas.toDataURL('image/jpeg', 0.95),
+                naturalSheetDataUrl,
+                workWidth: w,
+                workHeight: h,
                 tableBands,
               });
               return;
@@ -1443,7 +1500,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         }
 
         // CASO 2: Foglio senza griglia stampata (es. foglietto bianco scritto a mano coi numeri 1..10 a sinistra e i nomi a destra).
-        // Isola esclusivamente i tratti nitidi di penna/pennarello (ignorando le ombre morbide del telefono e il legno del tavolo)
+        // Isola esclusivamente i tratti nitidi di penna/pennarello (ignorando le ombre morbide del telefono, eventuali linee e il legno del tavolo)
         // e trattiene SOLO le righe che hanno SIA il numero a sinistra SIA il nome scritto a destra (scartando i numeri vuoti 5..10!).
         const strokeInk = new Uint8Array(w * h);
         const strokeCleanPixels = new Uint8ClampedArray(w * h);
@@ -1459,7 +1516,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         for (let y = yMargin0; y < yMargin1; y++) {
           for (let x = xMargin0; x < xMargin1; x++) {
             const idx = y * w + x;
-            if (warmWoodMask[idx]) continue;
+            if (warmWoodMask[idx] || hLineMask[idx] || vLineMask[idx]) continue;
             if (colorSpreadArr[idx] > 45 && gray[idx] > 90) continue;
 
             let localBright = 0;
@@ -1478,7 +1535,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             if (localBright > 135 && localContrast > 14) {
               strokeCleanPixels[idx] = Math.max(
                 0,
-                Math.min(255, Math.round(255 - (localContrast - 10) * 4.2))
+                Math.min(255, Math.round(255 - (localContrast - 10) * 3.8))
               );
               if (localContrast >= 26) {
                 strokeInk[idx] = 1;
@@ -1608,7 +1665,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             validUnlinedBands.reduce((acc, b) => acc + (b.y1 - b.y0), 0) /
             validUnlinedBands.length;
           // Adatta l'ingrandimento in modo che le lettere scritte a mano abbiano sempre un'altezza ideale (~54px) per l'OCR
-          const upscale = Math.max(1.05, Math.min(2.4, (56 * scaleRef) / Math.max(18, avgSrcH)));
+          const upscale = Math.max(1.0, Math.min(2.4, (56 * scaleRef) / Math.max(18, avgSrcH)));
           const progCropW = Math.round(w * 0.15);
           const nomCropW = Math.round(w * 0.72);
           const scaledProgW = Math.round(progCropW * upscale);
@@ -1616,7 +1673,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           const gapBetweenCols = 52;
           const padLeft = 28;
           const nomStartX = padLeft + scaledProgW + gapBetweenCols;
-          const bandHeight = Math.round(Math.max(44, avgSrcH * upscale)) + 36;
+          const bandHeight = Math.round(Math.max(64, avgSrcH * upscale)) + 40;
 
           const ocrCanvas = document.createElement('canvas');
           ocrCanvas.width = nomStartX + scaledNomW + 32;
@@ -1636,7 +1693,8 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             const bandY1 = bandY0 + bandHeight;
             const srcY = Math.max(0, b.y0 - padRowY);
             const srcH = Math.min(h - srcY, b.y1 - b.y0 + padRowY * 2);
-            const dstH = Math.min(bandHeight - 12, Math.round(srcH * upscale));
+            const rowScale = Math.max(1.0, Math.min(upscale, (bandHeight - 20) / srcH));
+            const dstH = Math.min(bandHeight - 20, Math.round(srcH * rowScale));
             const dstY = bandY0 + Math.round((bandHeight - dstH) / 2);
 
             // Trova lo spazio bianco verticale tra il numero a sinistra e l'inizio del nome su questa riga
@@ -1665,7 +1723,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               srcH,
               padLeft,
               dstY,
-              Math.round(actualProgW * upscale),
+              Math.round(actualProgW * rowScale),
               dstH
             );
 
@@ -1677,7 +1735,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               srcH,
               nomStartX,
               dstY,
-              Math.round(actualNomW * upscale),
+              Math.round(actualNomW * rowScale),
               dstH
             );
 
@@ -1700,7 +1758,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             );
 
             const nomStripCanvas = document.createElement('canvas');
-            nomStripCanvas.width = Math.round(actualNomW * upscale) + 36;
+            nomStripCanvas.width = Math.round(actualNomW * rowScale) + 36;
             nomStripCanvas.height = dstH + 28;
             const nomStripCtx = nomStripCanvas.getContext('2d')!;
             nomStripCtx.fillStyle = '#ffffff';
@@ -1715,7 +1773,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               srcH,
               18,
               14,
-              Math.round(actualNomW * upscale),
+              Math.round(actualNomW * rowScale),
               dstH
             );
 
@@ -1725,6 +1783,10 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               bandY0,
               bandY1,
               nomStartX,
+              origY0: srcY,
+              origY1: srcY + srcH,
+              origDivX: localDivX,
+              origNomRightX: xName1,
               cropDataUrl: origCropCanvas.toDataURL('image/jpeg', 0.88),
               nomStripDataUrl: nomStripCanvas.toDataURL('image/jpeg', 0.94),
             });
@@ -1732,6 +1794,9 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
 
           resolve({
             cleanedDataUrl: ocrCanvas.toDataURL('image/jpeg', 0.95),
+            naturalSheetDataUrl,
+            workWidth: w,
+            workHeight: h,
             tableBands,
           });
           return;
@@ -1765,6 +1830,9 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
 
         resolve({
           cleanedDataUrl: finalCanvas.toDataURL('image/jpeg', 0.94),
+          naturalSheetDataUrl,
+          workWidth: w,
+          workHeight: h,
           tableBands: [],
         });
       };
@@ -1773,7 +1841,74 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     });
   };
 
-  // Esegue l'OCR combinando il rilevamento strutturato delle celle (stampate o scritte a penna) + matching intelligente Anagrafica Soci
+  // Motore Neural Handwriting & Table OCR (OCREngine=2) per leggere la scrittura a mano (es. GPIERO PILIA, BOI VINCENZO, SOTGIU GIOVANNA, SANDRO PROSPERI)
+  interface CloudOcrWord {
+    text: string;
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+    w: number;
+    h: number;
+  }
+
+  const fetchNeuralHandwritingWords = async (
+    base64Jpeg: string
+  ): Promise<CloudOcrWord[]> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6500);
+    try {
+      const formBody = new URLSearchParams({
+        apikey: 'helloworld',
+        base64Image: base64Jpeg,
+        language: 'ita',
+        OCREngine: '2',
+        isTable: 'true',
+        isOverlayRequired: 'true',
+        scale: 'true',
+      }).toString();
+
+      const resp = await fetch('https://api.ocr.space/parse/image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formBody,
+        signal: controller.signal,
+      });
+      if (!resp.ok) return [];
+      const json = await resp.json();
+      const lines = json?.ParsedResults?.[0]?.TextOverlay?.Lines;
+      if (!Array.isArray(lines)) return [];
+
+      const words: CloudOcrWord[] = [];
+      for (const l of lines) {
+        if (!Array.isArray(l?.Words)) continue;
+        for (const w of l.Words) {
+          const text = String(w?.WordText || '').trim();
+          if (!text) continue;
+          const left = Number(w.Left) || 0;
+          const top = Number(w.Top) || 0;
+          const width = Number(w.Width) || 0;
+          const height = Number(w.Height) || 0;
+          words.push({
+            text,
+            x0: left,
+            y0: top,
+            x1: left + width,
+            y1: top + height,
+            w: width,
+            h: height,
+          });
+        }
+      }
+      return words;
+    } catch {
+      return [];
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  // Esegue l'OCR combinando Neural Handwriting OCR (OCREngine=2) + rilevamento geometrico delle righe compilate + Anagrafica Soci
   const runOcrOnPreprocessedSheet = async (
     prep: PreprocessedSheetResult,
     existingMax: number
@@ -1785,6 +1920,9 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     let mainResult: any = null;
 
     try {
+      // Avvia in parallelo il motore Neural Handwriting (OCREngine=2) e il motore locale Tesseract
+      const neuralPromise = fetchNeuralHandwritingWords(prep.naturalSheetDataUrl);
+
       if (typeof Tesseract.createWorker === 'function') {
         worker = await Tesseract.createWorker('ita', 1, {
           logger: (m: any) => {
@@ -1809,6 +1947,8 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           },
         });
       }
+
+      const neuralWords = await neuralPromise;
 
       // Se abbiamo rilevato le righe compilate (da tabella o da foglio scritto a mano), estraiamo riga per riga con precisione millimetrica!
       if (prep.tableBands.length > 0) {
@@ -1842,7 +1982,15 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             })
             .map((w) => w.text)
             .join(' ');
-          if (HEADER_NOISE.test(b0Words) || /\b(prog|nominativo|materia)\b/i.test(b0Words)) {
+          const b0NeuralWords = neuralWords
+            .filter((w) => {
+              const cy = (w.y0 + w.y1) / 2;
+              return cy >= b0.origY0 - 6 && cy <= b0.origY1 + 6;
+            })
+            .map((w) => w.text)
+            .join(' ');
+          const combinedB0 = `${b0Words} ${b0NeuralWords}`;
+          if (HEADER_NOISE.test(combinedB0) || /\b(prog|nominativo|materia)\b/i.test(combinedB0)) {
             hasHeaderRow = true;
           }
         }
@@ -1856,16 +2004,35 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             continue;
           }
 
+          // 1) Parole lette dal motore Neural Handwriting (OCREngine=2) sulle coordinate originali di questa riga
+          const rowNeuralWords = neuralWords.filter((w) => {
+            const cy = (w.y0 + w.y1) / 2;
+            return cy >= band.origY0 - 8 && cy <= band.origY1 + 8 && w.h < prep.workHeight * 0.14;
+          });
+          const neuralProgText = rowNeuralWords
+            .filter((w) => w.x0 < band.origDivX - 6)
+            .sort((a, b) => a.x0 - b.x0)
+            .map((w) => w.text)
+            .join(' ');
+          const neuralNomText = rowNeuralWords
+            .filter((w) => w.x0 >= band.origDivX - 12 && w.x0 < band.origNomRightX - 8)
+            .sort((a, b) => a.x0 - b.x0)
+            .map((w) => w.text)
+            .join(' ');
+
+          // 2) Parole lette da Tesseract sul canvas non-sovrapposto
           const bandWords = allWords.filter((w) => {
             const cy = (w.y0 + w.y1) / 2;
             return cy >= band.bandY0 - 6 && cy <= band.bandY1 + 6;
           });
 
-          const progWords = bandWords
-            .filter((w) => w.x0 < band.nomStartX - 12)
-            .sort((a, b) => a.x0 - b.x0)
-            .map((w) => w.text)
-            .join(' ');
+          const progWords =
+            neuralProgText ||
+            bandWords
+              .filter((w) => w.x0 < band.nomStartX - 12)
+              .sort((a, b) => a.x0 - b.x0)
+              .map((w) => w.text)
+              .join(' ');
 
           let nomWords = bandWords
             .filter((w) => w.x0 >= band.nomStartX - 12)
@@ -1873,13 +2040,25 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             .map((w) => w.text)
             .join(' ');
 
-          // Controlla subito se nomWords trova già una corrispondenza nell'Anagrafica Soci
-          let matchedSocio = fuzzyMatchSocioName(nomWords, profiles);
-          const alphaCount = (nomWords.match(/[A-Za-zÀ-ÿ]/g) || []).length;
+          // Priorità 1: Match Anagrafica Soci dal motore Neural Handwriting (OCREngine=2)
+          let matchedSocio =
+            (neuralNomText ? fuzzyMatchSocioName(neuralNomText, profiles) : null) ||
+            fuzzyMatchSocioName(nomWords, profiles) ||
+            (neuralNomText && nomWords
+              ? fuzzyMatchSocioName(`${neuralNomText} ${nomWords}`, profiles)
+              : null);
 
-          // Se non c'è ancora un match diretto nell'Anagrafica Soci o ci sono poche lettere (es. scritto a mano),
+          const alphaCount = (nomWords.match(/[A-Za-zÀ-ÿ]/g) || []).length;
+          const neuralAlphaCount = (neuralNomText.match(/[A-Za-zÀ-ÿ]/g) || []).length;
+
+          // Se non c'è ancora un match diretto nell'Anagrafica Soci e il motore neural non ha già letto un nome completo,
           // esegue anche la lettura mirata PSM 7 (Riga Singola) sul ritaglio del solo nominativo!
-          if ((!matchedSocio || alphaCount < 4) && worker && typeof worker.setParameters === 'function') {
+          if (
+            !matchedSocio &&
+            neuralAlphaCount < 5 &&
+            worker &&
+            typeof worker.setParameters === 'function'
+          ) {
             setScanStatusText(
               `Lettura approfondita scrittura riga ${band.tableRowIndex || idx + 1}...`
             );
@@ -1926,8 +2105,12 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             finalNum = (tableItems[tableItems.length - 1]?.number || existingMax) + 1;
           }
 
-          let cleanName = matchedSocio || extractCleanNameOnly(nomWords, profiles);
-          if (!cleanName && HEADER_NOISE.test(nomWords) && band.tableRowIndex === 0) {
+          let cleanName =
+            matchedSocio ||
+            (neuralNomText ? extractCleanNameOnly(neuralNomText, profiles) : '') ||
+            extractCleanNameOnly(nomWords, profiles);
+
+          if (!cleanName && HEADER_NOISE.test(`${neuralNomText} ${nomWords}`) && band.tableRowIndex === 0) {
             hasHeaderRow = true;
             continue;
           }

@@ -1,9 +1,9 @@
-const CACHE_NAME = 'q3-fast-v26';
+const CACHE_NAME = 'q3-fast-v27';
 const CORE_ASSETS = [
   '/',
   '/index.html',
-  '/app.bundle.js?v=26',
-  '/app.bundle.css?v=26',
+  '/app.bundle.js?v=27',
+  '/app.bundle.css?v=27',
   '/q3.webmanifest?v=8',
   '/q3-icon-192.png?v=8',
   '/q3-icon-512.png?v=8',
