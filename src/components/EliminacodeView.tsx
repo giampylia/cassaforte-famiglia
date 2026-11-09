@@ -2660,11 +2660,19 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           </div>
         </main>
 
-        {/* PIE' DI PAGINA PULITO */}
-        <footer className="px-6 py-3 bg-emerald-800/80 border-t border-white/25 text-center text-sm sm:text-lg font-medium text-emerald-100">
-          {isStandby
-            ? 'Segreteria Università della Terza Età — Quartu Sant’Elena'
-            : 'Attendere la chiamata del proprio numero e nome'}
+        {/* PIE' DI PAGINA CON INDICAZIONE DEL PROSSIMO TURNO */}
+        <footer className="px-6 py-4 bg-emerald-800/90 border-t-2 border-white/30 text-center text-lg sm:text-2xl font-semibold text-emerald-100">
+          {isStandby ? (
+            'Segreteria Università della Terza Età — Quartu Sant’Elena'
+          ) : (
+            <span>
+              Prossimo turno:{' '}
+              <strong className="font-extrabold text-white">
+                N° {nextItem.number}
+                {nextItem.name ? ` — ${nextItem.name}` : ''}
+              </strong>
+            </span>
+          )}
         </footer>
       </div>
     );
