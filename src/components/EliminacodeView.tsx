@@ -272,7 +272,17 @@ function normalizeOcrTokenForMatch(s: string): string {
     .replace(/[^A-Z]/g, '');
 }
 
-function editDistance(a: string, b: string): number {
+// Normalizza le lettere che nella scrittura a mano (a penna) hanno tratti simili per l'OCR (es. B/G, U/V, M/N, D/T)
+function handwritingSkeleton(s: string): string {
+  return normalizeOcrTokenForMatch(s)
+    .replace(/[BG]/g, 'B')
+    .replace(/[UV]/g, 'V')
+    .replace(/[MN]/g, 'N')
+    .replace(/[DT]/g, 'T')
+    .replace(/II+/g, 'I');
+}
+
+function weightedHandwritingEditDistance(a: string, b: string): number {
   if (a === b) return 0;
   if (!a.length) return b.length;
   if (!b.length) return a.length;
@@ -282,35 +292,83 @@ function editDistance(a: string, b: string): number {
     dp[0] = j;
     for (let i = 1; i <= a.length; i++) {
       const temp = dp[i];
-      dp[i] =
+      const cost =
         a[i - 1] === b[j - 1]
-          ? prev
-          : 1 + Math.min(prev, dp[i], dp[i - 1]);
+          ? 0
+          : handwritingSkeleton(a[i - 1]) === handwritingSkeleton(b[j - 1])
+          ? 0.35
+          : 1;
+      dp[i] = Math.min(prev + cost, dp[i] + 1, dp[i - 1] + 1);
       prev = temp;
     }
   }
   return dp[a.length];
 }
 
-function tokenSimilarity(a: string, b: string): number {
-  const na = normalizeOcrTokenForMatch(a);
-  const nb = normalizeOcrTokenForMatch(b);
-  if (!na || !nb) return 0;
-  if (na === nb) return 1;
-  const maxLen = Math.max(na.length, nb.length);
-  if (maxLen === 0) return 0;
-  return 1 - editDistance(na, nb) / maxLen;
+function weightedLcsLength(a: string, b: string): number {
+  if (!a.length || !b.length) return 0;
+  const dp = new Array(b.length + 1).fill(0);
+  for (let i = 0; i < a.length; i++) {
+    let prev = 0;
+    for (let j = 0; j < b.length; j++) {
+      const tmp = dp[j + 1];
+      const match =
+        a[i] === b[j]
+          ? 1
+          : handwritingSkeleton(a[i]) === handwritingSkeleton(b[j])
+          ? 0.8
+          : 0;
+      dp[j + 1] = match > 0 ? Math.max(dp[j + 1], dp[j], prev + match) : Math.max(dp[j + 1], dp[j]);
+      prev = tmp;
+    }
+  }
+  return dp[b.length];
 }
 
-// Confronta un nome letto dall'OCR (anche se scritto a penna con qualche lettera imprecisa) con l'Anagrafica Soci
+function tokenSimilarity(cand: string, target: string): number {
+  const c = normalizeOcrTokenForMatch(cand);
+  const t = normalizeOcrTokenForMatch(target);
+  if (!c || !t) return 0;
+  if (c === t) return 1;
+  const maxLen = Math.max(c.length, t.length);
+  if (maxLen === 0) return 0;
+  const edSim = 1 - weightedHandwritingEditDistance(c, t) / maxLen;
+  const lcsSim = weightedLcsLength(c, t) / maxLen;
+  const sc = handwritingSkeleton(c);
+  const st = handwritingSkeleton(t);
+  const bonus =
+    (sc[0] === st[0] ? 0.09 : 0) +
+    (sc[sc.length - 1] === st[st.length - 1] ? 0.06 : 0) +
+    (sc.slice(0, 2) === st.slice(0, 2) ? 0.07 : 0);
+  return Math.min(1, Math.max(edSim, lcsSim * 0.92) + bonus);
+}
+
+// Verifica se una stringa OCR sembra rumore di lettura su scrittura a mano (es. CamelCase interno "aGarvleEno", "SoNalu", o frammenti corti "sis GO uve")
+function looksLikeNoisyHandwrittenOcr(s: string): boolean {
+  const words = s.trim().split(/\s+/);
+  const hasInternalCamelCase = words.some((w) => /[a-z][A-Z]/.test(w));
+  const shortFragments = words.filter((w) => w.length <= 3).length;
+  return hasInternalCamelCase || (words.length >= 3 && shortFragments >= 2);
+}
+
+// Confronta un nome letto dall'OCR (anche se scritto a penna con lettere deformate) con l'Anagrafica Soci
 function fuzzyMatchSocioName(candidateName: string, knownProfiles: Profile[]): string {
-  const candTokens = candidateName
+  const rawTokens = candidateName
     .split(/\s+/)
     .map((t) => normalizeOcrTokenForMatch(t))
     .filter((t) => t.length >= 2);
 
-  if (candTokens.length === 0) return candidateName;
-  const candJoined = candTokens.join('');
+  if (rawTokens.length === 0) return candidateName;
+  const candJoined = rawTokens.join('');
+
+  // Crea anche coppie di token adiacenti (es. se una parola lunga scritta a mano come PROSPERI è stata spezzata in "Vo SCE")
+  const cSpans: { text: string; i0: number; i1: number }[] = [];
+  for (let i = 0; i < rawTokens.length; i++) {
+    cSpans.push({ text: rawTokens[i], i0: i, i1: i });
+    if (i + 1 < rawTokens.length) {
+      cSpans.push({ text: rawTokens[i] + rawTokens[i + 1], i0: i, i1: i + 1 });
+    }
+  }
 
   // Costruisce il pool di candidati dall'Anagrafica Soci + i nominativi QU3 noti
   const pool: { display: string; tokens: string[] }[] = [];
@@ -337,34 +395,37 @@ function fuzzyMatchSocioName(candidateName: string, knownProfiles: Profile[]): s
   for (const target of pool) {
     if (target.tokens.length === 0) continue;
 
-    // 1) Confronto parola per parola (indipendente dall'ordine Nome Cognome vs Cognome Nome)
-    let matchedCount = 0;
-    let sumSim = 0;
-    const usedTargetIdx = new Set<number>();
-
-    for (const ct of candTokens) {
-      let bestTokSim = 0;
-      let bestIdx = -1;
-      for (let idx = 0; idx < target.tokens.length; idx++) {
-        if (usedTargetIdx.has(idx)) continue;
-        const sim = tokenSimilarity(ct, target.tokens[idx]);
-        if (sim > bestTokSim) {
-          bestTokSim = sim;
-          bestIdx = idx;
-        }
+    // 1) Accoppiamento bipartito senza sovrapposizioni tra span OCR e parole del socio (indipendente da Nome Cognome vs Cognome Nome)
+    const pairs: { ti: number; ci: number; sim: number }[] = [];
+    for (let ti = 0; ti < target.tokens.length; ti++) {
+      for (let ci = 0; ci < cSpans.length; ci++) {
+        pairs.push({
+          ti,
+          ci,
+          sim: tokenSimilarity(cSpans[ci].text, target.tokens[ti]),
+        });
       }
-      if (bestIdx !== -1 && bestTokSim >= 0.62) {
-        usedTargetIdx.add(bestIdx);
-        matchedCount++;
-        sumSim += bestTokSim;
+    }
+    pairs.sort((a, b) => b.sim - a.sim);
+
+    const usedTarget = new Set<number>();
+    const usedRawIdx = new Set<number>();
+    const matchedSims: number[] = [];
+
+    for (const pr of pairs) {
+      const sp = cSpans[pr.ci];
+      if (!usedTarget.has(pr.ti) && !usedRawIdx.has(sp.i0) && !usedRawIdx.has(sp.i1)) {
+        usedTarget.add(pr.ti);
+        usedRawIdx.add(sp.i0);
+        usedRawIdx.add(sp.i1);
+        matchedSims.push(pr.sim);
       }
     }
 
-    const minRequiredMatches = Math.min(2, target.tokens.length, candTokens.length);
-    if (matchedCount >= minRequiredMatches && matchedCount > 0) {
-      const avgSim = sumSim / Math.max(candTokens.length, target.tokens.length);
-      const coverageSim = sumSim / matchedCount;
-      const combinedScore = coverageSim * 0.7 + avgSim * 0.3;
+    if (matchedSims.length > 0) {
+      const top1 = matchedSims[0] || 0;
+      const top2 = matchedSims.length > 1 ? matchedSims[1] : top1 * 0.7;
+      const combinedScore = top1 * 0.58 + top2 * 0.42;
       if (combinedScore > bestScore) {
         bestScore = combinedScore;
         bestDisplay = target.display;
@@ -377,13 +438,16 @@ function fuzzyMatchSocioName(candidateName: string, knownProfiles: Profile[]): s
     const simFwd = tokenSimilarity(candJoined, targetForward);
     const simRev = tokenSimilarity(candJoined, targetReverse);
     const joinedSim = Math.max(simFwd, simRev);
-    if (joinedSim > bestScore && joinedSim >= 0.74) {
+    if (joinedSim > bestScore && joinedSim >= 0.68) {
       bestScore = joinedSim;
       bestDisplay = target.display;
     }
   }
 
-  if (bestDisplay && bestScore >= 0.7) {
+  // Se l'OCR proviene da scrittura a mano con evidenti distorsioni (es. "aGarvleEno PILA", "sis GO uve", "NE Si SoNalu GIOSANMAI", "SS SANNO Vo SCE"),
+  // usa una soglia più elastica (0.52) per agganciare il socio reale in Anagrafica!
+  const minThreshold = looksLikeNoisyHandwrittenOcr(candidateName) ? 0.52 : 0.64;
+  if (bestDisplay && bestScore >= minThreshold) {
     return bestDisplay;
   }
 
@@ -444,7 +508,18 @@ function extractCleanNameOnly(rawRest: string, knownProfiles: Profile[]): string
   if (!candidateName || candidateName.length < 2) return '';
   if (HEADER_NOISE.test(candidateName)) return '';
 
-  return fuzzyMatchSocioName(candidateName, knownProfiles);
+  const matched = fuzzyMatchSocioName(candidateName, knownProfiles);
+  // Se non ha trovato alcun socio simile e la stringa è solo un frammento brevissimo di rumore (es. "Lg ja", "ZE AEdo"), la scarta!
+  if (matched === candidateName) {
+    const validLongWords = cleanWords.filter(
+      (w) => w.length >= 3 && !/[a-z][A-Z]/.test(w)
+    );
+    if (validLongWords.length === 0 || candidateName.replace(/\s+/g, '').length < 5) {
+      return '';
+    }
+  }
+
+  return matched;
 }
 
 // Ricostruisce le righe ORIZZONTALI usando le coordinate (x, y) delle parole lette da Tesseract,
@@ -624,31 +699,11 @@ function parseSheetLinesIntoQueueItems(
       }
     }
 
-    // Fallback: se su una riga l'OCR ha letto chiaramente Nome e Cognome ma il numerino era illeggibile o assente
+    // NON inventa MAI numeri successivi (es. 5, 6) se sulla riga non c'era un numero esplicito,
+    // a meno che l'intero foglio fosse privo di colonna numeri!
     const cleanOnlyName = extractCleanNameOnly(line, knownProfiles);
-    if (cleanOnlyName && cleanOnlyName.includes(' ') && cleanOnlyName.length >= 5) {
-      if (results.length > 0) {
-        const nextSequential = results[results.length - 1].number + 1;
-        if (!seenNumbers.has(nextSequential)) {
-          seenNumbers.add(nextSequential);
-          results.push({ number: nextSequential, name: cleanOnlyName });
-          continue;
-        }
-      }
+    if (cleanOnlyName && cleanOnlyName.includes(' ') && cleanOnlyName.length >= 6) {
       fallbackNamesOnly.push(cleanOnlyName);
-    }
-  }
-
-  if (fallbackNamesOnly.length > 0 && results.length <= 2) {
-    let startN =
-      results.length > 0
-        ? Math.max(...results.map((r) => r.number))
-        : existingMaxNumber;
-    for (const name of fallbackNamesOnly) {
-      if (!results.some((r) => r.name.toLowerCase() === name.toLowerCase())) {
-        startN++;
-        results.push({ number: startN, name });
-      }
     }
   }
 
@@ -826,13 +881,36 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     sourceLabel: string,
     newCrops?: Record<number, string>
   ) => {
+    const extractedNums = extracted.map((it) => it.number);
+    const minExtracted = extractedNums.length > 0 ? Math.min(...extractedNums) : Infinity;
+    const maxExtracted = extractedNums.length > 0 ? Math.max(...extractedNums) : 0;
+
     if (newCrops && Object.keys(newCrops).length > 0) {
-      setRowCropsByNumber((prev) => ({ ...prev, ...newCrops }));
+      setRowCropsByNumber((prev) => {
+        const next: Record<number, string> = {};
+        for (const [k, v] of Object.entries(prev)) {
+          const numKey = Number(k);
+          // Se si sta rifotografando un foglio dall'inizio (N° 1) con meno righe rispetto a una lettura precedente, pulisce eventuali righe fantasma oltre maxExtracted
+          if (minExtracted === 1 && maxExtracted > 0 && numKey > maxExtracted) {
+            continue;
+          }
+          next[numKey] = v;
+        }
+        return { ...next, ...newCrops };
+      });
     }
+
     updateQueueState((prev) => {
       const mapByNum = new Map<number, QueueItem>();
-      // Mantiene tutti i nominativi già presenti (es. 1..24)
+      const prevMax = prev.items.reduce((m, it) => Math.max(m, it.number), 0);
+      const isRescanFromOneWithFewerRows =
+        minExtracted === 1 && maxExtracted > 0 && maxExtracted < prevMax;
+
+      // Mantiene tutti i nominativi già presenti (es. 1..24 quando si aggiungono 25..36)
       for (const existing of prev.items) {
+        if (isRescanFromOneWithFewerRows && existing.number > maxExtracted) {
+          continue;
+        }
         mapByNum.set(existing.number, existing);
       }
 
@@ -862,10 +940,10 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             'success',
             `✓ Letti e integrati ${newlyAddedCount} nuovi nominativi (dal N° ${minAdded} al N° ${maxAdded}). Totale in lista: ${mergedList.length} soci.`
           );
-        } else if (updatedCount > 0) {
+        } else if (updatedCount > 0 || isRescanFromOneWithFewerRows) {
           showNotice(
             'success',
-            `✓ Aggiornati ${updatedCount} nominativi. Totale in lista: ${mergedList.length} soci.`
+            `✓ Aggiornati ${updatedCount || extracted.length} nominativi (N° 1–${maxExtracted}). Totale in lista: ${mergedList.length} soci.`
           );
         } else {
           showNotice(
@@ -886,8 +964,8 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
   // Analisi intelligente del foglio fotografato:
   // 1) Calcola lo sfondo locale all'85° percentile (così le righe nere della tabella non abbassano mai la soglia cancellando le lettere!)
   // 2) Rileva le colonne della tabella (prog | nominativo | materia) e tutte le righe orizzontali
-  // 3) Scarta automaticamente la 3ª colonna (materia: es. SEGRETERIA, GRUPPO AMBIENTE) e tutte le righe vuote (es. 8..28)
-  // 4) Cancella i bordi neri orizzontali e verticali della griglia e ingrandisce di 2.6x ogni riga compilata (stampata o scritta a penna)
+  // 3) Scarta automaticamente la 3ª colonna (materia: es. SEGRETERIA, GRUPPO AMBIENTE) e tutte le righe vuote (es. 8..28 o 5..10)
+  // 4) Se il foglio è BIANCO SENZA GRIGLIA (scritto a mano), isola solo le righe che hanno SIA il numero SIA il nome, ignorando i numeri vuoti (es. 5..10), il tavolo e le ombre!
   interface TableBandInfo {
     tableRowIndex: number;
     isLikelyHeader: boolean;
@@ -934,6 +1012,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         const data = imgData.data;
         const gray = new Float32Array(w * h);
         const colorSpreadArr = new Uint8Array(w * h);
+        const warmWoodMask = new Uint8Array(w * h);
 
         for (let i = 0; i < w * h; i++) {
           const r = data[i * 4];
@@ -941,6 +1020,10 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           const b = data[i * 4 + 2];
           gray[i] = 0.299 * r + 0.587 * g + 0.114 * b;
           colorSpreadArr[i] = Math.max(r, g, b) - Math.min(r, g, b);
+          // Rileva il colore caldo del legno/scrivania (R molto più alto di B) per non scambiarlo mai per scrittura
+          if (r - b > 24 && gray[i] < 195) {
+            warmWoodMask[i] = 1;
+          }
         }
 
         const scaleRef = Math.max(0.85, Math.min(w, h) / 768);
@@ -976,8 +1059,12 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             const bx = Math.min(cols - 1, Math.floor(x / blockSize));
             const bg = blockBg[by * cols + bx];
             const idx = y * w + x;
-            // Scarta linee colorate chiare (es. griglie azzurre/verdi di fogli elettronici) e sfondi neri
-            if (bg > 105 && !(colorSpreadArr[idx] > 42 && gray[idx] > 85)) {
+            // Scarta legno, linee colorate chiare e sfondi scuri
+            if (
+              bg > 105 &&
+              !warmWoodMask[idx] &&
+              !(colorSpreadArr[idx] > 42 && gray[idx] > 85)
+            ) {
               if (gray[idx] < bg - 17) {
                 isDark[idx] = 1;
               }
@@ -1118,7 +1205,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           const by = Math.min(rows - 1, Math.floor(y / blockSize));
           for (let x = 0; x < w; x++) {
             const idx = y * w + x;
-            if (hLineMask[idx] || vLineMask[idx]) {
+            if (hLineMask[idx] || vLineMask[idx] || warmWoodMask[idx]) {
               cleanPixels[idx] = 255;
               continue;
             }
@@ -1131,7 +1218,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           }
         }
 
-        // Verifica se siamo di fronte a una tabella strutturata (come il modulo ufficiale QU3 prog | nominativo | materia)
+        // CASO 1: Tabella strutturata con griglia (come il modulo ufficiale QU3 prog | nominativo | materia)
         if (vBorders.length >= 2 && hLines.length >= 5) {
           let xProgLeft = vBorders[0];
           let xProgRight = vBorders[1];
@@ -1355,14 +1442,309 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           }
         }
 
-        // Fallback per fogli senza griglia tabellare: ingrandisce fino a ~2000px di altezza con inchiostro pulito
+        // CASO 2: Foglio senza griglia stampata (es. foglietto bianco scritto a mano coi numeri 1..10 a sinistra e i nomi a destra).
+        // Isola esclusivamente i tratti nitidi di penna/pennarello (ignorando le ombre morbide del telefono e il legno del tavolo)
+        // e trattiene SOLO le righe che hanno SIA il numero a sinistra SIA il nome scritto a destra (scartando i numeri vuoti 5..10!).
+        const strokeInk = new Uint8Array(w * h);
+        const strokeCleanPixels = new Uint8ClampedArray(w * h);
+        strokeCleanPixels.fill(255);
+        const winR = Math.max(5, Math.round(6 * scaleRef));
+        const winStep = Math.max(2, Math.round(3 * scaleRef));
+
+        const yMargin0 = Math.round(h * 0.06);
+        const yMargin1 = Math.round(h * 0.93);
+        const xMargin0 = Math.round(w * 0.02);
+        const xMargin1 = Math.round(w * 0.94);
+
+        for (let y = yMargin0; y < yMargin1; y++) {
+          for (let x = xMargin0; x < xMargin1; x++) {
+            const idx = y * w + x;
+            if (warmWoodMask[idx]) continue;
+            if (colorSpreadArr[idx] > 45 && gray[idx] > 90) continue;
+
+            let localBright = 0;
+            for (let dy = -winR; dy <= winR; dy += winStep) {
+              const ny = y + dy;
+              if (ny < 0 || ny >= h) continue;
+              for (let dx = -winR; dx <= winR; dx += winStep) {
+                const nx = x + dx;
+                if (nx < 0 || nx >= w) continue;
+                const gVal = gray[ny * w + nx];
+                if (gVal > localBright) localBright = gVal;
+              }
+            }
+
+            const localContrast = localBright - gray[idx];
+            if (localBright > 135 && localContrast > 14) {
+              strokeCleanPixels[idx] = Math.max(
+                0,
+                Math.min(255, Math.round(255 - (localContrast - 10) * 4.2))
+              );
+              if (localContrast >= 26) {
+                strokeInk[idx] = 1;
+              }
+            }
+          }
+        }
+
+        const xNum0 = Math.round(w * 0.02);
+        const xNum1 = Math.round(w * 0.19);
+        const xName0 = Math.round(w * 0.20);
+        const xName1 = Math.round(w * 0.92);
+
+        const rowNumInk = new Int32Array(h);
+        const rowNameInk = new Int32Array(h);
+        for (let y = Math.round(h * 0.08); y < Math.round(h * 0.91); y++) {
+          let cNum = 0;
+          for (let x = xNum0; x < xNum1; x++) {
+            if (strokeInk[y * w + x]) cNum++;
+          }
+          let cName = 0;
+          for (let x = xName0; x < xName1; x++) {
+            if (strokeInk[y * w + x]) cName++;
+          }
+          rowNumInk[y] = cNum;
+          rowNameInk[y] = cName;
+        }
+
+        const minScanlineNameInk = Math.max(3, Math.round(4 * scaleRef));
+        const maxMergeGap = Math.max(5, Math.round(6 * scaleRef));
+        const rawUnlinedBands: { y0: number; y1: number }[] = [];
+        let inBand = false;
+        let bandStart = 0;
+
+        for (let y = Math.round(h * 0.08); y < Math.round(h * 0.91); y++) {
+          const avgName = (rowNameInk[y - 1] + rowNameInk[y] + rowNameInk[y + 1]) / 3;
+          if (avgName >= minScanlineNameInk) {
+            if (!inBand) {
+              if (
+                rawUnlinedBands.length > 0 &&
+                y - rawUnlinedBands[rawUnlinedBands.length - 1].y1 <= maxMergeGap
+              ) {
+                inBand = true;
+                bandStart = rawUnlinedBands.pop()!.y0;
+              } else {
+                inBand = true;
+                bandStart = y;
+              }
+            }
+          } else if (inBand) {
+            rawUnlinedBands.push({ y0: bandStart, y1: y });
+            inBand = false;
+          }
+        }
+        if (inBand) {
+          rawUnlinedBands.push({ y0: bandStart, y1: Math.round(h * 0.91) });
+        }
+
+        // Se due righe scritte a mano sono molto vicine verticalmente, le separa nel punto di minimo inchiostro
+        const splitUnlinedBands: { y0: number; y1: number }[] = [];
+        for (const b of rawUnlinedBands) {
+          const bh = b.y1 - b.y0;
+          if (bh > h * 0.075) {
+            let minY = -1;
+            let minVal = Infinity;
+            let maxVal = 0;
+            for (let y = b.y0; y <= b.y1; y++) {
+              if (rowNameInk[y] > maxVal) maxVal = rowNameInk[y];
+            }
+            const mid0 = b.y0 + Math.round(bh * 0.3);
+            const mid1 = b.y1 - Math.round(bh * 0.3);
+            for (let y = mid0; y <= mid1; y++) {
+              const v = (rowNameInk[y - 1] + rowNameInk[y] + rowNameInk[y + 1]) / 3;
+              if (v < minVal) {
+                minVal = v;
+                minY = y;
+              }
+            }
+            if (minY !== -1 && minVal < maxVal * 0.28) {
+              splitUnlinedBands.push({ y0: b.y0, y1: minY - 1 });
+              splitUnlinedBands.push({ y0: minY + 1, y1: b.y1 });
+              continue;
+            }
+          }
+          splitUnlinedBands.push(b);
+        }
+
+        const minBandH = Math.max(12, Math.round(14 * scaleRef));
+        const minBandNameInk = Math.round(250 * scaleRef * scaleRef);
+        const minBandNumInk = Math.round(18 * scaleRef * scaleRef);
+
+        const validUnlinedBands = splitUnlinedBands.filter((b) => {
+          const bh = b.y1 - b.y0;
+          if (bh < minBandH || bh > h * 0.16) return false;
+          let nameSum = 0;
+          let numSum = 0;
+          const numPadY = Math.round(6 * scaleRef);
+          for (let y = b.y0; y <= b.y1; y++) {
+            nameSum += rowNameInk[y];
+          }
+          for (
+            let y = Math.max(0, b.y0 - numPadY);
+            y <= Math.min(h - 1, b.y1 + numPadY);
+            y++
+          ) {
+            numSum += rowNumInk[y];
+          }
+          return nameSum >= minBandNameInk && numSum >= minBandNumInk;
+        });
+
+        if (validUnlinedBands.length > 0) {
+          const strokeCanvas = document.createElement('canvas');
+          strokeCanvas.width = w;
+          strokeCanvas.height = h;
+          const strokeCtx = strokeCanvas.getContext('2d')!;
+          const strokeImgData = strokeCtx.createImageData(w, h);
+          for (let i = 0; i < w * h; i++) {
+            const v = strokeCleanPixels[i];
+            strokeImgData.data[i * 4] = v;
+            strokeImgData.data[i * 4 + 1] = v;
+            strokeImgData.data[i * 4 + 2] = v;
+            strokeImgData.data[i * 4 + 3] = 255;
+          }
+          strokeCtx.putImageData(strokeImgData, 0, 0);
+
+          const avgSrcH =
+            validUnlinedBands.reduce((acc, b) => acc + (b.y1 - b.y0), 0) /
+            validUnlinedBands.length;
+          // Adatta l'ingrandimento in modo che le lettere scritte a mano abbiano sempre un'altezza ideale (~54px) per l'OCR
+          const upscale = Math.max(1.05, Math.min(2.4, (56 * scaleRef) / Math.max(18, avgSrcH)));
+          const progCropW = Math.round(w * 0.15);
+          const nomCropW = Math.round(w * 0.72);
+          const scaledProgW = Math.round(progCropW * upscale);
+          const scaledNomW = Math.round(nomCropW * upscale);
+          const gapBetweenCols = 52;
+          const padLeft = 28;
+          const nomStartX = padLeft + scaledProgW + gapBetweenCols;
+          const bandHeight = Math.round(Math.max(44, avgSrcH * upscale)) + 36;
+
+          const ocrCanvas = document.createElement('canvas');
+          ocrCanvas.width = nomStartX + scaledNomW + 32;
+          ocrCanvas.height = validUnlinedBands.length * bandHeight + 24;
+          const ocrCtx = ocrCanvas.getContext('2d')!;
+          ocrCtx.fillStyle = '#ffffff';
+          ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
+          ocrCtx.imageSmoothingEnabled = true;
+          ocrCtx.imageSmoothingQuality = 'high';
+
+          const tableBands: TableBandInfo[] = [];
+          const padRowY = Math.max(4, Math.round(5 * scaleRef));
+
+          for (let i = 0; i < validUnlinedBands.length; i++) {
+            const b = validUnlinedBands[i];
+            const bandY0 = 12 + i * bandHeight;
+            const bandY1 = bandY0 + bandHeight;
+            const srcY = Math.max(0, b.y0 - padRowY);
+            const srcH = Math.min(h - srcY, b.y1 - b.y0 + padRowY * 2);
+            const dstH = Math.min(bandHeight - 12, Math.round(srcH * upscale));
+            const dstY = bandY0 + Math.round((bandHeight - dstH) / 2);
+
+            // Trova lo spazio bianco verticale tra il numero a sinistra e l'inizio del nome su questa riga
+            let localDivX = xName0;
+            let minColInk = Infinity;
+            for (let sx = Math.round(w * 0.13); sx <= Math.round(w * 0.24); sx++) {
+              let colSum = 0;
+              for (let sy = srcY; sy < srcY + srcH; sy++) {
+                if (strokeInk[sy * w + sx]) colSum++;
+              }
+              if (colSum < minColInk) {
+                minColInk = colSum;
+                localDivX = sx;
+              }
+            }
+
+            const srcProgX = Math.max(xMargin0, localDivX - progCropW);
+            const actualProgW = Math.max(16, localDivX - srcProgX);
+            const actualNomW = Math.min(nomCropW, w - localDivX - 6);
+
+            ocrCtx.drawImage(
+              strokeCanvas,
+              srcProgX,
+              srcY,
+              actualProgW,
+              srcH,
+              padLeft,
+              dstY,
+              Math.round(actualProgW * upscale),
+              dstH
+            );
+
+            ocrCtx.drawImage(
+              strokeCanvas,
+              localDivX,
+              srcY,
+              actualNomW,
+              srcH,
+              nomStartX,
+              dstY,
+              Math.round(actualNomW * upscale),
+              dstH
+            );
+
+            const origCropCanvas = document.createElement('canvas');
+            const origSrcX = srcProgX;
+            const origSrcW = Math.min(w - origSrcX, actualProgW + actualNomW + 12);
+            origCropCanvas.width = origSrcW;
+            origCropCanvas.height = srcH;
+            const origCtx = origCropCanvas.getContext('2d')!;
+            origCtx.drawImage(
+              workCanvas,
+              origSrcX,
+              srcY,
+              origSrcW,
+              srcH,
+              0,
+              0,
+              origSrcW,
+              srcH
+            );
+
+            const nomStripCanvas = document.createElement('canvas');
+            nomStripCanvas.width = Math.round(actualNomW * upscale) + 36;
+            nomStripCanvas.height = dstH + 28;
+            const nomStripCtx = nomStripCanvas.getContext('2d')!;
+            nomStripCtx.fillStyle = '#ffffff';
+            nomStripCtx.fillRect(0, 0, nomStripCanvas.width, nomStripCanvas.height);
+            nomStripCtx.imageSmoothingEnabled = true;
+            nomStripCtx.imageSmoothingQuality = 'high';
+            nomStripCtx.drawImage(
+              strokeCanvas,
+              localDivX,
+              srcY,
+              actualNomW,
+              srcH,
+              18,
+              14,
+              Math.round(actualNomW * upscale),
+              dstH
+            );
+
+            tableBands.push({
+              tableRowIndex: i + 1,
+              isLikelyHeader: false,
+              bandY0,
+              bandY1,
+              nomStartX,
+              cropDataUrl: origCropCanvas.toDataURL('image/jpeg', 0.88),
+              nomStripDataUrl: nomStripCanvas.toDataURL('image/jpeg', 0.94),
+            });
+          }
+
+          resolve({
+            cleanedDataUrl: ocrCanvas.toDataURL('image/jpeg', 0.95),
+            tableBands,
+          });
+          return;
+        }
+
+        // Fallback finale per immagini generiche
         const cleanBaseCanvas = document.createElement('canvas');
         cleanBaseCanvas.width = w;
         cleanBaseCanvas.height = h;
         const cleanBaseCtx = cleanBaseCanvas.getContext('2d')!;
         const outImgData = cleanBaseCtx.createImageData(w, h);
         for (let i = 0; i < w * h; i++) {
-          const v = cleanPixels[i];
+          const v = strokeCleanPixels[i];
           outImgData.data[i * 4] = v;
           outImgData.data[i * 4 + 1] = v;
           outImgData.data[i * 4 + 2] = v;
@@ -1370,7 +1752,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         }
         cleanBaseCtx.putImageData(outImgData, 0, 0);
 
-        const upScale = Math.max(1.5, Math.min(2.4, 2000 / Math.max(w, h)));
+        const upScale = Math.max(1.2, Math.min(2.0, 1600 / Math.max(w, h)));
         const finalCanvas = document.createElement('canvas');
         finalCanvas.width = Math.round(w * upScale);
         finalCanvas.height = Math.round(h * upScale);
@@ -1428,7 +1810,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         });
       }
 
-      // Se abbiamo rilevato le righe della tabella (es. righe 1..7 compilate su 28), estraiamo riga per riga con precisione millimetrica!
+      // Se abbiamo rilevato le righe compilate (da tabella o da foglio scritto a mano), estraiamo riga per riga con precisione millimetrica!
       if (prep.tableBands.length > 0) {
         const allWords: { text: string; x0: number; y0: number; x1: number; y1: number }[] = [];
         const collectW = (w: any) => {
@@ -1491,10 +1873,13 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             .map((w) => w.text)
             .join(' ');
 
-          // Se nella casella nominativo di questa riga compilata l'OCR a pagina intera ha letto meno di 3 lettere (es. scritto a penna!),
-          // esegue subito una lettura mirata PSM 7 (Riga Singola) sul ritaglio ingrandito di quella specifica casella!
+          // Controlla subito se nomWords trova già una corrispondenza nell'Anagrafica Soci
+          let matchedSocio = fuzzyMatchSocioName(nomWords, profiles);
           const alphaCount = (nomWords.match(/[A-Za-zÀ-ÿ]/g) || []).length;
-          if (alphaCount < 3 && worker && typeof worker.setParameters === 'function') {
+
+          // Se non c'è ancora un match diretto nell'Anagrafica Soci o ci sono poche lettere (es. scritto a mano),
+          // esegue anche la lettura mirata PSM 7 (Riga Singola) sul ritaglio del solo nominativo!
+          if ((!matchedSocio || alphaCount < 4) && worker && typeof worker.setParameters === 'function') {
             setScanStatusText(
               `Lettura approfondita scrittura riga ${band.tableRowIndex || idx + 1}...`
             );
@@ -1505,14 +1890,26 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             });
             const singleRes = await worker.recognize(band.nomStripDataUrl);
             const singleText = String(singleRes?.data?.text || '').trim();
-            if ((singleText.match(/[A-Za-zÀ-ÿ]/g) || []).length > alphaCount) {
-              nomWords = singleText;
+            if (singleText) {
+              const singleMatched =
+                fuzzyMatchSocioName(singleText, profiles) ||
+                fuzzyMatchSocioName(`${nomWords} ${singleText}`, profiles);
+              if (singleMatched) {
+                matchedSocio = singleMatched;
+              } else if ((singleText.match(/[A-Za-zÀ-ÿ]/g) || []).length > alphaCount) {
+                nomWords = singleText;
+              }
             }
           }
 
           // Calcola il numero progressivo della riga:
-          // in una tabella strutturata la riga fisica (1, 2, 3...) è certa anche se la cifra stampata toccava il bordo!
-          const expectedRowNum = hasHeaderRow ? band.tableRowIndex : band.tableRowIndex + 1;
+          // se tableRowIndex parte da 1 (foglio non tabellare o tabella con header), expectedRowNum è tableRowIndex
+          const expectedRowNum =
+            prep.tableBands[0]?.tableRowIndex === 0
+              ? hasHeaderRow
+                ? band.tableRowIndex
+                : band.tableRowIndex + 1
+              : band.tableRowIndex;
           const digitMatch = progWords.match(/\d{1,3}/);
           const ocrNum = digitMatch ? parseInt(digitMatch[0], 10) : null;
 
@@ -1529,7 +1926,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             finalNum = (tableItems[tableItems.length - 1]?.number || existingMax) + 1;
           }
 
-          let cleanName = extractCleanNameOnly(nomWords, profiles);
+          let cleanName = matchedSocio || extractCleanNameOnly(nomWords, profiles);
           if (!cleanName && HEADER_NOISE.test(nomWords) && band.tableRowIndex === 0) {
             hasHeaderRow = true;
             continue;
