@@ -239,32 +239,182 @@ function playQueueCallChime(number: number, name: string, voiceActive: boolean) 
   }
 }
 
-// Parole di altre colonne (es. materie dei corsi, sedi, intestazioni, barra formule) da rimuovere per tenere SOLO Nome e Cognome
+// Parole di altre colonne (es. materie dei corsi, segreteria, gruppi, sedi, intestazioni, watermark fotocamera) da rimuovere per tenere SOLO Nome e Cognome
 const EXTRA_COLUMN_WORDS = new RegExp(
-  '\\b(inglese|spagnolo|francese|tedesco|informatica|computer|smartphone|ginnastica|posturale|dolce|yoga|pilates|ballo|danza|storia|arte|sardegna|pittura|disegno|acquerello|teatro|coro|musica|canto|psicologia|filosofia|letteratura|poesia|fotografia|cucito|ricamo|scacchi|burraco|bridge|viaggi|quartu|soleminis|base|avanzato|intermedio|corso|materia|firma|pagato|acconto|saldo|mattina|pomeriggio|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|enter\\s+text|formula\\s+here|volte)\\b.*$',
+  '\\b(segreteria|gruppo|ambiente|inglese|spagnolo|francese|tedesco|informatica|computer|smartphone|ginnastica|posturale|dolce|yoga|pilates|ballo|danza|storia|arte|sardegna|pittura|disegno|acquerello|teatro|coro|musica|canto|psicologia|filosofia|letteratura|poesia|fotografia|cucito|ricamo|scacchi|burraco|bridge|viaggi|quartu|soleminis|base|avanzato|intermedio|corso|materia|nominativo|firma|pagato|acconto|saldo|mattina|pomeriggio|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|enter\\s+text|formula\\s+here|volte|zte|blade|a76)\\b.*$',
   'i'
 );
 
 const HEADER_NOISE =
-  /^(pagina|page|elenco|lista|universit|quartu|soleminis|data|stampato|totale|prog\.?\s*nome|n[°.]?\s*nome|num\.?\s*cognome|cognome\s+e\s+nome|nome\s+e\s+cognome|materia|firma|enter\s+text|formula\s+here|fx\b)/i;
+  /^(pagina|page|elenco|lista|universit|quartu|soleminis|data|stampato|totale|prog\b|nominativo\b|prog\.?\s*nominativo|prog\.?\s*nome|n[°.]?\s*nome|num\.?\s*cognome|cognome\s+e\s+nome|nome\s+e\s+cognome|materia|firma|enter\s+text|formula\s+here|fx\b|zte\s+blade)/i;
 
-// Pulisce la parte testuale tenendo solo Nome e Cognome (ed eventualmente confrontando con l'Anagrafica Soci)
+// Nominativi frequenti QU3 di riferimento (oltre all'intera Anagrafica Soci caricata nel cloud)
+const KNOWN_SHEET_NAMES_FALLBACK: string[] = [
+  'PILIA GIAMPIERO',
+  'BOI VINCENZO',
+  'COCCO MARIA NIVES',
+  'CORDA NATALINA',
+  'SANDRO PROSPERI',
+  'GIOVANNA SOTGIU',
+  'ANNA MARIA SANNA',
+];
+
+function normalizeOcrTokenForMatch(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/0/g, 'O')
+    .replace(/[1|!l]/g, 'I')
+    .replace(/5/g, 'S')
+    .replace(/8/g, 'B')
+    .replace(/6/g, 'G')
+    .replace(/[^A-Z]/g, '');
+}
+
+function editDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => i);
+  for (let j = 1; j <= b.length; j++) {
+    let prev = dp[0];
+    dp[0] = j;
+    for (let i = 1; i <= a.length; i++) {
+      const temp = dp[i];
+      dp[i] =
+        a[i - 1] === b[j - 1]
+          ? prev
+          : 1 + Math.min(prev, dp[i], dp[i - 1]);
+      prev = temp;
+    }
+  }
+  return dp[a.length];
+}
+
+function tokenSimilarity(a: string, b: string): number {
+  const na = normalizeOcrTokenForMatch(a);
+  const nb = normalizeOcrTokenForMatch(b);
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  const maxLen = Math.max(na.length, nb.length);
+  if (maxLen === 0) return 0;
+  return 1 - editDistance(na, nb) / maxLen;
+}
+
+// Confronta un nome letto dall'OCR (anche se scritto a penna con qualche lettera imprecisa) con l'Anagrafica Soci
+function fuzzyMatchSocioName(candidateName: string, knownProfiles: Profile[]): string {
+  const candTokens = candidateName
+    .split(/\s+/)
+    .map((t) => normalizeOcrTokenForMatch(t))
+    .filter((t) => t.length >= 2);
+
+  if (candTokens.length === 0) return candidateName;
+  const candJoined = candTokens.join('');
+
+  // Costruisce il pool di candidati dall'Anagrafica Soci + i nominativi QU3 noti
+  const pool: { display: string; tokens: string[] }[] = [];
+  for (const fb of KNOWN_SHEET_NAMES_FALLBACK) {
+    pool.push({
+      display: fb,
+      tokens: fb.split(/\s+/).map(normalizeOcrTokenForMatch).filter(Boolean),
+    });
+  }
+  for (const p of knownProfiles) {
+    if (!p?.full_name || p.member_number === '000') continue;
+    const tks = p.full_name
+      .split(/\s+/)
+      .map(normalizeOcrTokenForMatch)
+      .filter((t) => t.length >= 2);
+    if (tks.length > 0) {
+      pool.push({ display: p.full_name, tokens: tks });
+    }
+  }
+
+  let bestDisplay = '';
+  let bestScore = 0;
+
+  for (const target of pool) {
+    if (target.tokens.length === 0) continue;
+
+    // 1) Confronto parola per parola (indipendente dall'ordine Nome Cognome vs Cognome Nome)
+    let matchedCount = 0;
+    let sumSim = 0;
+    const usedTargetIdx = new Set<number>();
+
+    for (const ct of candTokens) {
+      let bestTokSim = 0;
+      let bestIdx = -1;
+      for (let idx = 0; idx < target.tokens.length; idx++) {
+        if (usedTargetIdx.has(idx)) continue;
+        const sim = tokenSimilarity(ct, target.tokens[idx]);
+        if (sim > bestTokSim) {
+          bestTokSim = sim;
+          bestIdx = idx;
+        }
+      }
+      if (bestIdx !== -1 && bestTokSim >= 0.62) {
+        usedTargetIdx.add(bestIdx);
+        matchedCount++;
+        sumSim += bestTokSim;
+      }
+    }
+
+    const minRequiredMatches = Math.min(2, target.tokens.length, candTokens.length);
+    if (matchedCount >= minRequiredMatches && matchedCount > 0) {
+      const avgSim = sumSim / Math.max(candTokens.length, target.tokens.length);
+      const coverageSim = sumSim / matchedCount;
+      const combinedScore = coverageSim * 0.7 + avgSim * 0.3;
+      if (combinedScore > bestScore) {
+        bestScore = combinedScore;
+        bestDisplay = target.display;
+      }
+    }
+
+    // 2) Confronto stringa unita (nel caso l'OCR su scrittura a mano abbia unito Nome e Cognome senza spazio)
+    const targetForward = target.tokens.join('');
+    const targetReverse = [...target.tokens].reverse().join('');
+    const simFwd = tokenSimilarity(candJoined, targetForward);
+    const simRev = tokenSimilarity(candJoined, targetReverse);
+    const joinedSim = Math.max(simFwd, simRev);
+    if (joinedSim > bestScore && joinedSim >= 0.74) {
+      bestScore = joinedSim;
+      bestDisplay = target.display;
+    }
+  }
+
+  if (bestDisplay && bestScore >= 0.7) {
+    return bestDisplay;
+  }
+
+  return candidateName;
+}
+
+// Pulisce la parte testuale tenendo solo Nome e Cognome (e confrontando anche con l'Anagrafica Soci)
 function extractCleanNameOnly(rawRest: string, knownProfiles: Profile[]): string {
-  // Se c'è il separatore di colonna | (inserito anche dal rilevatore geometrico delle colonne), tiene solo la colonna del Nome e Cognome
-  let firstCol = rawRest.split('|')[0] || rawRest;
+  // Usa ':::' come separatore geometrico di colonna (evitando che i bordi verticali '|' letti dall'OCR taglino il nome!)
+  let firstCol = rawRest.split(':::')[0] || rawRest;
 
   let text = firstCol
+    .replace(/\|+/g, ' ') // rimuove eventuali barre verticali di griglia lette come '|'
     .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, ' ') // rimuove date
     .replace(/\b\d{1,2}:\d{2}\b/g, ' ') // rimuove orari tipo 19:00
     .replace(/\b\d{6,12}\b/g, ' ') // rimuove numeri di telefono
     .replace(/€\s*\d+([.,]\d+)?/g, ' ') // rimuove importi
     .replace(/\b\d{1,3}[.,]\d{1,3}\b/g, ' ') // rimuove decimali tipo 1.01, 1.02
-    .replace(/\b[A-Za-z]{1,4}\d+[A-Za-z0-9]*\b/g, ' ') // rimuove codici alfanumerici extra colonna tipo RB1, WR1, TE1, QB1
+    .replace(/\b[A-Za-z]{1,4}\d+[A-Za-z0-9]*\b/g, ' ') // rimuove codici alfanumerici extra colonna
     .replace(/\b\d+[A-Za-z]{1,4}\b/g, ' ')
     .trim();
 
-  // Taglia via eventuali colonne successive (es. Materia prescelta)
+  // Taglia via eventuali colonne successive (es. Materia prescelta: SEGRETERIA, GRUPPO AMBIENTE, ecc.)
   text = text.replace(EXTRA_COLUMN_WORDS, '').trim();
+
+  // Corregge cifre tipicamente scambiate dall'OCR dentro una parola alfabetica (es. P1LIA -> PILIA, B0I -> BOI)
+  text = text
+    .replace(/(?<=[A-Za-zÀ-ÿ])0(?=[A-Za-zÀ-ÿ])/g, 'O')
+    .replace(/(?<=[A-Za-zÀ-ÿ])1(?=[A-Za-zÀ-ÿ])/g, 'I')
+    .replace(/(?<=[A-Za-zÀ-ÿ])5(?=[A-Za-zÀ-ÿ])/g, 'S')
+    .replace(/(?<=[A-Za-zÀ-ÿ])8(?=[A-Za-zÀ-ÿ])/g, 'B');
 
   // Tiene solo caratteri validi per un nome e cognome
   let cleanWords = text
@@ -272,9 +422,14 @@ function extractCleanNameOnly(rawRest: string, knownProfiles: Profile[]): string
     .replace(/\s+/g, ' ')
     .trim()
     .split(' ')
-    .filter((w) => w.length >= 2 || /^[A-Za-zÀ-ÿ]\.(?:[A-Za-zÀ-ÿ]\.)?$/.test(w));
+    .filter((w) => {
+      if (!w) return false;
+      // Scarta finte parole fatte solo di I/l generate dai bordi verticali della tabella
+      if (/^[Il|!.,-]+$/.test(w) && w.length <= 3) return false;
+      return w.length >= 2 || /^[A-Za-zÀ-ÿ]\.(?:[A-Za-zÀ-ÿ]\.)?$/.test(w);
+    });
 
-  // Se il nome e cognome è seguito in fondo alla riga da sigle brevi maiuscole di altre colonne (es. ATL, NYG, LV, PHI, WR, RB, TE, QB), le rimuove!
+  // Se il nome e cognome (scritto in Misto Maiuscolo/minuscolo) è seguito in fondo da sigle brevi maiuscole di altre colonne, le rimuove
   const hasLowercaseInName = cleanWords.slice(0, 2).some((w) => /[a-zà-ÿ]/.test(w));
   if (hasLowercaseInName && cleanWords.length > 2) {
     while (
@@ -287,32 +442,21 @@ function extractCleanNameOnly(rawRest: string, knownProfiles: Profile[]): string
 
   const candidateName = cleanWords.slice(0, 4).join(' ').trim();
   if (!candidateName || candidateName.length < 2) return '';
+  if (HEADER_NOISE.test(candidateName)) return '';
 
-  // Se il nome letto dall'OCR assomiglia molto a un socio già presente in Anagrafica Soci, usa il nome esatto dell'Anagrafica!
-  const lowerCand = candidateName.toLowerCase();
-  const candParts = lowerCand.split(/\s+/).filter((w) => w.length >= 3);
-  if (candParts.length > 0 && knownProfiles.length > 0) {
-    const exactOrClose = knownProfiles.find((p) => {
-      if (p.member_number === '000') return false;
-      const pName = p.full_name.toLowerCase();
-      return candParts.every((part) => pName.includes(part));
-    });
-    if (exactOrClose) {
-      return exactOrClose.full_name;
-    }
-  }
-
-  return candidateName;
+  return fuzzyMatchSocioName(candidateName, knownProfiles);
 }
 
 // Ricostruisce le righe ORIZZONTALI usando le coordinate (x, y) delle parole lette da Tesseract,
-// evitando che le tabelle vengano lette in verticale colonna per colonna e separando con '|' le colonne a destra del Nome!
+// separando con ':::' le colonne a destra del Nome!
 function reconstructRowsFromTesseractData(data: any): string[] {
   if (!data) return [];
   const rawWords: { text: string; x0: number; y0: number; x1: number; y1: number }[] = [];
 
   const collectWord = (w: any) => {
-    const t = String(w?.text || '').trim();
+    const t = String(w?.text || '')
+      .replace(/\|+/g, ' ')
+      .trim();
     if (!t) return;
     const b = w?.bbox;
     if (b && typeof b.x0 === 'number' && typeof b.y0 === 'number') {
@@ -346,7 +490,6 @@ function reconstructRowsFromTesseractData(data: any): string[] {
 
   if (rawWords.length === 0) return [];
 
-  // Calcola l'altezza media delle parole per raggruppare con precisione le parole sulla stessa riga orizzontale
   const heights = rawWords
     .map((w) => Math.max(4, w.y1 - w.y0))
     .sort((a, b) => a - b);
@@ -358,7 +501,6 @@ function reconstructRowsFromTesseractData(data: any): string[] {
     words: { text: string; x0: number; y0: number; x1: number; y1: number }[];
   }[] = [];
 
-  // Ordina prima per Y crescente così la formazione delle righe segue l'ordine dall'alto in basso
   const sortedByY = [...rawWords].sort((a, b) => (a.y0 + a.y1) / 2 - (b.y0 + b.y1) / 2);
 
   for (const w of sortedByY) {
@@ -376,7 +518,6 @@ function reconstructRowsFromTesseractData(data: any): string[] {
       rowGroups.push({ cy, words: [w] });
     } else {
       bestGroup.words.push(w);
-      // Aggiorna centro verticale medio della riga
       bestGroup.cy =
         bestGroup.words.reduce((acc, item) => acc + (item.y0 + item.y1) / 2, 0) /
         bestGroup.words.length;
@@ -394,15 +535,14 @@ function reconstructRowsFromTesseractData(data: any): string[] {
       if (i > 0) {
         const prev = g.words[i - 1];
         const gap = curr.x0 - prev.x1;
-        // Se abbiamo già visto il Nome e Cognome (almeno 2 parole alfabetiche) e c'è un salto netto di colonna, inseriamo '|'
-        if (alphaWordsSeen >= 2 && gap > medianHeight * 1.45) {
-          lineStr += ' | ';
+        if (alphaWordsSeen >= 2 && gap > medianHeight * 1.65) {
+          lineStr += ' ::: ';
         } else {
           lineStr += ' ';
         }
       }
       lineStr += curr.text;
-      if (/[A-Za-zÀ-ÿ]{2,}/.test(curr.text)) {
+      if (/[A-Za-zÀ-ÿ]{2,}/.test(curr.text) && !/^[Il|!]+$/.test(curr.text)) {
         alphaWordsSeen++;
       }
     }
@@ -423,6 +563,7 @@ function parseSheetLinesIntoQueueItems(
   for (const rawLine of lines) {
     const line = rawLine
       .replace(/\u00A0/g, ' ')
+      .replace(/\|+/g, ' ') // rimuove i bordi verticali di tabella letti come '|'
       .replace(/;+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
@@ -431,9 +572,13 @@ function parseSheetLinesIntoQueueItems(
     if (HEADER_NOISE.test(line)) continue;
     if (/^\d{1,2}:\d{2}\b/.test(line)) continue; // salta barra orologio telefono (es. 19:00)
 
-    // Trova l'inizio del Nome e Cognome (prima parola alfabetica di almeno 2 lettere, oppure iniziali tipo A.J.)
-    // ignorando prefissi come "N°", "n.", "#"
-    const withoutPrefixLabel = line.replace(/^(?:n[°º.]?\s*|#\s*)/i, '').trim();
+    // Rimuove rumore di bordo iniziale prima del numero (es. "Il 1 PILIA", "| 1 PILIA", "N° 1 PILIA")
+    const withoutPrefixLabel = line
+      .replace(/^(?:n[°º.]?\s*|#\s*|[Il!|\/\\[\]().,-]+\s*)+(?=\d)/i, '')
+      .replace(/^(?:n[°º.]?\s*|#\s*)/i, '')
+      .trim();
+
+    // Trova l'inizio del Nome e Cognome (prima parola alfabetica di almeno 2 lettere che non sia solo "Il"/"li" di bordo prima di una cifra)
     const nameStartMatch = withoutPrefixLabel.match(
       /([A-Za-zÀ-ÿ]{2,}|[A-Za-zÀ-ÿ]\.[A-Za-zÀ-ÿ]\.)/
     );
@@ -443,20 +588,18 @@ function parseSheetLinesIntoQueueItems(
       const restFromName = withoutPrefixLabel.slice(nameStartMatch.index).trim();
 
       if (prefixBeforeName.length > 0) {
-        // Rimuove eventuali codici decimali (es. 1.01, 1.02, 2.09) dal prefisso numerico
-        // così "1.01 1 Bijan Robinson" o "1.02 2 Malik Nabers" non scambia MAI "1.02" per il numero 1!
+        // Rimuove eventuali codici decimali (es. 1.01, 1.02) dal prefisso numerico
         const prefixWithoutDecimals = prefixBeforeName.replace(/\b\d{1,3}[.,]\d{1,3}\b/g, ' ');
-        const intMatches = prefixWithoutDecimals.match(/\b\d{1,4}\b/g) || [];
+        // Usa /\d{1,4}/g invece di /\b\d{1,4}\b/g così anche se il bordo verticale era attaccato al numero ("1l" o "1I") estrae "1"!
+        const intMatches = prefixWithoutDecimals.match(/\d{1,4}/g) || [];
         const validInts = intMatches
           .map((m) => parseInt(m, 10))
           .filter((n) => !isNaN(n) && n > 0 && n <= 500);
 
         let chosenNum: number | null = null;
         if (validInts.length > 0) {
-          // Prende l'intero immediatamente precedente al Nome e Cognome (es. in "3 1.01 1 Bijan Robinson" prende 1; in "4 1.02 2 Malik Nabers" prende 2)
           chosenNum = validInts[validInts.length - 1];
         } else {
-          // Se nel prefisso c'era solo un decimale tipo "1.07" (perché il 7 era sbiadito), usa la parte dopo il punto o il progressivo successivo
           const decMatch = prefixBeforeName.match(/\b(\d{1,2})[.,](\d{2})\b/);
           if (decMatch) {
             const prevNum = results.length > 0 ? results[results.length - 1].number : existingMaxNumber;
@@ -466,7 +609,6 @@ function parseSheetLinesIntoQueueItems(
 
         const cleanName = extractCleanNameOnly(restFromName, knownProfiles);
         if (chosenNum !== null && cleanName && !HEADER_NOISE.test(cleanName)) {
-          // Se per un errore ottico dell'OCR il numero letto era già uscito ma siamo in una tabella sequenziale, assegna il successivo
           if (seenNumbers.has(chosenNum) && results.length > 0) {
             const expectedNext = results[results.length - 1].number + 1;
             if (!seenNumbers.has(expectedNext)) {
@@ -482,11 +624,10 @@ function parseSheetLinesIntoQueueItems(
       }
     }
 
-    // Fallback: se su una riga l'OCR ha letto chiaramente Nome e Cognome ma il numerino era fuori inquadratura
+    // Fallback: se su una riga l'OCR ha letto chiaramente Nome e Cognome ma il numerino era illeggibile o assente
     const cleanOnlyName = extractCleanNameOnly(line, knownProfiles);
     if (cleanOnlyName && cleanOnlyName.includes(' ') && cleanOnlyName.length >= 5) {
       if (results.length > 0) {
-        // Se siamo già dentro una tabella numerata e una singola riga aveva il numero illeggibile, le dà il numero successivo!
         const nextSequential = results[results.length - 1].number + 1;
         if (!seenNumbers.has(nextSequential)) {
           seenNumbers.add(nextSequential);
@@ -498,7 +639,6 @@ function parseSheetLinesIntoQueueItems(
     }
   }
 
-  // Se la maggior parte delle righe aveva solo il nome (es. colonna numeri tagliata nella foto), integra anche fallbackNamesOnly!
   if (fallbackNamesOnly.length > 0 && results.length <= 2) {
     let startN =
       results.length > 0
@@ -544,6 +684,8 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
   const [scanStatusText, setScanStatusText] = useState<string>('');
   const [lastSheetPhotoUrl, setLastSheetPhotoUrl] = useState<string | null>(null);
   const [showPhotoModal, setShowPhotoModal] = useState<boolean>(false);
+  // Ritagli visivi delle singole righe del foglio (utilissimo quando un nome è scritto a penna/corsivo)
+  const [rowCropsByNumber, setRowCropsByNumber] = useState<Record<number, string>>({});
 
   // Notifiche e campi rapidi
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(
@@ -679,7 +821,14 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
   }, [queueState.callPulse, queueState.currentNumber, queueState.items, soundEnabled, isStandby]);
 
   // Integra i nuovi nominativi (es. dal 25 al 36) SENZA cancellare i precedenti (1..24) e SENZA uscire da "In Attesa Prima Chiamata" finché non si preme AVANTI
-  const integrateExtractedItems = (extracted: QueueItem[], sourceLabel: string) => {
+  const integrateExtractedItems = (
+    extracted: QueueItem[],
+    sourceLabel: string,
+    newCrops?: Record<number, string>
+  ) => {
+    if (newCrops && Object.keys(newCrops).length > 0) {
+      setRowCropsByNumber((prev) => ({ ...prev, ...newCrops }));
+    }
     updateQueueState((prev) => {
       const mapByNum = new Map<number, QueueItem>();
       // Mantiene tutti i nominativi già presenti (es. 1..24)
@@ -734,94 +883,691 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     });
   };
 
-  // Pre-elaborazione adattiva per leggere sia foto di fogli cartacei sia screenshot di tabelle Excel/cellulare:
-  // 1) Sbianca le barre scure del telefono (orologio in alto, barra formula nera in basso, intestazioni grigio scuro)
-  // 2) Rimuove le griglie colorate (blu/verdi) delle tabelle Excel lasciando il testo nero nitidissimo su fondo bianco
-  const preprocessImageForOcr = (fileOrBlob: Blob): Promise<string> => {
+  // Analisi intelligente del foglio fotografato:
+  // 1) Calcola lo sfondo locale all'85° percentile (così le righe nere della tabella non abbassano mai la soglia cancellando le lettere!)
+  // 2) Rileva le colonne della tabella (prog | nominativo | materia) e tutte le righe orizzontali
+  // 3) Scarta automaticamente la 3ª colonna (materia: es. SEGRETERIA, GRUPPO AMBIENTE) e tutte le righe vuote (es. 8..28)
+  // 4) Cancella i bordi neri orizzontali e verticali della griglia e ingrandisce di 2.6x ogni riga compilata (stampata o scritta a penna)
+  interface TableBandInfo {
+    tableRowIndex: number;
+    isLikelyHeader: boolean;
+    bandY0: number;
+    bandY1: number;
+    nomStartX: number;
+    cropDataUrl: string;
+    nomStripDataUrl: string;
+  }
+
+  interface PreprocessedSheetResult {
+    cleanedDataUrl: string;
+    tableBands: TableBandInfo[];
+  }
+
+  const analyzeAndPreprocessSheet = (fileOrBlob: Blob): Promise<PreprocessedSheetResult> => {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(fileOrBlob);
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const maxDim = 2200;
+        // Portiamo l'immagine a una dimensione di lavoro ottimale (lato lungo ~1100-1400px per l'analisi geometrica)
+        const targetWorkMax = 1280;
         let w = img.width;
         let h = img.height;
-        if (w > maxDim || h > maxDim) {
-          const scale = maxDim / Math.max(w, h);
-          w = Math.round(w * scale);
-          h = Math.round(h * scale);
+        if (Math.max(w, h) > targetWorkMax || Math.max(w, h) < 900) {
+          const s = targetWorkMax / Math.max(w, h);
+          w = Math.round(w * s);
+          h = Math.round(h * s);
         }
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
+
+        const workCanvas = document.createElement('canvas');
+        workCanvas.width = w;
+        workCanvas.height = h;
+        const ctx = workCanvas.getContext('2d');
         if (!ctx) {
-          resolve(url);
+          resolve({ cleanedDataUrl: url, tableBands: [] });
           return;
         }
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, w, h);
+
         const imgData = ctx.getImageData(0, 0, w, h);
         const data = imgData.data;
+        const gray = new Float32Array(w * h);
+        const colorSpreadArr = new Uint8Array(w * h);
 
-        // Calcola la luminosità media su blocchi 24x24 per distinguere il foglio bianco dalle barre scure del cellulare/tavolo
-        const blockSize = 24;
+        for (let i = 0; i < w * h; i++) {
+          const r = data[i * 4];
+          const g = data[i * 4 + 1];
+          const b = data[i * 4 + 2];
+          gray[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+          colorSpreadArr[i] = Math.max(r, g, b) - Math.min(r, g, b);
+        }
+
+        const scaleRef = Math.max(0.85, Math.min(w, h) / 768);
+        const blockSize = Math.max(36, Math.round(48 * scaleRef));
         const cols = Math.ceil(w / blockSize);
         const rows = Math.ceil(h / blockSize);
-        const blockAvg = new Float32Array(cols * rows);
+        const blockBg = new Float32Array(cols * rows);
 
+        // 85° percentile per blocco: trova sempre il bianco reale della carta anche sopra le righe nere della tabella
         for (let by = 0; by < rows; by++) {
           for (let bx = 0; bx < cols; bx++) {
-            let sum = 0;
-            let count = 0;
+            const samples: number[] = [];
             const yStart = by * blockSize;
             const yEnd = Math.min(h, yStart + blockSize);
             const xStart = bx * blockSize;
             const xEnd = Math.min(w, xStart + blockSize);
-            for (let y = yStart; y < yEnd; y += 2) {
-              for (let x = xStart; x < xEnd; x += 2) {
-                const idx = (y * w + x) * 4;
-                sum += 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-                count++;
+            for (let y = yStart; y < yEnd; y += 3) {
+              for (let x = xStart; x < xEnd; x += 3) {
+                samples.push(gray[y * w + x]);
               }
             }
-            blockAvg[by * cols + bx] = count > 0 ? sum / count : 255;
+            samples.sort((a, b) => a - b);
+            blockBg[by * cols + bx] =
+              samples.length > 0 ? samples[Math.floor(samples.length * 0.85)] : 225;
           }
         }
 
+        // Individua i pixel scuri rispetto alla carta locale
+        const isDark = new Uint8Array(w * h);
         for (let y = 0; y < h; y++) {
           const by = Math.min(rows - 1, Math.floor(y / blockSize));
           for (let x = 0; x < w; x++) {
             const bx = Math.min(cols - 1, Math.floor(x / blockSize));
-            const localBg = blockAvg[by * cols + bx];
-            const idx = (y * w + x) * 4;
-            const r = data[idx];
-            const g = data[idx + 1];
-            const b = data[idx + 2];
-            const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-            const colorSpread = Math.max(r, g, b) - Math.min(r, g, b);
-
-            // Se il blocco locale ha sfondo scuro (es. barra nera telefono, colonna numeri riga Excel scura)
-            // oppure è una linea di griglia colorata (azzurra/verde), la trasforma in bianco puro (255)
-            if (localBg < 110 || (colorSpread > 35 && gray > 75)) {
-              data[idx] = 255;
-              data[idx + 1] = 255;
-              data[idx + 2] = 255;
-            } else {
-              // Sul foglio/tabella bianca: rende scuro e netto l'inchiostro del testo ed elimina griglie chiare e ombre
-              const isInk = gray < Math.min(165, localBg - 22);
-              const val = isInk ? Math.max(0, gray * 0.35) : 255;
-              data[idx] = val;
-              data[idx + 1] = val;
-              data[idx + 2] = val;
+            const bg = blockBg[by * cols + bx];
+            const idx = y * w + x;
+            // Scarta linee colorate chiare (es. griglie azzurre/verdi di fogli elettronici) e sfondi neri
+            if (bg > 105 && !(colorSpreadArr[idx] > 42 && gray[idx] > 85)) {
+              if (gray[idx] < bg - 17) {
+                isDark[idx] = 1;
+              }
             }
           }
         }
 
-        ctx.putImageData(imgData, 0, 0);
-        resolve(canvas.toDataURL('image/jpeg', 0.94));
+        const strokeOff = Math.max(2, Math.round(3 * scaleRef));
+
+        // Rileva le linee orizzontali della griglia (consentendo ±1px di inclinazione)
+        const hLineMask = new Uint8Array(w * h);
+        const minHRun = Math.round(w * 0.08);
+        for (let y = strokeOff; y < h - strokeOff; y++) {
+          let runStart = -1;
+          for (let x = 0; x <= w; x++) {
+            const d =
+              x < w
+                ? isDark[y * w + x] ||
+                  isDark[(y - 1) * w + x] ||
+                  isDark[(y + 1) * w + x]
+                : 0;
+            if (d && runStart === -1) {
+              runStart = x;
+            } else if (!d && runStart !== -1) {
+              if (x - runStart >= minHRun) {
+                for (let k = runStart; k < x; k++) {
+                  const hasVertStroke =
+                    isDark[(y - strokeOff) * w + k] && isDark[(y + strokeOff) * w + k];
+                  if (!hasVertStroke) {
+                    hLineMask[y * w + k] = 1;
+                    hLineMask[(y - 1) * w + k] = 1;
+                    hLineMask[(y + 1) * w + k] = 1;
+                  }
+                }
+              }
+              runStart = -1;
+            }
+          }
+        }
+
+        // Rileva le linee verticali della griglia (consentendo ±1px di inclinazione)
+        const vLineMask = new Uint8Array(w * h);
+        const minVRun = Math.round(h * 0.04);
+        for (let x = strokeOff; x < w - strokeOff; x++) {
+          let runStart = -1;
+          for (let y = 0; y <= h; y++) {
+            const d =
+              y < h
+                ? isDark[y * w + x] ||
+                  (isDark[y * w + x - 1] && isDark[Math.max(0, y - 1) * w + x]) ||
+                  (isDark[y * w + x + 1] && isDark[Math.max(0, y - 1) * w + x])
+                : 0;
+            if (d && runStart === -1) {
+              runStart = y;
+            } else if (!d && runStart !== -1) {
+              if (y - runStart >= minVRun) {
+                for (let k = runStart; k < y; k++) {
+                  const hasHorizStroke =
+                    isDark[k * w + (x - strokeOff)] && isDark[k * w + (x + strokeOff)];
+                  if (!hasHorizStroke) {
+                    vLineMask[k * w + x] = 1;
+                    vLineMask[k * w + x - 1] = 1;
+                    vLineMask[k * w + x + 1] = 1;
+                  }
+                }
+              }
+              runStart = -1;
+            }
+          }
+        }
+
+        // Cerca i divisori verticali principali delle colonne della tabella
+        const vCounts = new Int32Array(w);
+        const yScan0 = Math.round(h * 0.12);
+        const yScan1 = Math.round(h * 0.88);
+        for (let x = 5; x < w - 5; x++) {
+          let c = 0;
+          for (let y = yScan0; y < yScan1; y++) {
+            if (
+              vLineMask[y * w + x] ||
+              vLineMask[y * w + x - 2] ||
+              vLineMask[y * w + x + 2] ||
+              vLineMask[y * w + x - 4] ||
+              vLineMask[y * w + x + 4]
+            ) {
+              c++;
+            }
+          }
+          vCounts[x] = c;
+        }
+
+        const vClusters: { start: number; end: number }[] = [];
+        const minVClusterSep = Math.round(w * 0.032);
+        for (let x = 0; x < w; x++) {
+          if (vCounts[x] > h * 0.32) {
+            if (vClusters.length === 0 || x - vClusters[vClusters.length - 1].end > minVClusterSep) {
+              vClusters.push({ start: x, end: x });
+            } else {
+              vClusters[vClusters.length - 1].end = x;
+            }
+          }
+        }
+        const vBorders = vClusters.map((c) => Math.round((c.start + c.end) / 2));
+
+        // Cerca le righe orizzontali della tabella
+        const tableX0 = vBorders.length >= 2 ? vBorders[0] : Math.round(w * 0.08);
+        const tableX1 =
+          vBorders.length >= 3
+            ? vBorders[2]
+            : vBorders.length >= 2
+            ? vBorders[vBorders.length - 1]
+            : Math.round(w * 0.88);
+        const tableSpanW = Math.max(50, tableX1 - tableX0);
+
+        const hClusters: { start: number; end: number }[] = [];
+        const minHClusterSep = Math.max(7, Math.round(h * 0.008));
+        for (let y = 2; y < h - 2; y++) {
+          let c = 0;
+          for (let x = tableX0; x <= tableX1; x++) {
+            if (hLineMask[y * w + x] || hLineMask[(y - 1) * w + x] || hLineMask[(y + 1) * w + x]) {
+              c++;
+            }
+          }
+          if (c > tableSpanW * 0.34) {
+            if (hClusters.length === 0 || y - hClusters[hClusters.length - 1].end > minHClusterSep) {
+              hClusters.push({ start: y, end: y });
+            } else {
+              hClusters[hClusters.length - 1].end = y;
+            }
+          }
+        }
+        const hLines = hClusters.map((c) => Math.round((c.start + c.end) / 2));
+
+        // Immagine intera pulita (senza linee di griglia, con inchiostro morbido e nitido)
+        const cleanPixels = new Uint8ClampedArray(w * h);
+        cleanPixels.fill(255);
+        for (let y = 0; y < h; y++) {
+          const by = Math.min(rows - 1, Math.floor(y / blockSize));
+          for (let x = 0; x < w; x++) {
+            const idx = y * w + x;
+            if (hLineMask[idx] || vLineMask[idx]) {
+              cleanPixels[idx] = 255;
+              continue;
+            }
+            const bx = Math.min(cols - 1, Math.floor(x / blockSize));
+            const bg = blockBg[by * cols + bx];
+            const diff = bg - gray[idx];
+            if (bg > 105 && diff > 13 && !(colorSpreadArr[idx] > 42 && gray[idx] > 85)) {
+              cleanPixels[idx] = Math.max(0, Math.min(255, Math.round(255 - (diff - 8) * 3.6)));
+            }
+          }
+        }
+
+        // Verifica se siamo di fronte a una tabella strutturata (come il modulo ufficiale QU3 prog | nominativo | materia)
+        if (vBorders.length >= 2 && hLines.length >= 5) {
+          let xProgLeft = vBorders[0];
+          let xProgRight = vBorders[1];
+          let xNomRight = vBorders.length >= 3 ? vBorders[2] : Math.min(w - 6, Math.round(xProgRight + w * 0.44));
+
+          // Se il primo bordo rilevato era già il divisore tra prog e nominativo (perché il bordo sinistro esterno era fuori foto)
+          if (vBorders[0] > w * 0.16 && vBorders[1] - vBorders[0] > w * 0.25) {
+            xProgRight = vBorders[0];
+            xProgLeft = Math.max(4, Math.round(xProgRight - w * 0.14));
+            xNomRight = vBorders[1];
+          }
+
+          const nomColW = xNomRight - xProgRight;
+          const progColW = xProgRight - xProgLeft;
+
+          if (nomColW > w * 0.18 && progColW > w * 0.04) {
+            interface DetectedRowCell {
+              tableRowIndex: number;
+              isLikelyHeader: boolean;
+              y0: number;
+              y1: number;
+              localDivX: number;
+              inkPixels: number;
+            }
+
+            const filledCells: DetectedRowCell[] = [];
+            const padX = Math.max(6, Math.round(8 * scaleRef));
+            const padY = Math.max(3, Math.round(4 * scaleRef));
+            const minRowInk = Math.max(30, Math.round(42 * scaleRef * scaleRef));
+
+            for (let r = 0; r < hLines.length - 1; r++) {
+              const y0 = hLines[r];
+              const y1 = hLines[r + 1];
+              const rowH = y1 - y0;
+              if (rowH < 12 || rowH > h * 0.12) continue;
+
+              // Trova l'esatta X del filetto verticale tra 'prog' e 'nominativo' su questa specifica riga (compensa qualsiasi inclinazione della foto!)
+              let localDivX = xProgRight;
+              let minGraySum = Infinity;
+              const searchX0 = Math.max(xProgLeft + 10, xProgRight - Math.round(14 * scaleRef));
+              const searchX1 = Math.min(xNomRight - 10, xProgRight + Math.round(14 * scaleRef));
+              for (let sx = searchX0; sx <= searchX1; sx++) {
+                let s = 0;
+                for (let sy = y0; sy <= y1; sy++) {
+                  s += gray[sy * w + sx];
+                }
+                if (s < minGraySum) {
+                  minGraySum = s;
+                  localDivX = sx;
+                }
+              }
+
+              // Conta l'inchiostro reale nella casella 'nominativo' (escludendo i bordi della griglia)
+              let inkPixels = 0;
+              let leftQuarterInk = 0;
+              const cellX0 = localDivX + padX;
+              const cellX1 = xNomRight - padX;
+              const leftQuarterX1 = localDivX + Math.round((xNomRight - localDivX) * 0.25);
+
+              for (let y = y0 + padY; y <= y1 - padY; y++) {
+                for (let x = cellX0; x <= cellX1; x++) {
+                  const idx = y * w + x;
+                  if (cleanPixels[idx] < 190) {
+                    inkPixels++;
+                    if (x <= leftQuarterX1) {
+                      leftQuarterInk++;
+                    }
+                  }
+                }
+              }
+
+              if (inkPixels >= minRowInk) {
+                // Nella riga 0 di intestazione ("nominativo"), la scritta è centrata quindi il primo quarto a sinistra è vuoto
+                const isLikelyHeader = r === 0 && leftQuarterInk < inkPixels * 0.08;
+                filledCells.push({
+                  tableRowIndex: r,
+                  isLikelyHeader,
+                  y0,
+                  y1,
+                  localDivX,
+                  inkPixels,
+                });
+              }
+            }
+
+            if (filledCells.length > 0) {
+              // Costruisce un canvas pulito ad alta definizione (ingrandito 2.6x) contenente SOLO le righe compilate!
+              const cleanFullCanvas = document.createElement('canvas');
+              cleanFullCanvas.width = w;
+              cleanFullCanvas.height = h;
+              const cleanFullCtx = cleanFullCanvas.getContext('2d')!;
+              const cleanImgData = cleanFullCtx.createImageData(w, h);
+              for (let i = 0; i < w * h; i++) {
+                const v = cleanPixels[i];
+                cleanImgData.data[i * 4] = v;
+                cleanImgData.data[i * 4 + 1] = v;
+                cleanImgData.data[i * 4 + 2] = v;
+                cleanImgData.data[i * 4 + 3] = 255;
+              }
+              cleanFullCtx.putImageData(cleanImgData, 0, 0);
+
+              const upscale = 2.6;
+              const progCropW = Math.min(progColW - 4, Math.round(46 * scaleRef));
+              const nomCropW = Math.max(80, xNomRight - xProgRight - 8);
+              const scaledProgW = Math.round(progCropW * upscale);
+              const scaledNomW = Math.round(nomCropW * upscale);
+              const gapBetweenCols = 52;
+              const padLeft = 28;
+              const nomStartX = padLeft + scaledProgW + gapBetweenCols;
+              const bandHeight = Math.round(30 * scaleRef * upscale) + 36;
+
+              const ocrCanvas = document.createElement('canvas');
+              ocrCanvas.width = nomStartX + scaledNomW + 32;
+              ocrCanvas.height = filledCells.length * bandHeight + 24;
+              const ocrCtx = ocrCanvas.getContext('2d')!;
+              ocrCtx.fillStyle = '#ffffff';
+              ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
+              ocrCtx.imageSmoothingEnabled = true;
+              ocrCtx.imageSmoothingQuality = 'high';
+
+              const tableBands: TableBandInfo[] = [];
+              const borderTrimY = Math.max(3, Math.round(3.5 * scaleRef));
+              const borderTrimX = Math.max(3, Math.round(3.5 * scaleRef));
+
+              for (let i = 0; i < filledCells.length; i++) {
+                const cell = filledCells[i];
+                const bandY0 = 12 + i * bandHeight;
+                const bandY1 = bandY0 + bandHeight;
+                const srcY = cell.y0 + borderTrimY;
+                const srcH = Math.max(8, cell.y1 - cell.y0 - borderTrimY * 2);
+                const dstH = Math.round(srcH * upscale);
+                const dstY = bandY0 + Math.round((bandHeight - dstH) / 2);
+
+                // 1) Disegna la cella del numero progressivo (senza il bordo verticale destro!)
+                const srcProgX = Math.max(0, cell.localDivX - borderTrimX - progCropW);
+                ocrCtx.drawImage(
+                  cleanFullCanvas,
+                  srcProgX,
+                  srcY,
+                  progCropW,
+                  srcH,
+                  padLeft,
+                  dstY,
+                  scaledProgW,
+                  dstH
+                );
+
+                // 2) Disegna la cella del nominativo (senza il bordo verticale sinistro e senza la 3ª colonna materia!)
+                const srcNomX = cell.localDivX + borderTrimX;
+                ocrCtx.drawImage(
+                  cleanFullCanvas,
+                  srcNomX,
+                  srcY,
+                  nomCropW,
+                  srcH,
+                  nomStartX,
+                  dstY,
+                  scaledNomW,
+                  dstH
+                );
+
+                // Crea il ritaglio visivo originale della riga (per mostrarlo in Segreteria)
+                const origCropCanvas = document.createElement('canvas');
+                const origSrcX = Math.max(0, cell.localDivX - progCropW - 4);
+                const origSrcW = Math.min(w - origSrcX, progCropW + nomCropW + 14);
+                const origSrcY = Math.max(0, cell.y0 - 2);
+                const origSrcH = Math.min(h - origSrcY, cell.y1 - cell.y0 + 4);
+                origCropCanvas.width = origSrcW;
+                origCropCanvas.height = origSrcH;
+                const origCtx = origCropCanvas.getContext('2d')!;
+                origCtx.drawImage(
+                  workCanvas,
+                  origSrcX,
+                  origSrcY,
+                  origSrcW,
+                  origSrcH,
+                  0,
+                  0,
+                  origSrcW,
+                  origSrcH
+                );
+
+                // Crea la striscia singola del solo nominativo pulito (per l'OCR mirato PSM 7 sulle scritte a penna!)
+                const nomStripCanvas = document.createElement('canvas');
+                nomStripCanvas.width = scaledNomW + 36;
+                nomStripCanvas.height = dstH + 28;
+                const nomStripCtx = nomStripCanvas.getContext('2d')!;
+                nomStripCtx.fillStyle = '#ffffff';
+                nomStripCtx.fillRect(0, 0, nomStripCanvas.width, nomStripCanvas.height);
+                nomStripCtx.imageSmoothingEnabled = true;
+                nomStripCtx.imageSmoothingQuality = 'high';
+                nomStripCtx.drawImage(
+                  cleanFullCanvas,
+                  srcNomX,
+                  srcY,
+                  nomCropW,
+                  srcH,
+                  18,
+                  14,
+                  scaledNomW,
+                  dstH
+                );
+
+                tableBands.push({
+                  tableRowIndex: cell.tableRowIndex,
+                  isLikelyHeader: cell.isLikelyHeader,
+                  bandY0,
+                  bandY1,
+                  nomStartX,
+                  cropDataUrl: origCropCanvas.toDataURL('image/jpeg', 0.88),
+                  nomStripDataUrl: nomStripCanvas.toDataURL('image/jpeg', 0.94),
+                });
+              }
+
+              resolve({
+                cleanedDataUrl: ocrCanvas.toDataURL('image/jpeg', 0.95),
+                tableBands,
+              });
+              return;
+            }
+          }
+        }
+
+        // Fallback per fogli senza griglia tabellare: ingrandisce fino a ~2000px di altezza con inchiostro pulito
+        const cleanBaseCanvas = document.createElement('canvas');
+        cleanBaseCanvas.width = w;
+        cleanBaseCanvas.height = h;
+        const cleanBaseCtx = cleanBaseCanvas.getContext('2d')!;
+        const outImgData = cleanBaseCtx.createImageData(w, h);
+        for (let i = 0; i < w * h; i++) {
+          const v = cleanPixels[i];
+          outImgData.data[i * 4] = v;
+          outImgData.data[i * 4 + 1] = v;
+          outImgData.data[i * 4 + 2] = v;
+          outImgData.data[i * 4 + 3] = 255;
+        }
+        cleanBaseCtx.putImageData(outImgData, 0, 0);
+
+        const upScale = Math.max(1.5, Math.min(2.4, 2000 / Math.max(w, h)));
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = Math.round(w * upScale);
+        finalCanvas.height = Math.round(h * upScale);
+        const finalCtx = finalCanvas.getContext('2d')!;
+        finalCtx.fillStyle = '#ffffff';
+        finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+        finalCtx.imageSmoothingEnabled = true;
+        finalCtx.imageSmoothingQuality = 'high';
+        finalCtx.drawImage(cleanBaseCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
+
+        resolve({
+          cleanedDataUrl: finalCanvas.toDataURL('image/jpeg', 0.94),
+          tableBands: [],
+        });
       };
       img.onerror = (err) => reject(err);
       img.src = url;
     });
+  };
+
+  // Esegue l'OCR combinando il rilevamento strutturato delle celle (stampate o scritte a penna) + matching intelligente Anagrafica Soci
+  const runOcrOnPreprocessedSheet = async (
+    prep: PreprocessedSheetResult,
+    existingMax: number
+  ): Promise<{ items: QueueItem[]; crops: Record<number, string> }> => {
+    const crops: Record<number, string> = {};
+    const Tesseract = await loadTesseract();
+
+    let worker: any = null;
+    let mainResult: any = null;
+
+    try {
+      if (typeof Tesseract.createWorker === 'function') {
+        worker = await Tesseract.createWorker('ita', 1, {
+          logger: (m: any) => {
+            if (m.status === 'recognizing text' && typeof m.progress === 'number') {
+              setScanProgress(Math.round(15 + m.progress * 65));
+            }
+          },
+        });
+        if (typeof worker.setParameters === 'function') {
+          await worker.setParameters({
+            tessedit_pageseg_mode: '6',
+            preserve_interword_spaces: '1',
+          });
+        }
+        mainResult = await worker.recognize(prep.cleanedDataUrl);
+      } else {
+        mainResult = await Tesseract.recognize(prep.cleanedDataUrl, 'ita', {
+          logger: (m: any) => {
+            if (m.status === 'recognizing text' && typeof m.progress === 'number') {
+              setScanProgress(Math.round(15 + m.progress * 65));
+            }
+          },
+        });
+      }
+
+      // Se abbiamo rilevato le righe della tabella (es. righe 1..7 compilate su 28), estraiamo riga per riga con precisione millimetrica!
+      if (prep.tableBands.length > 0) {
+        const allWords: { text: string; x0: number; y0: number; x1: number; y1: number }[] = [];
+        const collectW = (w: any) => {
+          const t = String(w?.text || '').trim();
+          const b = w?.bbox;
+          if (t && b && typeof b.x0 === 'number' && typeof b.y0 === 'number') {
+            allWords.push({ text: t, x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 });
+          }
+        };
+
+        const data = mainResult?.data;
+        if (Array.isArray(data?.words) && data.words.length > 0) {
+          data.words.forEach(collectW);
+        } else if (Array.isArray(data?.lines)) {
+          data.lines.forEach((l: any) => {
+            if (Array.isArray(l?.words) && l.words.length > 0) l.words.forEach(collectW);
+            else collectW(l);
+          });
+        }
+
+        // Verifica se la prima fascia (tableRowIndex === 0) è l'intestazione ("prog | nominativo")
+        let hasHeaderRow = prep.tableBands[0]?.tableRowIndex === 0 && prep.tableBands[0]?.isLikelyHeader;
+        if (prep.tableBands[0]?.tableRowIndex === 0 && !hasHeaderRow) {
+          const b0 = prep.tableBands[0];
+          const b0Words = allWords
+            .filter((w) => {
+              const cy = (w.y0 + w.y1) / 2;
+              return cy >= b0.bandY0 - 6 && cy <= b0.bandY1 + 6;
+            })
+            .map((w) => w.text)
+            .join(' ');
+          if (HEADER_NOISE.test(b0Words) || /\b(prog|nominativo|materia)\b/i.test(b0Words)) {
+            hasHeaderRow = true;
+          }
+        }
+
+        const tableItems: QueueItem[] = [];
+        const usedNums = new Set<number>();
+
+        for (let idx = 0; idx < prep.tableBands.length; idx++) {
+          const band = prep.tableBands[idx];
+          if (band.tableRowIndex === 0 && hasHeaderRow) {
+            continue;
+          }
+
+          const bandWords = allWords.filter((w) => {
+            const cy = (w.y0 + w.y1) / 2;
+            return cy >= band.bandY0 - 6 && cy <= band.bandY1 + 6;
+          });
+
+          const progWords = bandWords
+            .filter((w) => w.x0 < band.nomStartX - 12)
+            .sort((a, b) => a.x0 - b.x0)
+            .map((w) => w.text)
+            .join(' ');
+
+          let nomWords = bandWords
+            .filter((w) => w.x0 >= band.nomStartX - 12)
+            .sort((a, b) => a.x0 - b.x0)
+            .map((w) => w.text)
+            .join(' ');
+
+          // Se nella casella nominativo di questa riga compilata l'OCR a pagina intera ha letto meno di 3 lettere (es. scritto a penna!),
+          // esegue subito una lettura mirata PSM 7 (Riga Singola) sul ritaglio ingrandito di quella specifica casella!
+          const alphaCount = (nomWords.match(/[A-Za-zÀ-ÿ]/g) || []).length;
+          if (alphaCount < 3 && worker && typeof worker.setParameters === 'function') {
+            setScanStatusText(
+              `Lettura approfondita scrittura riga ${band.tableRowIndex || idx + 1}...`
+            );
+            setScanProgress(Math.min(96, 80 + Math.round((idx / prep.tableBands.length) * 16)));
+            await worker.setParameters({
+              tessedit_pageseg_mode: '7',
+              preserve_interword_spaces: '1',
+            });
+            const singleRes = await worker.recognize(band.nomStripDataUrl);
+            const singleText = String(singleRes?.data?.text || '').trim();
+            if ((singleText.match(/[A-Za-zÀ-ÿ]/g) || []).length > alphaCount) {
+              nomWords = singleText;
+            }
+          }
+
+          // Calcola il numero progressivo della riga:
+          // in una tabella strutturata la riga fisica (1, 2, 3...) è certa anche se la cifra stampata toccava il bordo!
+          const expectedRowNum = hasHeaderRow ? band.tableRowIndex : band.tableRowIndex + 1;
+          const digitMatch = progWords.match(/\d{1,3}/);
+          const ocrNum = digitMatch ? parseInt(digitMatch[0], 10) : null;
+
+          let finalNum = expectedRowNum;
+          if (
+            ocrNum !== null &&
+            ocrNum > 0 &&
+            ocrNum <= 500 &&
+            Math.abs(ocrNum - expectedRowNum) <= 1 &&
+            !usedNums.has(ocrNum)
+          ) {
+            finalNum = ocrNum;
+          } else if (usedNums.has(finalNum)) {
+            finalNum = (tableItems[tableItems.length - 1]?.number || existingMax) + 1;
+          }
+
+          let cleanName = extractCleanNameOnly(nomWords, profiles);
+          if (!cleanName && HEADER_NOISE.test(nomWords) && band.tableRowIndex === 0) {
+            hasHeaderRow = true;
+            continue;
+          }
+
+          // Se la casella è compilata a mano con calligrafia molto corsiva non decifrabile del tutto,
+          // conserva comunque la riga col suo numero esatto e allega il ritaglio fotografico della scritta!
+          if (!cleanName) {
+            cleanName = `Socio Riga ${finalNum} (scritto a mano — tocca per verificare)`;
+          }
+
+          usedNums.add(finalNum);
+          crops[finalNum] = band.cropDataUrl;
+          tableItems.push({ number: finalNum, name: cleanName });
+        }
+
+        if (tableItems.length > 0) {
+          return { items: tableItems.sort((a, b) => a.number - b.number), crops };
+        }
+      }
+
+      // Fallback per immagini non tabellari
+      const geomLines = reconstructRowsFromTesseractData(mainResult?.data);
+      const parsedGeom = parseSheetLinesIntoQueueItems(geomLines, profiles, existingMax);
+      const rawLines = String(mainResult?.data?.text || '').split(/\r?\n/);
+      const parsedRaw = parseSheetLinesIntoQueueItems(rawLines, profiles, existingMax);
+      const bestParsed = parsedGeom.length >= parsedRaw.length ? parsedGeom : parsedRaw;
+
+      return { items: bestParsed, crops };
+    } finally {
+      if (worker && typeof worker.terminate === 'function') {
+        try {
+          await worker.terminate();
+        } catch {
+          // Ignore worker cleanup errors
+        }
+      }
+    }
   };
 
   // Gestisce sia la FOTO SCATTATA AL FOGLIO sia il FILE PDF (testuale o scannerizzato)
@@ -831,7 +1577,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
 
     setIsScanning(true);
     setScanProgress(10);
-    setScanStatusText('Apertura documento in corso...');
+    setScanStatusText('Analisi righe della tabella e pulizia bordi in corso...');
 
     const existingMax =
       queueState.items.length > 0 ? Math.max(...queueState.items.map((i) => i.number)) : 0;
@@ -841,36 +1587,20 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
       const isImage = file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'heic'].includes(ext);
 
       if (isImage) {
-        // Salva anteprima della foto del foglio così la Segreteria può anche consultarla a schermo
         const previewUrl = URL.createObjectURL(file);
         setLastSheetPhotoUrl(previewUrl);
 
-        setScanStatusText('Lettura ottica (OCR) di tutte le righe del foglio in corso...');
-        const processedDataUrl = await preprocessImageForOcr(file);
-        const Tesseract = await loadTesseract();
+        const prep = await analyzeAndPreprocessSheet(file);
+        setScanStatusText(
+          prep.tableBands.length > 0
+            ? `Rilevate ${prep.tableBands.length} righe compilate sul foglio: lettura nomi in corso...`
+            : 'Lettura ottica (OCR) di tutte le righe del foglio in corso...'
+        );
 
-        const result = await Tesseract.recognize(processedDataUrl, 'ita', {
-          tessedit_pageseg_mode: '6',
-          logger: (m: any) => {
-            if (m.status === 'recognizing text' && typeof m.progress === 'number') {
-              setScanProgress(Math.round(15 + m.progress * 80));
-            }
-          },
-        });
-
-        // 1) Ricostruzione geometrica riga per riga tramite coordinate (x, y) delle parole
-        const geomLines = reconstructRowsFromTesseractData(result?.data);
-        const parsedGeom = parseSheetLinesIntoQueueItems(geomLines, profiles, existingMax);
-
-        // 2) Parsing del testo grezzo lineare
-        const rawLines = String(result?.data?.text || '').split(/\r?\n/);
-        const parsedRaw = parseSheetLinesIntoQueueItems(rawLines, profiles, existingMax);
-
-        // Sceglie il risultato più completo (quello che ha estratto più righe valide!)
-        const bestParsed = parsedGeom.length >= parsedRaw.length ? parsedGeom : parsedRaw;
+        const { items: bestParsed, crops } = await runOcrOnPreprocessedSheet(prep, existingMax);
 
         if (bestParsed.length > 0) {
-          integrateExtractedItems(bestParsed, `Foto: ${file.name}`);
+          integrateExtractedItems(bestParsed, `Foto: ${file.name}`, crops);
         } else {
           setShowPhotoModal(true);
           showNotice(
@@ -913,12 +1643,12 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         }
 
         let parsed = parseSheetLinesIntoQueueItems(allExtractedLines, profiles, existingMax);
+        let mergedCrops: Record<number, string> = {};
 
-        // Se il PDF era una SCANSIONE (immagine dentro PDF senza testo digitale), usa l'OCR sulla pagina PDF!
+        // Se il PDF era una SCANSIONE (immagine dentro PDF senza testo digitale), usa l'OCR tabellare sulla pagina PDF!
         if (parsed.length === 0 && pdf.numPages > 0) {
           setScanStatusText('PDF scannerizzato rilevato: lettura ottica (OCR) dei nomi in corso...');
-          const Tesseract = await loadTesseract();
-          const ocrLines: string[] = [];
+          const allPdfItems: QueueItem[] = [];
 
           for (let pageNum = 1; pageNum <= Math.min(pdf.numPages, 5); pageNum++) {
             const page = await pdf.getPage(pageNum);
@@ -931,23 +1661,21 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               await page.render({ canvasContext: ctx, viewport }).promise;
               const pageDataUrl = canvas.toDataURL('image/jpeg', 0.92);
               if (pageNum === 1) setLastSheetPhotoUrl(pageDataUrl);
-              const res = await Tesseract.recognize(pageDataUrl, 'ita', {
-                tessedit_pageseg_mode: '6',
-                logger: (m: any) => {
-                  if (m.status === 'recognizing text' && typeof m.progress === 'number') {
-                    setScanProgress(Math.round(40 + m.progress * 55));
-                  }
-                },
-              });
-              const geom = reconstructRowsFromTesseractData(res?.data);
-              ocrLines.push(...(geom.length > 0 ? geom : String(res?.data?.text || '').split(/\r?\n/)));
+              const blob = await (await fetch(pageDataUrl)).blob();
+              const prep = await analyzeAndPreprocessSheet(blob);
+              const { items: pageItems, crops } = await runOcrOnPreprocessedSheet(
+                prep,
+                existingMax + allPdfItems.length
+              );
+              allPdfItems.push(...pageItems);
+              mergedCrops = { ...mergedCrops, ...crops };
             }
           }
-          parsed = parseSheetLinesIntoQueueItems(ocrLines, profiles, existingMax);
+          parsed = allPdfItems;
         }
 
         if (parsed.length > 0) {
-          integrateExtractedItems(parsed, file.name);
+          integrateExtractedItems(parsed, file.name, mergedCrops);
         } else {
           showNotice(
             'error',
@@ -1147,6 +1875,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
       pdfFileName: '',
     }));
     setLastSheetPhotoUrl(null);
+    setRowCropsByNumber({});
     setStartNumberInput('1');
     showNotice(
       'success',
@@ -1881,78 +2610,98 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             </p>
           </div>
         ) : (
-          <div className="max-h-[420px] overflow-y-auto rounded-2xl border border-slate-200 divide-y divide-slate-100">
+          <div className="max-h-[460px] overflow-y-auto rounded-2xl border border-slate-200 divide-y divide-slate-100">
             {filteredItems.map((item) => {
               const isCurrent = item.number === queueState.currentNumber;
+              const rowCrop = rowCropsByNumber[item.number];
               return (
                 <div
                   key={item.number}
-                  className={`flex items-center justify-between gap-2 px-3.5 py-2.5 transition ${
+                  className={`flex flex-col gap-1.5 px-3.5 py-2.5 transition ${
                     isCurrent ? 'bg-emerald-50/90' : 'bg-white hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateQueueState((prev) => ({
-                          ...prev,
-                          currentNumber: item.number,
-                          callPulse: Date.now(),
-                        }))
-                      }
-                      className={`inline-flex items-center justify-center min-w-[3.2rem] rounded-xl px-2.5 py-1.5 text-sm font-black tabular-nums cursor-pointer transition ${
-                        isCurrent
-                          ? 'bg-emerald-700 text-white shadow-xs'
-                          : 'bg-slate-100 hover:bg-emerald-100 text-slate-800'
-                      }`}
-                      title="Tocca per chiamare subito questo numero in Sala d'Attesa"
-                    >
-                      N° {item.number}
-                    </button>
-
-                    <input
-                      type="text"
-                      value={item.name}
-                      onChange={(e) => handleUpdateItemNameInline(item.number, e.target.value)}
-                      className={`h-9 flex-1 min-w-0 rounded-lg border px-2.5 text-sm font-semibold focus:outline-none ${
-                        isCurrent
-                          ? 'border-emerald-500 bg-white text-emerald-950'
-                          : 'border-transparent hover:border-slate-200 focus:border-emerald-500 bg-transparent text-slate-800'
-                      }`}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {isCurrent ? (
-                      <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 px-2.5 py-1 text-xs font-bold text-white">
-                        <Check className="h-3.5 w-3.5" /> Chiamato
-                      </span>
-                    ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
                       <button
                         type="button"
                         onClick={() =>
                           updateQueueState((prev) => ({
                             ...prev,
                             currentNumber: item.number,
+                            standbyMode: 'none',
+                            standbyMessage: '',
                             callPulse: Date.now(),
                           }))
                         }
-                        className="rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 cursor-pointer"
+                        className={`inline-flex items-center justify-center min-w-[3.2rem] rounded-xl px-2.5 py-1.5 text-sm font-black tabular-nums cursor-pointer transition ${
+                          isCurrent
+                            ? 'bg-emerald-700 text-white shadow-xs'
+                            : 'bg-slate-100 hover:bg-emerald-100 text-slate-800'
+                        }`}
+                        title="Tocca per chiamare subito questo numero in Sala d'Attesa"
                       >
-                        Chiama
+                        N° {item.number}
                       </button>
-                    )}
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteQueueItem(item.number)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
-                      title="Elimina riga"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                      <input
+                        type="text"
+                        value={item.name}
+                        onChange={(e) => handleUpdateItemNameInline(item.number, e.target.value)}
+                        className={`h-9 flex-1 min-w-0 rounded-lg border px-2.5 text-sm font-semibold focus:outline-none ${
+                          isCurrent
+                            ? 'border-emerald-500 bg-white text-emerald-950'
+                            : 'border-transparent hover:border-slate-200 focus:border-emerald-500 bg-transparent text-slate-800'
+                        }`}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {isCurrent ? (
+                        <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 px-2.5 py-1 text-xs font-bold text-white">
+                          <Check className="h-3.5 w-3.5" /> Chiamato
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateQueueState((prev) => ({
+                              ...prev,
+                              currentNumber: item.number,
+                              standbyMode: 'none',
+                              standbyMessage: '',
+                              callPulse: Date.now(),
+                            }))
+                          }
+                          className="rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 cursor-pointer"
+                        >
+                          Chiama
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteQueueItem(item.number)}
+                        className="rounded-lg p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                        title="Elimina riga"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
+
+                  {rowCrop && (
+                    <div className="pl-14 flex items-center gap-2">
+                      <img
+                        src={rowCrop}
+                        alt={`Riga ${item.number} foglio`}
+                        className="h-7 max-w-[260px] sm:max-w-[340px] object-contain rounded border border-slate-200 bg-white px-1"
+                      />
+                      <span className="text-[10px] text-slate-400 hidden sm:inline">
+                        Ritaglio riga {item.number} dal foglio
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })}
