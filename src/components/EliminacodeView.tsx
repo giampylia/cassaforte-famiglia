@@ -223,7 +223,11 @@ function playQueueCallChime(number: number, name: string, voiceActive: boolean) 
     try {
       window.speechSynthesis.cancel();
       setTimeout(() => {
-        const text = name ? `Turno numero ${number}, ${name}` : `Turno numero ${number}`;
+        const cleanSpokenName =
+          !name || name.trim() === '' || /socio\s+sconosciuto/i.test(name)
+            ? 'Socio sconosciuto'
+            : name.trim();
+        const text = `Turno numero ${number}, ${cleanSpokenName}`;
         const utter = new SpeechSynthesisUtterance(text);
         utter.lang = 'it-IT';
         utter.volume = 1.0;
@@ -239,314 +243,183 @@ function playQueueCallChime(number: number, name: string, voiceActive: boolean) 
   }
 }
 
-// Parole di altre colonne (es. materie dei corsi, segreteria, gruppi, sedi, intestazioni, watermark fotocamera) da rimuovere per tenere SOLO Nome e Cognome
-const EXTRA_COLUMN_WORDS = new RegExp(
-  '\\b(segreteria|gruppo|ambiente|inglese|spagnolo|francese|tedesco|informatica|computer|smartphone|ginnastica|posturale|dolce|yoga|pilates|ballo|danza|storia|arte|sardegna|pittura|disegno|acquerello|teatro|coro|musica|canto|psicologia|filosofia|letteratura|poesia|fotografia|cucito|ricamo|scacchi|burraco|bridge|viaggi|quartu|soleminis|base|avanzato|intermedio|corso|materia|nominativo|firma|pagato|acconto|saldo|mattina|pomeriggio|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|enter\\s+text|formula\\s+here|volte|zte|blade|a76)\\b.*$',
-  'i'
-);
+const UNKNOWN_SOCIO_LABEL = 'Socio sconosciuto';
 
 const HEADER_NOISE =
-  /^(pagina|page|elenco|lista|universit|quartu|soleminis|data|stampato|totale|prog\b|nominativo\b|prog\.?\s*nominativo|prog\.?\s*nome|n[°.]?\s*nome|num\.?\s*cognome|cognome\s+e\s+nome|nome\s+e\s+cognome|materia|firma|enter\s+text|formula\s+here|fx\b|zte\s+blade)/i;
+  /^(pagina|page|elenco|lista|universit|quartu|soleminis|data|stampato|totale|prog\b|nominativo\b|tessera\b|n\.?\s*tessera|num\.?\s*tessera|numero\s+tessera|prog\.?\s*nominativo|prog\.?\s*tessera|prog\.?\s*nome|n[°.]?\s*nome|num\.?\s*cognome|cognome\s+e\s+nome|nome\s+e\s+cognome|materia|firma|enter\s+text|formula\s+here|fx\b|zte\s+blade)/i;
 
-// Nominativi frequenti QU3 di riferimento (oltre all'intera Anagrafica Soci caricata nel cloud)
-const KNOWN_SHEET_NAMES_FALLBACK: string[] = [
-  'PILIA GIAMPIERO',
-  'BOI VINCENZO',
-  'COCCO MARIA NIVES',
-  'CORDA NATALINA',
-  'SANDRO PROSPERI',
-  'GIOVANNA SOTGIU',
-  'ANNA MARIA SANNA',
-];
+// Riconosce scritte con cui il socio indica di non ricordare o non avere il numero tessera
+const FORGOTTEN_CARD_PHRASE =
+  /\b(non|ricord\w*|tesser\w*|dimentic\w*|pers[aoei]|smarrit\w*|sconosciut\w*|nuov[oaie]|senza|nessun\w*|niente|nulla|boh|non\s+so|non\s+ho)\b/i;
 
-function normalizeOcrTokenForMatch(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .replace(/0/g, 'O')
-    .replace(/[1|!l]/g, 'I')
-    .replace(/5/g, 'S')
-    .replace(/8/g, 'B')
-    .replace(/6/g, 'G')
-    .replace(/[^A-Z]/g, '');
-}
-
-// Normalizza le lettere che nella scrittura a mano (a penna) hanno tratti simili per l'OCR (es. B/G, U/V, M/N, D/T)
-function handwritingSkeleton(s: string): string {
-  return normalizeOcrTokenForMatch(s)
-    .replace(/[BG]/g, 'B')
-    .replace(/[UV]/g, 'V')
-    .replace(/[MN]/g, 'N')
-    .replace(/[DT]/g, 'T')
-    .replace(/II+/g, 'I');
-}
-
-function weightedHandwritingEditDistance(a: string, b: string): number {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  const dp = Array.from({ length: a.length + 1 }, (_, i) => i);
-  for (let j = 1; j <= b.length; j++) {
-    let prev = dp[0];
-    dp[0] = j;
-    for (let i = 1; i <= a.length; i++) {
-      const temp = dp[i];
-      const cost =
-        a[i - 1] === b[j - 1]
-          ? 0
-          : handwritingSkeleton(a[i - 1]) === handwritingSkeleton(b[j - 1])
-          ? 0.35
-          : 1;
-      dp[i] = Math.min(prev + cost, dp[i] + 1, dp[i - 1] + 1);
-      prev = temp;
-    }
-  }
-  return dp[a.length];
-}
-
-function weightedLcsLength(a: string, b: string): number {
-  if (!a.length || !b.length) return 0;
-  const dp = new Array(b.length + 1).fill(0);
-  for (let i = 0; i < a.length; i++) {
-    let prev = 0;
-    for (let j = 0; j < b.length; j++) {
-      const tmp = dp[j + 1];
-      const match =
-        a[i] === b[j]
-          ? 1
-          : handwritingSkeleton(a[i]) === handwritingSkeleton(b[j])
-          ? 0.8
-          : 0;
-      dp[j + 1] = match > 0 ? Math.max(dp[j + 1], dp[j], prev + match) : Math.max(dp[j + 1], dp[j]);
-      prev = tmp;
-    }
-  }
-  return dp[b.length];
-}
-
-function tokenSimilarity(cand: string, target: string): number {
-  const c = normalizeOcrTokenForMatch(cand);
-  const t = normalizeOcrTokenForMatch(target);
-  if (!c || !t) return 0;
-  if (c === t) return 1;
-  const maxLen = Math.max(c.length, t.length);
-  if (maxLen === 0) return 0;
-  const edSim = 1 - weightedHandwritingEditDistance(c, t) / maxLen;
-  const lcsSim = weightedLcsLength(c, t) / maxLen;
-  const sc = handwritingSkeleton(c);
-  const st = handwritingSkeleton(t);
-  const bonus =
-    (sc[0] === st[0] ? 0.09 : 0) +
-    (sc[sc.length - 1] === st[st.length - 1] ? 0.06 : 0) +
-    (sc.slice(0, 2) === st.slice(0, 2) ? 0.07 : 0);
-  return Math.min(1, Math.max(edSim, lcsSim * 0.92) + bonus);
-}
-
-// Verifica se una stringa OCR sembra rumore di lettura su scrittura a mano (es. CamelCase interno "aGarvleEno", "SoNalu", o frammenti corti "sis GO uve")
-function looksLikeNoisyHandwrittenOcr(s: string): boolean {
-  const words = s.trim().split(/\s+/);
-  const hasInternalCamelCase = words.some((w) => /[a-z][A-Z]/.test(w));
-  const shortFragments = words.filter((w) => w.length <= 3).length;
-  return hasInternalCamelCase || (words.length >= 3 && shortFragments >= 2);
-}
-
-// Confronta un nome letto dall'OCR (anche se scritto a penna con lettere deformate) con l'Anagrafica Soci.
-// Restituisce null se nessun socio supera la soglia di affidabilità (così non inventa mai soci sbagliati come Gavino Carta o Anna Rita Cao!).
-function fuzzyMatchSocioName(candidateName: string, knownProfiles: Profile[]): string | null {
-  if (!candidateName || candidateName.length < 3) return null;
-
-  const rawTokens = candidateName
-    .split(/\s+/)
-    .map((t) => normalizeOcrTokenForMatch(t))
-    .filter((t) => t.length >= 2);
-
-  if (rawTokens.length === 0) return null;
-  const candJoined = rawTokens.join('');
-
-  // Crea anche coppie di token adiacenti (es. se una parola lunga scritta a mano come PROSPERI è stata spezzata in "Vo SCE")
-  const cSpans: { text: string; i0: number; i1: number }[] = [];
-  for (let i = 0; i < rawTokens.length; i++) {
-    cSpans.push({ text: rawTokens[i], i0: i, i1: i });
-    if (i + 1 < rawTokens.length) {
-      cSpans.push({ text: rawTokens[i] + rawTokens[i + 1], i0: i, i1: i + 1 });
-    }
-  }
-
-  // Costruisce il pool di candidati dall'Anagrafica Soci + i nominativi QU3 noti (senza duplicati e senza profili di servizio)
-  const pool: { display: string; tokens: string[] }[] = [];
-  const seenKeys = new Set<string>();
-  const addTarget = (display: string) => {
-    const tokens = display
-      .split(/\s+/)
-      .map(normalizeOcrTokenForMatch)
-      .filter((t) => t.length >= 2);
-    if (tokens.length === 0) return;
-    const key = [...tokens].sort().join('|');
-    if (seenKeys.has(key)) return;
-    seenKeys.add(key);
-    pool.push({ display: display.trim(), tokens });
-  };
-
-  for (const fb of KNOWN_SHEET_NAMES_FALLBACK) {
-    addTarget(fb);
-  }
-  for (const p of knownProfiles || []) {
-    if (!p?.full_name || p.member_number === '000') continue;
-    if (/segreteria|ufficio|presenze/i.test(p.full_name)) continue;
-    addTarget(p.full_name);
-  }
-
-  let bestDisplay: string | null = null;
-  let bestScore = 0;
-  const isNoisy = looksLikeNoisyHandwrittenOcr(candidateName);
-
-  for (const target of pool) {
-    if (target.tokens.length === 0) continue;
-
-    // 1) Accoppiamento bipartito senza sovrapposizioni tra span OCR e parole del socio (indipendente da Nome Cognome vs Cognome Nome)
-    const pairs: { ti: number; ci: number; sim: number; tLen: number }[] = [];
-    for (let ti = 0; ti < target.tokens.length; ti++) {
-      for (let ci = 0; ci < cSpans.length; ci++) {
-        pairs.push({
-          ti,
-          ci,
-          sim: tokenSimilarity(cSpans[ci].text, target.tokens[ti]),
-          tLen: target.tokens[ti].length,
-        });
-      }
-    }
-    pairs.sort((a, b) => b.sim - a.sim);
-
-    const usedTarget = new Set<number>();
-    const usedRawIdx = new Set<number>();
-    const matched: { sim: number; tLen: number }[] = [];
-
-    for (const pr of pairs) {
-      const sp = cSpans[pr.ci];
-      if (!usedTarget.has(pr.ti) && !usedRawIdx.has(sp.i0) && !usedRawIdx.has(sp.i1)) {
-        usedTarget.add(pr.ti);
-        usedRawIdx.add(sp.i0);
-        usedRawIdx.add(sp.i1);
-        matched.push({ sim: pr.sim, tLen: pr.tLen });
-      }
-    }
-
-    if (matched.length > 0) {
-      const top1 = matched[0].sim;
-      const top1Len = matched[0].tLen;
-      const top2 = matched.length > 1 ? matched[1].sim : 0;
-      const combinedScore = matched.length > 1 ? top1 * 0.58 + top2 * 0.42 : top1 * 0.78;
-
-      // Richiede che almeno una parola del nome sia nettamente riconoscibile (top1 >= 0.76) oppure entrambe solide (top1 >= 0.66 e top2 >= 0.50)
-      const isAcceptable =
-        (top1 >= 0.76 && top1Len >= 5 && combinedScore >= 0.56) ||
-        (top1 >= 0.66 && top2 >= 0.50 && combinedScore >= 0.54) ||
-        (top1 >= 0.85 && top2 >= 0.35 && combinedScore >= 0.54) ||
-        (isNoisy && top1 >= 0.68 && top2 >= 0.42 && combinedScore >= 0.55);
-
-      if (isAcceptable && combinedScore > bestScore) {
-        bestScore = combinedScore;
-        bestDisplay = target.display;
-      }
-    }
-
-    // 2) Confronto stringa unita (nel caso l'OCR su scrittura a mano abbia unito Nome e Cognome senza spazio)
-    const targetForward = target.tokens.join('');
-    const targetReverse = [...target.tokens].reverse().join('');
-    const simFwd = tokenSimilarity(candJoined, targetForward);
-    const simRev = tokenSimilarity(candJoined, targetReverse);
-    const joinedSim = Math.max(simFwd, simRev);
-    if (joinedSim >= 0.70 && joinedSim > bestScore) {
-      bestScore = joinedSim;
-      bestDisplay = target.display;
-    }
-  }
-
-  return bestDisplay;
-}
-
-// Pulisce la parte testuale tenendo solo Nome e Cognome (e confrontando anche con l'Anagrafica Soci)
-function extractCleanNameOnly(rawRest: string, knownProfiles: Profile[]): string {
-  if (!rawRest || !rawRest.trim()) return '';
-
-  // Usa ':::' come separatore geometrico di colonna (evitando che i bordi verticali '|' letti dall'OCR taglino il nome!)
-  let firstCol = rawRest.split(':::')[0] || rawRest;
-
-  // Prova subito il match diretto con l'Anagrafica Soci sulla prima colonna
-  const directSocio = fuzzyMatchSocioName(firstCol, knownProfiles);
-  if (directSocio) {
-    return directSocio;
-  }
-
-  let text = firstCol
-    .replace(/\|+/g, ' ') // rimuove eventuali barre verticali di griglia lette come '|'
-    .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, ' ') // rimuove date
-    .replace(/\b\d{1,2}:\d{2}\b/g, ' ') // rimuove orari tipo 19:00
-    .replace(/\b\d{6,12}\b/g, ' ') // rimuove numeri di telefono
-    .replace(/€\s*\d+([.,]\d+)?/g, ' ') // rimuove importi
-    .replace(/\b\d{1,3}[.,]\d{1,3}\b/g, ' ') // rimuove decimali tipo 1.01, 1.02
-    .replace(/\b[A-Za-z]{1,4}\d+[A-Za-z0-9]*\b/g, ' ') // rimuove codici alfanumerici extra colonna
-    .replace(/\b\d+[A-Za-z]{1,4}\b/g, ' ')
+// Cerca un socio nell'Archivio Soci (profiles) tramite Numero Tessera.
+// Gestisce sia la corrispondenza esatta sia eventuali zeri iniziali (es. "0101" <-> "101", "7726" <-> Giampiero Pilia).
+function findSocioByCardNumber(rawCandidate: string, knownProfiles: Profile[]): Profile | null {
+  const cleaned = String(rawCandidate || '')
+    .trim()
+    .replace(/^(?:n[°º.]?|num(?:ero)?\.?|tess(?:era)?\.?|socio|cod(?:ice)?\.?|#)\s*/i, '')
     .trim();
 
-  // Taglia via eventuali colonne successive (es. Materia prescelta: SEGRETERIA, GRUPPO AMBIENTE, ecc.)
-  text = text.replace(EXTRA_COLUMN_WORDS, '').trim();
+  if (!cleaned || cleaned === '000' || cleaned === '0') return null;
 
-  // Corregge cifre tipicamente scambiate dall'OCR dentro una parola alfabetica (es. P1LIA -> PILIA, B0I -> BOI)
-  text = text
-    .replace(/(?<=[A-Za-zÀ-ÿ])0(?=[A-Za-zÀ-ÿ])/g, 'O')
-    .replace(/(?<=[A-Za-zÀ-ÿ])1(?=[A-Za-zÀ-ÿ])/g, 'I')
-    .replace(/(?<=[A-Za-zÀ-ÿ])5(?=[A-Za-zÀ-ÿ])/g, 'S')
-    .replace(/(?<=[A-Za-zÀ-ÿ])8(?=[A-Za-zÀ-ÿ])/g, 'B');
+  const validProfiles = (knownProfiles || []).filter(
+    (p) =>
+      p &&
+      p.member_number &&
+      p.member_number.trim() !== '000' &&
+      p.full_name &&
+      !/^socio\s+tessera\b/i.test(p.full_name.trim()) &&
+      !/ufficio\s+presenze/i.test(p.full_name.trim())
+  );
 
-  // Tiene solo caratteri validi per un nome e cognome
-  let cleanWords = text
-    .replace(/[^A-Za-zÀ-ÿ'\s.-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .split(' ')
-    .filter((w) => {
-      if (!w) return false;
-      // Scarta finte parole fatte solo di I/l generate dai bordi verticali della tabella
-      if (/^[Il|!.,-]+$/.test(w) && w.length <= 3) return false;
-      return w.length >= 2 || /^[A-Za-zÀ-ÿ]\.(?:[A-Za-zÀ-ÿ]\.)?$/.test(w);
-    });
+  // 1) Super Admin 7726 / 7796 -> Giampiero Pilia
+  if (cleaned === '7726' || cleaned === '7796') {
+    const superP = validProfiles.find(
+      (p) =>
+        p.member_number.trim() === '7726' ||
+        p.member_number.trim() === '7796' ||
+        p.is_super_admin
+    );
+    if (superP) return superP;
+  }
 
-  // Se il nome e cognome (scritto in Misto Maiuscolo/minuscolo) è seguito in fondo da sigle brevi maiuscole di altre colonne, le rimuove
-  const hasLowercaseInName = cleanWords.slice(0, 2).some((w) => /[a-zà-ÿ]/.test(w));
-  if (hasLowercaseInName && cleanWords.length > 2) {
-    while (
-      cleanWords.length > 2 &&
-      /^[A-Z]{2,4}$/.test(cleanWords[cleanWords.length - 1])
-    ) {
-      cleanWords.pop();
+  // 2) Corrispondenza diretta sul member_number
+  const exact = validProfiles.find(
+    (p) => p.member_number.trim().toLowerCase() === cleaned.toLowerCase()
+  );
+  if (exact) return exact;
+
+  // 3) Confronto numerico ignorando gli zeri iniziali (es. "045" <-> "45")
+  if (/^\d{1,6}$/.test(cleaned)) {
+    const numVal = parseInt(cleaned, 10);
+    if (!isNaN(numVal) && numVal > 0) {
+      const numericMatch = validProfiles.find((p) => {
+        const pDigits = p.member_number.trim();
+        if (!/^\d+$/.test(pDigits)) return false;
+        return parseInt(pDigits, 10) === numVal;
+      });
+      if (numericMatch) return numericMatch;
     }
   }
 
-  const candidateName = cleanWords.slice(0, 4).join(' ').trim();
-  if (!candidateName || candidateName.length < 2) return '';
-  if (HEADER_NOISE.test(candidateName)) return '';
+  return null;
+}
 
-  const matched = fuzzyMatchSocioName(candidateName, knownProfiles);
-  if (matched) {
-    return matched;
+// Converte i caratteri scritti a mano che l'OCR può confondere con cifre (es. O->0, I/l->1, Z->2, S->5, G->6, B->8)
+function normalizeHandwrittenDigits(token: string): string {
+  return token
+    .replace(/[OQoD]/g, '0')
+    .replace(/[Il|!i]/g, '1')
+    .replace(/[Zz]/g, '2')
+    .replace(/[Ss]/g, '5')
+    .replace(/[Gb]/g, '6')
+    .replace(/B/g, '8');
+}
+
+// Prova a estrarre il nominativo del socio dall'Archivio Soci a partire dal testo letto nella 2ª colonna (Numero Tessera).
+// Se nella casella c'è qualsiasi altra scritta (es. "non ricordo", "non ho tessera", "dimenticato") o un numero non in archivio,
+// restituisce "Socio sconosciuto".
+function resolveCellToSocioOrUnknown(rawCellText: string, knownProfiles: Profile[]): string {
+  if (!rawCellText || !rawCellText.trim()) return UNKNOWN_SOCIO_LABEL;
+
+  // Prende solo la 2ª colonna (prima di eventuali colonne extra separate da ':::')
+  const firstCol = (rawCellText.split(':::')[0] || rawCellText)
+    .replace(/\|+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!firstCol) return UNKNOWN_SOCIO_LABEL;
+
+  // Se contiene parole come "non ricordo", "non ho tessera", "dimenticato", ecc. -> Socio sconosciuto
+  if (FORGOTTEN_CARD_PHRASE.test(firstCol)) {
+    return UNKNOWN_SOCIO_LABEL;
   }
 
-  // Se il testo NON corrisponde a nessun socio in Anagrafica, verifica che sia un vero Nome e Cognome leggibile
-  // (almeno 2 parole alfabetiche di >= 3 lettere ciascuna, senza CamelCase anomalo da errore OCR tipo "e» 4 Sepe" o "Lg ja")
-  const validLongWords = cleanWords.filter(
-    (w) => w.length >= 3 && !/[a-z][A-Z]/.test(w)
-  );
-  if (validLongWords.length < 2 || candidateName.replace(/\s+/g, '').length < 6) {
-    return '';
+  // Rimuove eventuali prefissi tipo "N°", "Tessera", "#"
+  const stripped = firstCol
+    .replace(/^(?:n[°º.]?|num(?:ero)?\.?|tess(?:era)?\.?|#)\s*/i, '')
+    .trim();
+
+  if (!stripped) return UNKNOWN_SOCIO_LABEL;
+
+  // 1) Prova match diretto dell'intera stringa come numero tessera
+  const directMatch = findSocioByCardNumber(stripped, knownProfiles);
+  if (directMatch) return directMatch.full_name;
+
+  // 2) Se l'OCR ha inserito spazi tra le cifre del numero tessera (es. "7 7 2 6" o "1 0 1")
+  const compactNoSpaces = stripped.replace(/[\s.,/-]+/g, '');
+  if (/^\d{1,6}$/.test(compactNoSpaces)) {
+    const compactMatch = findSocioByCardNumber(compactNoSpaces, knownProfiles);
+    if (compactMatch) return compactMatch.full_name;
   }
 
-  return validLongWords.slice(0, 3).join(' ');
+  // 3) Se ci sono almeno 3 lettere alfabetiche (es. una frase scritta a mano tipo "smarrita" o altro testo),
+  // verifica solo se corrisponde esattamente al nome completo di un socio in archivio, altrimenti è "Socio sconosciuto"
+  const alphaLetters = (stripped.match(/[A-Za-zÀ-ÿ]/g) || []).length;
+  if (alphaLetters >= 3) {
+    const cleanAlpha = stripped
+      .replace(/[^A-Za-zÀ-ÿ\s']/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+    if (cleanAlpha.length >= 5 && !FORGOTTEN_CARD_PHRASE.test(cleanAlpha)) {
+      const exactNameProfile = (knownProfiles || []).find(
+        (p) =>
+          p.member_number !== '000' &&
+          !/^socio\s+tessera\b/i.test(p.full_name) &&
+          p.full_name.trim().toLowerCase() === cleanAlpha
+      );
+      if (exactNameProfile) return exactNameProfile.full_name;
+    }
+    return UNKNOWN_SOCIO_LABEL;
+  }
+
+  // 4) Estrae i singoli blocchi numerici presenti nella casella (es. "101" o "7726")
+  const digitGroups = stripped.match(/\d{1,6}/g) || [];
+  for (const dg of digitGroups) {
+    const m = findSocioByCardNumber(dg, knownProfiles);
+    if (m) return m.full_name;
+  }
+
+  // 5) Se è un token breve (1..6 caratteri) dove l'OCR ha confuso una cifra con una lettera simile (es. "1O1" -> "101", "I04" -> "104")
+  if (compactNoSpaces.length >= 1 && compactNoSpaces.length <= 6) {
+    const normalizedDigits = normalizeHandwrittenDigits(compactNoSpaces);
+    if (/^\d{1,6}$/.test(normalizedDigits)) {
+      const normMatch = findSocioByCardNumber(normalizedDigits, knownProfiles);
+      if (normMatch) return normMatch.full_name;
+    }
+  }
+
+  return UNKNOWN_SOCIO_LABEL;
+}
+
+// Valuta più letture OCR della stessa casella (Neural OCR + Tesseract + Strip mirata):
+// se almeno una lettura individua un Numero Tessera valido nell'Archivio Soci, restituisce il Nome del Socio;
+// altrimenti restituisce "Socio sconosciuto".
+function resolveMultiOcrToSocioOrUnknown(
+  candidates: string[],
+  knownProfiles: Profile[]
+): string {
+  // Se una delle letture contiene esplicitamente parole come "non ricordo", "dimenticato", "non ho tessera", è subito Socio sconosciuto
+  for (const c of candidates) {
+    if (c && FORGOTTEN_CARD_PHRASE.test(c)) {
+      return UNKNOWN_SOCIO_LABEL;
+    }
+  }
+
+  for (const c of candidates) {
+    if (!c || !c.trim()) continue;
+    const resolved = resolveCellToSocioOrUnknown(c, knownProfiles);
+    if (resolved !== UNKNOWN_SOCIO_LABEL) {
+      return resolved;
+    }
+  }
+
+  return UNKNOWN_SOCIO_LABEL;
 }
 
 // Ricostruisce le righe ORIZZONTALI usando le coordinate (x, y) delle parole lette da Tesseract,
-// separando con ':::' le colonne a destra del Nome!
+// separando con ':::' le colonne sulla stessa riga
 function reconstructRowsFromTesseractData(data: any): string[] {
   if (!data) return [];
   const rawWords: { text: string; x0: number; y0: number; x1: number; y1: number }[] = [];
@@ -626,29 +499,12 @@ function reconstructRowsFromTesseractData(data: any): string[] {
 
   return rowGroups.map((g) => {
     g.words.sort((a, b) => a.x0 - b.x0);
-    let lineStr = '';
-    let alphaWordsSeen = 0;
-    for (let i = 0; i < g.words.length; i++) {
-      const curr = g.words[i];
-      if (i > 0) {
-        const prev = g.words[i - 1];
-        const gap = curr.x0 - prev.x1;
-        if (alphaWordsSeen >= 2 && gap > medianHeight * 1.65) {
-          lineStr += ' ::: ';
-        } else {
-          lineStr += ' ';
-        }
-      }
-      lineStr += curr.text;
-      if (/[A-Za-zÀ-ÿ]{2,}/.test(curr.text) && !/^[Il|!]+$/.test(curr.text)) {
-        alphaWordsSeen++;
-      }
-    }
-    return lineStr.trim();
+    return g.words.map((w) => w.text).join(' ').trim();
   });
 }
 
-// Analizza le righe estratte dal foglio fotografato o dal PDF per ricavare [Numero Progressivo, Nome e Cognome]
+// Analizza le righe estratte dal foglio fotografato o dal PDF per ricavare:
+// [1ª colonna = Numero Progressivo Turno] + [2ª colonna = Numero Tessera -> Nome Socio da Archivio, oppure "Socio sconosciuto"]
 function parseSheetLinesIntoQueueItems(
   lines: string[],
   knownProfiles: Profile[],
@@ -656,12 +512,11 @@ function parseSheetLinesIntoQueueItems(
 ): QueueItem[] {
   const results: QueueItem[] = [];
   const seenNumbers = new Set<number>();
-  const fallbackNamesOnly: string[] = [];
 
   for (const rawLine of lines) {
     const line = rawLine
       .replace(/\u00A0/g, ' ')
-      .replace(/\|+/g, ' ') // rimuove i bordi verticali di tabella letti come '|'
+      .replace(/\|+/g, ' ')
       .replace(/;+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
@@ -670,74 +525,40 @@ function parseSheetLinesIntoQueueItems(
     if (HEADER_NOISE.test(line)) continue;
     if (/^\d{1,2}:\d{2}\b/.test(line)) continue; // salta barra orologio telefono (es. 19:00)
 
-    // Rimuove rumore di bordo iniziale prima del numero (es. "Il 1 PILIA", "| 1 PILIA", "N° 1 PILIA")
+    // Rimuove eventuale rumore di bordo iniziale prima del numero progressivo (es. "| 1 7726", "N° 1 101")
     const withoutPrefixLabel = line
       .replace(/^(?:n[°º.]?\s*|#\s*|[Il!|\/\\[\]().,-]+\s*)+(?=\d)/i, '')
       .replace(/^(?:n[°º.]?\s*|#\s*)/i, '')
       .trim();
 
-    // Trova l'inizio del Nome e Cognome (prima parola alfabetica di almeno 2 lettere che non sia solo "Il"/"li" di bordo prima di una cifra)
-    const nameStartMatch = withoutPrefixLabel.match(
-      /([A-Za-zÀ-ÿ]{2,}|[A-Za-zÀ-ÿ]\.[A-Za-zÀ-ÿ]\.)/
-    );
+    // Cerca il numero progressivo ad inizio riga (1..500) seguito dal contenuto della 2ª colonna (Numero Tessera o scritta tipo "non ricordo")
+    const rowMatch = withoutPrefixLabel.match(/^(\d{1,3})(?:[.)\s-]+)(.+)$/);
+    if (!rowMatch) continue;
 
-    if (nameStartMatch && typeof nameStartMatch.index === 'number') {
-      const prefixBeforeName = withoutPrefixLabel.slice(0, nameStartMatch.index).trim();
-      const restFromName = withoutPrefixLabel.slice(nameStartMatch.index).trim();
+    let chosenNum = parseInt(rowMatch[1], 10);
+    const secondColRaw = rowMatch[2].trim();
 
-      if (prefixBeforeName.length > 0) {
-        // Rimuove eventuali codici decimali (es. 1.01, 1.02) dal prefisso numerico
-        const prefixWithoutDecimals = prefixBeforeName.replace(/\b\d{1,3}[.,]\d{1,3}\b/g, ' ');
-        // Usa /\d{1,4}/g invece di /\b\d{1,4}\b/g così anche se il bordo verticale era attaccato al numero ("1l" o "1I") estrae "1"!
-        const intMatches = prefixWithoutDecimals.match(/\d{1,4}/g) || [];
-        const validInts = intMatches
-          .map((m) => parseInt(m, 10))
-          .filter((n) => !isNaN(n) && n > 0 && n <= 500);
+    if (isNaN(chosenNum) || chosenNum <= 0 || chosenNum > 500 || !secondColRaw) {
+      continue;
+    }
 
-        let chosenNum: number | null = null;
-        if (validInts.length > 0) {
-          chosenNum = validInts[validInts.length - 1];
-        } else {
-          const decMatch = prefixBeforeName.match(/\b(\d{1,2})[.,](\d{2})\b/);
-          if (decMatch) {
-            const prevNum = results.length > 0 ? results[results.length - 1].number : existingMaxNumber;
-            chosenNum = prevNum + 1;
-          }
-        }
+    if (HEADER_NOISE.test(secondColRaw)) continue;
 
-        const cleanName = extractCleanNameOnly(restFromName, knownProfiles);
-        if (chosenNum !== null && cleanName && !HEADER_NOISE.test(cleanName)) {
-          if (seenNumbers.has(chosenNum) && results.length > 0) {
-            const expectedNext = results[results.length - 1].number + 1;
-            if (!seenNumbers.has(expectedNext)) {
-              chosenNum = expectedNext;
-            }
-          }
-          if (!seenNumbers.has(chosenNum)) {
-            seenNumbers.add(chosenNum);
-            results.push({ number: chosenNum, name: cleanName });
-          }
-          continue;
-        }
+    const resolvedName = resolveCellToSocioOrUnknown(secondColRaw, knownProfiles);
+
+    if (seenNumbers.has(chosenNum) && results.length > 0) {
+      const expectedNext = results[results.length - 1].number + 1;
+      if (!seenNumbers.has(expectedNext)) {
+        chosenNum = expectedNext;
       }
     }
-
-    // NON inventa MAI numeri successivi (es. 5, 6) se sulla riga non c'era un numero esplicito,
-    // a meno che l'intero foglio fosse privo di colonna numeri!
-    const cleanOnlyName = extractCleanNameOnly(line, knownProfiles);
-    if (cleanOnlyName && cleanOnlyName.includes(' ') && cleanOnlyName.length >= 6) {
-      fallbackNamesOnly.push(cleanOnlyName);
+    if (!seenNumbers.has(chosenNum)) {
+      seenNumbers.add(chosenNum);
+      results.push({ number: chosenNum, name: resolvedName });
     }
   }
 
-  if (results.length > 0) {
-    return results.sort((a, b) => a.number - b.number);
-  }
-
-  return fallbackNamesOnly.map((name, idx) => ({
-    number: existingMaxNumber + idx + 1,
-    name,
-  }));
+  return results.sort((a, b) => a.number - b.number);
 }
 
 interface EliminacodeViewProps {
@@ -1283,6 +1104,8 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               y1: number;
               localDivX: number;
               inkPixels: number;
+              inkMinX: number;
+              inkMaxX: number;
             }
 
             const filledCells: DetectedRowCell[] = [];
@@ -1294,7 +1117,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               const rowH = y1 - y0;
               if (rowH < 12 || rowH > h * 0.12) continue;
 
-              // Trova l'esatta X del filetto verticale tra 'prog' e 'nominativo' su questa specifica riga (compensa qualsiasi inclinazione della foto!)
+              // Trova l'esatta X del filetto verticale tra 'prog' e la 2ª colonna su questa specifica riga
               let localDivX = xProgRight;
               let minGraySum = Infinity;
               const searchX0 = Math.max(xProgLeft + 10, xProgRight - Math.round(14 * scaleRef));
@@ -1310,20 +1133,44 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 }
               }
 
-              // Conta l'inchiostro reale nella fascia centrale (64% verticale) della casella 'nominativo'
-              // così anche se le righe orizzontali sono state tirate a penna un po' storte non vengono mai contate come testo!
+              // Analizza la fascia centrale (64% verticale) della 2ª colonna per rilevare sia un Numero Tessera (anche di 1-4 cifre)
+              // sia una scritta ("non ricordo", ecc.), ignorando le righe vuote e le linee orizzontali tirate a mano
               const marginY = Math.max(3, Math.round(rowH * 0.18));
-              let inkPixels = 0;
-              let leftQuarterInk = 0;
+              const innerY0 = y0 + marginY;
+              const innerY1 = y1 - marginY;
+              const innerH = Math.max(6, innerY1 - innerY0 + 1);
               const cellX0 = localDivX + padX;
               const cellX1 = xNomRight - padX;
+              const cellW = Math.max(10, cellX1 - cellX0 + 1);
               const leftQuarterX1 = localDivX + Math.round((xNomRight - localDivX) * 0.25);
 
-              for (let y = y0 + marginY; y <= y1 - marginY; y++) {
+              let inkPixels = 0;
+              let leftQuarterInk = 0;
+              let activeYRows = 0;
+              let inkMinX = cellX1;
+              let inkMaxX = cellX0;
+              const colInk = new Int32Array(cellW);
+
+              for (let y = innerY0; y <= innerY1; y++) {
+                let rowDarkCount = 0;
                 for (let x = cellX0; x <= cellX1; x++) {
-                  const idx = y * w + x;
-                  if (cleanPixels[idx] < 190) {
+                  if (cleanPixels[y * w + x] < 192) {
+                    rowDarkCount++;
+                  }
+                }
+                // Scarta eventuali scanline che sono residui di una linea orizzontale (> 48% della larghezza cella)
+                if (rowDarkCount > cellW * 0.48) {
+                  continue;
+                }
+                if (rowDarkCount >= 2) {
+                  activeYRows++;
+                }
+                for (let x = cellX0; x <= cellX1; x++) {
+                  if (cleanPixels[y * w + x] < 192) {
                     inkPixels++;
+                    colInk[x - cellX0]++;
+                    if (x < inkMinX) inkMinX = x;
+                    if (x > inkMaxX) inkMaxX = x;
                     if (x <= leftQuarterX1) {
                       leftQuarterInk++;
                     }
@@ -1331,11 +1178,24 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 }
               }
 
-              const cellArea = Math.max(1, (rowH - marginY * 2) * Math.max(10, cellX1 - cellX0));
-              const minRowInk = Math.max(35, Math.round(cellArea * 0.016));
+              // Calcola l'inchiostro massimo concentrato in una finestra orizzontale (dove è scritto il numero tessera o la parola)
+              const winW = Math.min(cellW, Math.max(48, Math.round(96 * scaleRef)));
+              let maxWinInk = 0;
+              let curWinInk = 0;
+              for (let i = 0; i < cellW; i++) {
+                curWinInk += colInk[i];
+                if (i >= winW) {
+                  curWinInk -= colInk[i - winW];
+                }
+                if (curWinInk > maxWinInk) {
+                  maxWinInk = curWinInk;
+                }
+              }
 
-              if (inkPixels >= minRowInk) {
-                // Nella riga 0 di intestazione stampata ("nominativo"), la riga è bassa (<4.5% di h) e la scritta è centrata
+              const minWinInk = Math.max(18, Math.round(innerH * 0.85));
+              const minActiveY = Math.max(6, Math.round(innerH * 0.32));
+
+              if (inkPixels >= 20 && maxWinInk >= minWinInk && activeYRows >= minActiveY) {
                 const isLikelyHeader =
                   r === 0 && rowH < h * 0.045 && leftQuarterInk < inkPixels * 0.08;
                 filledCells.push({
@@ -1345,6 +1205,8 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                   y1,
                   localDivX,
                   inkPixels,
+                  inkMinX: inkMinX <= inkMaxX ? inkMinX : cellX0,
+                  inkMaxX: inkMaxX >= inkMinX ? inkMaxX : cellX1,
                 });
               }
             }
@@ -1395,7 +1257,6 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 const bandY1 = bandY0 + bandHeight;
                 const srcY = cell.y0 + borderTrimY;
                 const srcH = Math.max(8, cell.y1 - cell.y0 - borderTrimY * 2);
-                // Calcola il fattore di scala specifico per l'altezza della riga (così righe alte 80px scritte a mano non debordano mai sopra le righe vicine!)
                 const rowScale = Math.max(1.0, Math.min(maxUpscale, targetRowH / srcH));
                 const dstH = Math.min(bandHeight - 20, Math.round(srcH * rowScale));
                 const dstY = bandY0 + Math.round((bandHeight - dstH) / 2);
@@ -1416,7 +1277,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                   dstH
                 );
 
-                // 2) Disegna la cella del nominativo (senza il bordo verticale sinistro e senza la 3ª colonna materia!)
+                // 2) Disegna la cella della 2ª colonna (Numero Tessera o scritta)
                 const srcNomX = cell.localDivX + borderTrimX;
                 ocrCtx.drawImage(
                   cleanFullCanvas,
@@ -1451,10 +1312,18 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                   origSrcH
                 );
 
-                // Crea la striscia singola del solo nominativo pulito (per l'OCR mirato PSM 7 sulle scritte a penna!)
+                // Crea il ritaglio mirato attorno all'inchiostro della 2ª colonna (perfetto per leggere un Numero Tessera corto!)
+                const tightX0 = Math.max(srcNomX, cell.inkMinX - Math.round(14 * scaleRef));
+                const tightX1 = Math.min(
+                  srcNomX + nomCropW,
+                  Math.max(tightX0 + 36, cell.inkMaxX + Math.round(14 * scaleRef))
+                );
+                const tightSrcW = Math.max(32, tightX1 - tightX0);
+                const tightDstW = Math.round(tightSrcW * rowScale);
+
                 const nomStripCanvas = document.createElement('canvas');
-                nomStripCanvas.width = dstNomW + 36;
-                nomStripCanvas.height = dstH + 28;
+                nomStripCanvas.width = tightDstW + 48;
+                nomStripCanvas.height = dstH + 36;
                 const nomStripCtx = nomStripCanvas.getContext('2d')!;
                 nomStripCtx.fillStyle = '#ffffff';
                 nomStripCtx.fillRect(0, 0, nomStripCanvas.width, nomStripCanvas.height);
@@ -1462,13 +1331,13 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 nomStripCtx.imageSmoothingQuality = 'high';
                 nomStripCtx.drawImage(
                   cleanFullCanvas,
-                  srcNomX,
+                  tightX0,
                   srcY,
-                  nomCropW,
+                  tightSrcW,
                   srcH,
+                  24,
                   18,
-                  14,
-                  dstNomW,
+                  tightDstW,
                   dstH
                 );
 
@@ -1499,9 +1368,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           }
         }
 
-        // CASO 2: Foglio senza griglia stampata (es. foglietto bianco scritto a mano coi numeri 1..10 a sinistra e i nomi a destra).
-        // Isola esclusivamente i tratti nitidi di penna/pennarello (ignorando le ombre morbide del telefono, eventuali linee e il legno del tavolo)
-        // e trattiene SOLO le righe che hanno SIA il numero a sinistra SIA il nome scritto a destra (scartando i numeri vuoti 5..10!).
+        // CASO 2: Foglio senza griglia stampata (es. foglietto bianco scritto a mano coi numeri 1..10 a sinistra e Numero Tessera a destra).
         const strokeInk = new Uint8Array(w * h);
         const strokeCleanPixels = new Uint8ClampedArray(w * h);
         strokeCleanPixels.fill(255);
@@ -1564,7 +1431,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           rowNameInk[y] = cName;
         }
 
-        const minScanlineNameInk = Math.max(3, Math.round(4 * scaleRef));
+        const minScanlineNameInk = Math.max(2, Math.round(2.5 * scaleRef));
         const maxMergeGap = Math.max(5, Math.round(6 * scaleRef));
         const rawUnlinedBands: { y0: number; y1: number }[] = [];
         let inBand = false;
@@ -1623,18 +1490,20 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           splitUnlinedBands.push(b);
         }
 
-        const minBandH = Math.max(12, Math.round(14 * scaleRef));
-        const minBandNameInk = Math.round(250 * scaleRef * scaleRef);
-        const minBandNumInk = Math.round(18 * scaleRef * scaleRef);
+        const minBandH = Math.max(11, Math.round(13 * scaleRef));
+        const minBandNameInk = Math.max(24, Math.round(34 * scaleRef * scaleRef));
+        const minBandNumInk = Math.round(16 * scaleRef * scaleRef);
 
         const validUnlinedBands = splitUnlinedBands.filter((b) => {
           const bh = b.y1 - b.y0;
           if (bh < minBandH || bh > h * 0.16) return false;
           let nameSum = 0;
+          let activeNameRows = 0;
           let numSum = 0;
           const numPadY = Math.round(6 * scaleRef);
           for (let y = b.y0; y <= b.y1; y++) {
             nameSum += rowNameInk[y];
+            if (rowNameInk[y] >= 2) activeNameRows++;
           }
           for (
             let y = Math.max(0, b.y0 - numPadY);
@@ -1643,7 +1512,11 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           ) {
             numSum += rowNumInk[y];
           }
-          return nameSum >= minBandNameInk && numSum >= minBandNumInk;
+          return (
+            nameSum >= minBandNameInk &&
+            activeNameRows >= Math.max(6, Math.round(bh * 0.32)) &&
+            numSum >= minBandNumInk
+          );
         });
 
         if (validUnlinedBands.length > 0) {
@@ -1664,7 +1537,6 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           const avgSrcH =
             validUnlinedBands.reduce((acc, b) => acc + (b.y1 - b.y0), 0) /
             validUnlinedBands.length;
-          // Adatta l'ingrandimento in modo che le lettere scritte a mano abbiano sempre un'altezza ideale (~54px) per l'OCR
           const upscale = Math.max(1.0, Math.min(2.4, (56 * scaleRef) / Math.max(18, avgSrcH)));
           const progCropW = Math.round(w * 0.15);
           const nomCropW = Math.round(w * 0.72);
@@ -1697,7 +1569,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             const dstH = Math.min(bandHeight - 20, Math.round(srcH * rowScale));
             const dstY = bandY0 + Math.round((bandHeight - dstH) / 2);
 
-            // Trova lo spazio bianco verticale tra il numero a sinistra e l'inizio del nome su questa riga
+            // Trova lo spazio bianco verticale tra il numero a sinistra e l'inizio della 2ª colonna su questa riga
             let localDivX = xName0;
             let minColInk = Infinity;
             for (let sx = Math.round(w * 0.13); sx <= Math.round(w * 0.24); sx++) {
@@ -1841,7 +1713,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     });
   };
 
-  // Motore Neural Handwriting & Table OCR (OCREngine=2) per leggere la scrittura a mano (es. GPIERO PILIA, BOI VINCENZO, SOTGIU GIOVANNA, SANDRO PROSPERI)
+  // Motore Neural Handwriting & Table OCR (OCREngine=2) per leggere Numeri Tessera scritti a mano o scritte ("non ricordo")
   interface CloudOcrWord {
     text: string;
     x0: number;
@@ -1908,7 +1780,8 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     }
   };
 
-  // Esegue l'OCR combinando Neural Handwriting OCR (OCREngine=2) + rilevamento geometrico delle righe compilate + Anagrafica Soci
+  // Esegue l'OCR leggendo il Numero Tessera nella 2ª colonna per ricavare il nominativo dall'Archivio Soci,
+  // oppure impostando "Socio sconosciuto" per qualsiasi altra scritta (es. "non ricordo", "dimenticato", ecc.)
   const runOcrOnPreprocessedSheet = async (
     prep: PreprocessedSheetResult,
     existingMax: number
@@ -1920,7 +1793,6 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     let mainResult: any = null;
 
     try {
-      // Avvia in parallelo il motore Neural Handwriting (OCREngine=2) e il motore locale Tesseract
       const neuralPromise = fetchNeuralHandwritingWords(prep.naturalSheetDataUrl);
 
       if (typeof Tesseract.createWorker === 'function') {
@@ -1950,7 +1822,6 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
 
       const neuralWords = await neuralPromise;
 
-      // Se abbiamo rilevato le righe compilate (da tabella o da foglio scritto a mano), estraiamo riga per riga con precisione millimetrica!
       if (prep.tableBands.length > 0) {
         const allWords: { text: string; x0: number; y0: number; x1: number; y1: number }[] = [];
         const collectW = (w: any) => {
@@ -1971,7 +1842,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           });
         }
 
-        // Verifica se la prima fascia (tableRowIndex === 0) è l'intestazione ("prog | nominativo")
+        // Verifica se la prima fascia (tableRowIndex === 0) è l'intestazione della tabella ("prog | tessera | nominativo")
         let hasHeaderRow = prep.tableBands[0]?.tableRowIndex === 0 && prep.tableBands[0]?.isLikelyHeader;
         if (prep.tableBands[0]?.tableRowIndex === 0 && !hasHeaderRow) {
           const b0 = prep.tableBands[0];
@@ -1990,7 +1861,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             .map((w) => w.text)
             .join(' ');
           const combinedB0 = `${b0Words} ${b0NeuralWords}`;
-          if (HEADER_NOISE.test(combinedB0) || /\b(prog|nominativo|materia)\b/i.test(combinedB0)) {
+          if (HEADER_NOISE.test(combinedB0) || /\b(prog|nominativo|tessera|materia)\b/i.test(combinedB0)) {
             hasHeaderRow = true;
           }
         }
@@ -2004,7 +1875,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             continue;
           }
 
-          // 1) Parole lette dal motore Neural Handwriting (OCREngine=2) sulle coordinate originali di questa riga
+          // 1) Parole/cifre lette dal motore Neural Handwriting (OCREngine=2) sulle coordinate originali di questa riga
           const rowNeuralWords = neuralWords.filter((w) => {
             const cy = (w.y0 + w.y1) / 2;
             return cy >= band.origY0 - 8 && cy <= band.origY1 + 8 && w.h < prep.workHeight * 0.14;
@@ -2020,7 +1891,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             .map((w) => w.text)
             .join(' ');
 
-          // 2) Parole lette da Tesseract sul canvas non-sovrapposto
+          // 2) Parole/cifre lette da Tesseract sul canvas pulito
           const bandWords = allWords.filter((w) => {
             const cy = (w.y0 + w.y1) / 2;
             return cy >= band.bandY0 - 6 && cy <= band.bandY1 + 6;
@@ -2034,55 +1905,77 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               .map((w) => w.text)
               .join(' ');
 
-          let nomWords = bandWords
+          const nomWords = bandWords
             .filter((w) => w.x0 >= band.nomStartX - 12)
             .sort((a, b) => a.x0 - b.x0)
             .map((w) => w.text)
             .join(' ');
 
-          // Priorità 1: Match Anagrafica Soci dal motore Neural Handwriting (OCREngine=2)
-          let matchedSocio =
-            (neuralNomText ? fuzzyMatchSocioName(neuralNomText, profiles) : null) ||
-            fuzzyMatchSocioName(nomWords, profiles) ||
-            (neuralNomText && nomWords
-              ? fuzzyMatchSocioName(`${neuralNomText} ${nomWords}`, profiles)
-              : null);
+          const candidates: string[] = [neuralNomText, nomWords].filter(Boolean);
+          let resolvedSocioName = resolveMultiOcrToSocioOrUnknown(candidates, profiles);
+          const hasExplicitForgottenPhrase = candidates.some((c) => FORGOTTEN_CARD_PHRASE.test(c));
 
-          const alphaCount = (nomWords.match(/[A-Za-zÀ-ÿ]/g) || []).length;
-          const neuralAlphaCount = (neuralNomText.match(/[A-Za-zÀ-ÿ]/g) || []).length;
-
-          // Se non c'è ancora un match diretto nell'Anagrafica Soci e il motore neural non ha già letto un nome completo,
-          // esegue anche la lettura mirata PSM 7 (Riga Singola) sul ritaglio del solo nominativo!
+          // Se non ha ancora trovato il Numero Tessera in Archivio Soci e non è già una scritta tipo "non ricordo",
+          // esegue la lettura mirata sulla singola casella della 2ª colonna (PSM 7 + lettura cifre)!
           if (
-            !matchedSocio &&
-            neuralAlphaCount < 5 &&
+            resolvedSocioName === UNKNOWN_SOCIO_LABEL &&
+            !hasExplicitForgottenPhrase &&
             worker &&
             typeof worker.setParameters === 'function'
           ) {
             setScanStatusText(
-              `Lettura approfondita scrittura riga ${band.tableRowIndex || idx + 1}...`
+              `Verifica numero tessera riga ${band.tableRowIndex || idx + 1}...`
             );
             setScanProgress(Math.min(96, 80 + Math.round((idx / prep.tableBands.length) * 16)));
             await worker.setParameters({
               tessedit_pageseg_mode: '7',
+              tessedit_char_whitelist: '',
               preserve_interword_spaces: '1',
             });
             const singleRes = await worker.recognize(band.nomStripDataUrl);
             const singleText = String(singleRes?.data?.text || '').trim();
             if (singleText) {
-              const singleMatched =
-                fuzzyMatchSocioName(singleText, profiles) ||
-                fuzzyMatchSocioName(`${nomWords} ${singleText}`, profiles);
-              if (singleMatched) {
-                matchedSocio = singleMatched;
-              } else if ((singleText.match(/[A-Za-zÀ-ÿ]/g) || []).length > alphaCount) {
-                nomWords = singleText;
+              candidates.push(singleText);
+              resolvedSocioName = resolveMultiOcrToSocioOrUnknown(candidates, profiles);
+            }
+
+            // Se ancora non corrisponde e non ci sono parole lunghe (es. "non ricordo"), prova lettura pura cifre 0-9
+            const maxAlphaInCandidates = Math.max(
+              0,
+              ...candidates.map((c) => (c.match(/[A-Za-zÀ-ÿ]/g) || []).length)
+            );
+            if (
+              resolvedSocioName === UNKNOWN_SOCIO_LABEL &&
+              !candidates.some((c) => FORGOTTEN_CARD_PHRASE.test(c)) &&
+              maxAlphaInCandidates < 3
+            ) {
+              await worker.setParameters({
+                tessedit_pageseg_mode: '7',
+                tessedit_char_whitelist: '0123456789',
+              });
+              const digitRes = await worker.recognize(band.nomStripDataUrl);
+              const digitText = String(digitRes?.data?.text || '').trim();
+              const digitConf = Number(digitRes?.data?.confidence || 0);
+              if (digitText && digitConf >= 45) {
+                const byDigits = resolveCellToSocioOrUnknown(digitText, profiles);
+                if (byDigits !== UNKNOWN_SOCIO_LABEL) {
+                  resolvedSocioName = byDigits;
+                }
               }
             }
           }
 
-          // Calcola il numero progressivo della riga:
-          // se tableRowIndex parte da 1 (foglio non tabellare o tabella con header), expectedRowNum è tableRowIndex
+          // Se la riga 0 era l'intestazione della tabella, la salta
+          if (
+            band.tableRowIndex === 0 &&
+            resolvedSocioName === UNKNOWN_SOCIO_LABEL &&
+            HEADER_NOISE.test(candidates.join(' '))
+          ) {
+            hasHeaderRow = true;
+            continue;
+          }
+
+          // Calcola il numero progressivo della riga (1ª colonna)
           const expectedRowNum =
             prep.tableBands[0]?.tableRowIndex === 0
               ? hasHeaderRow
@@ -2105,25 +1998,9 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             finalNum = (tableItems[tableItems.length - 1]?.number || existingMax) + 1;
           }
 
-          let cleanName =
-            matchedSocio ||
-            (neuralNomText ? extractCleanNameOnly(neuralNomText, profiles) : '') ||
-            extractCleanNameOnly(nomWords, profiles);
-
-          if (!cleanName && HEADER_NOISE.test(`${neuralNomText} ${nomWords}`) && band.tableRowIndex === 0) {
-            hasHeaderRow = true;
-            continue;
-          }
-
-          // Se la casella è compilata a mano con calligrafia molto corsiva non decifrabile del tutto,
-          // conserva comunque la riga col suo numero esatto e allega il ritaglio fotografico della scritta!
-          if (!cleanName) {
-            cleanName = `Socio Riga ${finalNum} (scritto a mano — tocca per verificare)`;
-          }
-
           usedNums.add(finalNum);
           crops[finalNum] = band.cropDataUrl;
-          tableItems.push({ number: finalNum, name: cleanName });
+          tableItems.push({ number: finalNum, name: resolvedSocioName });
         }
 
         if (tableItems.length > 0) {
@@ -2401,17 +2278,25 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     showNotice('success', `✓ Turno impostato sul N° ${num}. Lo schermo in Sala d'Attesa è aggiornato!`);
   };
 
-  // Aggiunta/Modifica rapida di una riga (es. mentre si guarda la foto del foglio)
+  // Aggiunta/Modifica rapida di una riga tramite Numero Tessera (o Nome / "Socio sconosciuto")
   const handleQuickAddRow = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanName = quickName.trim();
-    if (!cleanName) return;
+    const rawInput = quickName.trim();
+    if (!rawInput) return;
     const num = parseInt(quickNumber.trim(), 10) || nextAvailableProgressiveNumber;
     if (num < 1) return;
 
+    const matchedByCard = findSocioByCardNumber(rawInput, profiles);
+    let finalName = rawInput;
+    if (matchedByCard) {
+      finalName = matchedByCard.full_name;
+    } else if (FORGOTTEN_CARD_PHRASE.test(rawInput) || /^\d+$/.test(rawInput)) {
+      finalName = UNKNOWN_SOCIO_LABEL;
+    }
+
     updateQueueState((prev) => {
       const filtered = prev.items.filter((i) => i.number !== num);
-      const nextItems = [...filtered, { number: num, name: cleanName }].sort(
+      const nextItems = [...filtered, { number: num, name: finalName }].sort(
         (a, b) => a.number - b.number
       );
       return {
@@ -2425,11 +2310,42 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     quickNameInputRef.current?.focus();
   };
 
+  const handleQuickAddUnknownSocio = () => {
+    const num = parseInt(quickNumber.trim(), 10) || nextAvailableProgressiveNumber;
+    if (num < 1) return;
+    updateQueueState((prev) => {
+      const filtered = prev.items.filter((i) => i.number !== num);
+      const nextItems = [...filtered, { number: num, name: UNKNOWN_SOCIO_LABEL }].sort(
+        (a, b) => a.number - b.number
+      );
+      return {
+        ...prev,
+        items: nextItems,
+      };
+    });
+    setQuickNumber(String(num + 1));
+    setQuickName('');
+  };
+
   const handleUpdateItemNameInline = (num: number, newName: string) => {
     updateQueueState((prev) => ({
       ...prev,
       items: prev.items.map((it) => (it.number === num ? { ...it, name: newName } : it)),
     }));
+  };
+
+  const handleResolveInlineCardNumber = (num: number, currentVal: string) => {
+    const trimmed = currentVal.trim();
+    if (!trimmed) {
+      handleUpdateItemNameInline(num, UNKNOWN_SOCIO_LABEL);
+      return;
+    }
+    const byCard = findSocioByCardNumber(trimmed, profiles);
+    if (byCard) {
+      handleUpdateItemNameInline(num, byCard.full_name);
+    } else if (FORGOTTEN_CARD_PHRASE.test(trimmed) || /^\d+$/.test(trimmed)) {
+      handleUpdateItemNameInline(num, UNKNOWN_SOCIO_LABEL);
+    }
   };
 
   const handleDeleteQueueItem = (num: number) => {
@@ -2477,13 +2393,20 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     }
   };
 
-  // Suggerimenti rapidi dall'Anagrafica Soci mentre si digita un nome
+  // Suggerimenti rapidi dall'Anagrafica Soci mentre si digita un Numero Tessera o un Nome
   const memberSuggestions = useMemo(() => {
     const q = quickName.trim().toLowerCase();
-    if (q.length < 2) return [];
+    if (!q) return [];
+    const isNumericQuery = /^\d+$/.test(q);
+    if (!isNumericQuery && q.length < 2) return [];
     return profiles
-      .filter((p) => p.member_number !== '000' && p.full_name.toLowerCase().includes(q))
-      .slice(0, 5);
+      .filter(
+        (p) =>
+          p.member_number !== '000' &&
+          !/^socio\s+tessera\b/i.test(p.full_name) &&
+          (p.member_number.toLowerCase().includes(q) || p.full_name.toLowerCase().includes(q))
+      )
+      .slice(0, 6);
   }, [quickName, profiles]);
 
   const filteredItems = useMemo(() => {
@@ -2493,6 +2416,9 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
       (it) => String(it.number).includes(q) || it.name.toLowerCase().includes(q)
     );
   }, [queueState.items, searchTerm]);
+
+  const isCurrentUnknown =
+    !currentItem?.name || /socio\s+sconosciuto/i.test(currentItem.name);
 
   // ============================================================================
   // SCHERMO SALA D'ATTESA (SFONDO BEL VERDE + CORNICE BIANCA + TURNO CHIAMATO E NOME)
@@ -2646,13 +2572,15 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                   {queueState.currentNumber}
                 </div>
 
-                {/* NOME E COGNOME SOTTO IL NUMERO */}
+                {/* NOME E COGNOME SOTTO IL NUMERO (OPPURE "TURNO N° XX — SOCIO SCONOSCIUTO") */}
                 <div className="mt-6 w-full border-t-2 border-white/60 pt-6">
                   <div
                     className="font-bold text-white tracking-wide leading-tight break-words"
-                    style={{ fontSize: 'clamp(2.4rem, 6vw, 5rem)' }}
+                    style={{ fontSize: 'clamp(2.2rem, 5.5vw, 4.6rem)' }}
                   >
-                    {currentItem?.name || '\u00A0'}
+                    {isCurrentUnknown
+                      ? `Turno N° ${queueState.currentNumber} — Socio sconosciuto`
+                      : currentItem?.name}
                   </div>
                 </div>
               </>
@@ -2668,8 +2596,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             <span>
               Prossimo turno:{' '}
               <strong className="font-extrabold text-white">
-                N° {nextItem.number}
-                {nextItem.name ? ` — ${nextItem.name}` : ''}
+                N° {nextItem.number} — {nextItem.name || UNKNOWN_SOCIO_LABEL}
               </strong>
             </span>
           )}
@@ -2691,7 +2618,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               Eliminacode — Gestione Segreteria e Sala d&apos;Attesa
             </h1>
             <p className="text-xs sm:text-sm text-emerald-100">
-              Fotografa il foglio firmato dai soci (es. 1–24, poi 25–36) e fai avanzare il turno in Sala d&apos;Attesa.
+              I soci scrivono il proprio <strong>Numero Tessera</strong> sul foglio numerato: l&apos;app ricava il nominativo dall&apos;Archivio Soci (o mostra «Socio sconosciuto»).
             </p>
           </div>
 
@@ -2756,14 +2683,18 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
             <span className="inline-block rounded-full bg-emerald-700 px-3 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white mb-1">
-              Passo 1 · Acquisizione Foglio Soci
+              Passo 1 · Acquisizione Foglio con Numeri Tessera
             </span>
             <h2 className="text-base sm:text-lg font-bold text-slate-900">
-              Fotografa il Foglio compilato dai Soci (o carica PDF scannerizzato)
+              Fotografa il Modello Numerato compilato dai Soci (con il Numero Tessera)
             </h2>
             <p className="text-xs sm:text-sm text-slate-600">
-              Legge la <strong>1ª colonna (Numero Progressivo)</strong> e la{' '}
-              <strong>2ª colonna (Nome e Cognome)</strong>, ignorando le altre colonne. Se rifai la foto più tardi (es. dal 25 al 36), <strong>integra i nuovi nomi</strong> senza cancellare i precedenti.
+              Legge la <strong>1ª colonna (N° Turno)</strong> e la{' '}
+              <strong>2ª colonna (Numero Tessera)</strong> ed estrae automaticamente{' '}
+              <strong>Nome e Cognome dall&apos;Archivio Soci</strong>. Se un socio scrive{' '}
+              <em>&ldquo;non ricordo&rdquo;</em>, <em>&ldquo;non ho tessera&rdquo;</em>,{' '}
+              <em>&ldquo;dimenticato&rdquo;</em> o qualsiasi altra scritta, verrà mostrato e chiamato a voce{' '}
+              <strong>&ldquo;Turno N° XX — Socio sconosciuto&rdquo;</strong>.
             </p>
           </div>
         </div>
@@ -2812,7 +2743,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         {isScanning && (
           <div className="rounded-2xl border border-emerald-300 bg-white p-4 space-y-2">
             <div className="flex items-center justify-between text-xs font-semibold text-emerald-900">
-              <span>{scanStatusText || 'Lettura nominativi in corso...'}</span>
+              <span>{scanStatusText || 'Lettura numeri tessera in corso...'}</span>
               <span>{scanProgress}%</span>
             </div>
             <div className="h-2.5 w-full rounded-full bg-emerald-100 overflow-hidden">
@@ -2852,7 +2783,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           <div className="rounded-2xl border border-slate-300 bg-white p-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-700">
-                Foto del Foglio (puoi leggerla qui mentre controlli o integri i nomi sotto)
+                Foto del Foglio (puoi leggerla qui mentre controlli o integri i turni sotto)
               </span>
               <button
                 type="button"
@@ -2917,7 +2848,9 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 </div>
                 <div className="pt-2 border-t border-white/40">
                   <p className="text-xl sm:text-3xl font-bold text-white break-words">
-                    {currentItem?.name || '— Nessun nome associato a questo numero —'}
+                    {isCurrentUnknown
+                      ? `Turno N° ${queueState.currentNumber} — Socio sconosciuto`
+                      : currentItem?.name}
                   </p>
                 </div>
               </>
@@ -2929,7 +2862,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               <span>
                 {isStandby ? 'Primo turno pronto da chiamare: ' : 'Prossimo turno: '}
                 <strong className="text-white">
-                  N° {nextItem.number} {nextItem.name ? `— ${nextItem.name}` : ''}
+                  N° {nextItem.number} — {nextItem.name || UNKNOWN_SOCIO_LABEL}
                 </strong>
               </span>
               <span>{connectedDevices} schermi collegati</span>
@@ -3102,7 +3035,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               Elenco Nominativi Memorizzati ({queueState.items.length} soci)
             </h2>
             <p className="text-xs text-slate-500">
-              Puoi anche aggiungere o correggere un nome al volo qui sotto (con suggerimento automatico dall&apos;Anagrafica Soci).
+              Digita un <strong>Numero Tessera</strong> (es. 101, 7726) per estrarre subito il nome dall&apos;Archivio Soci, oppure premi <strong>Socio sconosciuto</strong>.
             </p>
           </div>
 
@@ -3120,11 +3053,11 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           )}
         </div>
 
-        {/* INSERIMENTO / INTEGRAZIONE MANUALE RAPIDA CON AUTOCOMPLETAMENTO SOCI */}
+        {/* INSERIMENTO / INTEGRAZIONE MANUALE RAPIDA TRAMITE NUMERO TESSERA O NOME */}
         <div className="space-y-2">
           <form onSubmit={handleQuickAddRow} className="flex flex-col sm:flex-row gap-2">
             <div className="flex items-center gap-2 sm:w-36 shrink-0">
-              <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Prog. N°</span>
+              <span className="text-xs font-bold text-slate-600 whitespace-nowrap">Turno N°</span>
               <input
                 type="number"
                 min={1}
@@ -3141,25 +3074,36 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 type="text"
                 value={quickName}
                 onChange={(e) => setQuickName(e.target.value)}
-                placeholder={`Scrivi Nome e Cognome per il N° ${quickNumber}...`}
+                placeholder={`Scrivi N° Tessera (es. 101, 7726) o "non ricordo" per il Turno N° ${quickNumber}...`}
                 className="h-11 w-full rounded-xl border border-slate-300 pl-9 pr-3 text-sm font-medium text-slate-900 focus:border-emerald-600 focus:outline-none"
               />
             </div>
 
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center gap-1.5 h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 text-xs sm:text-sm font-bold text-white shrink-0 cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Memorizza N° {quickNumber}</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center gap-1.5 h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 text-xs sm:text-sm font-bold text-white cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Memorizza N° {quickNumber}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleQuickAddUnknownSocio}
+                className="inline-flex items-center justify-center h-11 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 px-3 text-xs font-bold text-slate-700 cursor-pointer"
+                title="Imposta questo turno come Socio sconosciuto"
+              >
+                Socio sconosciuto
+              </button>
+            </div>
           </form>
 
-          {/* SUGGERIMENTI AUTOMATICI DALL'ANAGRAFICA SOCI */}
+          {/* SUGGERIMENTI AUTOMATICI DALL'ANAGRAFICA SOCI (PER TESSERA O NOME) */}
           {memberSuggestions.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800">
-                <Sparkles className="h-3 w-3" /> Tocca per completare da Anagrafica:
+                <Sparkles className="h-3 w-3" /> Archivio Soci:
               </span>
               {memberSuggestions.map((s) => (
                 <button
@@ -3180,7 +3124,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                   }}
                   className="rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-950 transition cursor-pointer"
                 >
-                  + N° {quickNumber}: {s.full_name}
+                  + Turno {quickNumber}: [Tessera {s.member_number}] {s.full_name}
                 </button>
               ))}
             </div>
@@ -3194,7 +3138,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               Nessun nominativo in lista per oggi.
             </p>
             <p className="text-xs text-slate-500">
-              Usa il pulsante verde <strong>&ldquo;📷 Fotografa il Foglio con il Telefonino&rdquo;</strong> in alto per acquisire i nomi (es. dall&apos;1 al 24), oppure inseriscili qui sopra.
+              Usa il pulsante verde <strong>&ldquo;📷 Fotografa il Foglio con il Telefonino&rdquo;</strong> in alto per acquisire i numeri tessera dal foglio, oppure inseriscili qui sopra.
             </p>
           </div>
         ) : (
@@ -3236,6 +3180,13 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                         type="text"
                         value={item.name}
                         onChange={(e) => handleUpdateItemNameInline(item.number, e.target.value)}
+                        onBlur={(e) => handleResolveInlineCardNumber(item.number, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur();
+                          }
+                        }}
+                        placeholder="N° Tessera o Nome socio..."
                         className={`h-9 flex-1 min-w-0 rounded-lg border px-2.5 text-sm font-semibold focus:outline-none ${
                           isCurrent
                             ? 'border-emerald-500 bg-white text-emerald-950'
