@@ -23,8 +23,28 @@ import {
   Copy,
   UserPlus,
   SlidersHorizontal,
+  Upload,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+
+// Caricamento dinamico di SheetJS (xlsx) per leggere file .xlsx / .xls nativi di Excel
+let xlsxPromiseSchedule: Promise<any> | null = null;
+function loadSheetJSSchedule(): Promise<any> {
+  if ((window as any).XLSX) return Promise.resolve((window as any).XLSX);
+  if (xlsxPromiseSchedule) return xlsxPromiseSchedule;
+  xlsxPromiseSchedule = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    script.async = true;
+    script.onload = () => resolve((window as any).XLSX);
+    script.onerror = (err) => {
+      xlsxPromiseSchedule = null;
+      reject(err);
+    };
+    document.head.appendChild(script);
+  });
+  return xlsxPromiseSchedule;
+}
 import {
   CLASSROOMS,
   CLASSROOM_LABELS,
@@ -85,6 +105,7 @@ export const AdminDashboard: React.FC = () => {
     toggleMemberRole,
     addLesson,
     deleteLesson,
+    importLessonsBatch,
     saveSubjectNote,
     resetDemoData,
     isSimulatingTime,
@@ -149,6 +170,187 @@ export const AdminDashboard: React.FC = () => {
     end_time: '11:00',
   });
   const [scheduleNotice, setScheduleNotice] = useState<string | null>(null);
+  const [scheduleSedeFilter, setScheduleSedeFilter] = useState<'ALL' | 'Quartu' | 'Soleminis'>('ALL');
+  const [isImportingSchedule, setIsImportingSchedule] = useState(false);
+  const scheduleFileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const normalizeDayOfWeek = (raw: any): number => {
+    if (typeof raw === 'number' && raw >= 0 && raw <= 6) return raw;
+    const str = String(raw || '').trim().toLowerCase();
+    if (!str) return 1;
+    if (str.startsWith('lun')) return 1;
+    if (str.startsWith('mar')) return 2;
+    if (str.startsWith('mer')) return 3;
+    if (str.startsWith('gio')) return 4;
+    if (str.startsWith('ven')) return 5;
+    if (str.startsWith('sab')) return 6;
+    if (str.startsWith('dom')) return 0;
+    const parsed = parseInt(str, 10);
+    if (!isNaN(parsed) && parsed >= 0 && parsed <= 6) return parsed;
+    return 1;
+  };
+
+  const normalizeClassroomKey = (raw: any): ClassroomKey => {
+    const s = String(raw || '').toLowerCase().replace(/aula/g, '').trim();
+    if (s.includes('verd')) return 'verde';
+    if (s.includes('giall')) return 'gialla';
+    if (s.includes('ross')) return 'rossa';
+    if (s.includes('rocchitt')) return 'rocchitta';
+    if (s.includes('benedett')) return 'san_benedetto';
+    if (s.includes('bibliotec') || s.includes('biblio')) return 'biblioteca';
+    if (s.includes('ferrini')) return 'ferrini';
+    if (s.includes('polifunz') || s.includes('soleminis')) return 'polifunzionale';
+    return 'verde';
+  };
+
+  const normalizeTimeSpan = (raw: any, defaultStart = '09:00', defaultEnd = '11:00'): { start: string; end: string } => {
+    if (!raw) return { start: defaultStart, end: defaultEnd };
+    const str = String(raw).trim();
+    const parts = str.split(/[-–—/e]|alle|a/i).map((p) => p.trim()).filter(Boolean);
+    const parseClock = (t: string): string => {
+      const match = t.match(/(\d{1,2})[:.]?(\d{2})?/);
+      if (!match) return '09:00';
+      const h = String(parseInt(match[1], 10)).padStart(2, '0');
+      const m = match[2] ? String(parseInt(match[2], 10)).padStart(2, '0') : '00';
+      return `${h}:${m}`;
+    };
+    if (parts.length >= 2) {
+      return { start: parseClock(parts[0]), end: parseClock(parts[1]) };
+    }
+    if (parts.length === 1) {
+      return { start: parseClock(parts[0]), end: defaultEnd };
+    }
+    return { start: defaultStart, end: defaultEnd };
+  };
+
+  const handleScheduleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsImportingSchedule(true);
+    setScheduleNotice(null);
+
+    try {
+      let rows: any[][] = [];
+      const fileName = file.name.toLowerCase();
+
+      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        const XLSX = await loadSheetJSSchedule();
+        const buffer = await file.arrayBuffer();
+        const wb = XLSX.read(buffer, { type: 'array' });
+        const firstSheet = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+      } else {
+        const text = await file.text();
+        const delimiter = text.includes(';') ? ';' : text.includes('\t') ? '\t' : ',';
+        const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+        rows = lines.map((line) => {
+          const cells: string[] = [];
+          let current = '';
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+              inQuotes = !inQuotes;
+            } else if (ch === delimiter && !inQuotes) {
+              cells.push(current.trim());
+              current = '';
+            } else {
+              current += ch;
+            }
+          }
+          cells.push(current.trim());
+          return cells;
+        });
+      }
+
+      if (!rows || rows.length < 2) {
+        throw new Error('Il file è vuoto o non contiene righe valide.');
+      }
+
+      // Rilevamento automatico intestazioni
+      const headerRow = rows[0].map((h) => String(h).trim().toLowerCase());
+      let colGiorno = headerRow.findIndex((h) => h.includes('giorn') || h.includes('day'));
+      let colAula = headerRow.findIndex((h) => h.includes('aul') || h.includes('room') || h.includes('sede'));
+      let colMateria = headerRow.findIndex((h) => h.includes('mater') || h.includes('corso') || h.includes('disciplin') || h.includes('subject'));
+      let colDocente = headerRow.findIndex((h) => h.includes('docent') || h.includes('prof') || h.includes('insegn') || h.includes('teacher'));
+      let colOrario = headerRow.findIndex((h) => h.includes('orar') || h.includes('time') || h.includes('ora'));
+      let colInizio = headerRow.findIndex((h) => h.includes('iniz') || h.includes('start') || h.includes('dalle'));
+      let colFine = headerRow.findIndex((h) => h.includes('fine') || h.includes('end') || h.includes('alle'));
+
+      // Fallback per posizione se non trova le colonne per nome
+      if (colGiorno === -1) colGiorno = 0;
+      if (colAula === -1) colAula = 1;
+      if (colMateria === -1) colMateria = 2;
+      if (colDocente === -1) colDocente = 3;
+      if (colOrario === -1) colOrario = 4;
+
+      const parsedLessons: Omit<Lesson, 'id'>[] = [];
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0 || row.every((c) => !String(c).trim())) continue;
+
+        const rawMateria = String(row[colMateria] || '').trim();
+        if (!rawMateria) continue;
+
+        const rawGiorno = row[colGiorno];
+        const rawAula = row[colAula];
+        const rawDocente = String(row[colDocente] || '').trim();
+
+        let startTime = '09:00';
+        let endTime = '11:00';
+
+        if (colInizio !== -1 && colFine !== -1 && row[colInizio] && row[colFine]) {
+          const s = normalizeTimeSpan(row[colInizio]);
+          const e = normalizeTimeSpan(row[colFine]);
+          startTime = s.start;
+          endTime = e.start;
+        } else if (colOrario !== -1 && row[colOrario]) {
+          const times = normalizeTimeSpan(row[colOrario]);
+          startTime = times.start;
+          endTime = times.end;
+        }
+
+        const dayOfWeek = normalizeDayOfWeek(rawGiorno);
+        const classroom = normalizeClassroomKey(rawAula);
+        const meta = getSubjectMeta(rawMateria);
+
+        parsedLessons.push({
+          classroom,
+          subject: rawMateria,
+          teacher: rawDocente || 'Docente QU3',
+          category: meta.category,
+          day_of_week: dayOfWeek,
+          start_time: startTime,
+          end_time: endTime,
+        });
+      }
+
+      if (parsedLessons.length === 0) {
+        throw new Error('Nessuna lezione valida riconosciuta nel file.');
+      }
+
+      const replaceExisting = window.confirm(
+        `Trovate ${parsedLessons.length} lezioni nel file «${file.name}».\n\n` +
+          `Scegli:\n` +
+          `• [OK] per SOSTITUIRE completamente il calendario attuale con queste ${parsedLessons.length} lezioni.\n` +
+          `• [Annulla] per AGGIUNGERE queste lezioni a quelle già esistenti.`
+      );
+
+      importLessonsBatch(parsedLessons, replaceExisting ? 'replace' : 'append');
+
+      setScheduleNotice(
+        `✓ ${parsedLessons.length} lezioni caricate con successo dal file «${file.name}» (${replaceExisting ? 'Sostituite' : 'Aggiunte'}).`
+      );
+    } catch (err: any) {
+      alert(`Errore durante il caricamento del file:\n${err.message || err}`);
+    } finally {
+      setIsImportingSchedule(false);
+      if (scheduleFileInputRef.current) {
+        scheduleFileInputRef.current.value = '';
+      }
+    }
+  };
 
   // --- STATE SEZIONE REPORT ---
   const [dateFrom, setDateFrom] = useState('');
@@ -1610,40 +1812,69 @@ export const AdminDashboard: React.FC = () => {
                     Programma Orario Settimanale delle Aule
                   </h2>
                   <p className="text-xs sm:text-sm font-normal text-slate-500">
-                    Aggiungi o rimuovi lezioni dal calendario settimanale
+                    Aggiungi, importa da Excel/CSV o rimuovi lezioni dal calendario settimanale
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    exportOfficialPdf({
-                      title: 'Programma Ufficiale Lezioni Settimanali QU3',
-                      subtitle: `Totale corsi settimanali programmati: ${lessons.length}`,
-                      head: ['Giorno', 'Orario', 'Aula', 'Materia', 'Docente', 'Area Didattica'],
-                      body: [...lessons]
-                        .sort(
-                          (a, b) =>
-                            a.day_of_week - b.day_of_week ||
-                            a.start_time.localeCompare(b.start_time)
-                        )
-                        .map((l) => [
-                          DAYS_IT[l.day_of_week],
-                          `${l.start_time.slice(0, 5)} – ${l.end_time.slice(0, 5)}`,
-                          CLASSROOM_LABELS[l.classroom] || l.classroom,
-                          l.subject,
-                          l.teacher,
-                          l.category,
-                        ]),
-                      fileName: `programma_settimanale_QU3_${new Date().toISOString().slice(0, 10)}.pdf`,
-                      landscape: true,
-                    })
-                  }
-                  className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2.5 text-sm font-normal text-white shadow-sm transition"
-                >
-                  <FileDown className="h-4 w-4" />
-                  <span>Stampa PDF Programma</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    ref={scheduleFileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls,.csv,.txt"
+                    onChange={handleScheduleFileUpload}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => scheduleFileInputRef.current?.click()}
+                    disabled={isImportingSchedule}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-emerald-600 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-4 py-2.5 text-sm font-medium shadow-2xs transition active:scale-95 disabled:opacity-50"
+                  >
+                    <Upload className="h-4 w-4 text-emerald-700" />
+                    <span>{isImportingSchedule ? 'Caricamento...' : 'Carica Orario XLS / CSV'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      exportOfficialPdf({
+                        title: 'Programma Ufficiale Lezioni Settimanali QU3',
+                        subtitle: `Totale corsi settimanali programmati: ${lessons.length}`,
+                        head: ['Giorno', 'Orario', 'Aula', 'Materia', 'Docente', 'Area Didattica'],
+                        body: [...lessons]
+                          .sort(
+                            (a, b) =>
+                              a.day_of_week - b.day_of_week ||
+                              a.start_time.localeCompare(b.start_time)
+                          )
+                          .map((l) => [
+                            DAYS_IT[l.day_of_week],
+                            `${l.start_time.slice(0, 5)} – ${l.end_time.slice(0, 5)}`,
+                            CLASSROOM_LABELS[l.classroom] || l.classroom,
+                            l.subject,
+                            l.teacher,
+                            l.category,
+                          ]),
+                        fileName: `programma_settimanale_QU3_${new Date().toISOString().slice(0, 10)}.pdf`,
+                        landscape: true,
+                      })
+                    }
+                    className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2.5 text-sm font-normal text-white shadow-sm transition"
+                  >
+                    <FileDown className="h-4 w-4" />
+                    <span>Stampa PDF Programma</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Guida Colonne File XLS/CSV */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600 space-y-1">
+                <p className="font-medium text-slate-800">
+                  💡 Formato accettato per il caricamento file Excel (.xlsx, .xls) o CSV (.csv):
+                </p>
+                <p>
+                  Puoi caricare un file con le colonne: <strong className="text-emerald-800">Giorno</strong> (es. <em>Lunedì</em> o <em>1..6</em>), <strong className="text-emerald-800">Aula</strong> (es. <em>Aula Verde, Gialla, Rossa, Rocchitta, San Benedetto, Biblioteca, Ferrini, Polifunzionale</em>), <strong className="text-emerald-800">Materia</strong>, <strong className="text-emerald-800">Docente</strong> e <strong className="text-emerald-800">Orario</strong> (es. <em>09:00 - 11:00</em> oppure colonne separate <em>Inizio</em> e <em>Fine</em>).
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1768,13 +1999,49 @@ export const AdminDashboard: React.FC = () => {
               </div>
             )}
 
+            {/* Filtro Sede per Tabella Orari */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-100 p-1">
+                {(['ALL', 'Quartu', 'Soleminis'] as const).map((s) => {
+                  const count = lessons.filter((l) => {
+                    if (s === 'ALL') return true;
+                    if (s === 'Soleminis') return l.classroom === 'polifunzionale';
+                    return l.classroom !== 'polifunzionale';
+                  }).length;
+                  const isActive = scheduleSedeFilter === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setScheduleSedeFilter(s)}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+                        isActive
+                          ? 'bg-white text-emerald-800 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {s === 'ALL' ? 'Tutte le Sedi' : `Sede ${s}`} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              <span className="text-xs text-slate-500 font-normal">
+                Mostrate {lessons.filter((l) => {
+                  if (scheduleSedeFilter === 'ALL') return true;
+                  if (scheduleSedeFilter === 'Soleminis') return l.classroom === 'polifunzionale';
+                  return l.classroom !== 'polifunzionale';
+                }).length} di {lessons.length} lezioni totali
+              </span>
+            </div>
+
             <div className={`rounded-3xl overflow-hidden ${cardClass}`}>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 text-xs font-normal uppercase tracking-wider text-slate-500">
                       <th className="p-4">Giorno</th>
-                      <th className="p-4">Aula</th>
+                      <th className="p-4">Aula e Sede</th>
                       <th className="p-4">Materia</th>
                       <th className="p-4">Docente</th>
                       <th className="p-4">Orario</th>
@@ -1782,7 +2049,12 @@ export const AdminDashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...lessons]
+                    {lessons
+                      .filter((les) => {
+                        if (scheduleSedeFilter === 'ALL') return true;
+                        if (scheduleSedeFilter === 'Soleminis') return les.classroom === 'polifunzionale';
+                        return les.classroom !== 'polifunzionale';
+                      })
                       .sort(
                         (a, b) =>
                           a.day_of_week - b.day_of_week ||
@@ -1790,6 +2062,7 @@ export const AdminDashboard: React.FC = () => {
                       )
                       .map((les) => {
                         const meta = getSubjectMeta(les.subject);
+                        const isSol = les.classroom === 'polifunzionale';
                         return (
                           <tr
                             key={les.id}
@@ -1799,7 +2072,12 @@ export const AdminDashboard: React.FC = () => {
                               {DAYS_IT[les.day_of_week]}
                             </td>
                             <td className="p-4 font-normal text-slate-700">
-                              {CLASSROOM_LABELS[les.classroom]}
+                              <span className="font-medium text-slate-900">{CLASSROOM_LABELS[les.classroom]}</span>
+                              <span className={`ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
+                                isSol ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'
+                              }`}>
+                                {isSol ? 'Soleminis' : 'Quartu'}
+                              </span>
                             </td>
                             <td className="p-4 font-medium text-slate-900">
                               {meta.emoji} {les.subject}

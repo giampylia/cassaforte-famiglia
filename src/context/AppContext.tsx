@@ -153,6 +153,7 @@ interface AppContextType {
   addLesson: (lesson: Omit<Lesson, 'id'>) => void;
   updateLesson: (id: string, data: Partial<Lesson>) => void;
   deleteLesson: (id: string) => void;
+  importLessonsBatch: (newLessons: Omit<Lesson, 'id'>[], mode: 'replace' | 'append') => { count: number };
   saveSubjectNote: (note: SubjectDidacticNote) => void;
   resetDemoData: () => void;
 }
@@ -1651,6 +1652,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { ok: false, message: "Effettua prima l'accesso." };
     }
 
+    const isSoleminisUser = (currentUser.sede || 'Quartu').toLowerCase() === 'soleminis';
+    const isSoleminisRoom = room === 'polifunzionale';
+    if (!isSuperAdmin && currentUser.role !== 'admin') {
+      if (isSoleminisUser && !isSoleminisRoom) {
+        return {
+          ok: false,
+          message: 'Sei iscritto nella sede di Soleminis. Puoi timbrare solo per le lezioni di Soleminis.',
+        };
+      }
+      if (!isSoleminisUser && isSoleminisRoom) {
+        return {
+          ok: false,
+          message: 'Sei iscritto nella sede di Quartu. Puoi timbrare solo per le lezioni di Quartu.',
+        };
+      }
+    }
+
     const activeLesson = getActiveLessonForRoom(room);
     if (!activeLesson) {
       return {
@@ -2236,6 +2254,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     commitLessonsUpdate(next);
   };
 
+  const importLessonsBatch = (
+    newLessons: Omit<Lesson, 'id'>[],
+    mode: 'replace' | 'append' = 'append'
+  ): { count: number } => {
+    const prepared: Lesson[] = newLessons.map((l, idx) => ({
+      ...l,
+      id: `les-imp-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+      category: l.category || getSubjectMeta(l.subject).category,
+    }));
+    const next = mode === 'replace' ? prepared : [...lessonsRef.current, ...prepared];
+    commitLessonsUpdate(next);
+    return { count: prepared.length };
+  };
+
   const saveSubjectNote = (note: SubjectDidacticNote) => {
     setSubjectNotes((prev) => {
       const exists = prev.some((n) => n.subject === note.subject);
@@ -2322,6 +2354,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addLesson,
         updateLesson,
         deleteLesson,
+        importLessonsBatch,
         saveSubjectNote,
         resetDemoData,
       }}
