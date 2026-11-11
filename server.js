@@ -82,6 +82,9 @@ function readJsonBody(req) {
 function sanitizeServerProfiles(profiles) {
   if (!Array.isArray(profiles)) return profiles;
   let foundSuper = false;
+  let found9999 = false;
+  let found9998 = false;
+
   const cleaned = profiles.map((p) => {
     if (!p) return p;
     const num = String(p.member_number || '').trim();
@@ -102,7 +105,9 @@ function sanitizeServerProfiles(profiles) {
           new Set(['Amministratore', ...((p.roles || []).filter((r) => r !== 'Socio'))])
         ),
       };
+    }
     if (num === '9999' || p.id === 'segreteria-9999') {
+      found9999 = true;
       return {
         ...p,
         id: p.id || 'segreteria-9999',
@@ -118,6 +123,7 @@ function sanitizeServerProfiles(profiles) {
       };
     }
     if (num === '9998' || p.id === 'segreteria-9998') {
+      found9998 = true;
       return {
         ...p,
         id: p.id || 'segreteria-9998',
@@ -151,6 +157,39 @@ function sanitizeServerProfiles(profiles) {
       joined_year: 2018,
     });
   }
+
+  if (!found9999) {
+    cleaned.push({
+      id: 'segreteria-9999',
+      member_number: '9999',
+      first_name: 'Nives',
+      last_name: 'Cocco',
+      full_name: 'Nives Cocco',
+      sede: 'Quartu',
+      role: 'member',
+      is_super_admin: false,
+      is_cd: false,
+      roles: ['Segreteria'],
+      joined_year: 2024,
+    });
+  }
+
+  if (!found9998) {
+    cleaned.push({
+      id: 'segreteria-9998',
+      member_number: '9998',
+      first_name: 'Josh Ronald',
+      last_name: 'Cocco',
+      full_name: 'Josh Ronald Cocco',
+      sede: 'Quartu',
+      role: 'member',
+      is_super_admin: false,
+      is_cd: false,
+      roles: ['Segreteria'],
+      joined_year: 2024,
+    });
+  }
+
   return cleaned;
 }
 

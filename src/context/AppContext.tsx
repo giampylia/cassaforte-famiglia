@@ -421,7 +421,7 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
     if (idx9999 >= 0) {
       list[idx9999] = normalizeProtectedSegreteriaProfile('9999', list[idx9999]);
     } else {
-      list.splice(1, 0, normalizeProtectedSegreteriaProfile('9999'));
+      list.push(normalizeProtectedSegreteriaProfile('9999'));
     }
   }
 
@@ -430,15 +430,10 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
       (p) => String(p.member_number).trim() === '9998' || p.id === 'segreteria-9998'
     );
     if (idx9998 >= 0) {
-      list[idx9988Or(idx9998)] = normalizeProtectedSegreteriaProfile('9998', list[idx9998]);
+      list[idx9998] = normalizeProtectedSegreteriaProfile('9998', list[idx9998]);
     } else {
-      const insertAt = Math.min(2, list.length);
-      list.splice(insertAt, 0, normalizeProtectedSegreteriaProfile('9998'));
+      list.push(normalizeProtectedSegreteriaProfile('9998'));
     }
-  }
-
-  function idx9988Or(i: number) {
-    return i;
   }
 
   return list.map((p) => {
@@ -1492,10 +1487,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
+    // Accesso Segreteria: 9999 (Nives Cocco) o 9998 (Josh Ronald Cocco)
+    if (cleaned === '9999' || cleaned === '9998') {
+      const segreteriaUser =
+        profiles.find((p) => String(p.member_number).trim() === cleaned) ||
+        normalizeProtectedSegreteriaProfile(cleaned as '9999' | '9998');
+      setCurrentUser(segreteriaUser);
+      setActiveSection('eliminacode');
+      return { error: null };
+    }
+
     const matched = profiles.find(
       (p) =>
         p.member_number.toLowerCase() === cleaned.toLowerCase() ||
-        p.full_name.toLowerCase() === cleaned.toLowerCase()
+        p.full_name.toLowerCase() === cleaned.toLowerCase() ||
+        (/^\d+$/.test(cleaned) &&
+          /^\d+$/.test(p.member_number.trim()) &&
+          parseInt(p.member_number.trim(), 10) === parseInt(cleaned, 10))
     );
 
     if (matched) {
@@ -1505,30 +1513,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveSection('admin_dashboard');
         return { error: null };
       }
+      if (isProtectedSegreteriaMember(matched)) {
+        const numTrim = String(matched.member_number || '').trim();
+        const segreteriaUser = normalizeProtectedSegreteriaProfile(
+          numTrim === '9998' ? '9998' : '9999',
+          matched
+        );
+        setCurrentUser(segreteriaUser);
+        setActiveSection('eliminacode');
+        return { error: null };
+      }
       setCurrentUser(matched);
       setActiveSection(matched.role === 'admin' ? 'admin_dashboard' : 'presenze');
       return { error: null };
     }
 
-    if (/^\d+$/.test(cleaned)) {
-      const autoProfile: Profile = {
-        id: `u-${cleaned}`,
-        member_number: cleaned,
-        full_name: `Socio Tessera N° ${cleaned}`,
-        sede: Number(cleaned) >= 200 && Number(cleaned) < 300 ? 'Soleminis' : 'Quartu',
-        role: 'member',
-        is_cd: false,
-        roles: ['Socio'],
-        joined_year: new Date().getFullYear(),
-      };
-      setProfiles((prev) => [...prev, autoProfile]);
-      setCurrentUser(autoProfile);
-      setActiveSection('presenze');
-      return { error: null };
-    }
-
+    // Se il numero non è presente nell'anagrafica soci, blocca l'accesso
     return {
-      error: 'Numero di tessera non riconosciuto. Controlla le cifre riportate sulla tua tessera socio.',
+      error: 'Numero di tessera non presente in anagrafica soci. Verifica il numero o rivolgiti alla segreteria.',
     };
   };
 
