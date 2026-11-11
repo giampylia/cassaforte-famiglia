@@ -64,15 +64,26 @@ export function getMemberParts(p: Profile): {
   lastName: string;
   primaryRole: string;
 } {
-  let firstName = (p.first_name || '').trim();
-  let lastName = (p.last_name || '').trim();
+  if (isProtectedSuperAdmin(p)) {
+    const customRoles = (p.roles || []).filter((r) => r !== 'Socio');
+    const primaryRole = customRoles.length > 0 ? customRoles.join(', ') : 'Amministratore';
+    return {
+      firstName: 'Giampiero',
+      lastName: 'Pilia',
+      primaryRole,
+    };
+  }
+
+  let firstName = (p.first_name || '').replace(/\b\d{3,}\b/g, '').trim();
+  let lastName = (p.last_name || '').replace(/\b\d{3,}\b/g, '').trim();
 
   if (!firstName && !lastName && p.full_name) {
-    const parts = p.full_name.trim().split(/\s+/);
+    const cleanFull = p.full_name.replace(/\b\d{3,}\b/g, '').trim();
+    const parts = cleanFull.split(/\s+/).filter(Boolean);
     if (parts.length === 1) {
       firstName = parts[0];
       lastName = '';
-    } else {
+    } else if (parts.length > 1) {
       // Ultima parola come cognome, precedenti come nome (es. "Maria Bonaria Melis" -> Nome: "Maria Bonaria", Cognome: "Melis")
       lastName = parts[parts.length - 1];
       firstName = parts.slice(0, -1).join(' ');
@@ -80,10 +91,7 @@ export function getMemberParts(p: Profile): {
   }
 
   let primaryRole = 'Socio';
-  if (isProtectedSuperAdmin(p)) {
-    const customRoles = (p.roles || []).filter((r) => r !== 'Socio');
-    primaryRole = customRoles.length > 0 ? customRoles.join(', ') : 'Amministratore';
-  } else if (p.roles && p.roles.length > 0) {
+  if (p.roles && p.roles.length > 0) {
     const nonSocio = p.roles.filter((r) => r !== 'Socio');
     primaryRole = nonSocio.length > 0 ? nonSocio.join(', ') : 'Socio';
   } else if (p.is_cd) {

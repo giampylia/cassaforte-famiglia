@@ -239,7 +239,7 @@ export const AnagraficaSociView: React.FC = () => {
     );
   };
 
-  // Parser righe grezze provenienti da CSV o Excel
+  // Parser intelligente righe grezze provenienti da CSV o Excel (riconosce qualsiasi ordine di colonne ed evita codici numerici nei nomi)
   const parseMatrixToMembers = (matrix: any[][]): ImportedMemberRow[] => {
     const cleanRows = matrix
       .map((r) => r.map((cell) => String(cell ?? '').trim()))
@@ -247,63 +247,227 @@ export const AnagraficaSociView: React.FC = () => {
 
     if (cleanRows.length === 0) return [];
 
-    // Individua se la prima riga è un'intestazione (es. Tessera, Nome, Cognome, Sede, Ruolo)
-    const firstRowLower = cleanRows[0].map((c) => c.toLowerCase());
-    const hasHeader = firstRowLower.some(
-      (c) =>
-        c.includes('tessera') ||
-        c.includes('codice') ||
-        c.includes('nome') ||
-        c.includes('cognome') ||
-        c.includes('sede') ||
-        c.includes('ruolo')
-    );
+    // Cerca la riga di intestazione tra le prime 10 righe (nel caso il foglio Excel abbia un titolo in alto)
+    let headerRowIdx = -1;
+    for (let i = 0; i < Math.min(10, cleanRows.length); i++) {
+      const rowLower = cleanRows[i].map((c) => c.toLowerCase());
+      const score = rowLower.filter(
+        (c) =>
+          c.includes('tessera') ||
+          c.includes('matricola') ||
+          c.includes('cognome') ||
+          c.includes('nome') ||
+          c.includes('nominativo') ||
+          c.includes('sede') ||
+          c.includes('ruolo')
+      ).length;
+      if (score >= 1) {
+        headerRowIdx = i;
+        break;
+      }
+    }
 
-    let idxTessera = 0;
-    let idxNome = 1;
-    let idxCognome = 2;
-    let idxSede = 3;
-    let idxRuolo = 4;
+    let idxTessera = -1;
+    let idxNome = -1;
+    let idxCognome = -1;
+    let idxNominativo = -1;
+    let idxSede = -1;
+    let idxRuolo = -1;
 
-    if (hasHeader) {
-      firstRowLower.forEach((col, idx) => {
-        if (col.includes('tessera') || col.includes('codice') || col.includes('num') || col === 'id') {
+    if (headerRowIdx >= 0) {
+      const headerCols = cleanRows[headerRowIdx].map((c) => c.toLowerCase().trim());
+
+      // 1° passaggio: priorità assoluta a "tessera" o "matricola"
+      headerCols.forEach((col, idx) => {
+        if (idxTessera === -1 && (col.includes('tessera') || col.includes('matricola'))) {
           idxTessera = idx;
-        } else if (col === 'nome' || col.includes('first')) {
-          idxNome = idx;
-        } else if (col.includes('cognome') || col.includes('last')) {
-          idxCognome = idx;
-        } else if (col.includes('sede') || col.includes('citt')) {
-          idxSede = idx;
-        } else if (col.includes('ruolo') || col.includes('carica') || col.includes('cd')) {
-          idxRuolo = idx;
+        }
+      });
+
+      // 2° passaggio: altre colonne di intestazione
+      headerCols.forEach((col, idx) => {
+        if (
+          idxTessera === -1 &&
+          (col === 'id' ||
+            col === 'n' ||
+            col === 'n.' ||
+            col === 'n°' ||
+            col.includes('num') ||
+            col.includes('codice')) &&
+          !col.includes('fisc') &&
+          !col.includes('tel') &&
+          !col.includes('cell') &&
+          !col.includes('cap') &&
+          !col.includes('data') &&
+          !col.includes('nasc') &&
+          !col.includes('bollett') &&
+          !col.includes('ricev')
+        ) {
+          idxTessera = idx;
+        } else if (
+          (col.includes('cognome') && col.includes('nome')) ||
+          col.includes('nominativo') ||
+          col.includes('socio') ||
+          col.includes('intestatario')
+        ) {
+          if (idxNominativo === -1) idxNominativo = idx;
+        } else if (col.includes('cognome') || col.includes('last') || col.includes('surname')) {
+          if (idxCognome === -1) idxCognome = idx;
+        } else if ((col.includes('nome') && !col.includes('cognome')) || col.includes('first')) {
+          if (idxNome === -1) idxNome = idx;
+        } else if (col.includes('sede') || col.includes('citt') || col.includes('sezione')) {
+          if (idxSede === -1) idxSede = idx;
+        } else if (col.includes('ruolo') || col.includes('carica') || col === 'cd') {
+          if (idxRuolo === -1) idxRuolo = idx;
         }
       });
     }
 
-    const dataRows = hasHeader ? cleanRows.slice(1) : cleanRows;
+    const dataRows = headerRowIdx >= 0 ? cleanRows.slice(headerRowIdx + 1) : cleanRows;
+    if (dataRows.length === 0) return [];
+
+    // Verifica basata sul contenuto reale delle celle (per evitare che una colonna numerica come "0801021400" finisca in Nome o Cognome)
+    const sampleRows = dataRows.slice(0, 40);
+    const maxCols = Math.max(...sampleRows.map((r) => r.length), 0);
+
+    const isAlphaNameCell = (val: string): boolean => {
+      const v = val.trim();
+      if (!v || v.length < 2) return false;
+      if (/\d{2,}/.test(v)) return false; // Esclude numeri, date, codici (es. 0801021400) e codici fiscali
+      if (/^(quartu|soleminis|socio|cd|amministratore|didattica|viaggi|amministrativo)$/i.test(v)) {
+        return false;
+      }
+      return (v.match(/[A-Za-zÀ-ÿ]/g) || []).length >= 2;
+    };
+
+    const isCardNumberCell = (val: string): boolean => {
+      const v = val.trim().replace(/^(?:n[°º.]?|tess(?:era)?\.?|#)\s*/i, '');
+      return /^\d{1,6}$/.test(v);
+    };
+
+    // Se idxTessera non è stato trovato o punta a una colonna senza numeri tessera, trova la colonna con numeri tessera (1..6 cifre)
+    if (
+      idxTessera === -1 ||
+      sampleRows.filter((r) => isCardNumberCell(r[idxTessera] || '')).length === 0
+    ) {
+      let bestCol = 0;
+      let bestScore = -1;
+      for (let c = 0; c < maxCols; c++) {
+        const count = sampleRows.filter((r) => isCardNumberCell(r[c] || '')).length;
+        if (count > bestScore) {
+          bestScore = count;
+          bestCol = c;
+        }
+      }
+      idxTessera = bestCol;
+    }
+
+    // Controlla quali colonne contengono davvero nomi alfabetici (e NON codici numerici come 0801021400)
+    const colAlphaCounts: { col: number; count: number }[] = [];
+    for (let c = 0; c < maxCols; c++) {
+      if (c === idxTessera || c === idxSede || c === idxRuolo) continue;
+      const count = sampleRows.filter((r) => isAlphaNameCell(r[c] || '')).length;
+      colAlphaCounts.push({ col, count });
+    }
+
+    const validAlphaCols = colAlphaCounts
+      .filter((item) => item.count >= Math.max(1, Math.floor(sampleRows.length * 0.25)))
+      .map((item) => item.col);
+
+    const nomeColIsValidAlpha =
+      idxNome >= 0 &&
+      idxNome !== idxTessera &&
+      sampleRows.filter((r) => isAlphaNameCell(r[idxNome] || '')).length >=
+        Math.max(1, Math.floor(sampleRows.length * 0.2));
+    const cognomeColIsValidAlpha =
+      idxCognome >= 0 &&
+      idxCognome !== idxTessera &&
+      sampleRows.filter((r) => isAlphaNameCell(r[idxCognome] || '')).length >=
+        Math.max(1, Math.floor(sampleRows.length * 0.2));
+
+    if (!nomeColIsValidAlpha && !cognomeColIsValidAlpha && idxNominativo === -1) {
+      if (validAlphaCols.length >= 2) {
+        idxNome = validAlphaCols[0];
+        idxCognome = validAlphaCols[1];
+      } else if (validAlphaCols.length === 1) {
+        idxNominativo = validAlphaCols[0];
+      } else {
+        idxNome = 1;
+        idxCognome = 2;
+      }
+    } else if (!nomeColIsValidAlpha && cognomeColIsValidAlpha) {
+      const otherAlpha = validAlphaCols.find((c) => c !== idxCognome);
+      if (otherAlpha !== undefined) {
+        idxNome = otherAlpha;
+      } else {
+        idxNome = -1;
+      }
+    } else if (nomeColIsValidAlpha && !cognomeColIsValidAlpha) {
+      const otherAlpha = validAlphaCols.find((c) => c !== idxNome);
+      if (otherAlpha !== undefined) {
+        idxCognome = otherAlpha;
+      } else {
+        idxCognome = -1;
+      }
+    }
+
+    if (idxSede === -1) idxSede = 3;
+    if (idxRuolo === -1) idxRuolo = 4;
+
+    const cleanAlphaText = (s: string) =>
+      s
+        .replace(/\b\d{2,}\b/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 
     const result: ImportedMemberRow[] = [];
     for (const r of dataRows) {
-      const tessera = (r[idxTessera] || '').trim();
+      const rawTessera = (r[idxTessera] || '').trim();
+      const tessera = rawTessera.replace(/^(?:n[°º.]?|tess(?:era)?\.?|#)\s*/i, '').trim();
       if (!tessera) continue;
+      // Salta eventuali righe di intestazione ripetute a metà foglio
+      if (/^(tessera|prog|numero|codice|id)$/i.test(tessera)) continue;
 
-      let nome = (r[idxNome] || '').trim();
-      let cognome = (r[idxCognome] || '').trim();
+      let nome = idxNome >= 0 ? cleanAlphaText(r[idxNome] || '') : '';
+      let cognome = idxCognome >= 0 ? cleanAlphaText(r[idxCognome] || '') : '';
+
+      if (!nome && !cognome && idxNominativo >= 0) {
+        const nom = cleanAlphaText(r[idxNominativo] || '');
+        if (nom) {
+          const parts = nom.split(/\s+/);
+          if (parts.length > 1) {
+            cognome = parts[parts.length - 1];
+            nome = parts.slice(0, -1).join(' ');
+          } else {
+            cognome = nom;
+          }
+        }
+      }
 
       // Se l'utente aveva messo Nome e Cognome insieme in una sola colonna
       if (nome && !cognome && nome.includes(' ')) {
         const parts = nome.split(/\s+/);
         cognome = parts[parts.length - 1];
         nome = parts.slice(0, -1).join(' ');
+      } else if (cognome && !nome && cognome.includes(' ')) {
+        const parts = cognome.split(/\s+/);
+        cognome = parts[0];
+        nome = parts.slice(1).join(' ');
       }
+
+      // Se sia nome che cognome sono vuoti, salta la riga vuota pre-numerata
+      if (!nome && !cognome) continue;
 
       const rawSede = (r[idxSede] || 'Quartu').trim();
       const sede: 'Quartu' | 'Soleminis' = rawSede.toLowerCase().includes('soleminis')
         ? 'Soleminis'
         : 'Quartu';
 
-      const ruolo = (r[idxRuolo] || 'Socio').trim() || 'Socio';
+      const rawRuoloCell = (r[idxRuolo] || '').trim();
+      const ruolo =
+        rawRuoloCell && !/\d{3,}/.test(rawRuoloCell) && rawRuoloCell !== nome && rawRuoloCell !== cognome
+          ? rawRuoloCell
+          : 'Socio';
 
       result.push({
         member_number: tessera,

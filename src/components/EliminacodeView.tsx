@@ -272,7 +272,7 @@ function findSocioByCardNumber(rawCandidate: string, knownProfiles: Profile[]): 
       !/ufficio\s+presenze/i.test(p.full_name.trim())
   );
 
-  // 1) Super Admin 7726 / 7796 -> Giampiero Pilia
+  // 1) Super Admin 7726 / 7796 -> SEMPRE Giampiero Pilia
   if (cleaned === '7726' || cleaned === '7796') {
     const superP = validProfiles.find(
       (p) =>
@@ -280,7 +280,20 @@ function findSocioByCardNumber(rawCandidate: string, knownProfiles: Profile[]): 
         p.member_number.trim() === '7796' ||
         p.is_super_admin
     );
-    if (superP) return superP;
+    return {
+      ...(superP || {
+        id: 'admin-7726',
+        sede: 'Quartu',
+        role: 'admin',
+        is_super_admin: true,
+        is_cd: true,
+        roles: ['Amministratore'],
+      }),
+      member_number: '7726',
+      first_name: 'Giampiero',
+      last_name: 'Pilia',
+      full_name: 'Giampiero Pilia',
+    };
   }
 
   // 2) Corrispondenza diretta sul member_number
@@ -305,15 +318,42 @@ function findSocioByCardNumber(rawCandidate: string, knownProfiles: Profile[]): 
   return null;
 }
 
-// Converte i caratteri scritti a mano che l'OCR può confondere con cifre (es. O->0, I/l->1, Z->2, S->5, G->6, B->8)
+// Converte i caratteri scritti a mano che l'OCR può confondere con cifre (es. O->0, I/l->1, Z->2, A->4, S->5, G->6, T/?->7, B->8)
 function normalizeHandwrittenDigits(token: string): string {
   return token
     .replace(/[OQoD]/g, '0')
     .replace(/[Il|!i]/g, '1')
     .replace(/[Zz]/g, '2')
+    .replace(/[A]/g, '4')
     .replace(/[Ss]/g, '5')
     .replace(/[Gb]/g, '6')
+    .replace(/[TtYy?]/g, '7')
     .replace(/B/g, '8');
+}
+
+// Estrae il numero tessera candidato dalla casella (per ri-risolverlo anche se l'Archivio Soci viene ricaricato subito dopo)
+function extractLikelyCardNumber(candidates: string[]): string | undefined {
+  for (const c of candidates) {
+    if (!c) continue;
+    if (FORGOTTEN_CARD_PHRASE.test(c)) return undefined;
+  }
+  for (const c of candidates) {
+    if (!c || !c.trim()) continue;
+    const firstCol = (c.split(':::')[0] || c)
+      .replace(/\|+/g, ' ')
+      .replace(/^(?:n[°º.]?|num(?:ero)?\.?|tess(?:era)?\.?|#)\s*/i, '')
+      .trim();
+    if (!firstCol) continue;
+    const compact = firstCol.replace(/[\s.,/-]+/g, '');
+    if (/^\d{1,6}$/.test(compact)) return compact;
+    const digitGroups = firstCol.match(/\d{2,6}/g);
+    if (digitGroups && digitGroups.length > 0) return digitGroups[0];
+    if (compact.length >= 1 && compact.length <= 6) {
+      const norm = normalizeHandwrittenDigits(compact);
+      if (/^\d{1,6}$/.test(norm)) return norm;
+    }
+  }
+  return undefined;
 }
 
 // Prova a estrarre il nominativo del socio dall'Archivio Soci a partire dal testo letto nella 2ª colonna (Numero Tessera).
@@ -353,7 +393,23 @@ function resolveCellToSocioOrUnknown(rawCellText: string, knownProfiles: Profile
     if (compactMatch) return compactMatch.full_name;
   }
 
-  // 3) Se ci sono almeno 3 lettere alfabetiche (es. una frase scritta a mano tipo "smarrita" o altro testo),
+  // 3) Estrae i singoli blocchi numerici presenti nella casella (es. "101" o "7726") PRIMA di scartare per lettere spurie OCR
+  const digitGroups = stripped.match(/\d{1,6}/g) || [];
+  for (const dg of digitGroups) {
+    const m = findSocioByCardNumber(dg, knownProfiles);
+    if (m) return m.full_name;
+  }
+
+  // 4) Se è un token breve (1..6 caratteri) dove l'OCR ha confuso una cifra con una lettera simile (es. "1O1" -> "101", "T726" -> "7726")
+  if (compactNoSpaces.length >= 1 && compactNoSpaces.length <= 6) {
+    const normalizedDigits = normalizeHandwrittenDigits(compactNoSpaces);
+    if (/^\d{1,6}$/.test(normalizedDigits)) {
+      const normMatch = findSocioByCardNumber(normalizedDigits, knownProfiles);
+      if (normMatch) return normMatch.full_name;
+    }
+  }
+
+  // 5) Se ci sono almeno 3 lettere alfabetiche (es. nome scritto per esteso),
   // verifica solo se corrisponde esattamente al nome completo di un socio in archivio, altrimenti è "Socio sconosciuto"
   const alphaLetters = (stripped.match(/[A-Za-zÀ-ÿ]/g) || []).length;
   if (alphaLetters >= 3) {
@@ -372,22 +428,6 @@ function resolveCellToSocioOrUnknown(rawCellText: string, knownProfiles: Profile
       if (exactNameProfile) return exactNameProfile.full_name;
     }
     return UNKNOWN_SOCIO_LABEL;
-  }
-
-  // 4) Estrae i singoli blocchi numerici presenti nella casella (es. "101" o "7726")
-  const digitGroups = stripped.match(/\d{1,6}/g) || [];
-  for (const dg of digitGroups) {
-    const m = findSocioByCardNumber(dg, knownProfiles);
-    if (m) return m.full_name;
-  }
-
-  // 5) Se è un token breve (1..6 caratteri) dove l'OCR ha confuso una cifra con una lettera simile (es. "1O1" -> "101", "I04" -> "104")
-  if (compactNoSpaces.length >= 1 && compactNoSpaces.length <= 6) {
-    const normalizedDigits = normalizeHandwrittenDigits(compactNoSpaces);
-    if (/^\d{1,6}$/.test(normalizedDigits)) {
-      const normMatch = findSocioByCardNumber(normalizedDigits, knownProfiles);
-      if (normMatch) return normMatch.full_name;
-    }
   }
 
   return UNKNOWN_SOCIO_LABEL;
@@ -770,7 +810,10 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           newlyAddedCount++;
           if (item.number < minAdded) minAdded = item.number;
           if (item.number > maxAdded) maxAdded = item.number;
-        } else if (item.name && already.name !== item.name) {
+        } else if (
+          (item.name && already.name !== item.name) ||
+          (item.cardNumber && already.cardNumber !== item.cardNumber)
+        ) {
           mapByNum.set(item.number, item);
           updatedCount++;
         }
@@ -1916,7 +1959,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           const hasExplicitForgottenPhrase = candidates.some((c) => FORGOTTEN_CARD_PHRASE.test(c));
 
           // Se non ha ancora trovato il Numero Tessera in Archivio Soci e non è già una scritta tipo "non ricordo",
-          // esegue la lettura mirata sulla singola casella della 2ª colonna (PSM 7 + lettura cifre)!
+          // esegue la lettura mirata sulla singola casella della 2ª colonna (PSM 7 + lettura cifre 0-9)!
           if (
             resolvedSocioName === UNKNOWN_SOCIO_LABEL &&
             !hasExplicitForgottenPhrase &&
@@ -1939,15 +1982,11 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               resolvedSocioName = resolveMultiOcrToSocioOrUnknown(candidates, profiles);
             }
 
-            // Se ancora non corrisponde e non ci sono parole lunghe (es. "non ricordo"), prova lettura pura cifre 0-9
-            const maxAlphaInCandidates = Math.max(
-              0,
-              ...candidates.map((c) => (c.match(/[A-Za-zÀ-ÿ]/g) || []).length)
-            );
+            // Se ancora non corrisponde e non è una frase tipo "non ricordo", prova SEMPRE la lettura pura cifre 0-9
+            // (spesso Tesseract senza whitelist legge le cifre scritte a mano come lettere!)
             if (
               resolvedSocioName === UNKNOWN_SOCIO_LABEL &&
-              !candidates.some((c) => FORGOTTEN_CARD_PHRASE.test(c)) &&
-              maxAlphaInCandidates < 3
+              !candidates.some((c) => FORGOTTEN_CARD_PHRASE.test(c))
             ) {
               await worker.setParameters({
                 tessedit_pageseg_mode: '7',
@@ -1956,7 +1995,8 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               const digitRes = await worker.recognize(band.nomStripDataUrl);
               const digitText = String(digitRes?.data?.text || '').trim();
               const digitConf = Number(digitRes?.data?.confidence || 0);
-              if (digitText && digitConf >= 45) {
+              if (digitText && digitConf >= 35) {
+                candidates.push(digitText);
                 const byDigits = resolveCellToSocioOrUnknown(digitText, profiles);
                 if (byDigits !== UNKNOWN_SOCIO_LABEL) {
                   resolvedSocioName = byDigits;
@@ -1969,7 +2009,8 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           if (
             band.tableRowIndex === 0 &&
             resolvedSocioName === UNKNOWN_SOCIO_LABEL &&
-            HEADER_NOISE.test(candidates.join(' '))
+            (HEADER_NOISE.test(candidates.join(' ')) ||
+              (/\b(prog|nominativo|tessera|materia)\b/i.test(`${progWords} ${candidates.join(' ')}`)))
           ) {
             hasHeaderRow = true;
             continue;
@@ -1998,9 +2039,14 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             finalNum = (tableItems[tableItems.length - 1]?.number || existingMax) + 1;
           }
 
+          const detectedCardNumber = extractLikelyCardNumber(candidates);
           usedNums.add(finalNum);
           crops[finalNum] = band.cropDataUrl;
-          tableItems.push({ number: finalNum, name: resolvedSocioName });
+          tableItems.push({
+            number: finalNum,
+            name: resolvedSocioName,
+            ...(detectedCardNumber ? { cardNumber: detectedCardNumber } : {}),
+          });
         }
 
         if (tableItems.length > 0) {

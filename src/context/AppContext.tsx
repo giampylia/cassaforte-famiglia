@@ -28,6 +28,7 @@ export type AppSection = 'presenze' | 'piccola_cassa' | 'admin_dashboard' | 'ana
 export interface QueueItem {
   number: number;
   name: string;
+  cardNumber?: string;
   notes?: string;
 }
 
@@ -198,12 +199,101 @@ const DEFAULT_HEADCOUNTS: Record<ClassroomKey, number> = {
   polifunzionale: 35,
 };
 
+// Salvataggio sicuro in localStorage (non lancia mai QuotaExceededError bloccando il cloud sync)
+function safeSetLocalStorage(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    try {
+      // Se localStorage è pieno, libera le chiavi ridondanti/temporanee per dare priorità assoluta all'Anagrafica Soci
+      if (key === STORAGE_KEYS.PROFILES) {
+        localStorage.removeItem(STORAGE_KEYS.PROTECTED_ANAGRAFICA);
+        localStorage.removeItem(STORAGE_KEYS.LIVE_FEED);
+        localStorage.setItem(key, value);
+        return true;
+      }
+    } catch {
+      // Ignore
+    }
+    return false;
+  }
+}
+
+// Database IndexedDB ad alta capacità (fino a 500MB+) per garantire che l'Anagrafica Soci non vada MAI persa alla riapertura
+const IDB_NAME = 'quartimbra_anagrafica_db_v1';
+const IDB_STORE = 'anagrafica_store';
+const IDB_KEY = 'main_anagrafica';
+
+function openAnagraficaIdb(): Promise<IDBDatabase | null> {
+  if (typeof window === 'undefined' || !('indexedDB' in window)) {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    try {
+      const req = window.indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+async function saveAnagraficaToIndexedDB(
+  profiles: Profile[],
+  availableRoles: string[],
+  updatedAt: number
+): Promise<void> {
+  const db = await openAnagraficaIdb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(
+      {
+        profiles,
+        availableRoles,
+        updatedAt: updatedAt || Date.now(),
+      },
+      IDB_KEY
+    );
+  } catch {
+    // Ignore IDB errors
+  }
+}
+
+async function loadAnagraficaFromIndexedDB(): Promise<{
+  profiles: Profile[];
+  availableRoles?: string[];
+  updatedAt?: number;
+} | null> {
+  const db = await openAnagraficaIdb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
 // Verifica se un elenco di soci contiene modifiche/importazioni rispetto ai dati demo iniziali
 function isCustomizedProfiles(list: Profile[]): boolean {
-  if (!Array.isArray(list)) return false;
+  if (!Array.isArray(list) || list.length === 0) return false;
   if (list.length !== INITIAL_PROFILES.length) return true;
   for (const p of list) {
-    if (p.id.startsWith('u-imp-') || p.id.startsWith('u-17')) return true;
+    if (!p) continue;
+    if (String(p.id || '').startsWith('u-imp-') || String(p.id || '').startsWith('u-17')) return true;
     const init = INITIAL_PROFILES.find((ip) => ip.member_number === p.member_number);
     if (!init) return true;
     if (p.full_name !== init.full_name || Boolean(p.is_cd) !== Boolean(init.is_cd)) return true;
@@ -214,37 +304,38 @@ function isCustomizedProfiles(list: Profile[]): boolean {
   return false;
 }
 
+// 7726 (e 7796) corrisponde SEMPRE ed ESCLUSIVAMENTE a Giampiero Pilia (Super Admin indistruttibile)
 function normalizeSuperAdminProfile(p?: Partial<Profile> | null): Profile {
   const base = INITIAL_PROFILES[0]; // 7726 Giampiero Pilia
-  const rawName = (p?.full_name || '').trim();
-  const isAutoName = !rawName || rawName.toLowerCase().startsWith('socio tessera');
-  const firstName = isAutoName ? 'Giampiero' : (p?.first_name || 'Giampiero').trim();
-  const lastName = isAutoName ? 'Pilia' : (p?.last_name || 'Pilia').trim();
-  const fullName = isAutoName ? 'Giampiero Pilia' : `${firstName} ${lastName}`.trim() || 'Giampiero Pilia';
-  const rawNum = String(p?.member_number || '').trim();
-  // Usa 7726 come numero tessera principale (anche se in precedenza era rimasto 7796)
-  const memberNumber = !rawNum || rawNum === '7796' ? '7726' : rawNum;
   const existingRoles = Array.isArray(p?.roles) ? p!.roles!.filter((r) => r !== 'Socio') : [];
   const mergedRoles = Array.from(new Set(['Amministratore', ...existingRoles]));
 
   return {
     ...base,
     ...(p || {}),
-    id: p?.id && p.id !== 'admin-7796' ? p.id : 'admin-7726',
-    member_number: memberNumber,
-    first_name: firstName,
-    last_name: lastName,
-    full_name: fullName,
-    sede: p?.sede || 'Quartu',
+    id: 'admin-7726',
+    member_number: '7726',
+    first_name: 'Giampiero',
+    last_name: 'Pilia',
+    full_name: 'Giampiero Pilia',
+    sede: p?.sede === 'Soleminis' ? 'Soleminis' : 'Quartu',
     role: 'admin',
     is_super_admin: true,
-    is_cd: p?.is_cd !== undefined ? Boolean(p.is_cd) : true,
+    is_cd: true,
     roles: mergedRoles,
   };
 }
 
+function cleanPersonNameField(raw?: string): string {
+  if (!raw) return '';
+  return String(raw)
+    .replace(/\b\d{3,}\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
-  const list = Array.isArray(rawProfiles) ? [...rawProfiles] : [];
+  const list = Array.isArray(rawProfiles) ? rawProfiles.filter(Boolean).map((p) => ({ ...p })) : [];
   // Trova tutti gli eventuali record riconducibili a Giampiero Pilia (7726 / 7796 / is_super_admin)
   const superIndices: number[] = [];
   list.forEach((p, idx) => {
@@ -278,14 +369,67 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
     const initialMatch = INITIAL_PROFILES.find((ip) => ip.member_number === p.member_number);
     const roles = p.roles && p.roles.length > 0 ? p.roles : initialMatch?.roles || ['Socio'];
     const is_cd = typeof p.is_cd === 'boolean' ? p.is_cd : roles.includes('CD') || Boolean(initialMatch?.is_cd);
+
+    const cleanedFirst = cleanPersonNameField(p.first_name) || initialMatch?.first_name || '';
+    const cleanedLast = cleanPersonNameField(p.last_name) || initialMatch?.last_name || '';
+    const isPlaceholderFull = /^socio\s+(tessera\s+)?n?[°.]?\s*\d+/i.test((p.full_name || '').trim());
+    const cleanedFull = isPlaceholderFull
+      ? p.full_name
+      : cleanPersonNameField(p.full_name) || `${cleanedFirst} ${cleanedLast}`.trim() || p.full_name;
+
     return {
       ...p,
-      first_name: p.first_name || initialMatch?.first_name,
-      last_name: p.last_name || initialMatch?.last_name,
+      first_name: cleanedFirst,
+      last_name: cleanedLast,
+      full_name: cleanedFull,
       is_cd,
       roles: is_cd && !roles.includes('CD') ? [...roles, 'CD'] : roles,
     };
   });
+}
+
+function sanitizeQueueState(q: QueueState, knownProfiles?: Profile[]): QueueState {
+  if (!q || !Array.isArray(q.items)) return q;
+  const cleanedItems = q.items.map((it) => {
+    if (!it) return it;
+    let name = String(it.name || '').trim();
+    const cardNum = String(it.cardNumber || '').trim();
+    // Ripara immediatamente l'errore "0801021400 Galleri" o tessera 7726/7796 -> Giampiero Pilia
+    if (
+      cardNum === '7726' ||
+      cardNum === '7796' ||
+      name.includes('0801021400') ||
+      /^0801021400\b/i.test(name)
+    ) {
+      name = 'Giampiero Pilia';
+    } else if (
+      cardNum &&
+      (!name || name.toLowerCase() === 'socio sconosciuto') &&
+      Array.isArray(knownProfiles) &&
+      knownProfiles.length > 0
+    ) {
+      const matched = knownProfiles.find(
+        (p) =>
+          p &&
+          p.member_number &&
+          (p.member_number.trim().toLowerCase() === cardNum.toLowerCase() ||
+            (/^\d+$/.test(cardNum) &&
+              /^\d+$/.test(p.member_number.trim()) &&
+              parseInt(p.member_number.trim(), 10) === parseInt(cardNum, 10)))
+      );
+      if (matched && matched.full_name && !/^socio\s+tessera/i.test(matched.full_name)) {
+        name = matched.full_name;
+      }
+    }
+    return {
+      ...it,
+      name,
+    };
+  });
+  return {
+    ...q,
+    items: cleanedItems,
+  };
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -293,30 +437,45 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profiles, setProfiles] = useState<Profile[]>(() => {
     try {
-      // Controlla prima il backup protetto dell'Anagrafica Soci
       const protectedRaw = localStorage.getItem(STORAGE_KEYS.PROTECTED_ANAGRAFICA);
       const savedRaw = localStorage.getItem(STORAGE_KEYS.PROFILES);
       const savedList: Profile[] | null = savedRaw ? JSON.parse(savedRaw) : null;
+      const parsedBackup = protectedRaw ? JSON.parse(protectedRaw) : null;
+      const backupList: Profile[] | null =
+        parsedBackup && Array.isArray(parsedBackup.profiles) ? parsedBackup.profiles : null;
 
-      if (protectedRaw) {
-        const parsedBackup = JSON.parse(protectedRaw);
-        if (
-          parsedBackup &&
-          Array.isArray(parsedBackup.profiles) &&
-          parsedBackup.profiles.length > 0 &&
-          (!savedList || !isCustomizedProfiles(savedList))
-        ) {
-          return ensureSuperAdminAndRoles(parsedBackup.profiles);
-        }
+      const savedCustom = savedList ? isCustomizedProfiles(savedList) : false;
+      const backupCustom = backupList ? isCustomizedProfiles(backupList) : false;
+
+      if (backupCustom && !savedCustom && backupList) {
+        return ensureSuperAdminAndRoles(backupList);
       }
-      return savedList ? ensureSuperAdminAndRoles(savedList) : INITIAL_PROFILES;
+      if (savedCustom && !backupCustom && savedList) {
+        return ensureSuperAdminAndRoles(savedList);
+      }
+      if (backupCustom && savedCustom && backupList && savedList) {
+        // Prende l'elenco personalizzato più completo o più recente
+        if (backupList.length > savedList.length) {
+          return ensureSuperAdminAndRoles(backupList);
+        }
+        return ensureSuperAdminAndRoles(savedList);
+      }
+      if (backupList && backupList.length > (savedList?.length || 0)) {
+        return ensureSuperAdminAndRoles(backupList);
+      }
+      return savedList ? ensureSuperAdminAndRoles(savedList) : ensureSuperAdminAndRoles(INITIAL_PROFILES);
     } catch {
-      return INITIAL_PROFILES;
+      return ensureSuperAdminAndRoles(INITIAL_PROFILES);
     }
   });
 
   const [availableRoles, setAvailableRoles] = useState<string[]>(() => {
     try {
+      const saved = localStorage.getItem(STORAGE_KEYS.ROLES);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
       const protectedRaw = localStorage.getItem(STORAGE_KEYS.PROTECTED_ANAGRAFICA);
       if (protectedRaw) {
         const parsedBackup = JSON.parse(protectedRaw);
@@ -324,8 +483,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return parsedBackup.availableRoles;
         }
       }
-      const saved = localStorage.getItem(STORAGE_KEYS.ROLES);
-      return saved ? JSON.parse(saved) : DEFAULT_AVAILABLE_ROLES;
+      return DEFAULT_AVAILABLE_ROLES;
     } catch {
       return DEFAULT_AVAILABLE_ROLES;
     }
@@ -334,12 +492,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [profilesUpdatedAt, setProfilesUpdatedAt] = useState<number>(() => {
     try {
       const savedTs = Number(localStorage.getItem(STORAGE_KEYS.PROFILES_TS) || 0);
-      if (savedTs > 0) return savedTs;
       const protectedRaw = localStorage.getItem(STORAGE_KEYS.PROTECTED_ANAGRAFICA);
-      if (protectedRaw) {
-        const parsedBackup = JSON.parse(protectedRaw);
-        if (parsedBackup?.updatedAt) return Number(parsedBackup.updatedAt);
-      }
+      const backupTs = protectedRaw ? Number(JSON.parse(protectedRaw)?.updatedAt || 0) : 0;
+      const bestTs = Math.max(savedTs, backupTs);
+      if (bestTs > 0) return bestTs;
+
       const savedRaw = localStorage.getItem(STORAGE_KEYS.PROFILES);
       if (savedRaw) {
         const savedList = JSON.parse(savedRaw);
@@ -443,7 +600,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [queueState, setQueueState] = useState<QueueState>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.QUEUE_STATE);
-      return saved ? { ...DEFAULT_QUEUE_STATE, ...JSON.parse(saved) } : DEFAULT_QUEUE_STATE;
+      return saved
+        ? sanitizeQueueState({ ...DEFAULT_QUEUE_STATE, ...JSON.parse(saved) })
+        : DEFAULT_QUEUE_STATE;
     } catch {
       return DEFAULT_QUEUE_STATE;
     }
@@ -517,6 +676,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const isApplyingRemoteRef = useRef(false);
   const hasHydratedRef = useRef(false);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  const profilesRef = useRef<Profile[]>(profiles);
+  profilesRef.current = profiles;
+  const availableRolesRef = useRef<string[]>(availableRoles);
+  availableRolesRef.current = availableRoles;
   const profilesUpdatedAtRef = useRef(profilesUpdatedAt);
   profilesUpdatedAtRef.current = profilesUpdatedAt;
   const cashUpdatedAtRef = useRef(cashUpdatedAt);
@@ -539,6 +702,98 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const timer = setInterval(() => setRealNow(new Date()), 15000);
     return () => clearInterval(timer);
   }, []);
+
+  // Quando cambiano i profili in Anagrafica, ripara/aggiorna automaticamente eventuali turni in coda con "0801021400 Galleri" o numero tessera
+  useEffect(() => {
+    setQueueState((prev) => {
+      const sanitized = sanitizeQueueState(prev, profiles);
+      if (JSON.stringify(sanitized.items) !== JSON.stringify(prev.items)) {
+        safeSetLocalStorage(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(sanitized));
+        return sanitized;
+      }
+      return prev;
+    });
+  }, [profiles]);
+
+  const pushProfilesToServer = async (
+    nextProfiles: Profile[],
+    nextRoles: string[],
+    updatedAt: number,
+    forceReplace = false
+  ) => {
+    try {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.postMessage({
+          type: 'PROFILES_SYNC',
+          profiles: nextProfiles,
+          availableRoles: nextRoles,
+          profilesUpdatedAt: updatedAt,
+        });
+      }
+    } catch {
+      // Ignore BroadcastChannel errors
+    }
+
+    try {
+      const res = await fetch('/api/profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profiles: nextProfiles,
+          availableRoles: nextRoles,
+          profilesUpdatedAt: updatedAt,
+          forceReplace,
+        }),
+      });
+      if (res.ok) {
+        setCloudConnected(true);
+        setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
+      }
+    } catch {
+      // Offline fallback
+    }
+  };
+
+  // Salva in modo sincrono e triplo (localStorage + IndexedDB + Cloud /api/profiles) ogni modifica all'Anagrafica Soci
+  const commitProfilesUpdate = (
+    nextProfilesRaw: Profile[],
+    nextRolesRaw?: string[],
+    forceReplace = false
+  ) => {
+    const finalProfiles = ensureSuperAdminAndRoles(nextProfilesRaw);
+    const finalRoles =
+      nextRolesRaw && nextRolesRaw.length > 0 ? nextRolesRaw : availableRolesRef.current;
+    const nowTs = Date.now();
+
+    profilesRef.current = finalProfiles;
+    availableRolesRef.current = finalRoles;
+    profilesUpdatedAtRef.current = nowTs;
+
+    setProfiles(finalProfiles);
+    setAvailableRoles(finalRoles);
+    setProfilesUpdatedAt(nowTs);
+
+    // 1) Salvataggio immediato in localStorage
+    safeSetLocalStorage(STORAGE_KEYS.PROFILES, JSON.stringify(finalProfiles));
+    safeSetLocalStorage(STORAGE_KEYS.ROLES, JSON.stringify(finalRoles));
+    safeSetLocalStorage(STORAGE_KEYS.PROFILES_TS, String(nowTs));
+    if (isCustomizedProfiles(finalProfiles)) {
+      safeSetLocalStorage(
+        STORAGE_KEYS.PROTECTED_ANAGRAFICA,
+        JSON.stringify({
+          profiles: finalProfiles,
+          availableRoles: finalRoles,
+          updatedAt: nowTs,
+        })
+      );
+    }
+
+    // 2) Salvataggio immediato in IndexedDB (fino a 500MB, non soggetto al limite di 5MB di localStorage)
+    saveAnagraficaToIndexedDB(finalProfiles, finalRoles, nowTs);
+
+    // 3) Invio diretto e immediato al Cloud Server (/api/profiles)
+    pushProfilesToServer(finalProfiles, finalRoles, nowTs, forceReplace);
+  };
 
   const pushCloudSnapshot = async (snapshot: CloudDbSnapshot, eventLabel?: string) => {
     try {
@@ -571,11 +826,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateQueueState = (updater: (prev: QueueState) => QueueState) => {
     setQueueState((prev) => {
-      const next = {
-        ...updater(prev),
-        updatedAt: Date.now(),
-      };
-      localStorage.setItem(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(next));
+      const next = sanitizeQueueState(
+        {
+          ...updater(prev),
+          updatedAt: Date.now(),
+        },
+        profilesRef.current
+      );
+      safeSetLocalStorage(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(next));
       try {
         if (broadcastChannelRef.current) {
           broadcastChannelRef.current.postMessage({ type: 'QUEUE_SYNC', queueState: next });
@@ -592,25 +850,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  const applyRemoteProfiles = (
+    remoteProfiles: Profile[],
+    remoteRoles?: string[],
+    remoteTs = 0
+  ) => {
+    if (!Array.isArray(remoteProfiles) || remoteProfiles.length === 0) return false;
+    const localProfiles = profilesRef.current;
+    const localCustom = isCustomizedProfiles(localProfiles);
+    const remoteCustom = isCustomizedProfiles(remoteProfiles);
+    const localTs = profilesUpdatedAtRef.current;
+
+    // REGOLA D'ORO: non sovrascrivere MAI un'Anagrafica Soci personalizzata/importata con i 20 profili demo iniziali!
+    if (localCustom && !remoteCustom) {
+      return false;
+    }
+
+    if (
+      (remoteCustom && !localCustom) ||
+      remoteTs > localTs ||
+      (remoteCustom && remoteProfiles.length > localProfiles.length && remoteTs >= localTs)
+    ) {
+      const normalized = ensureSuperAdminAndRoles(remoteProfiles);
+      const finalTs = remoteTs || Date.now();
+      const finalRoles =
+        Array.isArray(remoteRoles) && remoteRoles.length > 0
+          ? remoteRoles
+          : availableRolesRef.current;
+
+      profilesRef.current = normalized;
+      availableRolesRef.current = finalRoles;
+      profilesUpdatedAtRef.current = finalTs;
+
+      setProfiles(normalized);
+      setAvailableRoles(finalRoles);
+      setProfilesUpdatedAt(finalTs);
+
+      safeSetLocalStorage(STORAGE_KEYS.PROFILES, JSON.stringify(normalized));
+      safeSetLocalStorage(STORAGE_KEYS.ROLES, JSON.stringify(finalRoles));
+      safeSetLocalStorage(STORAGE_KEYS.PROFILES_TS, String(finalTs));
+      if (isCustomizedProfiles(normalized)) {
+        safeSetLocalStorage(
+          STORAGE_KEYS.PROTECTED_ANAGRAFICA,
+          JSON.stringify({
+            profiles: normalized,
+            availableRoles: finalRoles,
+            updatedAt: finalTs,
+          })
+        );
+      }
+      saveAnagraficaToIndexedDB(normalized, finalRoles, finalTs);
+      return true;
+    }
+
+    return false;
+  };
+
   const applyRemoteSnapshot = (db: CloudDbSnapshot) => {
     if (!db) return;
     isApplyingRemoteRef.current = true;
 
     const remoteProfTs = Number(db.profilesUpdatedAt || 0);
     const localProfTs = profilesUpdatedAtRef.current;
+    const localCustom = isCustomizedProfiles(profilesRef.current);
+    const remoteHasProfiles = Array.isArray(db.profiles) && db.profiles.length > 0;
+    const remoteCustom = remoteHasProfiles ? isCustomizedProfiles(db.profiles) : false;
     let shouldPushBackLocalProtected = false;
 
-    // Protezione Anagrafica Soci e Ruoli: applica da remoto solo se è più recente o se in locale abbiamo solo i demo di default
-    if (Array.isArray(db.profiles) && db.profiles.length > 0) {
-      if (remoteProfTs >= localProfTs && (remoteProfTs > 0 || localProfTs === 0)) {
-        setProfiles(ensureSuperAdminAndRoles(db.profiles));
-        if (remoteProfTs > 0) setProfilesUpdatedAt(remoteProfTs);
-        if (Array.isArray(db.availableRoles) && db.availableRoles.length > 0) {
-          setAvailableRoles(db.availableRoles);
-        }
-      } else if (localProfTs > remoteProfTs) {
+    if (remoteHasProfiles) {
+      const applied = applyRemoteProfiles(db.profiles, db.availableRoles, remoteProfTs);
+      if (!applied && (localCustom && (!remoteCustom || localProfTs > remoteProfTs))) {
         shouldPushBackLocalProtected = true;
       }
+    } else if (localCustom || profilesRef.current.length > 0) {
+      // Il server non ha ancora i profili (es. dopo riavvio o chiamata /api/queue): invia subito l'Anagrafica locale al server!
+      shouldPushBackLocalProtected = true;
     }
 
     const remoteCashTs = Number(db.cashUpdatedAt || 0);
@@ -640,10 +954,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (db.queueState) {
-      const remoteQueueTs = Number(db.queueState.updatedAt || 0);
+      const sanitizedRemoteQ = sanitizeQueueState(db.queueState, profilesRef.current);
+      const remoteQueueTs = Number(sanitizedRemoteQ.updatedAt || 0);
       if (remoteQueueTs >= queueUpdatedAtRef.current) {
-        setQueueState(db.queueState);
-        localStorage.setItem(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(db.queueState));
+        setQueueState(sanitizedRemoteQ);
+        safeSetLocalStorage(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(sanitizedRemoteQ));
       }
     }
 
@@ -665,10 +980,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isApplyingRemoteRef.current = false;
       if (shouldPushBackLocalProtected) {
         setTimeout(() => {
+          pushProfilesToServer(
+            profilesRef.current,
+            availableRolesRef.current,
+            profilesUpdatedAtRef.current || Date.now()
+          );
           pushCloudSnapshot({
-            profiles,
-            availableRoles,
-            profilesUpdatedAt: profilesUpdatedAtRef.current,
+            profiles: profilesRef.current,
+            availableRoles: availableRolesRef.current,
+            profilesUpdatedAt: profilesUpdatedAtRef.current || Date.now(),
             expenseCategories,
             cashMovements,
             cashOpeningBalance,
@@ -682,7 +1002,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             queueState,
             updatedAt: new Date().toISOString(),
           });
-        }, 120);
+        }, 100);
       }
     } else {
       setTimeout(() => {
@@ -692,6 +1012,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   useEffect(() => {
+    // 1) Ripristino immediato da IndexedDB (nel caso in cui l'Anagrafica Soci avesse molti soci oltre la capienza di localStorage)
+    loadAnagraficaFromIndexedDB()
+      .then((idbData) => {
+        if (idbData && Array.isArray(idbData.profiles) && idbData.profiles.length > 0) {
+          const idbCustom = isCustomizedProfiles(idbData.profiles);
+          const curCustom = isCustomizedProfiles(profilesRef.current);
+          const idbTs = Number(idbData.updatedAt || 0);
+          if (
+            (idbCustom && !curCustom) ||
+            (idbCustom && idbData.profiles.length > profilesRef.current.length) ||
+            idbTs > profilesUpdatedAtRef.current
+          ) {
+            const restored = ensureSuperAdminAndRoles(idbData.profiles);
+            const restoredRoles =
+              Array.isArray(idbData.availableRoles) && idbData.availableRoles.length > 0
+                ? idbData.availableRoles
+                : availableRolesRef.current;
+            const restoredTs = Math.max(idbTs, Date.now());
+            profilesRef.current = restored;
+            availableRolesRef.current = restoredRoles;
+            profilesUpdatedAtRef.current = restoredTs;
+            setProfiles(restored);
+            setAvailableRoles(restoredRoles);
+            setProfilesUpdatedAt(restoredTs);
+            safeSetLocalStorage(STORAGE_KEYS.PROFILES, JSON.stringify(restored));
+            safeSetLocalStorage(STORAGE_KEYS.ROLES, JSON.stringify(restoredRoles));
+            safeSetLocalStorage(STORAGE_KEYS.PROFILES_TS, String(restoredTs));
+            pushProfilesToServer(restored, restoredRoles, restoredTs);
+          } else if (curCustom) {
+            saveAnagraficaToIndexedDB(
+              profilesRef.current,
+              availableRolesRef.current,
+              profilesUpdatedAtRef.current || Date.now()
+            );
+          }
+        } else if (isCustomizedProfiles(profilesRef.current)) {
+          saveAnagraficaToIndexedDB(
+            profilesRef.current,
+            availableRolesRef.current,
+            profilesUpdatedAtRef.current || Date.now()
+          );
+        }
+      })
+      .catch(() => {});
+
+    // 2) Sincronizzazione con il Cloud Server (/api/state)
     fetch('/api/state')
       .then((r) => r.json())
       .then((data) => {
@@ -703,6 +1069,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const serverHasData =
           data.db &&
           ((Array.isArray(data.db.attendance) && data.db.attendance.length > 0) ||
+            (Array.isArray(data.db.profiles) && data.db.profiles.length > 0) ||
             Number(data.db.profilesUpdatedAt || 0) > 0 ||
             Number(data.db.cashUpdatedAt || 0) > 0 ||
             Number(data.db.queueState?.updatedAt || 0) > 0);
@@ -712,9 +1079,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           hasHydratedRef.current = true;
         } else {
           hasHydratedRef.current = true;
+          pushProfilesToServer(
+            profilesRef.current,
+            availableRolesRef.current,
+            profilesUpdatedAtRef.current || Date.now()
+          );
           pushCloudSnapshot({
-            profiles,
-            availableRoles,
+            profiles: profilesRef.current,
+            availableRoles: availableRolesRef.current,
             profilesUpdatedAt: profilesUpdatedAtRef.current,
             expenseCategories,
             cashMovements,
@@ -748,11 +1120,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setConnectedDevices(Math.max(1, parsed.connectedClients));
           } else if (parsed.type === 'STATE_SYNC' && parsed.payload?.db) {
             applyRemoteSnapshot(parsed.payload.db);
+          } else if (parsed.type === 'PROFILES_SYNC' && parsed.payload?.profiles) {
+            applyRemoteProfiles(
+              parsed.payload.profiles,
+              parsed.payload.availableRoles,
+              Number(parsed.payload.profilesUpdatedAt || 0)
+            );
+            setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
           } else if (parsed.type === 'QUEUE_SYNC' && parsed.payload?.queueState) {
-            const incomingQ = parsed.payload.queueState as QueueState;
+            const incomingQ = sanitizeQueueState(
+              parsed.payload.queueState as QueueState,
+              profilesRef.current
+            );
             if (Number(incomingQ.updatedAt || 0) >= queueUpdatedAtRef.current) {
               setQueueState(incomingQ);
-              localStorage.setItem(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(incomingQ));
+              safeSetLocalStorage(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(incomingQ));
               setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
             }
           } else if (parsed.type === 'PUBLIC_URL' && parsed.payload?.publicUrl) {
@@ -774,11 +1156,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       bc.onmessage = (ev) => {
         if (ev.data?.type === 'STATE_SYNC' && ev.data.db) {
           applyRemoteSnapshot(ev.data.db);
+        } else if (ev.data?.type === 'PROFILES_SYNC' && ev.data.profiles) {
+          applyRemoteProfiles(
+            ev.data.profiles,
+            ev.data.availableRoles,
+            Number(ev.data.profilesUpdatedAt || 0)
+          );
         } else if (ev.data?.type === 'QUEUE_SYNC' && ev.data.queueState) {
-          const incomingQ = ev.data.queueState as QueueState;
+          const incomingQ = sanitizeQueueState(
+            ev.data.queueState as QueueState,
+            profilesRef.current
+          );
           if (Number(incomingQ.updatedAt || 0) >= queueUpdatedAtRef.current) {
             setQueueState(incomingQ);
-            localStorage.setItem(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(incomingQ));
+            safeSetLocalStorage(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(incomingQ));
           }
         }
       };
@@ -793,10 +1184,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
           if (data && data.ok && data.queueState) {
-            const incomingQ = data.queueState as QueueState;
+            const incomingQ = sanitizeQueueState(
+              data.queueState as QueueState,
+              profilesRef.current
+            );
             if (Number(incomingQ.updatedAt || 0) > queueUpdatedAtRef.current) {
               setQueueState(incomingQ);
-              localStorage.setItem(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(incomingQ));
+              safeSetLocalStorage(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(incomingQ));
             }
           }
         })
@@ -812,23 +1206,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     document.documentElement.setAttribute('data-font-scale', fontScale);
-    localStorage.setItem(STORAGE_KEYS.FONT_SCALE, fontScale);
+    safeSetLocalStorage(STORAGE_KEYS.FONT_SCALE, fontScale);
   }, [fontScale]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.LIGHT_THEME, String(lightTheme));
+    safeSetLocalStorage(STORAGE_KEYS.LIGHT_THEME, String(lightTheme));
   }, [lightTheme]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.VOICE, String(voiceEnabled));
+    safeSetLocalStorage(STORAGE_KEYS.VOICE, String(voiceEnabled));
   }, [voiceEnabled]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
-    localStorage.setItem(STORAGE_KEYS.ROLES, JSON.stringify(availableRoles));
-    localStorage.setItem(STORAGE_KEYS.PROFILES_TS, String(profilesUpdatedAt));
-    if (profilesUpdatedAt > 0 || isCustomizedProfiles(profiles)) {
-      localStorage.setItem(
+    safeSetLocalStorage(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
+    safeSetLocalStorage(STORAGE_KEYS.ROLES, JSON.stringify(availableRoles));
+    safeSetLocalStorage(STORAGE_KEYS.PROFILES_TS, String(profilesUpdatedAt));
+    if (isCustomizedProfiles(profiles)) {
+      safeSetLocalStorage(
         STORAGE_KEYS.PROTECTED_ANAGRAFICA,
         JSON.stringify({
           profiles,
@@ -836,17 +1230,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           updatedAt: profilesUpdatedAt || Date.now(),
         })
       );
+      saveAnagraficaToIndexedDB(profiles, availableRoles, profilesUpdatedAt || Date.now());
     }
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(expenseCategories));
-    localStorage.setItem(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(cashMovements));
-    localStorage.setItem(STORAGE_KEYS.CASH_BALANCE, String(cashOpeningBalance));
-    localStorage.setItem(STORAGE_KEYS.CASH_TS, String(cashUpdatedAt));
-    localStorage.setItem(STORAGE_KEYS.LESSONS, JSON.stringify(lessons));
-    localStorage.setItem(STORAGE_KEYS.LESSONS_TS, String(lessonsUpdatedAt));
-    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendance));
-    localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(subjectNotes));
-    localStorage.setItem(STORAGE_KEYS.HEADCOUNTS, JSON.stringify(visualHeadcounts));
-    localStorage.setItem(STORAGE_KEYS.LIVE_FEED, JSON.stringify(liveFeed));
+    safeSetLocalStorage(STORAGE_KEYS.CATEGORIES, JSON.stringify(expenseCategories));
+    safeSetLocalStorage(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(cashMovements));
+    safeSetLocalStorage(STORAGE_KEYS.CASH_BALANCE, String(cashOpeningBalance));
+    safeSetLocalStorage(STORAGE_KEYS.CASH_TS, String(cashUpdatedAt));
+    safeSetLocalStorage(STORAGE_KEYS.LESSONS, JSON.stringify(lessons));
+    safeSetLocalStorage(STORAGE_KEYS.LESSONS_TS, String(lessonsUpdatedAt));
+    safeSetLocalStorage(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendance));
+    safeSetLocalStorage(STORAGE_KEYS.NOTES, JSON.stringify(subjectNotes));
+    safeSetLocalStorage(STORAGE_KEYS.HEADCOUNTS, JSON.stringify(visualHeadcounts));
+    safeSetLocalStorage(STORAGE_KEYS.LIVE_FEED, JSON.stringify(liveFeed));
 
     // Invia al cloud solo DOPO che il client ha completato il caricamento iniziale da /api/state
     if (!isApplyingRemoteRef.current && hasHydratedRef.current) {
@@ -885,9 +1280,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(currentUser));
+      safeSetLocalStorage(STORAGE_KEYS.USER, JSON.stringify(currentUser));
     } else {
-      localStorage.removeItem(STORAGE_KEYS.USER);
+      try {
+        localStorage.removeItem(STORAGE_KEYS.USER);
+      } catch {
+        // Ignore
+      }
     }
   }, [currentUser]);
 
@@ -1235,55 +1634,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
-  // Roles & CD Management (only Giampiero Pilia 7796 / Super Admin)
+  // Roles & CD Management (only Giampiero Pilia 7726 / Super Admin)
   const addCustomRole = (roleName: string) => {
     const clean = roleName.trim();
     if (!clean) return { ok: false, message: 'Inserisci il nome del ruolo.' };
-    if (availableRoles.some((r) => r.toLowerCase() === clean.toLowerCase())) {
+    if (availableRolesRef.current.some((r) => r.toLowerCase() === clean.toLowerCase())) {
       return { ok: false, message: 'Questo ruolo esiste già.' };
     }
-    setAvailableRoles((prev) => [...prev, clean]);
-    setProfilesUpdatedAt(Date.now());
+    const nextRoles = [...availableRolesRef.current, clean];
+    commitProfilesUpdate(profilesRef.current, nextRoles);
     return { ok: true };
   };
 
   const toggleMemberCD = (userId: string, isCd: boolean) => {
-    setProfiles((prev) =>
-      prev.map((p) => {
-        if (p.id !== userId) return p;
-        const currentRoles = p.roles || ['Socio'];
-        const nextRoles = isCd
-          ? Array.from(new Set([...currentRoles, 'CD']))
-          : currentRoles.filter((r) => r !== 'CD');
-        return {
-          ...p,
-          is_cd: isCd,
-          roles: nextRoles.length > 0 ? nextRoles : ['Socio'],
-        };
-      })
-    );
-    setProfilesUpdatedAt(Date.now());
+    const next = profilesRef.current.map((p) => {
+      if (p.id !== userId) return p;
+      const currentRoles = p.roles || ['Socio'];
+      const nextRoles = isCd
+        ? Array.from(new Set([...currentRoles, 'CD']))
+        : currentRoles.filter((r) => r !== 'CD');
+      return {
+        ...p,
+        is_cd: isCd,
+        roles: nextRoles.length > 0 ? nextRoles : ['Socio'],
+      };
+    });
+    commitProfilesUpdate(next);
   };
 
   const toggleMemberRole = (userId: string, roleName: string) => {
-    setProfiles((prev) =>
-      prev.map((p) => {
-        if (p.id !== userId) return p;
-        const currentRoles = p.roles || ['Socio'];
-        const hasRole = currentRoles.includes(roleName);
-        const nextRoles = hasRole
-          ? currentRoles.filter((r) => r !== roleName)
-          : [...currentRoles, roleName];
-        const finalRoles = nextRoles.length > 0 ? nextRoles : ['Socio'];
-        const nextIsCd = roleName === 'CD' ? !hasRole : Boolean(p.is_cd || finalRoles.includes('CD'));
-        return {
-          ...p,
-          is_cd: nextIsCd,
-          roles: finalRoles,
-        };
-      })
-    );
-    setProfilesUpdatedAt(Date.now());
+    const next = profilesRef.current.map((p) => {
+      if (p.id !== userId) return p;
+      const currentRoles = p.roles || ['Socio'];
+      const hasRole = currentRoles.includes(roleName);
+      const nextRoles = hasRole
+        ? currentRoles.filter((r) => r !== roleName)
+        : [...currentRoles, roleName];
+      const finalRoles = nextRoles.length > 0 ? nextRoles : ['Socio'];
+      const nextIsCd = roleName === 'CD' ? !hasRole : Boolean(p.is_cd || finalRoles.includes('CD'));
+      return {
+        ...p,
+        is_cd: nextIsCd,
+        roles: finalRoles,
+      };
+    });
+    commitProfilesUpdate(next);
   };
 
   // Piccola Cassa Management
@@ -1346,10 +1741,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ) => {
     const cleanNum = member_number.trim();
     if (!cleanNum) return { ok: false, message: 'Inserisci il numero di tessera.' };
-    if (profiles.some((p) => p.member_number.toLowerCase() === cleanNum.toLowerCase())) {
+    if (profilesRef.current.some((p) => p.member_number.toLowerCase() === cleanNum.toLowerCase())) {
       return { ok: false, message: 'Esiste già un socio con questo numero di tessera.' };
     }
-    const cleanFullName = full_name.trim() || `Socio ${cleanNum}`;
+    const cleanFullName = cleanPersonNameField(full_name) || `Socio ${cleanNum}`;
     const nameParts = cleanFullName.split(/\s+/);
     const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : cleanFullName;
     const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
@@ -1367,106 +1762,157 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       phone: phone?.trim() || '',
       joined_year: new Date().getFullYear(),
     };
-    setProfiles((prev) => [...prev, newProfile]);
-    setProfilesUpdatedAt(Date.now());
+    commitProfilesUpdate([...profilesRef.current, newProfile]);
     return { ok: true };
   };
 
   const importMembersBatch = (rows: ImportedMemberRow[]) => {
     let added = 0;
     let updated = 0;
-    const discoveredRoles = new Set(availableRoles);
+    const discoveredRoles = new Set(availableRolesRef.current);
+    const next = [...profilesRef.current];
+    const batchTs = Date.now();
 
-    setProfiles((prev) => {
-      const next = [...prev];
-      rows.forEach((row, idx) => {
-        const cleanNum = String(row.member_number || '').trim();
-        if (!cleanNum) return;
+    rows.forEach((row, idx) => {
+      const cleanNum = String(row.member_number || '').trim();
+      if (!cleanNum) return;
 
-        const firstName = String(row.first_name || '').trim();
-        const lastName = String(row.last_name || '').trim();
-        const fullName = `${firstName} ${lastName}`.trim() || `Socio ${cleanNum}`;
-        const sede: 'Quartu' | 'Soleminis' =
-          String(row.sede || '')
-            .trim()
-            .toLowerCase()
-            .includes('soleminis')
-            ? 'Soleminis'
-            : 'Quartu';
+      const firstName = cleanPersonNameField(row.first_name);
+      const lastName = cleanPersonNameField(row.last_name);
+      const fullName = `${firstName} ${lastName}`.trim() || `Socio ${cleanNum}`;
+      const sede: 'Quartu' | 'Soleminis' =
+        String(row.sede || '')
+          .trim()
+          .toLowerCase()
+          .includes('soleminis')
+          ? 'Soleminis'
+          : 'Quartu';
 
-        const rawRole = String(row.roleName || 'Socio').trim() || 'Socio';
-        const roleList = rawRole
-          .split(/[,;/]+/)
-          .map((r) => r.trim())
-          .filter(Boolean);
-        const finalRoles = roleList.length > 0 ? roleList : ['Socio'];
-        finalRoles.forEach((r) => discoveredRoles.add(r));
+      const rawRole = String(row.roleName || 'Socio').trim() || 'Socio';
+      const roleList = rawRole
+        .split(/[,;/]+/)
+        .map((r) => r.trim())
+        .filter(Boolean);
+      const finalRoles = roleList.length > 0 ? roleList : ['Socio'];
+      finalRoles.forEach((r) => discoveredRoles.add(r));
 
-        const isCd = finalRoles.some((r) => r.toUpperCase() === 'CD' || r.toLowerCase() === 'amministratore');
-        const isSuper =
-          cleanNum === '7726' ||
-          cleanNum === '7796' ||
-          (fullName.toLowerCase().includes('giampiero') && fullName.toLowerCase().includes('pilia')) ||
-          finalRoles.some((r) => r.toLowerCase() === 'amministratore');
+      const isAdminRole = finalRoles.some((r) => r.toLowerCase() === 'amministratore');
+      const isCd =
+        isAdminRole || finalRoles.some((r) => r.toUpperCase() === 'CD');
 
-        const existingIndex = next.findIndex(
-          (p) =>
-            p.member_number.toLowerCase() === cleanNum.toLowerCase() ||
-            (isSuper && isProtectedSuperAdmin(p))
-        );
+      // 7726 (e 7796) appartiene ESCLUSIVAMENTE a Giampiero Pilia.
+      // Nessuna riga di Excel (es. con ruolo "Amministratore" o con cognome diverso da Pilia) può mai sovrascrivere il nome di 7726!
+      const isGiampieroName =
+        fullName.toLowerCase().includes('giampiero') && fullName.toLowerCase().includes('pilia');
+      const isCard7726 = cleanNum === '7726' || cleanNum === '7796';
+      const hasOtherSurnameOn7726 =
+        isCard7726 &&
+        Boolean(lastName || firstName) &&
+        !fullName.toLowerCase().includes('pilia') &&
+        !fullName.toLowerCase().includes('giampiero');
 
-        if (existingIndex >= 0) {
+      if (hasOtherSurnameOn7726) {
+        // Se nel file Excel un altro socio (es. Galleri) aveva per errore il numero 7726 o una colonna spostata,
+        // NON sovrascrive 7726 Giampiero Pilia ma lo importa con un codice distinto
+        const safeAltNum = `${cleanNum}-${lastName || idx + 1}`;
+        next.push({
+          id: `u-imp-${batchTs}-${idx}`,
+          member_number: safeAltNum,
+          first_name: firstName,
+          last_name: lastName,
+          full_name: fullName,
+          sede,
+          role: isAdminRole ? 'admin' : 'member',
+          is_super_admin: false,
+          is_cd: isCd,
+          roles: finalRoles,
+          joined_year: new Date().getFullYear(),
+        });
+        added++;
+        return;
+      }
+
+      const isSuper = isCard7726 || isGiampieroName;
+
+      const existingIndex = next.findIndex(
+        (p) =>
+          p.member_number.toLowerCase() === cleanNum.toLowerCase() ||
+          (isSuper && isProtectedSuperAdmin(p))
+      );
+
+      if (existingIndex >= 0) {
+        if (isSuper || isProtectedSuperAdmin(next[existingIndex])) {
+          next[existingIndex] = normalizeSuperAdminProfile({
+            ...next[existingIndex],
+            sede,
+            roles: Array.from(
+              new Set(['Amministratore', ...finalRoles.filter((r) => r !== 'Socio')])
+            ),
+          });
+        } else {
           next[existingIndex] = {
             ...next[existingIndex],
-            member_number: isSuper ? '7726' : cleanNum,
+            member_number: cleanNum,
             first_name: firstName || next[existingIndex].first_name,
             last_name: lastName || next[existingIndex].last_name,
             full_name: fullName,
             sede,
-            is_cd: isSuper ? true : isCd,
-            is_super_admin: isSuper || next[existingIndex].is_super_admin,
-            role: isSuper ? 'admin' : next[existingIndex].role,
-            roles: isSuper ? Array.from(new Set(['Amministratore', ...finalRoles.filter((r) => r !== 'Socio')])) : finalRoles,
+            is_cd: isCd,
+            is_super_admin: false,
+            role: isAdminRole ? 'admin' : next[existingIndex].role,
+            roles: finalRoles,
           };
-          updated++;
+        }
+        updated++;
+      } else {
+        if (isSuper) {
+          next.unshift(
+            normalizeSuperAdminProfile({
+              sede,
+              roles: Array.from(
+                new Set(['Amministratore', ...finalRoles.filter((r) => r !== 'Socio')])
+              ),
+            })
+          );
         } else {
           next.push({
-            id: isSuper ? 'admin-7726' : `u-imp-${Date.now()}-${idx}`,
-            member_number: isSuper ? '7726' : cleanNum,
+            id: `u-imp-${batchTs}-${idx}`,
+            member_number: cleanNum,
             first_name: firstName,
             last_name: lastName,
             full_name: fullName,
             sede,
-            role: isSuper ? 'admin' : 'member',
-            is_super_admin: isSuper,
-            is_cd: isSuper ? true : isCd,
-            roles: isSuper ? Array.from(new Set(['Amministratore', ...finalRoles.filter((r) => r !== 'Socio')])) : finalRoles,
+            role: isAdminRole ? 'admin' : 'member',
+            is_super_admin: false,
+            is_cd: isCd,
+            roles: finalRoles,
             joined_year: new Date().getFullYear(),
           });
-          added++;
         }
-      });
-      return ensureSuperAdminAndRoles(next);
+        added++;
+      }
     });
 
-    setAvailableRoles(Array.from(discoveredRoles));
-    setProfilesUpdatedAt(Date.now());
+    commitProfilesUpdate(next, Array.from(discoveredRoles), true);
     return { added, updated };
   };
 
   const updateMember = (id: string, data: Partial<Profile>) => {
-    setProfiles((prev) =>
-      ensureSuperAdminAndRoles(
-        prev.map((p) => {
-          if (p.id !== id) return p;
-          const merged = { ...p, ...data };
-          if (isProtectedSuperAdmin(p) || isProtectedSuperAdmin(merged)) {
-            return normalizeSuperAdminProfile(merged);
-          }
-          return merged;
-        })
-      )
-    );
+    const next = profilesRef.current.map((p) => {
+      if (p.id !== id) return p;
+      const merged = { ...p, ...data };
+      if (isProtectedSuperAdmin(p) || isProtectedSuperAdmin(merged)) {
+        return normalizeSuperAdminProfile(merged);
+      }
+      return {
+        ...merged,
+        first_name: cleanPersonNameField(merged.first_name),
+        last_name: cleanPersonNameField(merged.last_name),
+        full_name: cleanPersonNameField(merged.full_name) || merged.full_name,
+      };
+    });
+    commitProfilesUpdate(next);
+
     if (currentUser?.id === id) {
       setCurrentUser((prev) => {
         if (!prev) return null;
@@ -1476,22 +1922,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : merged;
       });
     }
-    setProfilesUpdatedAt(Date.now());
   };
 
   const deleteMember = (id: string) => {
-    setProfiles((prev) =>
-      ensureSuperAdminAndRoles(prev.filter((p) => isProtectedSuperAdmin(p) || p.id !== id))
-    );
-    setProfilesUpdatedAt(Date.now());
+    const next = profilesRef.current.filter((p) => isProtectedSuperAdmin(p) || p.id !== id);
+    commitProfilesUpdate(next, undefined, true);
   };
 
   const deleteMembersBatch = (ids: string[]) => {
     const idSet = new Set(ids);
-    setProfiles((prev) =>
-      ensureSuperAdminAndRoles(prev.filter((p) => isProtectedSuperAdmin(p) || !idSet.has(p.id)))
-    );
-    setProfilesUpdatedAt(Date.now());
+    const next = profilesRef.current.filter((p) => isProtectedSuperAdmin(p) || !idSet.has(p.id));
+    commitProfilesUpdate(next, undefined, true);
   };
 
   const addLesson = (lessonData: Omit<Lesson, 'id'>) => {

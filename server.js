@@ -58,15 +58,18 @@ function broadcastUpdate(type, payload) {
 
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
-    let body = '';
+    const chunks = [];
+    let totalBytes = 0;
     req.on('data', (chunk) => {
-      body += chunk.toString();
-      if (body.length > 5 * 1024 * 1024) {
+      chunks.push(chunk);
+      totalBytes += chunk.length;
+      if (totalBytes > 25 * 1024 * 1024) {
         reject(new Error('Payload too large'));
       }
     });
     req.on('end', () => {
       try {
+        const body = Buffer.concat(chunks).toString('utf8');
         resolve(body ? JSON.parse(body) : {});
       } catch (e) {
         reject(e);
@@ -74,6 +77,88 @@ function readJsonBody(req) {
     });
     req.on('error', reject);
   });
+}
+
+function sanitizeServerProfiles(profiles) {
+  if (!Array.isArray(profiles)) return profiles;
+  let foundSuper = false;
+  const cleaned = profiles.map((p) => {
+    if (!p) return p;
+    const num = String(p.member_number || '').trim();
+    if (num === '7726' || num === '7796' || p.is_super_admin) {
+      foundSuper = true;
+      return {
+        ...p,
+        id: p.id && p.id !== 'admin-7796' ? p.id : 'admin-7726',
+        member_number: '7726',
+        first_name: 'Giampiero',
+        last_name: 'Pilia',
+        full_name: 'Giampiero Pilia',
+        sede: p.sede || 'Quartu',
+        role: 'admin',
+        is_super_admin: true,
+        is_cd: true,
+        roles: Array.from(
+          new Set(['Amministratore', ...((p.roles || []).filter((r) => r !== 'Socio'))])
+        ),
+      };
+    }
+    return p;
+  });
+
+  if (!foundSuper) {
+    cleaned.unshift({
+      id: 'admin-7726',
+      member_number: '7726',
+      first_name: 'Giampiero',
+      last_name: 'Pilia',
+      full_name: 'Giampiero Pilia',
+      sede: 'Quartu',
+      role: 'admin',
+      is_super_admin: true,
+      is_cd: true,
+      roles: ['Amministratore'],
+      phone: '070 881234',
+      joined_year: 2018,
+    });
+  }
+  return cleaned;
+}
+
+function sanitizeServerQueueState(queueState, profiles) {
+  if (!queueState || !Array.isArray(queueState.items)) return queueState;
+  const validProfiles = Array.isArray(profiles) ? profiles : [];
+  const items = queueState.items.map((item) => {
+    if (!item || typeof item.number !== 'number') return item;
+    let rawName = String(item.name || '').trim();
+    if (/0801021400/i.test(rawName)) {
+      return { ...item, name: 'Giampiero Pilia', cardNumber: '7726' };
+    }
+    const cardCandidate = item.cardNumber ? String(item.cardNumber).trim() : '';
+    if (cardCandidate === '7726' || cardCandidate === '7796' || rawName === '7726') {
+      return { ...item, name: 'Giampiero Pilia', cardNumber: '7726' };
+    }
+    if (
+      cardCandidate &&
+      (!rawName || /^socio\s+sconosciuto$/i.test(rawName)) &&
+      validProfiles.length > 0
+    ) {
+      const match = validProfiles.find(
+        (p) =>
+          p &&
+          p.member_number &&
+          (String(p.member_number).trim().toLowerCase() === cardCandidate.toLowerCase() ||
+            (/^\d+$/.test(String(p.member_number).trim()) &&
+              /^\d+$/.test(cardCandidate) &&
+              parseInt(String(p.member_number).trim(), 10) === parseInt(cardCandidate, 10)))
+      );
+      if (match && match.full_name) {
+        return { ...item, name: match.full_name };
+      }
+    }
+    return item;
+  });
+  return { ...queueState, items };
 }
 
 const MIME_TYPES = {
@@ -138,53 +223,12 @@ const server = http.createServer(async (req, res) => {
 
   if (parsedUrl === '/api/state' && req.method === 'GET') {
     const db = loadDb();
-    if (db && Array.isArray(db.profiles)) {
-      const has7726 = db.profiles.some(
-        (p) => p && (String(p.member_number).trim() === '7726' || p.is_super_admin)
-      );
-      if (!has7726) {
-        db.profiles.unshift({
-          id: 'admin-7726',
-          member_number: '7726',
-          first_name: 'Giampiero',
-          last_name: 'Pilia',
-          full_name: 'Giampiero Pilia',
-          sede: 'Quartu',
-          role: 'admin',
-          is_super_admin: true,
-          is_cd: true,
-          roles: ['Amministratore'],
-          phone: '070 881234',
-          joined_year: 2018,
-        });
-      } else {
-        db.profiles = db.profiles.map((p) => {
-          if (
-            p &&
-            (String(p.member_number).trim() === '7726' ||
-              String(p.member_number).trim() === '7796' ||
-              p.is_super_admin)
-          ) {
-            return {
-              ...p,
-              id: p.id && p.id !== 'admin-7796' ? p.id : 'admin-7726',
-              member_number: String(p.member_number).trim() === '7796' ? '7726' : p.member_number || '7726',
-              first_name: p.first_name || 'Giampiero',
-              last_name: p.last_name || 'Pilia',
-              full_name:
-                !p.full_name || String(p.full_name).toLowerCase().startsWith('socio tessera')
-                  ? 'Giampiero Pilia'
-                  : p.full_name,
-              role: 'admin',
-              is_super_admin: true,
-              is_cd: true,
-              roles: Array.from(
-                new Set(['Amministratore', ...((p.roles || []).filter((r) => r !== 'Socio'))])
-              ),
-            };
-          }
-          return p;
-        });
+    if (db) {
+      if (Array.isArray(db.profiles)) {
+        db.profiles = sanitizeServerProfiles(db.profiles);
+      }
+      if (db.queueState) {
+        db.queueState = sanitizeServerQueueState(db.queueState, db.profiles);
       }
     }
     sendJson(res, 200, {
@@ -205,13 +249,20 @@ const server = http.createServer(async (req, res) => {
         const incomingDb = { ...body.db };
 
         if (existingDb) {
-          // Protezione Anagrafica Soci e Ruoli: non sovrascrivere mai con dati più vecchi o demo (profilesUpdatedAt minore)
+          // Protezione Anagrafica Soci e Ruoli: non sovrascrivere mai con dati più vecchi o con i 20 soci demo
           const existingProfTs = Number(existingDb.profilesUpdatedAt || 0);
           const incomingProfTs = Number(incomingDb.profilesUpdatedAt || 0);
-          if (existingProfTs > incomingProfTs && Array.isArray(existingDb.profiles)) {
+          const existingCount = Array.isArray(existingDb.profiles) ? existingDb.profiles.length : 0;
+          const incomingCount = Array.isArray(incomingDb.profiles) ? incomingDb.profiles.length : 0;
+          const incomingLooksDefault = incomingCount <= 20 && existingCount > 20;
+
+          if (
+            Array.isArray(existingDb.profiles) &&
+            (existingProfTs > incomingProfTs || incomingLooksDefault || !Array.isArray(incomingDb.profiles))
+          ) {
             incomingDb.profiles = existingDb.profiles;
             incomingDb.availableRoles = existingDb.availableRoles || incomingDb.availableRoles;
-            incomingDb.profilesUpdatedAt = existingProfTs;
+            incomingDb.profilesUpdatedAt = Math.max(existingProfTs, incomingProfTs);
           }
 
           // Protezione Piccola Cassa: non sovrascrivere mai con dati più vecchi
@@ -243,60 +294,11 @@ const server = http.createServer(async (req, res) => {
           }
         }
 
-        // Garantisce che 7726 Giampiero Pilia non venga MAI cancellato dal database del server
         if (Array.isArray(incomingDb.profiles)) {
-          const hasSuper = incomingDb.profiles.some(
-            (p) =>
-              p &&
-              (String(p.member_number).trim() === '7726' ||
-                String(p.member_number).trim() === '7796' ||
-                p.is_super_admin)
-          );
-          if (!hasSuper) {
-            incomingDb.profiles.unshift({
-              id: 'admin-7726',
-              member_number: '7726',
-              first_name: 'Giampiero',
-              last_name: 'Pilia',
-              full_name: 'Giampiero Pilia',
-              sede: 'Quartu',
-              role: 'admin',
-              is_super_admin: true,
-              is_cd: true,
-              roles: ['Amministratore'],
-              phone: '070 881234',
-              joined_year: 2018,
-            });
-          } else {
-            incomingDb.profiles = incomingDb.profiles.map((p) => {
-              if (
-                p &&
-                (String(p.member_number).trim() === '7726' ||
-                  String(p.member_number).trim() === '7796' ||
-                  p.is_super_admin)
-              ) {
-                return {
-                  ...p,
-                  id: p.id && p.id !== 'admin-7796' ? p.id : 'admin-7726',
-                  member_number:
-                    String(p.member_number).trim() === '7796' ? '7726' : p.member_number || '7726',
-                  first_name: p.first_name || 'Giampiero',
-                  last_name: p.last_name || 'Pilia',
-                  full_name:
-                    !p.full_name || String(p.full_name).toLowerCase().startsWith('socio tessera')
-                      ? 'Giampiero Pilia'
-                      : p.full_name,
-                  role: 'admin',
-                  is_super_admin: true,
-                  is_cd: true,
-                  roles: Array.from(
-                    new Set(['Amministratore', ...((p.roles || []).filter((r) => r !== 'Socio'))])
-                  ),
-                };
-              }
-              return p;
-            });
-          }
+          incomingDb.profiles = sanitizeServerProfiles(incomingDb.profiles);
+        }
+        if (incomingDb.queueState) {
+          incomingDb.queueState = sanitizeServerQueueState(incomingDb.queueState, incomingDb.profiles);
         }
 
         saveDb(incomingDb);
@@ -316,12 +318,72 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Endpoint dedicato per il salvataggio immediato e indistruttibile dell'Anagrafica Soci
+  if (parsedUrl === '/api/profiles' && req.method === 'GET') {
+    const existingDb = loadDb() || {};
+    const profiles = Array.isArray(existingDb.profiles)
+      ? sanitizeServerProfiles(existingDb.profiles)
+      : null;
+    sendJson(res, 200, {
+      ok: true,
+      profiles,
+      availableRoles: existingDb.availableRoles || null,
+      profilesUpdatedAt: existingDb.profilesUpdatedAt || 0,
+    });
+    return;
+  }
+
+  if (parsedUrl === '/api/profiles' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      if (body && Array.isArray(body.profiles)) {
+        const existingDb = loadDb() || {};
+        const existingCount = Array.isArray(existingDb.profiles) ? existingDb.profiles.length : 0;
+        const incomingCount = body.profiles.length;
+        // Evita che un client non ancora sincronizzato sovrascriva l'archivio soci completo con i 20 soci demo
+        if (existingCount > 20 && incomingCount <= 20 && !body.force) {
+          sendJson(res, 200, {
+            ok: true,
+            keptExisting: true,
+            profilesCount: existingCount,
+          });
+          return;
+        }
+        existingDb.profiles = sanitizeServerProfiles(body.profiles);
+        if (Array.isArray(body.availableRoles)) {
+          existingDb.availableRoles = body.availableRoles;
+        }
+        existingDb.profilesUpdatedAt = Number(body.profilesUpdatedAt || Date.now());
+        if (existingDb.queueState) {
+          existingDb.queueState = sanitizeServerQueueState(existingDb.queueState, existingDb.profiles);
+        }
+        existingDb.updatedAt = new Date().toISOString();
+        saveDb(existingDb);
+        broadcastUpdate('PROFILES_SYNC', {
+          profiles: existingDb.profiles,
+          availableRoles: existingDb.availableRoles,
+          profilesUpdatedAt: existingDb.profilesUpdatedAt,
+        });
+      }
+      sendJson(res, 200, {
+        ok: true,
+        connectedDevices: sseClients.size,
+      });
+    } catch (e) {
+      sendJson(res, 400, { ok: false, error: e.message });
+    }
+    return;
+  }
+
   // Endpoint ultra-veloce dedicato per il telecomando Eliminacode -> Monitor Sala d'Attesa
   if (parsedUrl === '/api/queue' && req.method === 'GET') {
     const existingDb = loadDb() || {};
+    const queueState = existingDb.queueState
+      ? sanitizeServerQueueState(existingDb.queueState, existingDb.profiles)
+      : null;
     sendJson(res, 200, {
       ok: true,
-      queueState: existingDb.queueState || null,
+      queueState,
       connectedDevices: sseClients.size,
     });
     return;
@@ -332,11 +394,12 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       if (body && body.queueState) {
         const existingDb = loadDb() || {};
-        existingDb.queueState = body.queueState;
+        const sanitizedQueue = sanitizeServerQueueState(body.queueState, existingDb.profiles);
+        existingDb.queueState = sanitizedQueue;
         existingDb.updatedAt = new Date().toISOString();
         saveDb(existingDb);
         broadcastUpdate('QUEUE_SYNC', {
-          queueState: body.queueState,
+          queueState: sanitizedQueue,
         });
       }
       sendJson(res, 200, {
