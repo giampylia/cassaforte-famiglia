@@ -355,9 +355,9 @@ function normalizeProtectedSegreteriaProfile(
 ): Profile {
   const is9999 = cardNum === '9999';
   const existingRoles = Array.isArray(existing?.roles)
-    ? existing!.roles!.filter((r) => r !== 'Socio')
+    ? existing!.roles!.filter((r) => r !== 'Socio' && r !== 'Segreteria')
     : [];
-  const mergedRoles = Array.from(new Set(['Segreteria', ...existingRoles]));
+  const mergedRoles = ['Segreteria', ...existingRoles];
   return {
     ...(existing || {}),
     id: is9999 ? 'segreteria-9999' : 'segreteria-9998',
@@ -368,7 +368,7 @@ function normalizeProtectedSegreteriaProfile(
     sede: existing?.sede === 'Soleminis' ? 'Soleminis' : 'Quartu',
     role: 'member',
     is_super_admin: false,
-    is_cd: Boolean(existing?.is_cd || mergedRoles.includes('CD')),
+    is_cd: false,
     roles: mergedRoles,
     joined_year: existing?.joined_year || 2024,
   };
@@ -416,7 +416,14 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
 
   if (!adminDeletedSegreteria.has('9999')) {
     const idx9999 = list.findIndex(
-      (p) => String(p.member_number).trim() === '9999' || p.id === 'segreteria-9999'
+      (p) =>
+        String(p.member_number).trim() === '9999' ||
+        p.id === 'segreteria-9999' ||
+        Boolean(
+          p.full_name &&
+            p.full_name.toLowerCase().includes('nives') &&
+            p.full_name.toLowerCase().includes('cocco')
+        )
     );
     if (idx9999 >= 0) {
       list[idx9999] = normalizeProtectedSegreteriaProfile('9999', list[idx9999]);
@@ -427,7 +434,14 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
 
   if (!adminDeletedSegreteria.has('9998')) {
     const idx9998 = list.findIndex(
-      (p) => String(p.member_number).trim() === '9998' || p.id === 'segreteria-9998'
+      (p) =>
+        String(p.member_number).trim() === '9998' ||
+        p.id === 'segreteria-9998' ||
+        Boolean(
+          p.full_name &&
+            p.full_name.toLowerCase().includes('josh') &&
+            p.full_name.toLowerCase().includes('cocco')
+        )
     );
     if (idx9998 >= 0) {
       list[idx9998] = normalizeProtectedSegreteriaProfile('9998', list[idx9998]);
@@ -441,10 +455,26 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
       return normalizeSuperAdminProfile(p);
     }
     const numTrim = String(p.member_number || '').trim();
-    if (numTrim === '9999' || p.id === 'segreteria-9999') {
+    const isNives =
+      numTrim === '9999' ||
+      p.id === 'segreteria-9999' ||
+      Boolean(
+        p.full_name &&
+          p.full_name.toLowerCase().includes('nives') &&
+          p.full_name.toLowerCase().includes('cocco')
+      );
+    if (isNives) {
       return normalizeProtectedSegreteriaProfile('9999', p);
     }
-    if (numTrim === '9998' || p.id === 'segreteria-9998') {
+    const isJosh =
+      numTrim === '9998' ||
+      p.id === 'segreteria-9998' ||
+      Boolean(
+        p.full_name &&
+          p.full_name.toLowerCase().includes('josh') &&
+          p.full_name.toLowerCase().includes('cocco')
+      );
+    if (isJosh) {
       return normalizeProtectedSegreteriaProfile('9998', p);
     }
     const initialMatch = INITIAL_PROFILES.find((ip) => ip.member_number === p.member_number);

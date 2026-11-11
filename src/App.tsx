@@ -56,9 +56,18 @@ const MainRouter: React.FC = () => {
     );
   }
 
-  // Utenti Segreteria (es. Nives Cocco 9999 e Josh Ronald Cocco 9998)
-  const isSegreteriaOnly =
-    !isSuperAdmin && (isProtectedSegreteriaMember(currentUser) || isSegreteriaMember);
+  // Riconoscimento infallibile membri Segreteria (Nives Cocco 9999 e Josh Ronald Cocco 9998)
+  const isSegreteriaUser =
+    !isSuperAdmin &&
+    (isProtectedSegreteriaMember(currentUser) ||
+      isSegreteriaMember ||
+      Boolean(
+        currentUser &&
+          currentUser.roles &&
+          currentUser.roles.some((r) => r.trim().toLowerCase() === 'segreteria')
+      ));
+
+  const isSegreteriaOnly = isSegreteriaUser;
 
   // Mostra il Menu Laterale a Super Admin (7726), soci con ruolo CD, Didattica, Admin o Segreteria
   const showSideMenu =
@@ -66,13 +75,15 @@ const MainRouter: React.FC = () => {
     isCDMember ||
     isDidatticaMember ||
     currentUser.role === 'admin' ||
-    isSegreteriaMember;
+    isSegreteriaUser;
 
   // Calcola l'unico ruolo principale da mostrare chiaramente sotto il nome dell'utente
   const userSingleRoleLabel = isSuperAdmin
     ? 'Amministratore'
     : currentUser.role === 'admin'
     ? 'Ufficio Presenze / Admin'
+    : isSegreteriaUser
+    ? 'Segreteria'
     : getMemberParts(currentUser).primaryRole;
 
   const canSeeTimbratureAule =
@@ -80,12 +91,12 @@ const MainRouter: React.FC = () => {
     (isSuperAdmin || currentUser.role === 'admin' || isDidatticaMember);
 
   const canSeeAnagraficaSoci =
-    isSuperAdmin || currentUser.role === 'admin' || isCDMember || isSegreteriaMember;
+    isSuperAdmin || currentUser.role === 'admin' || isCDMember || isSegreteriaUser;
 
   const canSeePiccolaCassa = !isSegreteriaOnly && (isSuperAdmin || isCDMember);
 
   // Eliminacode visibile da Super Admin (7726) e da Segreteria (9999 / 9998)
-  const canSeeEliminacode = isSuperAdmin || isSegreteriaMember;
+  const canSeeEliminacode = isSuperAdmin || isSegreteriaUser;
 
   const menuItems = [
     ...(!isSegreteriaOnly
@@ -341,12 +352,14 @@ const MainRouter: React.FC = () => {
         <div className="flex-1 min-w-0">
           {activeSection === 'eliminacode' && canSeeEliminacode ? (
             <EliminacodeView />
-          ) : activeSection === 'piccola_cassa' && canSeePiccolaCassa ? (
-            <PiccolaCassaView />
           ) : activeSection === 'anagrafica_soci' && canSeeAnagraficaSoci ? (
             <AnagraficaSociView />
+          ) : activeSection === 'piccola_cassa' && canSeePiccolaCassa ? (
+            <PiccolaCassaView />
           ) : activeSection === 'admin_dashboard' && canSeeTimbratureAule ? (
             <AdminDashboard />
+          ) : isSegreteriaOnly ? (
+            <EliminacodeView />
           ) : (
             <MemberView />
           )}

@@ -13,6 +13,7 @@ import {
   X,
   FileDown,
   Users,
+  ShieldCheck,
 } from 'lucide-react';
 import { useApp, ImportedMemberRow } from '../context/AppContext';
 import {
@@ -1102,19 +1103,31 @@ export const AnagraficaSociView: React.FC = () => {
                             </select>
                           </td>
                           <td className="p-3">
-                            <select
-                              value={editRow.roleName}
-                              onChange={(e) =>
-                                setEditRow({ ...editRow, roleName: e.target.value })
-                              }
-                              className={`h-9 rounded-lg px-2 text-sm ${inputClass}`}
-                            >
-                              {availableRoles.map((r) => (
-                                <option key={r} value={r}>
-                                  {r}
-                                </option>
-                              ))}
-                            </select>
+                            {isProtectedAdmin ? (
+                              <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-900">
+                                <ShieldCheck className="h-3.5 w-3.5 text-emerald-700" />
+                                Amministratore
+                              </span>
+                            ) : isProtectedSegr ? (
+                              <span className="inline-flex items-center gap-1 rounded-lg bg-purple-50 border border-purple-200 px-2 py-1 text-xs font-semibold text-purple-900">
+                                <ShieldCheck className="h-3.5 w-3.5 text-purple-700" />
+                                Segreteria
+                              </span>
+                            ) : (
+                              <select
+                                value={editRow.roleName}
+                                onChange={(e) =>
+                                  setEditRow({ ...editRow, roleName: e.target.value })
+                                }
+                                className={`h-9 rounded-lg px-2 text-sm ${inputClass}`}
+                              >
+                                {availableRoles.map((r) => (
+                                  <option key={r} value={r}>
+                                    {r}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
                           </td>
                           <td className="p-3 text-center">{isCd ? 'Sì' : 'No'}</td>
                           <td className="p-3 text-right whitespace-nowrap space-x-1">
@@ -1136,6 +1149,8 @@ export const AnagraficaSociView: React.FC = () => {
                                   is_cd: nextIsCd,
                                   roles: isProtectedAdmin
                                     ? Array.from(new Set(['Amministratore', editRow.roleName]))
+                                    : isProtectedSegr
+                                    ? ['Segreteria']
                                     : [editRow.roleName],
                                 });
                                 setEditingId(null);
@@ -1189,7 +1204,17 @@ export const AnagraficaSociView: React.FC = () => {
                             {m.sede}
                           </td>
                           <td className="p-3.5 whitespace-nowrap">
-                            {canEditThisRow ? (
+                            {isProtectedAdmin ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-900 shadow-xs">
+                                <ShieldCheck className="h-3.5 w-3.5 text-emerald-700" />
+                                Amministratore
+                              </span>
+                            ) : isProtectedSegr ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-lg bg-purple-50 border border-purple-200 px-2.5 py-1 text-xs font-semibold text-purple-900 shadow-xs">
+                                <ShieldCheck className="h-3.5 w-3.5 text-purple-700" />
+                                Segreteria
+                              </span>
+                            ) : canEditThisRow ? (
                               <select
                                 value={m.parsedRole.split(',')[0].trim() || 'Socio'}
                                 onChange={(e) => {
