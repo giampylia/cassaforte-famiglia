@@ -848,6 +848,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   profilesUpdatedAtRef.current = profilesUpdatedAt;
   const cashUpdatedAtRef = useRef(cashUpdatedAt);
   cashUpdatedAtRef.current = cashUpdatedAt;
+  const lessonsRef = useRef<Lesson[]>(lessons);
+  lessonsRef.current = lessons;
   const lessonsUpdatedAtRef = useRef(lessonsUpdatedAt);
   lessonsUpdatedAtRef.current = lessonsUpdatedAt;
   const queueUpdatedAtRef = useRef(queueState.updatedAt || 0);
@@ -1114,10 +1116,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const remoteLessonsTs = Number(db.lessonsUpdatedAt || 0);
     const localLessonsTs = lessonsUpdatedAtRef.current;
-    if (remoteLessonsTs >= localLessonsTs) {
-      if (Array.isArray(db.lessons)) setLessons(db.lessons);
-      if (remoteLessonsTs > 0) setLessonsUpdatedAt(remoteLessonsTs);
-    } else {
+    if (remoteLessonsTs > localLessonsTs) {
+      if (Array.isArray(db.lessons)) {
+        lessonsRef.current = db.lessons;
+        setLessons(db.lessons);
+        safeSetLocalStorage(STORAGE_KEYS.LESSONS, JSON.stringify(db.lessons));
+      }
+      if (remoteLessonsTs > 0) {
+        lessonsUpdatedAtRef.current = remoteLessonsTs;
+        setLessonsUpdatedAt(remoteLessonsTs);
+        safeSetLocalStorage(STORAGE_KEYS.LESSONS_TS, String(remoteLessonsTs));
+      }
+    } else if (localLessonsTs > remoteLessonsTs && Array.isArray(lessonsRef.current)) {
       shouldPushBackLocalProtected = true;
     }
 
@@ -1133,7 +1143,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let cleanedDuplicates = false;
     if (Array.isArray(db.attendance)) {
-      const lessonsToUse = Array.isArray(db.lessons) ? db.lessons : lessons;
+      const lessonsToUse = Array.isArray(db.lessons) ? db.lessons : lessonsRef.current;
       const sanitized = sanitizeSimultaneousAttendance(db.attendance, lessonsToUse);
       if (sanitized.length !== db.attendance.length) {
         cleanedDuplicates = true;
@@ -1162,7 +1172,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             cashMovements,
             cashOpeningBalance,
             cashUpdatedAt: cashUpdatedAtRef.current,
-            lessons,
+            lessons: lessonsRef.current,
             lessonsUpdatedAt: lessonsUpdatedAtRef.current,
             attendance: Array.isArray(db.attendance) ? db.attendance : attendance,
             subjectNotes: Array.isArray(db.subjectNotes) ? db.subjectNotes : subjectNotes,
@@ -1309,6 +1319,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               safeSetLocalStorage(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(incomingQ));
               setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
             }
+          } else if (parsed.type === 'LESSONS_SYNC' && Array.isArray(parsed.payload?.lessons)) {
+            const remoteTs = Number(parsed.payload.lessonsUpdatedAt || 0);
+            if (remoteTs > lessonsUpdatedAtRef.current) {
+              lessonsRef.current = parsed.payload.lessons;
+              lessonsUpdatedAtRef.current = remoteTs;
+              setLessons(parsed.payload.lessons);
+              setLessonsUpdatedAt(remoteTs);
+              safeSetLocalStorage(STORAGE_KEYS.LESSONS, JSON.stringify(parsed.payload.lessons));
+              safeSetLocalStorage(STORAGE_KEYS.LESSONS_TS, String(remoteTs));
+              setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
+            }
           } else if (parsed.type === 'PUBLIC_URL' && parsed.payload?.publicUrl) {
             setPublicUrl(parsed.payload.publicUrl);
           }
@@ -1334,6 +1355,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ev.data.availableRoles,
             Number(ev.data.profilesUpdatedAt || 0)
           );
+        } else if (ev.data?.type === 'LESSONS_SYNC' && Array.isArray(ev.data.lessons)) {
+          const remoteTs = Number(ev.data.lessonsUpdatedAt || 0);
+          if (remoteTs > lessonsUpdatedAtRef.current) {
+            lessonsRef.current = ev.data.lessons;
+            lessonsUpdatedAtRef.current = remoteTs;
+            setLessons(ev.data.lessons);
+            setLessonsUpdatedAt(remoteTs);
+            safeSetLocalStorage(STORAGE_KEYS.LESSONS, JSON.stringify(ev.data.lessons));
+            safeSetLocalStorage(STORAGE_KEYS.LESSONS_TS, String(remoteTs));
+          }
         } else if (ev.data?.type === 'QUEUE_SYNC' && ev.data.queueState) {
           const incomingQ = sanitizeQueueState(
             ev.data.queueState as QueueState,
@@ -2155,25 +2186,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     commitProfilesUpdate(next, undefined, true);
   };
 
+  const commitLessonsUpdate = (nextLessons: Lesson[], forceTs?: number) => {
+    const nowTs = forceTs || Date.now();
+    lessonsRef.current = nextLessons;
+    lessonsUpdatedAtRef.current = nowTs;
+    setLessons(nextLessons);
+    setLessonsUpdatedAt(nowTs);
+    safeSetLocalStorage(STORAGE_KEYS.LESSONS, JSON.stringify(nextLessons));
+    safeSetLocalStorage(STORAGE_KEYS.LESSONS_TS, String(nowTs));
+
+    try {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.postMessage({
+          type: 'LESSONS_SYNC',
+          lessons: nextLessons,
+          lessonsUpdatedAt: nowTs,
+        });
+      }
+    } catch {}
+
+    fetch('/api/lessons', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lessons: nextLessons,
+        lessonsUpdatedAt: nowTs,
+      }),
+    }).catch(() => {});
+  };
+
   const addLesson = (lessonData: Omit<Lesson, 'id'>) => {
     const meta = getSubjectMeta(lessonData.subject);
     const newLesson: Lesson = {
       ...lessonData,
       category: lessonData.category || meta.category,
-      id: `les-${Date.now()}`,
+      id: `les-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
     };
-    setLessons((prev) => [...prev, newLesson]);
-    setLessonsUpdatedAt(Date.now());
+    const next = [...lessonsRef.current, newLesson];
+    commitLessonsUpdate(next);
   };
 
   const updateLesson = (id: string, data: Partial<Lesson>) => {
-    setLessons((prev) => prev.map((l) => (l.id === id ? { ...l, ...data } : l)));
-    setLessonsUpdatedAt(Date.now());
+    const next = lessonsRef.current.map((l) => (l.id === id ? { ...l, ...data } : l));
+    commitLessonsUpdate(next);
   };
 
   const deleteLesson = (id: string) => {
-    setLessons((prev) => prev.filter((l) => l.id !== id));
-    setLessonsUpdatedAt(Date.now());
+    const next = lessonsRef.current.filter((l) => l.id !== id);
+    commitLessonsUpdate(next);
   };
 
   const saveSubjectNote = (note: SubjectDidacticNote) => {

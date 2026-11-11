@@ -148,6 +148,7 @@ export const AdminDashboard: React.FC = () => {
     start_time: '09:00',
     end_time: '11:00',
   });
+  const [scheduleNotice, setScheduleNotice] = useState<string | null>(null);
 
   // --- STATE SEZIONE REPORT ---
   const [dateFrom, setDateFrom] = useState('');
@@ -1737,6 +1738,8 @@ export const AdminDashboard: React.FC = () => {
                         teacher: newLesson.teacher.trim() || 'Docente QU3',
                         category: getSubjectMeta(newLesson.subject).category,
                       });
+                      setScheduleNotice(`✓ Lezione di «${newLesson.subject}» inserita nel calendario.`);
+                      setTimeout(() => setScheduleNotice(null), 5000);
                       setNewLesson({ ...newLesson, subject: '', teacher: '' });
                     }}
                     className="w-full h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-normal flex items-center justify-center gap-2 shadow-sm transition"
@@ -1747,6 +1750,23 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Avviso di conferma immediata operazione sul calendario lezioni */}
+            {scheduleNotice && (
+              <div className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 flex items-center justify-between text-sm text-emerald-900 shadow-sm transition">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                  <span className="font-medium">{scheduleNotice}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setScheduleNotice(null)}
+                  className="rounded-lg p-1 text-emerald-700 hover:bg-emerald-100 text-xs font-semibold"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             <div className={`rounded-3xl overflow-hidden ${cardClass}`}>
               <div className="overflow-x-auto">
@@ -1793,11 +1813,28 @@ export const AdminDashboard: React.FC = () => {
                             <td className="p-4 text-right">
                               <button
                                 type="button"
-                                onClick={() => deleteLesson(les.id)}
-                                className="rounded-xl border border-rose-200 p-2 text-rose-600 hover:bg-rose-50"
-                                title="Rimuovi lezione"
+                                onClick={() => {
+                                  const roomName = CLASSROOM_LABELS[les.classroom] || les.classroom;
+                                  const dayName = DAYS_IT[les.day_of_week] || '';
+                                  if (
+                                    window.confirm(
+                                      `Vuoi davvero cancellare la lezione dal calendario?\n\n` +
+                                        `• Materia: ${les.subject}\n` +
+                                        `• Docente: ${les.teacher}\n` +
+                                        `• Aula: ${roomName}\n` +
+                                        `• Orario: ${dayName} dalle ${les.start_time.slice(0, 5)} alle ${les.end_time.slice(0, 5)}`
+                                    )
+                                  ) {
+                                    deleteLesson(les.id);
+                                    setScheduleNotice(`✓ Lezione di «${les.subject}» cancellata dal calendario con successo.`);
+                                    setTimeout(() => setScheduleNotice(null), 5000);
+                                  }
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 active:scale-95 px-3 py-1.5 text-xs font-medium text-rose-700 shadow-2xs transition"
+                                title="Cancella lezione dal calendario"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3.5 w-3.5 text-rose-600 shrink-0" />
+                                <span>Cancella</span>
                               </button>
                             </td>
                           </tr>

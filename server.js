@@ -355,8 +355,8 @@ const server = http.createServer(async (req, res) => {
           }
 
           // Protezione Eliminacode: non sovrascrivere mai con dati più vecchi
-          const existingQueueTs = Number(existingDb.queueState?.updatedAt || 0);
-          const incomingQueueTs = Number(incomingDb.queueState?.updatedAt || 0);
+          const existingQueueTs = Number((existingDb.queueState && existingDb.queueState.updatedAt) || 0);
+          const incomingQueueTs = Number((incomingDb.queueState && incomingDb.queueState.updatedAt) || 0);
           if (existingQueueTs > incomingQueueTs && existingDb.queueState) {
             incomingDb.queueState = existingDb.queueState;
           }
@@ -474,6 +474,46 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         connectedDevices: sseClients.size,
       });
+    } catch (e) {
+      sendJson(res, 400, { ok: false, error: e.message });
+    }
+    return;
+  }
+
+  // Endpoint dedicato per il salvataggio immediato e affidabile dell'Orario Lezioni / Calendario
+  if (parsedUrl === '/api/lessons' && req.method === 'GET') {
+    const existingDb = loadDb() || {};
+    sendJson(res, 200, {
+      ok: true,
+      lessons: Array.isArray(existingDb.lessons) ? existingDb.lessons : null,
+      lessonsUpdatedAt: Number(existingDb.lessonsUpdatedAt || 0),
+    });
+    return;
+  }
+
+  if (parsedUrl === '/api/lessons' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      if (body && Array.isArray(body.lessons)) {
+        const existingDb = loadDb() || {};
+        const incomingTs = Number(body.lessonsUpdatedAt || Date.now());
+        existingDb.lessons = body.lessons;
+        existingDb.lessonsUpdatedAt = incomingTs;
+        existingDb.updatedAt = new Date().toISOString();
+        saveDb(existingDb);
+        broadcastUpdate('LESSONS_SYNC', {
+          lessons: existingDb.lessons,
+          lessonsUpdatedAt: existingDb.lessonsUpdatedAt,
+        });
+        sendJson(res, 200, {
+          ok: true,
+          count: existingDb.lessons.length,
+          lessonsUpdatedAt: existingDb.lessonsUpdatedAt,
+          connectedDevices: sseClients.size,
+        });
+        return;
+      }
+      sendJson(res, 400, { ok: false, error: 'Formato lezioni non valido' });
     } catch (e) {
       sendJson(res, 400, { ok: false, error: e.message });
     }
