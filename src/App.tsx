@@ -11,7 +11,7 @@ import {
   Monitor,
 } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
-import { getMemberParts } from './data/initialData';
+import { getMemberParts, isProtectedSegreteriaMember } from './data/initialData';
 import { AccessibilityTopBar } from './components/AccessibilityTopBar';
 import { LoginView } from './components/LoginView';
 import { MemberView } from './components/MemberView';
@@ -26,6 +26,7 @@ const MainRouter: React.FC = () => {
     isSuperAdmin,
     isCDMember,
     isDidatticaMember,
+    isSegreteriaMember,
     activeSection,
     setActiveSection,
     signOut,
@@ -55,8 +56,17 @@ const MainRouter: React.FC = () => {
     );
   }
 
-  // Mostra il Menu Laterale a Super Admin (7726), soci con ruolo CD, Didattica o Admin
-  const showSideMenu = isSuperAdmin || isCDMember || isDidatticaMember || currentUser.role === 'admin';
+  // Utenti Segreteria (es. Nives Cocco 9999 e Josh Ronald Cocco 9998)
+  const isSegreteriaOnly =
+    !isSuperAdmin && (isProtectedSegreteriaMember(currentUser) || isSegreteriaMember);
+
+  // Mostra il Menu Laterale a Super Admin (7726), soci con ruolo CD, Didattica, Admin o Segreteria
+  const showSideMenu =
+    isSuperAdmin ||
+    isCDMember ||
+    isDidatticaMember ||
+    currentUser.role === 'admin' ||
+    isSegreteriaMember;
 
   // Calcola l'unico ruolo principale da mostrare chiaramente sotto il nome dell'utente
   const userSingleRoleLabel = isSuperAdmin
@@ -66,23 +76,28 @@ const MainRouter: React.FC = () => {
     : getMemberParts(currentUser).primaryRole;
 
   const canSeeTimbratureAule =
-    isSuperAdmin || currentUser.role === 'admin' || isDidatticaMember;
+    !isSegreteriaOnly &&
+    (isSuperAdmin || currentUser.role === 'admin' || isDidatticaMember);
 
   const canSeeAnagraficaSoci =
-    isSuperAdmin || currentUser.role === 'admin' || isCDMember;
+    isSuperAdmin || currentUser.role === 'admin' || isCDMember || isSegreteriaMember;
 
-  const canSeePiccolaCassa = isSuperAdmin || isCDMember;
+  const canSeePiccolaCassa = !isSegreteriaOnly && (isSuperAdmin || isCDMember);
 
-  // Eliminacode visibile per ora SOLO da 7726 (Giampiero Pilia — Super Admin)
-  const canSeeEliminacode = isSuperAdmin;
+  // Eliminacode visibile da Super Admin (7726) e da Segreteria (9999 / 9998)
+  const canSeeEliminacode = isSuperAdmin || isSegreteriaMember;
 
   const menuItems = [
-    {
-      key: 'presenze' as const,
-      label: 'Timbratura e Corsi',
-      sublabel: 'Ingresso Aule e Orario Lezioni',
-      icon: Hand,
-    },
+    ...(!isSegreteriaOnly
+      ? [
+          {
+            key: 'presenze' as const,
+            label: 'Timbratura e Corsi',
+            sublabel: 'Ingresso Aule e Orario Lezioni',
+            icon: Hand,
+          },
+        ]
+      : []),
     ...(canSeeTimbratureAule
       ? [
           {

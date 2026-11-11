@@ -15,7 +15,12 @@ import {
   Users,
 } from 'lucide-react';
 import { useApp, ImportedMemberRow } from '../context/AppContext';
-import { getMemberParts, isProtectedSuperAdmin, Profile } from '../data/initialData';
+import {
+  getMemberParts,
+  isProtectedSuperAdmin,
+  isProtectedSegreteriaMember,
+  Profile,
+} from '../data/initialData';
 import { exportCsv, exportOfficialPdf } from '../utils/soundAndPdf';
 
 // Caricamento dinamico di SheetJS (xlsx) per leggere file .xlsx / .xls nativi di Excel
@@ -1040,6 +1045,8 @@ export const AnagraficaSociView: React.FC = () => {
                   const isCd = Boolean(m.is_cd || m.roles?.includes('CD'));
                   const isSelected = selectedIds.includes(m.id);
                   const isProtectedAdmin = isProtectedSuperAdmin(m);
+                  const isProtectedSegr = isProtectedSegreteriaMember(m);
+                  const cannotDelete = isProtectedAdmin || (isProtectedSegr && !isSuperAdmin);
                   const canEditThisRow = canManageMembers && (!isProtectedAdmin || isSuperAdmin);
 
                   return (
@@ -1151,7 +1158,7 @@ export const AnagraficaSociView: React.FC = () => {
                         <>
                           {canManageMembers && (
                             <td className="p-3.5 text-center">
-                              {!isProtectedAdmin && (
+                              {!cannotDelete && (
                                 <input
                                   type="checkbox"
                                   checked={isSelected}
@@ -1258,7 +1265,7 @@ export const AnagraficaSociView: React.FC = () => {
                                   <span>Modifica</span>
                                 </button>
                               )}
-                              {!isProtectedAdmin ? (
+                              {!cannotDelete ? (
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1284,7 +1291,11 @@ export const AnagraficaSociView: React.FC = () => {
                               ) : (
                                 <span
                                   className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-800"
-                                  title="Account Amministratore Principale protetto da cancellazione"
+                                  title={
+                                    isProtectedAdmin
+                                      ? 'Account Amministratore Principale protetto da cancellazione'
+                                      : "Ruolo Segreteria protetto: cancellabile solo dall'Amministratore"
+                                  }
                                 >
                                   Protetto
                                 </span>

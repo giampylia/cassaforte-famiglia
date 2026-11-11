@@ -13,6 +13,7 @@ import {
   INITIAL_LESSONS,
   INITIAL_PROFILES,
   INITIAL_SUBJECT_NOTES,
+  isProtectedSegreteriaMember,
   isProtectedSuperAdmin,
   Lesson,
   Profile,
@@ -84,6 +85,7 @@ interface AppContextType {
   isSuperAdmin: boolean;
   isCDMember: boolean;
   isDidatticaMember: boolean;
+  isSegreteriaMember: boolean;
   activeSection: AppSection;
   setActiveSection: (sec: AppSection) => void;
   profiles: Profile[];
@@ -161,6 +163,7 @@ const STORAGE_KEYS = {
   ROLES: 'quartimbra_available_roles_v4',
   PROFILES_TS: 'quartimbra_profiles_updated_at_v4',
   PROTECTED_ANAGRAFICA: 'quartimbra_protected_anagrafica_backup_v1',
+  ADMIN_DELETED_SEGRETERIA: 'quartimbra_admin_deleted_segreteria_v1',
   CATEGORIES: 'quartimbra_expense_categories_v4',
   CASH_MOVEMENTS: 'quartimbra_cash_movements_v4',
   CASH_BALANCE: 'quartimbra_cash_opening_balance_v4',
@@ -218,6 +221,26 @@ function safeSetLocalStorage(key: string, value: string): boolean {
     }
     return false;
   }
+}
+
+function getAdminDeletedSegreteriaNumbers(): Set<string> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.ADMIN_DELETED_SEGRETERIA);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? new Set(arr.map(String)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveAdminDeletedSegreteriaNumbers(nums: Set<string>): void {
+  safeSetLocalStorage(STORAGE_KEYS.ADMIN_DELETED_SEGRETERIA, JSON.stringify(Array.from(nums)));
+}
+
+function ensureDefaultRolesList(roles?: string[]): string[] {
+  const base = Array.isArray(roles) && roles.length > 0 ? roles : DEFAULT_AVAILABLE_ROLES;
+  return Array.from(new Set([...DEFAULT_AVAILABLE_ROLES, ...base]));
 }
 
 // Database IndexedDB ad alta capacità (fino a 500MB+) per garantire che l'Anagrafica Soci non vada MAI persa alla riapertura
@@ -326,6 +349,31 @@ function normalizeSuperAdminProfile(p?: Partial<Profile> | null): Profile {
   };
 }
 
+function normalizeProtectedSegreteriaProfile(
+  cardNum: '9999' | '9998',
+  existing?: Partial<Profile> | null
+): Profile {
+  const is9999 = cardNum === '9999';
+  const existingRoles = Array.isArray(existing?.roles)
+    ? existing!.roles!.filter((r) => r !== 'Socio')
+    : [];
+  const mergedRoles = Array.from(new Set(['Segreteria', ...existingRoles]));
+  return {
+    ...(existing || {}),
+    id: is9999 ? 'segreteria-9999' : 'segreteria-9998',
+    member_number: cardNum,
+    first_name: is9999 ? 'Nives' : 'Josh Ronald',
+    last_name: 'Cocco',
+    full_name: is9999 ? 'Nives Cocco' : 'Josh Ronald Cocco',
+    sede: existing?.sede === 'Soleminis' ? 'Soleminis' : 'Quartu',
+    role: 'member',
+    is_super_admin: false,
+    is_cd: Boolean(existing?.is_cd || mergedRoles.includes('CD')),
+    roles: mergedRoles,
+    joined_year: existing?.joined_year || 2024,
+  };
+}
+
 function cleanPersonNameField(raw?: string): string {
   if (!raw) return '';
   return String(raw)
@@ -362,9 +410,47 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
     }
   }
 
+  // Garantisce che Nives Cocco (9999) e Josh Ronald Cocco (9998) con ruolo Segreteria siano sempre presenti
+  // a meno che non siano stati cancellati esplicitamente dall'Amministratore (7726)
+  const adminDeletedSegreteria = getAdminDeletedSegreteriaNumbers();
+
+  if (!adminDeletedSegreteria.has('9999')) {
+    const idx9999 = list.findIndex(
+      (p) => String(p.member_number).trim() === '9999' || p.id === 'segreteria-9999'
+    );
+    if (idx9999 >= 0) {
+      list[idx9999] = normalizeProtectedSegreteriaProfile('9999', list[idx9999]);
+    } else {
+      list.splice(1, 0, normalizeProtectedSegreteriaProfile('9999'));
+    }
+  }
+
+  if (!adminDeletedSegreteria.has('9998')) {
+    const idx9998 = list.findIndex(
+      (p) => String(p.member_number).trim() === '9998' || p.id === 'segreteria-9998'
+    );
+    if (idx9998 >= 0) {
+      list[idx9988Or(idx9998)] = normalizeProtectedSegreteriaProfile('9998', list[idx9998]);
+    } else {
+      const insertAt = Math.min(2, list.length);
+      list.splice(insertAt, 0, normalizeProtectedSegreteriaProfile('9998'));
+    }
+  }
+
+  function idx9988Or(i: number) {
+    return i;
+  }
+
   return list.map((p) => {
     if (isProtectedSuperAdmin(p)) {
       return normalizeSuperAdminProfile(p);
+    }
+    const numTrim = String(p.member_number || '').trim();
+    if (numTrim === '9999' || p.id === 'segreteria-9999') {
+      return normalizeProtectedSegreteriaProfile('9999', p);
+    }
+    if (numTrim === '9998' || p.id === 'segreteria-9998') {
+      return normalizeProtectedSegreteriaProfile('9998', p);
     }
     const initialMatch = INITIAL_PROFILES.find((ip) => ip.member_number === p.member_number);
     const roles = p.roles && p.roles.length > 0 ? p.roles : initialMatch?.roles || ['Socio'];
@@ -474,13 +560,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const saved = localStorage.getItem(STORAGE_KEYS.ROLES);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return ensureDefaultRolesList(parsed);
       }
       const protectedRaw = localStorage.getItem(STORAGE_KEYS.PROTECTED_ANAGRAFICA);
       if (protectedRaw) {
         const parsedBackup = JSON.parse(protectedRaw);
         if (parsedBackup && Array.isArray(parsedBackup.availableRoles) && parsedBackup.availableRoles.length > 0) {
-          return parsedBackup.availableRoles;
+          return ensureDefaultRolesList(parsedBackup.availableRoles);
         }
       }
       return DEFAULT_AVAILABLE_ROLES;
@@ -654,6 +740,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         (currentUser.roles && currentUser.roles.includes('Didattica')))
   );
 
+  const isSegreteriaMember = Boolean(
+    currentUser &&
+      (isSuperAdmin ||
+        isProtectedSegreteriaMember(currentUser) ||
+        (currentUser.roles &&
+          currentUser.roles.some((r) => r.trim().toLowerCase() === 'segreteria')))
+  );
+
+  // Se l'utente autenticato ha il ruolo "Segreteria" (es. Nives Cocco 9999 o Josh Ronald Cocco 9998)
+  // e non è Super Admin, può vedere SOLO Anagrafica Soci ed Eliminacode
+  useEffect(() => {
+    if (!currentUser) return;
+    const isSegreteriaOnlyUser =
+      !isSuperAdmin &&
+      (isProtectedSegreteriaMember(currentUser) ||
+        Boolean(
+          currentUser.roles &&
+            currentUser.roles.some((r) => r.trim().toLowerCase() === 'segreteria')
+        ));
+    if (
+      isSegreteriaOnlyUser &&
+      activeSection !== 'anagrafica_soci' &&
+      activeSection !== 'eliminacode'
+    ) {
+      setActiveSection('eliminacode');
+    }
+  }, [currentUser, isSuperAdmin, activeSection]);
+
   const [fontScale, setFontScale] = useState<FontScale>(() => {
     return (localStorage.getItem(STORAGE_KEYS.FONT_SCALE) as FontScale) || 'large';
   });
@@ -761,8 +875,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     forceReplace = false
   ) => {
     const finalProfiles = ensureSuperAdminAndRoles(nextProfilesRaw);
-    const finalRoles =
-      nextRolesRaw && nextRolesRaw.length > 0 ? nextRolesRaw : availableRolesRef.current;
+    const finalRoles = ensureDefaultRolesList(
+      nextRolesRaw && nextRolesRaw.length > 0 ? nextRolesRaw : availableRolesRef.current
+    );
     const nowTs = Date.now();
 
     profilesRef.current = finalProfiles;
@@ -826,13 +941,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateQueueState = (updater: (prev: QueueState) => QueueState) => {
     setQueueState((prev) => {
+      const nowTs = Date.now();
       const next = sanitizeQueueState(
         {
           ...updater(prev),
-          updatedAt: Date.now(),
+          updatedAt: nowTs,
         },
         profilesRef.current
       );
+      queueUpdatedAtRef.current = next.updatedAt || nowTs;
       safeSetLocalStorage(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(next));
       try {
         if (broadcastChannelRef.current) {
@@ -873,10 +990,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ) {
       const normalized = ensureSuperAdminAndRoles(remoteProfiles);
       const finalTs = remoteTs || Date.now();
-      const finalRoles =
+      const finalRoles = ensureDefaultRolesList(
         Array.isArray(remoteRoles) && remoteRoles.length > 0
           ? remoteRoles
-          : availableRolesRef.current;
+          : availableRolesRef.current
+      );
 
       profilesRef.current = normalized;
       availableRolesRef.current = finalRoles;
@@ -956,7 +1074,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (db.queueState) {
       const sanitizedRemoteQ = sanitizeQueueState(db.queueState, profilesRef.current);
       const remoteQueueTs = Number(sanitizedRemoteQ.updatedAt || 0);
-      if (remoteQueueTs >= queueUpdatedAtRef.current) {
+      if (remoteQueueTs > queueUpdatedAtRef.current) {
+        queueUpdatedAtRef.current = remoteQueueTs;
         setQueueState(sanitizedRemoteQ);
         safeSetLocalStorage(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(sanitizedRemoteQ));
       }
@@ -1025,10 +1144,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             idbTs > profilesUpdatedAtRef.current
           ) {
             const restored = ensureSuperAdminAndRoles(idbData.profiles);
-            const restoredRoles =
+            const restoredRoles = ensureDefaultRolesList(
               Array.isArray(idbData.availableRoles) && idbData.availableRoles.length > 0
                 ? idbData.availableRoles
-                : availableRolesRef.current;
+                : availableRolesRef.current
+            );
             const restoredTs = Math.max(idbTs, Date.now());
             profilesRef.current = restored;
             availableRolesRef.current = restoredRoles;
@@ -1132,7 +1252,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               parsed.payload.queueState as QueueState,
               profilesRef.current
             );
-            if (Number(incomingQ.updatedAt || 0) >= queueUpdatedAtRef.current) {
+            const incomingTs = Number(incomingQ.updatedAt || 0);
+            if (incomingTs > queueUpdatedAtRef.current) {
+              queueUpdatedAtRef.current = incomingTs;
               setQueueState(incomingQ);
               safeSetLocalStorage(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(incomingQ));
               setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
@@ -1167,7 +1289,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ev.data.queueState as QueueState,
             profilesRef.current
           );
-          if (Number(incomingQ.updatedAt || 0) >= queueUpdatedAtRef.current) {
+          const incomingTs = Number(incomingQ.updatedAt || 0);
+          if (incomingTs > queueUpdatedAtRef.current) {
+            queueUpdatedAtRef.current = incomingTs;
             setQueueState(incomingQ);
             safeSetLocalStorage(STORAGE_KEYS.QUEUE_STATE, JSON.stringify(incomingQ));
           }
@@ -1849,6 +1973,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               new Set(['Amministratore', ...finalRoles.filter((r) => r !== 'Socio')])
             ),
           });
+        } else if (isProtectedSegreteriaMember(next[existingIndex])) {
+          next[existingIndex] = normalizeProtectedSegreteriaProfile(
+            cleanNum === '9998' ? '9998' : '9999',
+            next[existingIndex]
+          );
         } else {
           next[existingIndex] = {
             ...next[existingIndex],
@@ -1874,6 +2003,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               ),
             })
           );
+        } else if (cleanNum === '9999' || cleanNum === '9998') {
+          next.push(normalizeProtectedSegreteriaProfile(cleanNum as '9999' | '9998'));
         } else {
           next.push({
             id: `u-imp-${batchTs}-${idx}`,
@@ -1925,13 +2056,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteMember = (id: string) => {
-    const next = profilesRef.current.filter((p) => isProtectedSuperAdmin(p) || p.id !== id);
+    const target = profilesRef.current.find((p) => p.id === id);
+    if (!target) return;
+    if (isProtectedSuperAdmin(target)) return;
+    if (isProtectedSegreteriaMember(target) && !isSuperAdmin) {
+      return;
+    }
+    if (isProtectedSegreteriaMember(target) && isSuperAdmin) {
+      const num = String(target.member_number || '').trim();
+      const currentDeleted = getAdminDeletedSegreteriaNumbers();
+      if (num && !currentDeleted.has(num)) {
+        saveAdminDeletedSegreteriaNumbers([...Array.from(currentDeleted), num]);
+      }
+    }
+    const next = profilesRef.current.filter((p) => p.id !== id);
     commitProfilesUpdate(next, undefined, true);
   };
 
   const deleteMembersBatch = (ids: string[]) => {
     const idSet = new Set(ids);
-    const next = profilesRef.current.filter((p) => isProtectedSuperAdmin(p) || !idSet.has(p.id));
+    const toDeleteSegreteriaNums: string[] = [];
+    const next = profilesRef.current.filter((p) => {
+      if (isProtectedSuperAdmin(p)) return true;
+      if (idSet.has(p.id)) {
+        if (isProtectedSegreteriaMember(p)) {
+          if (!isSuperAdmin) return true;
+          const num = String(p.member_number || '').trim();
+          if (num) toDeleteSegreteriaNums.push(num);
+          return false;
+        }
+        return false;
+      }
+      return true;
+    });
+    if (toDeleteSegreteriaNums.length > 0) {
+      const currentDeleted = getAdminDeletedSegreteriaNumbers();
+      saveAdminDeletedSegreteriaNumbers(
+        Array.from(new Set([...Array.from(currentDeleted), ...toDeleteSegreteriaNums]))
+      );
+    }
     commitProfilesUpdate(next, undefined, true);
   };
 
@@ -1980,6 +2143,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isSuperAdmin,
         isCDMember,
         isDidatticaMember,
+        isSegreteriaMember,
         activeSection,
         setActiveSection,
         profiles,

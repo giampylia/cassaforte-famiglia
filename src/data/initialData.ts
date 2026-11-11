@@ -39,6 +39,7 @@ export interface Profile {
 export const DEFAULT_AVAILABLE_ROLES: string[] = [
   'Socio',
   'CD',
+  'Segreteria',
   'Amministrativo',
   'Didattica',
   'Viaggi',
@@ -59,6 +60,20 @@ export function isProtectedSuperAdmin(p?: Partial<Profile> | null): boolean {
   );
 }
 
+export function isProtectedSegreteriaMember(p?: Partial<Profile> | null): boolean {
+  if (!p) return false;
+  const num = String(p.member_number || '').trim();
+  const full = `${p.first_name || ''} ${p.last_name || ''} ${p.full_name || ''}`.toLowerCase();
+  return (
+    num === '9999' ||
+    num === '9998' ||
+    p.id === 'segreteria-9999' ||
+    p.id === 'segreteria-9998' ||
+    (full.includes('nives') && full.includes('cocco')) ||
+    (full.includes('josh') && full.includes('cocco'))
+  );
+}
+
 export function getMemberParts(p: Profile): {
   firstName: string;
   lastName: string;
@@ -71,6 +86,22 @@ export function getMemberParts(p: Profile): {
       firstName: 'Giampiero',
       lastName: 'Pilia',
       primaryRole,
+    };
+  }
+
+  const numTrim = String(p.member_number || '').trim();
+  if (numTrim === '9999' || p.id === 'segreteria-9999') {
+    return {
+      firstName: 'Nives',
+      lastName: 'Cocco',
+      primaryRole: 'Segreteria',
+    };
+  }
+  if (numTrim === '9998' || p.id === 'segreteria-9998') {
+    return {
+      firstName: 'Josh Ronald',
+      lastName: 'Cocco',
+      primaryRole: 'Segreteria',
     };
   }
 
@@ -325,6 +356,8 @@ export function getSubjectMeta(subject: string): SubjectMeta {
 
 export const INITIAL_PROFILES: Profile[] = [
   { id: 'admin-7726', member_number: '7726', first_name: 'Giampiero', last_name: 'Pilia', full_name: 'Giampiero Pilia', sede: 'Quartu', role: 'admin', is_super_admin: true, is_cd: true, roles: ['Amministratore'], phone: '070 881234', joined_year: 2018 },
+  { id: 'segreteria-9999', member_number: '9999', first_name: 'Nives', last_name: 'Cocco', full_name: 'Nives Cocco', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: false, roles: ['Segreteria'], phone: '', joined_year: 2024 },
+  { id: 'segreteria-9998', member_number: '9998', first_name: 'Josh Ronald', last_name: 'Cocco', full_name: 'Josh Ronald Cocco', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: false, roles: ['Segreteria'], phone: '', joined_year: 2024 },
   { id: 'admin-1', member_number: '000', first_name: 'Ufficio', last_name: 'Presenze QU3', full_name: 'Ufficio Presenze QU3', sede: 'Quartu', role: 'admin', is_super_admin: false, is_cd: false, roles: ['Didattica'], phone: '070 881234', joined_year: 2018 },
   { id: 'u-101', member_number: '101', first_name: 'Maria Bonaria', last_name: 'Melis', full_name: 'Maria Bonaria Melis', sede: 'Quartu', role: 'member', is_cd: true, roles: ['CD'], phone: '347 1122334', joined_year: 2021 },
   { id: 'u-102', member_number: '102', first_name: 'Efisio', last_name: 'Piras', full_name: 'Efisio Piras', sede: 'Quartu', role: 'member', is_cd: true, roles: ['CD', 'Amministrativo'], phone: '348 2233445', joined_year: 2020 },

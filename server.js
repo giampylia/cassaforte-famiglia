@@ -102,6 +102,35 @@ function sanitizeServerProfiles(profiles) {
           new Set(['Amministratore', ...((p.roles || []).filter((r) => r !== 'Socio'))])
         ),
       };
+    if (num === '9999' || p.id === 'segreteria-9999') {
+      return {
+        ...p,
+        id: p.id || 'segreteria-9999',
+        member_number: '9999',
+        first_name: 'Nives',
+        last_name: 'Cocco',
+        full_name: 'Nives Cocco',
+        sede: p.sede || 'Quartu',
+        role: 'member',
+        is_super_admin: false,
+        is_cd: false,
+        roles: ['Segreteria'],
+      };
+    }
+    if (num === '9998' || p.id === 'segreteria-9998') {
+      return {
+        ...p,
+        id: p.id || 'segreteria-9998',
+        member_number: '9998',
+        first_name: 'Josh Ronald',
+        last_name: 'Cocco',
+        full_name: 'Josh Ronald Cocco',
+        sede: p.sede || 'Quartu',
+        role: 'member',
+        is_super_admin: false,
+        is_cd: false,
+        roles: ['Segreteria'],
+      };
     }
     return p;
   });

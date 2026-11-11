@@ -155,8 +155,26 @@ export function unlockAudioEngine() {
   }
 }
 
+let lastPlayedCallKey = '';
+let lastPlayedCallTimestamp = 0;
+let speechPendingTimeout: any = null;
+
 // Suono "Din-Don" professionale da tabellone sala d'attesa + sintesi vocale opzionale
-function playQueueCallChime(number: number, name: string, voiceActive: boolean) {
+function playQueueCallChime(
+  number: number,
+  name: string,
+  voiceActive: boolean,
+  force: boolean = false
+) {
+  const callKey = `${number}-${(name || '').trim().toLowerCase()}`;
+  const now = Date.now();
+  // Se non è una richiamata forzata manuale, ignora qualsiasi secondo trigger identico entro 3.5 secondi
+  if (!force && callKey === lastPlayedCallKey && now - lastPlayedCallTimestamp < 3500) {
+    return;
+  }
+  lastPlayedCallKey = callKey;
+  lastPlayedCallTimestamp = now;
+
   let playedWav = false;
   try {
     const wavUrl = getChimeWavUrl();
@@ -221,8 +239,13 @@ function playQueueCallChime(number: number, name: string, voiceActive: boolean) 
 
   if (voiceActive && 'speechSynthesis' in window) {
     try {
+      if (speechPendingTimeout) {
+        clearTimeout(speechPendingTimeout);
+        speechPendingTimeout = null;
+      }
       window.speechSynthesis.cancel();
-      setTimeout(() => {
+      speechPendingTimeout = setTimeout(() => {
+        speechPendingTimeout = null;
         const cleanSpokenName =
           !name || name.trim() === '' || /socio\s+sconosciuto/i.test(name)
             ? 'Socio sconosciuto'
@@ -2278,7 +2301,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     lastPlayedPulseRef.current = pulseNow;
     const targetItem = queueState.items.find((it) => it.number === callNum);
     // Quando si preme "Richiama Turno (Suono)", riproduce SEMPRE il suono + voce!
-    playQueueCallChime(callNum, targetItem?.name || '', true);
+    playQueueCallChime(callNum, targetItem?.name || '', true, true);
     updateQueueState((prev) => ({
       ...prev,
       currentNumber: callNum,
