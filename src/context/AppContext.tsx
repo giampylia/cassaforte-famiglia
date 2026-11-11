@@ -724,13 +724,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const saved = localStorage.getItem(STORAGE_KEYS.USER);
       if (!saved) return null;
       const parsed: Profile = JSON.parse(saved);
-      return isProtectedSuperAdmin(parsed) ? normalizeSuperAdminProfile(parsed) : parsed;
+      if (isProtectedSuperAdmin(parsed)) return normalizeSuperAdminProfile(parsed);
+      if (isProtectedSegreteriaMember(parsed) || parsed.member_number === '9999' || parsed.member_number === '9998') {
+        return normalizeProtectedSegreteriaProfile(parsed.member_number === '9998' ? '9998' : '9999', parsed);
+      }
+      return parsed;
     } catch {
       return null;
     }
   });
 
-  const [activeSection, setActiveSection] = useState<AppSection>('presenze');
+  const [activeSection, setActiveSection] = useState<AppSection>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.USER);
+      if (saved) {
+        const parsed: Profile = JSON.parse(saved);
+        if (isProtectedSegreteriaMember(parsed) || parsed.member_number === '9999' || parsed.member_number === '9998') {
+          return 'eliminacode';
+        }
+      }
+    } catch {}
+    return 'presenze';
+  });
 
   // Keep currentUser synchronized with updated roles/CD status in profiles
   useEffect(() => {
@@ -740,6 +755,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         profiles.find((p) => isProtectedSuperAdmin(p)) || normalizeSuperAdminProfile(currentUser);
       if (JSON.stringify(superProfile) !== JSON.stringify(currentUser)) {
         setCurrentUser(superProfile);
+      }
+      return;
+    }
+    if (isProtectedSegreteriaMember(currentUser) || currentUser.member_number === '9999' || currentUser.member_number === '9998') {
+      const cardNum = currentUser.member_number === '9998' ? '9998' : '9999';
+      const segProfile =
+        profiles.find((p) => isProtectedSegreteriaMember(p) && String(p.member_number).trim() === cardNum) ||
+        normalizeProtectedSegreteriaProfile(cardNum, currentUser);
+      if (JSON.stringify(segProfile) !== JSON.stringify(currentUser)) {
+        setCurrentUser(segProfile);
       }
       return;
     }

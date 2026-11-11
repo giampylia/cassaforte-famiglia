@@ -61,6 +61,8 @@ const MainRouter: React.FC = () => {
     !isSuperAdmin &&
     (isProtectedSegreteriaMember(currentUser) ||
       isSegreteriaMember ||
+      currentUser?.member_number === '9999' ||
+      currentUser?.member_number === '9998' ||
       Boolean(
         currentUser &&
           currentUser.roles &&
