@@ -2648,13 +2648,15 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           </div>
         </header>
 
-        {/* RIQUADRO CENTRALE SALA D'ATTESA: SLIDESHOW AVVISI VIDEO O TURNO CHIAMATO */}
+        {/* RIQUADRO CENTRALE SALA D'ATTESA: SLIDESHOW AVVISI VIDEO IN BLOCCO / STANDBY OPPURE SOLO TURNO CHIAMATO IN SVOLGIMENTO */}
         <main className="flex-1 flex flex-col items-center justify-center p-3 sm:p-5 text-center overflow-hidden w-full">
           {isStandby ? (
+            /* 1) QUANDO ELIMINACODE È IMPOSTATO CON UNO DEI MESSAGGI DI BLOCCO (Pausa, Chiuso, Temporaneamente Sospeso / In attesa):
+                  SI VEDE SOLO LA VIDEATA DEGLI AVVISI CON L'IMMAGINE CHE OCCUPA TUTTO LO SPAZIO */
             currentVideoNotice ? (
               <div
                 style={{ opacity: slideOpacity, transition: 'opacity 0.4s ease-in-out' }}
-                className="w-full max-w-7xl h-[72vh] flex flex-col items-center justify-center transition-all duration-300"
+                className="w-full max-w-7xl h-[72vh] sm:h-[75vh] flex flex-col items-center justify-center transition-all duration-300"
               >
                 {/* Riquadro contornato di bianco: l'immagine si adatta e riempie tutto lo spazio */}
                 <div className="relative w-full h-full rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white bg-black flex items-center justify-center p-0">
@@ -2712,58 +2714,9 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 </div>
               </div>
             )
-          ) : currentVideoNotice ? (
-            /* Vista Mista: Slide a sinistra + Turno Chiamato a destra */
-            <div className="w-full max-w-7xl h-[70vh] flex flex-col lg:flex-row items-stretch gap-6 justify-center">
-              {/* Proiezione Avviso Video: Riquadro contornato di bianco riempito dall'immagine */}
-              <div
-                style={{ opacity: slideOpacity, transition: 'opacity 0.4s ease-in-out' }}
-                className="flex-1 w-full h-full rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white bg-black relative flex items-center justify-center p-0 min-h-[300px]"
-              >
-                {currentVideoNotice.imageUrl.toLowerCase().endsWith('.pdf') ? (
-                  <iframe
-                    src={currentVideoNotice.imageUrl}
-                    title={currentVideoNotice.title}
-                    className="w-full h-full border-none bg-white"
-                  />
-                ) : (
-                  <img
-                    src={currentVideoNotice.imageUrl}
-                    alt={currentVideoNotice.title}
-                    className="w-full h-full object-cover"
-                  />
-                )}
-              </div>
-
-              {/* Riquadro Turno Chiamato in Sala */}
-              <div
-                className={`w-full lg:w-[420px] rounded-[2.5rem] border-4 border-white px-6 py-8 transition-all duration-500 flex flex-col items-center justify-center shadow-2xl shrink-0 ${
-                  flashActive ? 'bg-emerald-600 scale-[1.02]' : 'bg-emerald-800/95'
-                }`}
-              >
-                <div className="rounded-full border-2 border-white bg-white/20 px-6 py-1.5 text-base sm:text-xl font-extrabold uppercase tracking-[0.2em] text-white mb-3">
-                  TURNO CHIAMATO
-                </div>
-                <div
-                  className="font-black tabular-nums leading-none tracking-tight text-white drop-shadow-md my-2"
-                  style={{ fontSize: 'clamp(6rem, 16vw, 11rem)' }}
-                >
-                  {queueState.currentNumber}
-                </div>
-                <div className="mt-4 w-full border-t-2 border-white/60 pt-4 text-center">
-                  <div
-                    className="font-bold text-white tracking-wide leading-tight break-words"
-                    style={{ fontSize: 'clamp(1.6rem, 3.5vw, 2.8rem)' }}
-                  >
-                    {isCurrentUnknown
-                      ? `Turno N° ${queueState.currentNumber} — Socio sconosciuto`
-                      : currentItem?.name}
-                  </div>
-                </div>
-              </div>
-            </div>
           ) : (
-            /* Vista Standard senza avvisi video: Solo Turno Chiamato */
+            /* 2) SE INVECE L'ELIMINACODE È IN FASE DI SVOLGIMENTO:
+                  SI VEDONO SOLO I NUMERI CHIAMATI PER L'ELIMINACODE */
             <div
               className={`w-full max-w-6xl rounded-[2.5rem] border-4 border-white px-8 py-10 sm:py-14 transition-all duration-500 flex flex-col items-center justify-center shadow-2xl ${
                 flashActive ? 'bg-emerald-600 scale-[1.02]' : 'bg-emerald-800/90'
