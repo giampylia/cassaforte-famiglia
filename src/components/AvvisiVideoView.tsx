@@ -108,7 +108,7 @@ export const AvvisiVideoView: React.FC = () => {
         img.onload = () => {
           let width = img.width;
           let height = img.height;
-          const maxDim = 1600;
+          const maxDim = 2400;
 
           if (width > maxDim || height > maxDim) {
             if (width > height) {
@@ -133,8 +133,8 @@ export const AvvisiVideoView: React.FC = () => {
           ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Compressione ottimale per monitor TV (JPEG 82%, ~100-150KB)
-          const compressed = canvas.toDataURL('image/jpeg', 0.82);
+          // Compressione nitida ad alta risoluzione (JPEG 85%)
+          const compressed = canvas.toDataURL('image/jpeg', 0.85);
           resolve(compressed);
         };
         img.onerror = () => resolve(rawResult);
@@ -829,13 +829,24 @@ export const AvvisiVideoView: React.FC = () => {
               </button>
             </div>
 
-            {/* Immagine avviso */}
-            <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden m-3 rounded-2xl border-4 border-white shadow-lg">
-              <img
-                src={activeNoticesList[previewIndex]?.imageUrl}
-                alt={activeNoticesList[previewIndex]?.title}
-                className="w-full h-full object-cover transition-all duration-700 ease-in-out"
-              />
+            {/* Immagine avviso in proporzioni esatte 4961 x 3508 */}
+            <div className="flex-1 relative flex items-center justify-center overflow-hidden m-2 sm:m-3 min-h-0">
+              <div
+                className="relative rounded-2xl overflow-hidden border-4 border-white shadow-xl bg-black flex items-center justify-center"
+                style={{
+                  aspectRatio: '4961 / 3508',
+                  maxHeight: '100%',
+                  maxWidth: '100%',
+                  height: '100%',
+                  width: 'auto',
+                }}
+              >
+                <img
+                  src={activeNoticesList[previewIndex]?.imageUrl}
+                  alt={activeNoticesList[previewIndex]?.title}
+                  className="w-full h-full object-contain transition-all duration-700 ease-in-out"
+                />
+              </div>
             </div>
 
             {/* News Ticker Banda Scorrevole in Basso */}

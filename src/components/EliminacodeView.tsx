@@ -2566,11 +2566,18 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             <img
               src="/logo-associazione-qu3.png?v=15"
               alt="Logo QU3"
-              className="h-12 w-12 rounded-xl bg-white p-1 object-contain shadow-xs"
+              className="h-12 w-12 rounded-xl bg-white p-1 object-contain shadow-xs shrink-0"
             />
-            <span className="text-lg sm:text-2xl font-bold tracking-tight text-white">
-              Università della Terza Età — Quartu Sant&apos;Elena
-            </span>
+            <div className="flex flex-col text-left">
+              <span className="text-base sm:text-2xl font-bold tracking-tight text-white leading-tight">
+                Università della Terza Età — Quartu Sant&apos;Elena
+              </span>
+              {isStandby && (
+                <span className="text-xs sm:text-sm font-extrabold text-amber-300 tracking-wide mt-0.5">
+                  ● {standbyDisplay.title}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -2657,10 +2664,19 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             currentVideoNotice ? (
               <div
                 style={{ opacity: slideOpacity, transition: 'opacity 0.4s ease-in-out' }}
-                className="w-full max-w-7xl h-full min-h-0 flex flex-col items-center justify-center transition-all duration-300"
+                className="w-full h-full min-h-0 flex items-center justify-center transition-all duration-300"
               >
-                {/* Riquadro contornato di bianco: l'immagine si adatta e riempie tutto lo spazio disponibile */}
-                <div className="relative w-full h-full rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white bg-black flex items-center justify-center p-0">
+                {/* Riquadro contornato di bianco in proporzioni esatte 4961 x 3508 (locandina A3/A4) */}
+                <div
+                  className="relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white bg-black flex items-center justify-center p-0"
+                  style={{
+                    aspectRatio: '4961 / 3508',
+                    maxHeight: '100%',
+                    maxWidth: '100%',
+                    height: '100%',
+                    width: 'auto',
+                  }}
+                >
                   {(() => {
                     const imgUrl = String(currentVideoNotice?.imageUrl || '').trim();
                     const isPdf = imgUrl.toLowerCase().endsWith('.pdf');
@@ -2700,25 +2716,24 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                       <img
                         src={currentVideoNotice.imageUrl}
                         alt={currentVideoNotice.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                         onError={() => {
-                          setImgErrors((prev) => ({ ...prev, [currentVideoNotice.id]: true }));
+                          if (currentVideoNotice?.id) {
+                            setImgErrors((prev) => ({ ...prev, [currentVideoNotice.id]: true }));
+                          }
                         }}
                       />
                     );
                   })()}
 
-                  {/* Badge in sovrimpressione per lo stato dello sportello e conteggio slide */}
-                  <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
-                    <span className="rounded-full bg-emerald-900/90 text-white font-bold text-xs sm:text-sm px-4 py-1.5 border border-white/50 backdrop-blur-md shadow-md">
-                      📺 {standbyDisplay.title}
-                    </span>
-                    {activeVideoNotices.length > 1 && (
-                      <span className="rounded-full bg-black/75 text-emerald-200 font-semibold text-xs sm:text-sm px-3.5 py-1.5 border border-white/30 backdrop-blur-md">
+                  {/* Conteggio slide discreto in basso a destra sopra il bordo, senza coprire i titoli in alto */}
+                  {activeVideoNotices.length > 1 && (
+                    <div className="absolute bottom-3 right-4 pointer-events-none z-10">
+                      <span className="rounded-full bg-black/80 text-emerald-200 font-bold text-xs sm:text-sm px-3.5 py-1 border border-white/30 backdrop-blur-md shadow-md">
                         {currentSlideIndex + 1} / {activeVideoNotices.length}
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
