@@ -9,6 +9,8 @@ import {
   ClipboardCheck,
   Users,
   Monitor,
+  Tv,
+  BookOpen,
 } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { getMemberParts, isProtectedSegreteriaMember } from './data/initialData';
@@ -19,6 +21,8 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { PiccolaCassaView } from './components/PiccolaCassaView';
 import { AnagraficaSociView } from './components/AnagraficaSociView';
 import { EliminacodeView } from './components/EliminacodeView';
+import { AvvisiVideoView } from './components/AvvisiVideoView';
+import { BibliotecaView } from './components/BibliotecaView';
 
 const MainRouter: React.FC = () => {
   const {
@@ -71,13 +75,8 @@ const MainRouter: React.FC = () => {
 
   const isSegreteriaOnly = isSegreteriaUser;
 
-  // Mostra il Menu Laterale a Super Admin (7726), soci con ruolo CD, Didattica, Admin o Segreteria
-  const showSideMenu =
-    isSuperAdmin ||
-    isCDMember ||
-    isDidatticaMember ||
-    currentUser.role === 'admin' ||
-    isSegreteriaUser;
+  // Mostra il Menu Laterale a tutti gli utenti registrati (tutti i soci hanno accesso a Timbratura e Biblioteca)
+  const showSideMenu = true;
 
   // Calcola l'unico ruolo principale da mostrare chiaramente sotto il nome dell'utente
   const userSingleRoleLabel = isSuperAdmin
@@ -96,6 +95,14 @@ const MainRouter: React.FC = () => {
     isSuperAdmin || currentUser.role === 'admin' || isCDMember || isSegreteriaUser;
 
   const canSeePiccolaCassa = !isSegreteriaOnly && (isSuperAdmin || isCDMember);
+
+  // Biblioteca visibile a tutti i soci
+  const canSeeBiblioteca = !isSegreteriaOnly;
+
+  // Avvisi Video visibile solo da amministratore e membri CD (is_cd === true), posizionato subito prima di Eliminacode
+  const canSeeAvvisiVideo =
+    !isSegreteriaOnly &&
+    (isSuperAdmin || isCDMember || currentUser.role === 'admin');
 
   // Eliminacode visibile da Super Admin (7726) e da Segreteria (9999 / 9998)
   const canSeeEliminacode = isSuperAdmin || isSegreteriaUser;
@@ -141,6 +148,26 @@ const MainRouter: React.FC = () => {
           },
         ]
       : []),
+    ...(canSeeBiblioteca
+      ? [
+          {
+            key: 'biblioteca' as const,
+            label: 'Biblioteca',
+            sublabel: 'Catalogo Libri e Pubblicazioni',
+            icon: BookOpen,
+          },
+        ]
+      : []),
+    ...(canSeeAvvisiVideo
+      ? [
+          {
+            key: 'avvisi_video' as const,
+            label: 'Avvisi Video',
+            sublabel: 'Proiezione Monitor, Ticker e Slide',
+            icon: Tv,
+          },
+        ]
+      : []),
     ...(canSeeEliminacode
       ? [
           {
@@ -152,16 +179,6 @@ const MainRouter: React.FC = () => {
         ]
       : []),
   ];
-
-  // Se l'utente è un socio ordinario senza ruoli speciali
-  if (!showSideMenu) {
-    return (
-      <div className="min-h-screen flex flex-col bg-slate-50">
-        <AccessibilityTopBar />
-        <MemberView />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -354,6 +371,10 @@ const MainRouter: React.FC = () => {
         <div className="flex-1 min-w-0">
           {activeSection === 'eliminacode' && canSeeEliminacode ? (
             <EliminacodeView />
+          ) : activeSection === 'avvisi_video' && canSeeAvvisiVideo ? (
+            <AvvisiVideoView />
+          ) : activeSection === 'biblioteca' && canSeeBiblioteca ? (
+            <BibliotecaView />
           ) : activeSection === 'anagrafica_soci' && canSeeAnagraficaSoci ? (
             <AnagraficaSociView />
           ) : activeSection === 'piccola_cassa' && canSeePiccolaCassa ? (

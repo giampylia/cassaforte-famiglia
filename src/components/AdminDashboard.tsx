@@ -198,6 +198,8 @@ export const AdminDashboard: React.FC = () => {
     if (s.includes('rocchitt')) return 'rocchitta';
     if (s.includes('benedett')) return 'san_benedetto';
     if (s.includes('bibliotec') || s.includes('biblio')) return 'biblioteca';
+    if (s.includes('porcu')) return 'porcu';
+    if (s.includes('sinnai') || s.includes('teatro')) return 'teatro_sinnai';
     if (s.includes('ferrini')) return 'ferrini';
     if (s.includes('polifunz') || s.includes('soleminis')) return 'polifunzionale';
     return 'verde';
@@ -566,8 +568,9 @@ export const AdminDashboard: React.FC = () => {
       newMemberNum,
       newMemberName,
       newMemberSede,
-      isSuperAdmin && newMemberIsCD ? ['Socio', 'CD'] : ['Socio'],
-      isSuperAdmin ? newMemberIsCD : false
+      '',
+      isSuperAdmin ? newMemberIsCD : false,
+      ['Socio']
     );
     if (!res.ok) {
       setMemberFormMsg(res.message || 'Errore');

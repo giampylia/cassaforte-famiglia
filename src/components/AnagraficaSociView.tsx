@@ -93,12 +93,14 @@ export const AnagraficaSociView: React.FC = () => {
     last_name: string;
     sede: 'Quartu' | 'Soleminis';
     roleName: string;
+    is_cd: boolean;
   }>({
     member_number: '',
     first_name: '',
     last_name: '',
     sede: 'Quartu',
     roleName: 'Socio',
+    is_cd: false,
   });
 
   // Feedback importazione / operazioni
@@ -1129,24 +1131,36 @@ export const AnagraficaSociView: React.FC = () => {
                               </select>
                             )}
                           </td>
-                          <td className="p-3 text-center">{isCd ? 'Sì' : 'No'}</td>
+                          <td className="p-3 text-center whitespace-nowrap">
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={editRow.is_cd}
+                                onChange={(e) => setEditRow({ ...editRow, is_cd: e.target.checked })}
+                                className="h-4 w-4 accent-emerald-700 rounded cursor-pointer"
+                              />
+                              <span
+                                className={`text-xs font-semibold ${
+                                  editRow.is_cd ? 'text-emerald-800' : 'text-slate-400'
+                                }`}
+                              >
+                                {editRow.is_cd ? 'Sì' : 'No'}
+                              </span>
+                            </label>
+                          </td>
                           <td className="p-3 text-right whitespace-nowrap space-x-1">
                             <button
                               type="button"
                               onClick={() => {
                                 const fullName =
                                   `${editRow.first_name.trim()} ${editRow.last_name.trim()}`.trim();
-                                const nextIsCd =
-                                  editRow.roleName === 'CD' ||
-                                  editRow.roleName === 'Amministratore' ||
-                                  isCd;
                                 updateMember(m.id, {
                                   member_number: editRow.member_number.trim(),
                                   first_name: editRow.first_name.trim(),
                                   last_name: editRow.last_name.trim(),
                                   full_name: fullName,
                                   sede: editRow.sede,
-                                  is_cd: nextIsCd,
+                                  is_cd: editRow.is_cd,
                                   roles: isProtectedAdmin
                                     ? Array.from(new Set(['Amministratore', editRow.roleName]))
                                     : isProtectedSegr
@@ -1219,12 +1233,10 @@ export const AnagraficaSociView: React.FC = () => {
                                 value={m.parsedRole.split(',')[0].trim() || 'Socio'}
                                 onChange={(e) => {
                                   const chosen = e.target.value;
-                                  const nextIsCd = chosen === 'CD' || chosen === 'Amministratore';
                                   updateMember(m.id, {
                                     roles: isProtectedAdmin
                                       ? Array.from(new Set(['Amministratore', chosen]))
                                       : [chosen],
-                                    is_cd: isProtectedAdmin ? true : nextIsCd,
                                   });
                                 }}
                                 className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 hover:border-emerald-500 focus:outline-none"
@@ -1281,6 +1293,7 @@ export const AnagraficaSociView: React.FC = () => {
                                       last_name: m.parsedLastName,
                                       sede: m.sede,
                                       roleName: m.parsedRole.split(',')[0].trim() || 'Socio',
+                                      is_cd: isCd,
                                     });
                                   }}
                                   className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-100"

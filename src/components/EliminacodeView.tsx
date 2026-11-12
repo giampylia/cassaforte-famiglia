@@ -629,7 +629,8 @@ interface EliminacodeViewProps {
 }
 
 export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMode = false }) => {
-  const { queueState, updateQueueState, profiles, cloudConnected, connectedDevices } = useApp();
+  const { queueState, updateQueueState, profiles, cloudConnected, connectedDevices, videoNotices } =
+    useApp();
 
   // Modalità: 'remote' = Regia Segreteria (Telefonino / PC Segreteria) | 'monitor' = Schermo Sala d'Attesa
   const [viewMode, setViewMode] = useState<'remote' | 'monitor'>(
@@ -639,6 +640,47 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
   const [audioUnlocked, setAudioUnlocked] = useState<boolean>(!forceMonitorMode);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [flashActive, setFlashActive] = useState<boolean>(false);
+
+  // Avvisi Video attivi per la proiezione sul Monitor Sala d'Attesa (/monitor)
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const activeVideoNotices = useMemo(() => {
+    if (!videoNotices || videoNotices.length === 0) return [];
+    return videoNotices
+      .filter((n) => {
+        if (!n.isActive) return false;
+        if (n.startDate && n.startDate > todayIso) return false;
+        if (n.endDate && n.endDate < todayIso) return false;
+        return true;
+      })
+      .sort((a, b) => a.order - b.order);
+  }, [videoNotices, todayIso]);
+
+  const [currentSlideIndex, setCurrentSlideIndex] = useState<number>(0);
+  const [slideOpacity, setSlideOpacity] = useState<number>(1);
+
+  // Rotazione automatica degli avvisi video sul monitor con transizione dissolvenza e durata configurabile
+  useEffect(() => {
+    if (viewMode !== 'monitor' || activeVideoNotices.length <= 1) return;
+
+    const currentNotice = activeVideoNotices[currentSlideIndex % activeVideoNotices.length];
+    const duration = Math.max(3, currentNotice?.durationSec || 7) * 1000;
+
+    const timer = setTimeout(() => {
+      // Dissolvenza: fade out, cambia slide, poi fade in
+      setSlideOpacity(0);
+      setTimeout(() => {
+        setCurrentSlideIndex((prev) => (prev + 1) % activeVideoNotices.length);
+        setSlideOpacity(1);
+      }, 400);
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [viewMode, activeVideoNotices, currentSlideIndex]);
+
+  const currentVideoNotice =
+    activeVideoNotices.length > 0
+      ? activeVideoNotices[currentSlideIndex % activeVideoNotices.length]
+      : null;
 
   // Stato scansione Foto / PDF
   const [isScanning, setIsScanning] = useState<boolean>(false);
@@ -2598,15 +2640,48 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           </div>
         </header>
 
-        {/* RIQUADRO CENTRALE SALA D'ATTESA: SFONDO BEL VERDE, CORNICE BIANCA */}
-        <main className="flex-1 flex flex-col items-center justify-center px-6 py-6 text-center">
-          <div
-            className={`w-full max-w-6xl rounded-[2.5rem] border-4 border-white px-8 py-10 sm:py-14 transition-all duration-500 flex flex-col items-center justify-center shadow-2xl ${
-              flashActive ? 'bg-emerald-600 scale-[1.02]' : 'bg-emerald-800/90'
-            }`}
-          >
-            {isStandby ? (
-              <>
+        {/* RIQUADRO CENTRALE SALA D'ATTESA: SLIDESHOW AVVISI VIDEO O TURNO CHIAMATO */}
+        <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 text-center overflow-hidden">
+          {isStandby ? (
+            currentVideoNotice ? (
+              <div
+                style={{ opacity: slideOpacity, transition: 'opacity 0.4s ease-in-out' }}
+                className="w-full max-w-6xl flex flex-col items-center justify-center transition-all duration-300"
+              >
+                <div className="relative w-full flex flex-col items-center justify-center rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-black/40 p-2 sm:p-3">
+                  {currentVideoNotice.imageUrl.toLowerCase().endsWith('.pdf') ? (
+                    <iframe
+                      src={currentVideoNotice.imageUrl}
+                      title={currentVideoNotice.title}
+                      className="w-full h-[65vh] rounded-2xl border-none bg-white"
+                    />
+                  ) : (
+                    <img
+                      src={currentVideoNotice.imageUrl}
+                      alt={currentVideoNotice.title}
+                      className="max-h-[66vh] w-auto max-w-full object-contain rounded-2xl drop-shadow-lg"
+                    />
+                  )}
+
+                  {/* Badge in sovrimpressione per lo stato dello sportello e conteggio slide */}
+                  <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none">
+                    <span className="rounded-full bg-emerald-900/90 text-white font-bold text-xs sm:text-sm px-4 py-1.5 border border-white/50 backdrop-blur-md shadow-md">
+                      📺 {standbyDisplay.title}
+                    </span>
+                    {activeVideoNotices.length > 1 && (
+                      <span className="rounded-full bg-black/75 text-emerald-200 font-semibold text-xs sm:text-sm px-3.5 py-1.5 border border-white/30 backdrop-blur-md">
+                        {currentSlideIndex + 1} / {activeVideoNotices.length}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                className={`w-full max-w-6xl rounded-[2.5rem] border-4 border-white px-8 py-10 sm:py-14 transition-all duration-500 flex flex-col items-center justify-center shadow-2xl ${
+                  flashActive ? 'bg-emerald-600 scale-[1.02]' : 'bg-emerald-800/90'
+                }`}
+              >
                 <div className="rounded-full border-2 border-white bg-white/15 px-8 py-2 text-lg sm:text-2xl font-extrabold uppercase tracking-[0.2em] text-white mb-6">
                   {standbyDisplay.badge}
                 </div>
@@ -2626,41 +2701,112 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                     {standbyDisplay.subtitle}
                   </div>
                 </div>
-              </>
-            ) : (
-              <>
-                <div className="rounded-full border-2 border-white bg-white/15 px-8 py-2 text-lg sm:text-3xl font-extrabold uppercase tracking-[0.2em] text-white mb-4">
+              </div>
+            )
+          ) : currentVideoNotice ? (
+            /* Vista Mista: Slide a sinistra + Turno Chiamato a destra */
+            <div className="w-full max-w-7xl flex flex-col lg:flex-row items-stretch gap-6 justify-center">
+              {/* Proiezione Avviso Video */}
+              <div
+                style={{ opacity: slideOpacity, transition: 'opacity 0.4s ease-in-out' }}
+                className="flex-1 flex flex-col items-center justify-center rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-black/40 p-2 sm:p-3 min-h-[280px] lg:min-h-[500px]"
+              >
+                {currentVideoNotice.imageUrl.toLowerCase().endsWith('.pdf') ? (
+                  <iframe
+                    src={currentVideoNotice.imageUrl}
+                    title={currentVideoNotice.title}
+                    className="w-full h-[52vh] rounded-2xl border-none bg-white"
+                  />
+                ) : (
+                  <img
+                    src={currentVideoNotice.imageUrl}
+                    alt={currentVideoNotice.title}
+                    className="max-h-[56vh] w-auto max-w-full object-contain rounded-2xl drop-shadow-lg"
+                  />
+                )}
+              </div>
+
+              {/* Riquadro Turno Chiamato in Sala */}
+              <div
+                className={`w-full lg:w-[420px] rounded-3xl border-4 border-white px-6 py-8 transition-all duration-500 flex flex-col items-center justify-center shadow-2xl shrink-0 ${
+                  flashActive ? 'bg-emerald-600 scale-[1.02]' : 'bg-emerald-800/95'
+                }`}
+              >
+                <div className="rounded-full border-2 border-white bg-white/20 px-6 py-1.5 text-base sm:text-xl font-extrabold uppercase tracking-[0.2em] text-white mb-3">
                   TURNO CHIAMATO
                 </div>
-
-                {/* NUMERO GIGANTE BIANCO */}
                 <div
-                  className="font-black tabular-nums leading-none tracking-tight text-white drop-shadow-md"
-                  style={{ fontSize: 'clamp(8rem, 25vw, 18rem)' }}
+                  className="font-black tabular-nums leading-none tracking-tight text-white drop-shadow-md my-2"
+                  style={{ fontSize: 'clamp(6rem, 16vw, 11rem)' }}
                 >
                   {queueState.currentNumber}
                 </div>
-
-                {/* NOME E COGNOME SOTTO IL NUMERO (OPPURE "TURNO N° XX — SOCIO SCONOSCIUTO") */}
-                <div className="mt-6 w-full border-t-2 border-white/60 pt-6">
+                <div className="mt-4 w-full border-t-2 border-white/60 pt-4 text-center">
                   <div
                     className="font-bold text-white tracking-wide leading-tight break-words"
-                    style={{ fontSize: 'clamp(2.2rem, 5.5vw, 4.6rem)' }}
+                    style={{ fontSize: 'clamp(1.6rem, 3.5vw, 2.8rem)' }}
                   >
                     {isCurrentUnknown
                       ? `Turno N° ${queueState.currentNumber} — Socio sconosciuto`
                       : currentItem?.name}
                   </div>
                 </div>
-              </>
-            )}
-          </div>
+              </div>
+            </div>
+          ) : (
+            /* Vista Standard senza avvisi video: Solo Turno Chiamato */
+            <div
+              className={`w-full max-w-6xl rounded-[2.5rem] border-4 border-white px-8 py-10 sm:py-14 transition-all duration-500 flex flex-col items-center justify-center shadow-2xl ${
+                flashActive ? 'bg-emerald-600 scale-[1.02]' : 'bg-emerald-800/90'
+              }`}
+            >
+              <div className="rounded-full border-2 border-white bg-white/15 px-8 py-2 text-lg sm:text-3xl font-extrabold uppercase tracking-[0.2em] text-white mb-4">
+                TURNO CHIAMATO
+              </div>
+
+              {/* NUMERO GIGANTE BIANCO */}
+              <div
+                className="font-black tabular-nums leading-none tracking-tight text-white drop-shadow-md"
+                style={{ fontSize: 'clamp(8rem, 25vw, 18rem)' }}
+              >
+                {queueState.currentNumber}
+              </div>
+
+              {/* NOME E COGNOME SOTTO IL NUMERO */}
+              <div className="mt-6 w-full border-t-2 border-white/60 pt-6">
+                <div
+                  className="font-bold text-white tracking-wide leading-tight break-words"
+                  style={{ fontSize: 'clamp(2.2rem, 5.5vw, 4.6rem)' }}
+                >
+                  {isCurrentUnknown
+                    ? `Turno N° ${queueState.currentNumber} — Socio sconosciuto`
+                    : currentItem?.name}
+                </div>
+              </div>
+            </div>
+          )}
         </main>
 
+        {/* NEWS TICKER: BANDA SCORREVOLE IN BASSO CON DESCRIZIONE AVVISO */}
+        <div className="bg-emerald-950 border-t-2 border-emerald-400/50 py-2.5 px-4 text-white flex items-center overflow-hidden shrink-0 shadow-lg">
+          <div className="inline-flex items-center gap-1.5 shrink-0 mr-3.5 bg-emerald-600 text-white text-xs sm:text-sm font-black uppercase px-3 py-1 rounded-lg tracking-wider shadow-xs">
+            <Sparkles className="h-4 w-4 text-amber-300 animate-spin" style={{ animationDuration: '6s' }} />
+            <span>News UTE</span>
+          </div>
+          <div className="flex-1 overflow-hidden relative">
+            <div className="animate-marquee whitespace-nowrap text-base sm:text-2xl font-bold tracking-wide text-emerald-50 drop-shadow-xs">
+              {currentVideoNotice?.tickerText ||
+                currentVideoNotice?.title ||
+                'Università della Terza Età Quartu Sant’Elena — Benvenuti alle attività e lezioni'}
+            </div>
+          </div>
+        </div>
+
         {/* PIE' DI PAGINA CON INDICAZIONE DEL PROSSIMO TURNO */}
-        <footer className="px-6 py-4 bg-emerald-800/90 border-t-2 border-white/30 text-center text-lg sm:text-2xl font-semibold text-emerald-100">
+        <footer className="px-6 py-3 bg-emerald-900/95 border-t border-white/20 text-center text-sm sm:text-lg font-semibold text-emerald-100 flex flex-wrap items-center justify-between gap-2 shrink-0">
+          <span>Università della Terza Età — Quartu Sant’Elena</span>
           {isStandby ? (
-            'Segreteria Università della Terza Età — Quartu Sant’Elena'
+            <span className="text-emerald-200 font-bold">{standbyDisplay.title}</span>
           ) : (
             <span>
               Prossimo turno:{' '}

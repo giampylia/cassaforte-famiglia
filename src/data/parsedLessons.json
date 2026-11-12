@@ -1,0 +1,1092 @@
+[
+  {
+    "id": "les-q-1",
+    "classroom": "verde",
+    "subject": "Conversazione tedesco",
+    "teacher": "I. Spanu",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-2",
+    "classroom": "rossa",
+    "subject": "Bridge principianti",
+    "teacher": "R. Miazza",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "10:05",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-3",
+    "classroom": "rossa",
+    "subject": "Pittura a Olio",
+    "teacher": "A. Piras",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "16:00",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-4",
+    "classroom": "gialla",
+    "subject": "Modellato",
+    "teacher": "L. Corona",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "16:00",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-5",
+    "classroom": "rocchitta",
+    "subject": "Star bene con se stessi\" 1° liv.",
+    "teacher": "Russo Frattasi",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-6",
+    "classroom": "rocchitta",
+    "subject": "Chimica",
+    "teacher": "M. Meloni",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-7",
+    "classroom": "rocchitta",
+    "subject": "Geopolitica (A-I)",
+    "teacher": "G. Milia",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "16:00",
+    "end_time": "16:50"
+  },
+  {
+    "id": "les-q-8",
+    "classroom": "rocchitta",
+    "subject": "Geopolitica (L-Q)",
+    "teacher": "G. Milia",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "17:05",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-9",
+    "classroom": "rocchitta",
+    "subject": "Archeologia cristiana in Sardegna",
+    "teacher": "M. Muresu",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "18:10",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-10",
+    "classroom": "san_benedetto",
+    "subject": "Portoghese 1° Liv.",
+    "teacher": "I. Santana",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-11",
+    "classroom": "san_benedetto",
+    "subject": "Portoghese 2° Liv.",
+    "teacher": "I. Santana",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-12",
+    "classroom": "san_benedetto",
+    "subject": "Concetti musicali di base",
+    "teacher": "G. Mallus",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "11:10",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-13",
+    "classroom": "san_benedetto",
+    "subject": "Archeologia della Sardegna",
+    "teacher": "A. Stiglitz",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "16:00",
+    "end_time": "16:50"
+  },
+  {
+    "id": "les-q-14",
+    "classroom": "san_benedetto",
+    "subject": "Lab. Lettura/scrittura",
+    "teacher": "V. Arru",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "17:05",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-15",
+    "classroom": "san_benedetto",
+    "subject": "Geopolitica (R-Z)",
+    "teacher": "G. Milia",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "18:10",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-16",
+    "classroom": "ferrini",
+    "subject": "Yoga",
+    "teacher": "G. Gregorio",
+    "category": "Cultura Generale",
+    "day_of_week": 1,
+    "start_time": "11:10",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-17",
+    "classroom": "verde",
+    "subject": "Seguendo gli Autori",
+    "teacher": "G. Del Fiacco",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "18:10",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-18",
+    "classroom": "rossa",
+    "subject": "Pittura acrilico (A-L)",
+    "teacher": "A. Scarpa",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "09:00",
+    "end_time": "10:25"
+  },
+  {
+    "id": "les-q-19",
+    "classroom": "rossa",
+    "subject": "Pittura acrilico (M-Z)",
+    "teacher": "A. Scarpa",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "10:30",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-20",
+    "classroom": "rossa",
+    "subject": "Disegno esperti",
+    "teacher": "L. Medas",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "16:00",
+    "end_time": "18:00"
+  },
+  {
+    "id": "les-q-21",
+    "classroom": "rossa",
+    "subject": "Disegno principianti",
+    "teacher": "L. Medas",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "18:00",
+    "end_time": "20:00"
+  },
+  {
+    "id": "les-q-22",
+    "classroom": "gialla",
+    "subject": "Scacchi principianti",
+    "teacher": "B. Busonera",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "10:00",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-23",
+    "classroom": "gialla",
+    "subject": "Laboratorio maglia",
+    "teacher": "L. Mameli",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "16:00",
+    "end_time": "18:00"
+  },
+  {
+    "id": "les-q-24",
+    "classroom": "rocchitta",
+    "subject": "Spagnolo 1° liv.",
+    "teacher": "M. Bagnone",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-25",
+    "classroom": "rocchitta",
+    "subject": "Spagnolo 2° liv.",
+    "teacher": "M. Bagnone",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-26",
+    "classroom": "rocchitta",
+    "subject": "Spagnolo 3° liv.",
+    "teacher": "M. Bagnone",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "11:10",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-27",
+    "classroom": "rocchitta",
+    "subject": "La Giustizia nella Costituzione",
+    "teacher": "A. Arru",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "16:00",
+    "end_time": "16:50"
+  },
+  {
+    "id": "les-q-28",
+    "classroom": "rocchitta",
+    "subject": "Storia dell'Arte contemporanea (A-M)",
+    "teacher": "S. Ledda",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "17:05",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-29",
+    "classroom": "rocchitta",
+    "subject": "Storia dell'Arte contemporanea (N-Z)",
+    "teacher": "S. Ledda",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "18:10",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-30",
+    "classroom": "san_benedetto",
+    "subject": "Chitarra classica avanzato",
+    "teacher": "G. Mallus",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "16:00",
+    "end_time": "17:30"
+  },
+  {
+    "id": "les-q-31",
+    "classroom": "san_benedetto",
+    "subject": "Chitarra ensamble",
+    "teacher": "S. Serra",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "17:30",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-32",
+    "classroom": "san_benedetto",
+    "subject": "Inglese principianti",
+    "teacher": "M. Hanis",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-33",
+    "classroom": "san_benedetto",
+    "subject": "Inglese 1° livello - nuovi partecipanti",
+    "teacher": "M. Hanis",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-34",
+    "classroom": "san_benedetto",
+    "subject": "Inglese 1° livello - vecchi partecipanti",
+    "teacher": "M. Hanis",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "11:10",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-35",
+    "classroom": "san_benedetto",
+    "subject": "Storia della Musica",
+    "teacher": "M. Quaquero",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "16:00",
+    "end_time": "16:50"
+  },
+  {
+    "id": "les-q-36",
+    "classroom": "san_benedetto",
+    "subject": "Sapienti, filosofi e scienziati",
+    "teacher": "R. Curreli",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "17:05",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-37",
+    "classroom": "ferrini",
+    "subject": "Attiv. Psicomotorie",
+    "teacher": "R. Uselli",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-38",
+    "classroom": "ferrini",
+    "subject": "Tango principianti",
+    "teacher": "I. Angioni",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-39",
+    "classroom": "ferrini",
+    "subject": "Tango avanzato",
+    "teacher": "I. Angioni",
+    "category": "Cultura Generale",
+    "day_of_week": 2,
+    "start_time": "11:10",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-40",
+    "classroom": "verde",
+    "subject": "Letteratura Russa",
+    "teacher": "S. Salvestroni",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-41",
+    "classroom": "verde",
+    "subject": "Lingua Russa",
+    "teacher": "Natalia Rotnichenko",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "11:10",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-42",
+    "classroom": "verde",
+    "subject": "Temi di Storia e Filosofia",
+    "teacher": "R. Cocco",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "16:00",
+    "end_time": "16:50"
+  },
+  {
+    "id": "les-q-43",
+    "classroom": "verde",
+    "subject": "Incontri di lettura",
+    "teacher": "P. Solarino",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "17:05",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-44",
+    "classroom": "rossa",
+    "subject": "Acquarello avanzato",
+    "teacher": "G. Frigo",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "10:05",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-45",
+    "classroom": "rossa",
+    "subject": "Fotografia 1° liv.",
+    "teacher": "C. Murenu",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "16:00",
+    "end_time": "16:50"
+  },
+  {
+    "id": "les-q-46",
+    "classroom": "rossa",
+    "subject": "Fotografia 2° liv.",
+    "teacher": "C. Murenu",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "17:05",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-47",
+    "classroom": "gialla",
+    "subject": "Non solo cestini (gruppo 1)",
+    "teacher": "S. Anedda",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "09:00",
+    "end_time": "10:30"
+  },
+  {
+    "id": "les-q-48",
+    "classroom": "gialla",
+    "subject": "Non solo cestini (gruppo 2)",
+    "teacher": "S. Anedda",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "10:30",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-49",
+    "classroom": "gialla",
+    "subject": "Telaio e centri tavola",
+    "teacher": "E. Siddi",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "16:00",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-50",
+    "classroom": "rocchitta",
+    "subject": "Filosofia",
+    "teacher": "F. Deiana",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-51",
+    "classroom": "rocchitta",
+    "subject": "Lingua Sarda",
+    "teacher": "M.E. Onano",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "11:10",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-52",
+    "classroom": "rocchitta",
+    "subject": "Storia dell'Arte classica",
+    "teacher": "C. Parodo",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "16:00",
+    "end_time": "16:50"
+  },
+  {
+    "id": "les-q-53",
+    "classroom": "rocchitta",
+    "subject": "Storia contemporanea",
+    "teacher": "ASSENZA DOCENTE",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "17:05",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-54",
+    "classroom": "rocchitta",
+    "subject": "Normative condominiali",
+    "teacher": "ANACI",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "18:10",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-55",
+    "classroom": "porcu",
+    "subject": "Laboratorio teatrale principianti (RISERVATO AGLI ISCRITTI)",
+    "teacher": "M. Siddi",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "16:00",
+    "end_time": "17:30"
+  },
+  {
+    "id": "les-q-56",
+    "classroom": "san_benedetto",
+    "subject": "Canto corale Gruppo 2",
+    "teacher": "M. Pinna",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "16:00",
+    "end_time": "17:30"
+  },
+  {
+    "id": "les-q-57",
+    "classroom": "san_benedetto",
+    "subject": "Canto corale Gruppo 1",
+    "teacher": "M. Pinna",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "17:30",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-58",
+    "classroom": "san_benedetto",
+    "subject": "Antropologia",
+    "teacher": "C. Zedda",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-59",
+    "classroom": "san_benedetto",
+    "subject": "Star bene con se stessi 2° liv.",
+    "teacher": "Russo Frattasi",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-60",
+    "classroom": "san_benedetto",
+    "subject": "Cultura e Geopolitica Cinese",
+    "teacher": "S. Mocci",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "11:10",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-61",
+    "classroom": "san_benedetto",
+    "subject": "Geologia",
+    "teacher": "T. Marini",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "16:00",
+    "end_time": "16:50"
+  },
+  {
+    "id": "les-q-62",
+    "classroom": "san_benedetto",
+    "subject": "Psicologia",
+    "teacher": "A. Quaquero",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "17:05",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-63",
+    "classroom": "san_benedetto",
+    "subject": "Viaggio nel corpo umano",
+    "teacher": "S. Pintus",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "18:10",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-64",
+    "classroom": "ferrini",
+    "subject": "Tai-chi 1° liv (A-L)",
+    "teacher": "M. Civello",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-65",
+    "classroom": "ferrini",
+    "subject": "Tai-chi 1° liv (M-Z)",
+    "teacher": "M. Civello",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-66",
+    "classroom": "ferrini",
+    "subject": "Ballo sardo Avanzato",
+    "teacher": "G. Orrù",
+    "category": "Cultura Generale",
+    "day_of_week": 3,
+    "start_time": "11:10",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-67",
+    "classroom": "verde",
+    "subject": "Incontri in Campidanese",
+    "teacher": "S. Cocco",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "17:05",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-68",
+    "classroom": "rossa",
+    "subject": "Tedesco princip.",
+    "teacher": "M. Worf",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-69",
+    "classroom": "rossa",
+    "subject": "Tedesco 1° liv.",
+    "teacher": "M. Worf",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-70",
+    "classroom": "rossa",
+    "subject": "Laboratorio creativo",
+    "teacher": "L. Medas",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "16:00",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-71",
+    "classroom": "gialla",
+    "subject": "Collages e Fantasie di carta",
+    "teacher": "C. Angioni",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "10:05",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-72",
+    "classroom": "gialla",
+    "subject": "Cucito creativo",
+    "teacher": "Nanissi A. - Orrù G.",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "16:00",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-73",
+    "classroom": "rocchitta",
+    "subject": "Lingua Inglese 2° liv.",
+    "teacher": "M. Hanis",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-74",
+    "classroom": "rocchitta",
+    "subject": "Lingua Inglese 3° liv.",
+    "teacher": "M. Hanis",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-75",
+    "classroom": "rocchitta",
+    "subject": "Lingua Inglese 4° liv.",
+    "teacher": "M. Hanis",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "11:10",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-76",
+    "classroom": "rocchitta",
+    "subject": "Parliamo di libri",
+    "teacher": "Gdl Biblioteca",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "16:00",
+    "end_time": "16:50"
+  },
+  {
+    "id": "les-q-77",
+    "classroom": "rocchitta",
+    "subject": "Storia della Sardegna",
+    "teacher": "D. Pisanu",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "17:05",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-78",
+    "classroom": "rocchitta",
+    "subject": "Storia delle Religioni",
+    "teacher": "M.G. Pau",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "18:10",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-79",
+    "classroom": "teatro_sinnai",
+    "subject": "Laboratorio teatrale 1° livello",
+    "teacher": "M.A. Calvisi",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "16:00",
+    "end_time": "17:30"
+  },
+  {
+    "id": "les-q-80",
+    "classroom": "teatro_sinnai",
+    "subject": "Laboratorio teatrale 2° livello",
+    "teacher": "M.A. Calvisi",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "17:30",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-81",
+    "classroom": "san_benedetto",
+    "subject": "Chitarra moderna principianti",
+    "teacher": "G. Musiu",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "16:00",
+    "end_time": "17:30"
+  },
+  {
+    "id": "les-q-82",
+    "classroom": "san_benedetto",
+    "subject": "Chitarra moderna 1° livello",
+    "teacher": "M. Sau",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "17:30",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-83",
+    "classroom": "san_benedetto",
+    "subject": "Letteratura al Femminile",
+    "teacher": "ASSENZA DOCENTE",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-84",
+    "classroom": "san_benedetto",
+    "subject": "Letteratura Greca",
+    "teacher": "M. Pinna",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "11:10",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-85",
+    "classroom": "san_benedetto",
+    "subject": "Astrofisica",
+    "teacher": "S. Casu",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "16:00",
+    "end_time": "16:50"
+  },
+  {
+    "id": "les-q-86",
+    "classroom": "san_benedetto",
+    "subject": "Storia dell'Arte moderna",
+    "teacher": "S. Mereu",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "17:05",
+    "end_time": "17:55"
+  },
+  {
+    "id": "les-q-87",
+    "classroom": "san_benedetto",
+    "subject": "Angolo dei Soci e degli ospiti",
+    "teacher": "Dir. Corsi",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "18:10",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-88",
+    "classroom": "ferrini",
+    "subject": "Attiv. motoria (M-Z)",
+    "teacher": "D. Melis",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-89",
+    "classroom": "ferrini",
+    "subject": "Attiv. motoria (A-L)",
+    "teacher": "D. Melis",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-90",
+    "classroom": "ferrini",
+    "subject": "RISERVATO Ballo Sardo folk",
+    "teacher": "E. Perra",
+    "category": "Cultura Generale",
+    "day_of_week": 4,
+    "start_time": "11:00",
+    "end_time": "12:30"
+  },
+  {
+    "id": "les-q-91",
+    "classroom": "verde",
+    "subject": "Chitarra classica NEOFITI",
+    "teacher": "S. Serra",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-92",
+    "classroom": "rossa",
+    "subject": "Bridge avanzato",
+    "teacher": "A. Matessi",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "10:00",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-93",
+    "classroom": "rossa",
+    "subject": "Acquarello base (gruppo 1)",
+    "teacher": "G. Frigo",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "16:00",
+    "end_time": "17:30"
+  },
+  {
+    "id": "les-q-94",
+    "classroom": "rossa",
+    "subject": "Acquarello base (gruppo 2)",
+    "teacher": "G. Frigo",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "17:30",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-95",
+    "classroom": "gialla",
+    "subject": "Greco antico",
+    "teacher": "M. Pinna",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-96",
+    "classroom": "rocchitta",
+    "subject": "Lingua Francese 1° liv.",
+    "teacher": "S. Collu",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-97",
+    "classroom": "rocchitta",
+    "subject": "Lingua Francese 2° liv.",
+    "teacher": "S. Collu",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-98",
+    "classroom": "rocchitta",
+    "subject": "Conversazione Francese",
+    "teacher": "S. Collu",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "11:10",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-99",
+    "classroom": "san_benedetto",
+    "subject": "Meditazione sonora",
+    "teacher": "M. Angius",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-100",
+    "classroom": "san_benedetto",
+    "subject": "Fisica quantistica",
+    "teacher": "M. Usai",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-101",
+    "classroom": "san_benedetto",
+    "subject": "Alimentazione e Salute",
+    "teacher": "A. Bassi",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "11:10",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-102",
+    "classroom": "san_benedetto",
+    "subject": "Tributo a Grazia Deledda \"Nel centenario dall'assegnazione del nobel per la letteratura",
+    "teacher": "Prof. Duilio Caocci (UniCa)",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "16:00",
+    "end_time": "19:00"
+  },
+  {
+    "id": "les-q-103",
+    "classroom": "ferrini",
+    "subject": "Tai-chi 2° liv (A-L)",
+    "teacher": "M. Civello",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "09:00",
+    "end_time": "09:50"
+  },
+  {
+    "id": "les-q-104",
+    "classroom": "ferrini",
+    "subject": "Tai-chi 2° liv (M-Z)",
+    "teacher": "M. Civello",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "10:05",
+    "end_time": "10:55"
+  },
+  {
+    "id": "les-q-105",
+    "classroom": "ferrini",
+    "subject": "Ballo sardo 1° livello",
+    "teacher": "G. Orrù",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "11:00",
+    "end_time": "12:00"
+  },
+  {
+    "id": "les-q-106",
+    "classroom": "ferrini",
+    "subject": "Ballo sardo Principianti",
+    "teacher": "G. Orrù",
+    "category": "Cultura Generale",
+    "day_of_week": 5,
+    "start_time": "12:00",
+    "end_time": "13:00"
+  },
+  {
+    "id": "les-sol-1",
+    "classroom": "polifunzionale",
+    "subject": "Ginnastica Dolce e Movimento (Soleminis)",
+    "teacher": "Prof. Luca Cabras",
+    "category": "Benessere & Movimento",
+    "day_of_week": 1,
+    "start_time": "16:00",
+    "end_time": "18:00"
+  },
+  {
+    "id": "les-sol-2",
+    "classroom": "polifunzionale",
+    "subject": "Storia e Tradizioni di Sardegna (Soleminis)",
+    "teacher": "Prof.ssa Paola Dessì",
+    "category": "Storia e Cultura Sarda",
+    "day_of_week": 3,
+    "start_time": "16:00",
+    "end_time": "18:00"
+  },
+  {
+    "id": "les-sol-3",
+    "classroom": "polifunzionale",
+    "subject": "Smartphone e Servizi Digitali (Soleminis)",
+    "teacher": "Ing. Marco Siddi",
+    "category": "Competenze Digitali",
+    "day_of_week": 4,
+    "start_time": "16:00",
+    "end_time": "18:00"
+  }
+]

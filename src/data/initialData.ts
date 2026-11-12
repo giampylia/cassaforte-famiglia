@@ -6,6 +6,8 @@ export type ClassroomKey =
   | 'san_benedetto'
   | 'biblioteca'
   | 'ferrini'
+  | 'porcu'
+  | 'teatro_sinnai'
   | 'polifunzionale';
 
 export interface ClassroomInfo {
@@ -38,13 +40,38 @@ export interface Profile {
 
 export const DEFAULT_AVAILABLE_ROLES: string[] = [
   'Socio',
-  'CD',
   'Segreteria',
   'Amministrativo',
   'Didattica',
   'Viaggi',
   'Amministratore',
 ];
+
+export interface VideoNotice {
+  id: string;
+  title: string;
+  imageUrl: string;
+  tickerText: string;
+  durationSec: number;
+  transition: 'dissolvenza' | 'scorrimento' | 'zoom';
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  isActive: boolean;
+  orderIndex: number;
+  createdAt: string;
+}
+
+export interface LibraryBook {
+  id: string;
+  title: string;
+  author: string;
+  genre: string;
+  collocation?: string;
+  year?: number | string;
+  notes?: string;
+  available?: boolean;
+  createdAt?: string;
+}
 
 export function isProtectedSuperAdmin(p?: Partial<Profile> | null): boolean {
   if (!p) return false;
@@ -295,6 +322,30 @@ export const CLASSROOMS: ClassroomInfo[] = [
     locationNote: 'Complesso Ferrini · Quartu',
   },
   {
+    key: 'porcu',
+    name: 'Via Porcu',
+    fullName: 'Via Eligio Porcu 116 (2° P.)',
+    image: '/assets/aula-verde.png',
+    colorType: 'verde',
+    bgColor: '#059669',
+    badgeColor: '#10b981',
+    sede: 'Quartu',
+    capacity: 30,
+    locationNote: 'Via Eligio Porcu 116 2° piano · Quartu',
+  },
+  {
+    key: 'teatro_sinnai',
+    name: 'Teatro Sinnai',
+    fullName: 'Teatro Civico di Sinnai',
+    image: '/assets/aula-san-benedetto.png',
+    colorType: 'blue',
+    bgColor: '#c2410c',
+    badgeColor: '#ea580c',
+    sede: 'Quartu',
+    capacity: 100,
+    locationNote: 'Teatro di Sinnai · Lab. Teatrale',
+  },
+  {
     key: 'polifunzionale',
     name: 'Polifunzionale',
     fullName: 'Aula Polifunzionale',
@@ -316,6 +367,8 @@ export const CLASSROOM_LABELS: Record<ClassroomKey, string> = {
   san_benedetto: 'Aula S. Benedetto',
   biblioteca: 'Aula Biblioteca',
   ferrini: 'Aula Ferrini',
+  porcu: 'Via Porcu 116',
+  teatro_sinnai: 'Teatro di Sinnai',
   polifunzionale: 'Aula Polifunzionale',
 };
 
@@ -356,13 +409,14 @@ export function getSubjectMeta(subject: string): SubjectMeta {
 
 export const INITIAL_PROFILES: Profile[] = [
   { id: 'admin-7726', member_number: '7726', first_name: 'Giampiero', last_name: 'Pilia', full_name: 'Giampiero Pilia', sede: 'Quartu', role: 'admin', is_super_admin: true, is_cd: true, roles: ['Amministratore'], phone: '070 881234', joined_year: 2018 },
+  { id: 'u-6128', member_number: '6128', first_name: 'Docente Didattica', last_name: 'QU3', full_name: 'Docente Didattica QU3', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: true, roles: ['Didattica'], phone: '070 881234', joined_year: 2020 },
   { id: 'segreteria-9999', member_number: '9999', first_name: 'Nives', last_name: 'Cocco', full_name: 'Nives Cocco', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: false, roles: ['Segreteria'], phone: '', joined_year: 2024 },
   { id: 'segreteria-9998', member_number: '9998', first_name: 'Josh Ronald', last_name: 'Cocco', full_name: 'Josh Ronald Cocco', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: false, roles: ['Segreteria'], phone: '', joined_year: 2024 },
   { id: 'admin-1', member_number: '000', first_name: 'Ufficio', last_name: 'Presenze QU3', full_name: 'Ufficio Presenze QU3', sede: 'Quartu', role: 'admin', is_super_admin: false, is_cd: false, roles: ['Didattica'], phone: '070 881234', joined_year: 2018 },
-  { id: 'u-101', member_number: '101', first_name: 'Maria Bonaria', last_name: 'Melis', full_name: 'Maria Bonaria Melis', sede: 'Quartu', role: 'member', is_cd: true, roles: ['CD'], phone: '347 1122334', joined_year: 2021 },
-  { id: 'u-102', member_number: '102', first_name: 'Efisio', last_name: 'Piras', full_name: 'Efisio Piras', sede: 'Quartu', role: 'member', is_cd: true, roles: ['CD', 'Amministrativo'], phone: '348 2233445', joined_year: 2020 },
+  { id: 'u-101', member_number: '101', first_name: 'Maria Bonaria', last_name: 'Melis', full_name: 'Maria Bonaria Melis', sede: 'Quartu', role: 'member', is_cd: true, roles: ['Amministrativo'], phone: '347 1122334', joined_year: 2021 },
+  { id: 'u-102', member_number: '102', first_name: 'Efisio', last_name: 'Piras', full_name: 'Efisio Piras', sede: 'Quartu', role: 'member', is_cd: true, roles: ['Amministrativo'], phone: '348 2233445', joined_year: 2020 },
   { id: 'u-103', member_number: '103', first_name: 'Anna Rita', last_name: 'Cao', full_name: 'Anna Rita Cao', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '349 3344556', joined_year: 2022 },
-  { id: 'u-104', member_number: '104', first_name: 'Giampaolo', last_name: 'Sanna', full_name: 'Giampaolo Sanna', sede: 'Quartu', role: 'member', is_cd: true, roles: ['CD', 'Viaggi'], phone: '340 4455667', joined_year: 2019 },
+  { id: 'u-104', member_number: '104', first_name: 'Giampaolo', last_name: 'Sanna', full_name: 'Giampaolo Sanna', sede: 'Quartu', role: 'member', is_cd: true, roles: ['Viaggi'], phone: '340 4455667', joined_year: 2019 },
   { id: 'u-105', member_number: '105', first_name: 'Rosalba', last_name: 'Atzeni', full_name: 'Rosalba Atzeni', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '333 5566778', joined_year: 2023 },
   { id: 'u-106', member_number: '106', first_name: 'Salvatore', last_name: 'Palmas', full_name: 'Salvatore Palmas', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '335 6677889', joined_year: 2021 },
   { id: 'u-107', member_number: '107', first_name: 'Graziella', last_name: 'Lai', full_name: 'Graziella Lai', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Didattica'], phone: '338 7788990', joined_year: 2022 },
@@ -472,51 +526,120 @@ export const INITIAL_CASH_MOVEMENTS: CashMovement[] = [
   },
 ];
 
-export const INITIAL_LESSONS: Lesson[] = [
-  // LUNEDÌ (1)
-  { id: 'les-mon-1', classroom: 'verde', subject: 'Smartphone e Servizi Digitali (SPID/FSE)', teacher: 'Ing. Marco Siddi', category: 'Competenze Digitali', day_of_week: 1, start_time: '09:00', end_time: '11:00' },
-  { id: 'les-mon-2', classroom: 'rossa', subject: 'Storia e Archeologia della Sardegna', teacher: 'Prof.ssa Paola Dessì', category: 'Storia e Cultura Sarda', day_of_week: 1, start_time: '09:30', end_time: '11:30' },
-  { id: 'les-mon-3', classroom: 'gialla', subject: 'Inglese Base per Viaggiare', teacher: 'Dott.ssa Sara Floris', category: 'Lingue Straniere', day_of_week: 1, start_time: '10:00', end_time: '12:00' },
-  { id: 'les-mon-4', classroom: 'san_benedetto', subject: 'Ginnastica Dolce e Posturale', teacher: 'Prof. Luca Cabras', category: 'Benessere & Movimento', day_of_week: 1, start_time: '09:00', end_time: '11:00' },
-  { id: 'les-mon-5', classroom: 'verde', subject: 'Psicologia e Memoria Attiva', teacher: 'Dott.ssa Elena Pinna', category: 'Salute e Prevenzione', day_of_week: 1, start_time: '15:30', end_time: '17:30' },
-  { id: 'les-mon-6', classroom: 'rossa', subject: 'Letteratura Italiana del Novecento', teacher: 'Prof. Giorgio Orrù', category: 'Umanistica e Lettere', day_of_week: 1, start_time: '16:00', end_time: '18:00' },
-  { id: 'les-mon-7', classroom: 'polifunzionale', subject: 'Ginnastica Dolce e Movimento (Soleminis)', teacher: 'Prof. Luca Cabras', category: 'Benessere & Movimento', day_of_week: 1, start_time: '16:00', end_time: '18:00' },
+import parsedLessonsData from './parsedLessons.json';
 
-  // MARTEDÌ (2)
-  { id: 'les-tue-1', classroom: 'rossa', subject: 'Medicina Preventiva e Longevità', teacher: 'Dott. Alberto Congiu', category: 'Salute e Prevenzione', day_of_week: 2, start_time: '09:00', end_time: '11:00' },
-  { id: 'les-tue-2', classroom: 'gialla', subject: 'Spagnolo Lingua e Cultura', teacher: 'Prof.ssa Carmen Mereu', category: 'Lingue Straniere', day_of_week: 2, start_time: '09:30', end_time: '11:30' },
-  { id: 'les-tue-3', classroom: 'rocchitta', subject: 'Pittura ad Acquerello e Disegno', teacher: 'Maestro Roberto Lilliu', category: 'Arte e Creatività', day_of_week: 2, start_time: '09:30', end_time: '12:00' },
-  { id: 'les-tue-4', classroom: 'biblioteca', subject: 'Lingua e Poesia Sarda Campidanese', teacher: 'Prof. Tonino Puddu', category: 'Storia e Cultura Sarda', day_of_week: 2, start_time: '15:30', end_time: '17:30' },
-  { id: 'les-tue-5', classroom: 'ferrini', subject: 'Laboratorio Teatrale e Dizione', teacher: 'Regista Carla Manca', category: 'Musica e Spettacolo', day_of_week: 2, start_time: '16:00', end_time: '18:30' },
+export const INITIAL_LESSONS: Lesson[] = parsedLessonsData as Lesson[];
 
-  // MERCOLEDÌ (3)
-  { id: 'les-wed-1', classroom: 'verde', subject: 'Smartphone e Servizi Digitali (SPID/FSE)', teacher: 'Ing. Marco Siddi', category: 'Competenze Digitali', day_of_week: 3, start_time: '09:00', end_time: '11:00' },
-  { id: 'les-wed-2', classroom: 'san_benedetto', subject: 'Ginnastica Dolce e Posturale', teacher: 'Prof. Luca Cabras', category: 'Benessere & Movimento', day_of_week: 3, start_time: '09:00', end_time: '11:00' },
-  { id: 'les-wed-3', classroom: 'rossa', subject: 'Storia dell\'Arte e Monumenti Sardi', teacher: 'Prof.ssa Valeria Porcu', category: 'Arte e Creatività', day_of_week: 3, start_time: '10:00', end_time: '12:00' },
-  { id: 'les-wed-4', classroom: 'gialla', subject: 'Inglese Conversazione Intermedia', teacher: 'Dott.ssa Sara Floris', category: 'Lingue Straniere', day_of_week: 3, start_time: '15:30', end_time: '17:30' },
-  { id: 'les-wed-5', classroom: 'ferrini', subject: 'Canto Corale Polifonico QU3', teacher: 'Maestro Davide Marongiu', category: 'Musica e Spettacolo', day_of_week: 3, start_time: '16:00', end_time: '18:00' },
-  { id: 'les-wed-6', classroom: 'polifunzionale', subject: 'Storia e Tradizioni di Sardegna (Soleminis)', teacher: 'Prof.ssa Paola Dessì', category: 'Storia e Cultura Sarda', day_of_week: 3, start_time: '16:00', end_time: '18:00' },
+export const INITIAL_VIDEO_NOTICES: VideoNotice[] = [
+  {
+    id: 'vn-1',
+    title: 'Benvenuti all\'Università della Terza Età',
+    imageUrl: '/assets/aula-verde.png',
+    tickerText: '★ Benvenuti all\'Università della Terza Età di Quartu Sant\'Elena — Anno Accademico 2026/2027 — Segreteria aperta dal Lunedì al Venerdì ore 09:00 - 12:00 e 16:00 - 18:30',
+    durationSec: 7,
+    transition: 'dissolvenza',
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    isActive: true,
+    orderIndex: 0,
+    createdAt: '2026-10-01T08:00:00.000Z',
+  },
+  {
+    id: 'vn-2',
+    title: 'Avviso Iscrizione Laboratori e Corsi',
+    imageUrl: '/assets/aula-san-benedetto.png',
+    tickerText: '★ Sono aperte le iscrizioni ai nuovi laboratori culturali e artistici. Rivolgersi allo sportello segreteria o consultare il registro corsi.',
+    durationSec: 7,
+    transition: 'dissolvenza',
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    isActive: true,
+    orderIndex: 1,
+    createdAt: '2026-10-01T08:00:00.000Z',
+  },
+];
 
-  // GIOVEDÌ (4)
-  { id: 'les-thu-1', classroom: 'verde', subject: 'Psicologia e Memoria Attiva', teacher: 'Dott.ssa Elena Pinna', category: 'Salute e Prevenzione', day_of_week: 4, start_time: '08:30', end_time: '18:30' },
-  { id: 'les-thu-2', classroom: 'gialla', subject: 'Inglese Base per Viaggiare', teacher: 'Dott.ssa Sara Floris', category: 'Lingue Straniere', day_of_week: 4, start_time: '08:30', end_time: '18:30' },
-  { id: 'les-thu-3', classroom: 'rossa', subject: 'Storia e Archeologia della Sardegna', teacher: 'Prof.ssa Paola Dessì', category: 'Storia e Cultura Sarda', day_of_week: 4, start_time: '08:30', end_time: '18:30' },
-  { id: 'les-thu-4', classroom: 'rocchitta', subject: 'Pittura ad Acquerello e Disegno', teacher: 'Maestro Roberto Lilliu', category: 'Arte e Creatività', day_of_week: 4, start_time: '08:30', end_time: '18:30' },
-  { id: 'les-thu-5', classroom: 'san_benedetto', subject: 'Ginnastica Dolce e Posturale', teacher: 'Prof. Luca Cabras', category: 'Benessere & Movimento', day_of_week: 4, start_time: '08:30', end_time: '18:30' },
-  { id: 'les-thu-6', classroom: 'biblioteca', subject: 'Lingua e Poesia Sarda Campidanese', teacher: 'Prof. Tonino Puddu', category: 'Storia e Cultura Sarda', day_of_week: 4, start_time: '08:30', end_time: '18:30' },
-  { id: 'les-thu-7', classroom: 'ferrini', subject: 'Fotografia con lo Smartphone', teacher: 'Dott. Stefano Argiolas', category: 'Arte e Creatività', day_of_week: 4, start_time: '15:00', end_time: '18:30' },
-  { id: 'les-thu-8', classroom: 'polifunzionale', subject: 'Smartphone e Servizi Digitali (Soleminis)', teacher: 'Ing. Marco Siddi', category: 'Competenze Digitali', day_of_week: 4, start_time: '08:30', end_time: '18:30' },
-
-  // VENERDÌ (5)
-  { id: 'les-fri-1', classroom: 'rossa', subject: 'Medicina Preventiva e Longevità', teacher: 'Dott. Alberto Congiu', category: 'Salute e Prevenzione', day_of_week: 5, start_time: '09:00', end_time: '11:00' },
-  { id: 'les-fri-2', classroom: 'verde', subject: 'Smartphone e Servizi Digitali (SPID/FSE)', teacher: 'Ing. Marco Siddi', category: 'Competenze Digitali', day_of_week: 5, start_time: '09:30', end_time: '11:30' },
-  { id: 'les-fri-3', classroom: 'san_benedetto', subject: 'Balli di Gruppo e Coordinazione', teacher: 'Ins. Claudia Mascia', category: 'Benessere & Movimento', day_of_week: 5, start_time: '10:00', end_time: '12:00' },
-  { id: 'les-fri-4', classroom: 'biblioteca', subject: 'Filosofia del Quotidiano e Dialogo', teacher: 'Prof. Giorgio Orrù', category: 'Umanistica e Lettere', day_of_week: 5, start_time: '15:30', end_time: '17:30' },
-  { id: 'les-fri-5', classroom: 'ferrini', subject: 'Canto Corale Polifonico QU3', teacher: 'Maestro Davide Marongiu', category: 'Musica e Spettacolo', day_of_week: 5, start_time: '16:00', end_time: '18:00' },
-
-  // SABATO (6)
-  { id: 'les-sat-1', classroom: 'rossa', subject: 'Storia dell\'Arte e Monumenti Sardi', teacher: 'Prof.ssa Valeria Porcu', category: 'Arte e Creatività', day_of_week: 6, start_time: '09:30', end_time: '11:30' },
-  { id: 'les-sat-2', classroom: 'rocchitta', subject: 'Fotografia con lo Smartphone', teacher: 'Dott. Stefano Argiolas', category: 'Arte e Creatività', day_of_week: 6, start_time: '09:30', end_time: '11:30' },
+export const INITIAL_LIBRARY_BOOKS: LibraryBook[] = [
+  {
+    id: 'book-1',
+    title: 'Canne al vento',
+    author: 'Grazia Deledda',
+    genre: 'Narrativa Sarda',
+    collocation: 'SARD-01',
+    year: 1913,
+    notes: 'Capolavoro del Premio Nobel per la Letteratura',
+    available: true,
+  },
+  {
+    id: 'book-2',
+    title: 'Un anno sull\'Altipiano',
+    author: 'Emilio Lussu',
+    genre: 'Storia & Memorialistica',
+    collocation: 'STOR-14',
+    year: 1938,
+    notes: 'Memoria storica della Brigata Sassari',
+    available: true,
+  },
+  {
+    id: 'book-3',
+    title: 'La Divina Commedia',
+    author: 'Dante Alighieri',
+    genre: 'Poesia Classica',
+    collocation: 'POES-05',
+    year: 1321,
+    notes: 'Edizione integrale commentata',
+    available: true,
+  },
+  {
+    id: 'book-4',
+    title: 'Il barone rampante',
+    author: 'Italo Calvino',
+    genre: 'Narrativa Italiana',
+    collocation: 'NARR-22',
+    year: 1957,
+    notes: 'Trilogia de I nostri antenati',
+    available: true,
+  },
+  {
+    id: 'book-5',
+    title: 'Il giorno del giudizio',
+    author: 'Salvatore Satta',
+    genre: 'Narrativa Sarda',
+    collocation: 'SARD-03',
+    year: 1979,
+    notes: 'Romanzo corale ambientato a Nuoro',
+    available: true,
+  },
+  {
+    id: 'book-6',
+    title: 'Storia dei Sardi e della Sardegna',
+    author: 'Massimo Pittau',
+    genre: 'Saggistica Sarda',
+    collocation: 'SAG-08',
+    year: 1984,
+    notes: 'Origini della civiltà nuragica e lingua sarda',
+    available: true,
+  },
+  {
+    id: 'book-7',
+    title: 'I promessi sposi',
+    author: 'Alessandro Manzoni',
+    genre: 'Romanzo Storico',
+    collocation: 'CLASS-02',
+    year: 1840,
+    notes: 'Edizione con illustrazioni e note storiche',
+    available: true,
+  },
+  {
+    id: 'book-8',
+    title: 'Se questo è un uomo',
+    author: 'Primo Levi',
+    genre: 'Testimonianza Storica',
+    collocation: 'STOR-09',
+    year: 1947,
+    notes: 'Testimonianza fondamentale del Novecento',
+    available: true,
+  },
 ];
 
 export const INITIAL_SUBJECT_NOTES: SubjectDidacticNote[] = [
@@ -580,14 +703,13 @@ export function generateInitialAttendance(): AttendanceRecord[] {
   const memberIdsSoleminis = INITIAL_PROFILES.filter((p) => p.role === 'member' && p.sede === 'Soleminis').map((p) => p.id);
 
   // Presenze di OGGI (per mostrare subito i contatori attivi nelle aule!)
-  const todayLessons = [
-    { lessonId: 'les-thu-1', classroom: 'verde' as ClassroomKey, count: 14, ratingBias: 3 as const },
-    { lessonId: 'les-thu-2', classroom: 'gialla' as ClassroomKey, count: 9, ratingBias: 3 as const },
-    { lessonId: 'les-thu-3', classroom: 'rossa' as ClassroomKey, count: 12, ratingBias: 3 as const },
-    { lessonId: 'les-thu-4', classroom: 'rocchitta' as ClassroomKey, count: 7, ratingBias: 2 as const },
-    { lessonId: 'les-thu-5', classroom: 'san_benedetto' as ClassroomKey, count: 13, ratingBias: 3 as const },
-    { lessonId: 'les-thu-6', classroom: 'biblioteca' as ClassroomKey, count: 6, ratingBias: 3 as const },
-  ];
+  const quartuSampleLessons = INITIAL_LESSONS.filter((l) => l.classroom !== 'polifunzionale').slice(0, 6);
+  const todayLessons = quartuSampleLessons.map((l, idx) => ({
+    lessonId: l.id,
+    classroom: l.classroom,
+    count: 8 + (idx % 6),
+    ratingBias: 3 as const,
+  }));
 
   todayLessons.forEach((tl, groupIdx) => {
     for (let i = 0; i < Math.min(tl.count, memberIdsQuartu.length); i++) {
@@ -608,12 +730,14 @@ export function generateInitialAttendance(): AttendanceRecord[] {
   });
 
   // Presenze Soleminis oggi
+  const solLesson = INITIAL_LESSONS.find((l) => l.classroom === 'polifunzionale');
+  const solLessonId = solLesson ? solLesson.id : 'les-sol-1';
   memberIdsSoleminis.slice(1).forEach((uid, idx) => {
     records.push({
       id: `att-today-soleminis-${idx}`,
       user_id: uid,
       classroom: 'polifunzionale',
-      lesson_id: 'les-thu-8',
+      lesson_id: solLessonId,
       created_at: new Date(`${todayStr}T09:${String(15 + idx * 4).padStart(2, '0')}:00`).toISOString(),
       rating: 3,
     });

@@ -10,9 +10,13 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 5173;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'cloud-db.json');
+const UPLOADS_DIR = path.join(PUBLIC_DIR, 'uploads', 'avvisi');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
 const sseClients = new Set();
@@ -90,6 +94,9 @@ function sanitizeServerProfiles(profiles) {
     const num = String(p.member_number || '').trim();
     if (num === '7726' || num === '7796' || p.is_super_admin) {
       foundSuper = true;
+      const cleanSuperRoles = Array.from(
+        new Set(['Amministratore', ...((p.roles || []).filter((r) => r !== 'Socio' && r !== 'CD'))])
+      );
       return {
         ...p,
         id: p.id && p.id !== 'admin-7796' ? p.id : 'admin-7726',
@@ -100,10 +107,8 @@ function sanitizeServerProfiles(profiles) {
         sede: p.sede || 'Quartu',
         role: 'admin',
         is_super_admin: true,
-        is_cd: true,
-        roles: Array.from(
-          new Set(['Amministratore', ...((p.roles || []).filter((r) => r !== 'Socio'))])
-        ),
+        is_cd: typeof p.is_cd === 'boolean' ? p.is_cd : true,
+        roles: cleanSuperRoles,
       };
     }
     if (num === '9999' || p.id === 'segreteria-9999') {
@@ -138,7 +143,13 @@ function sanitizeServerProfiles(profiles) {
         roles: ['Segreteria'],
       };
     }
-    return p;
+    const is_cd = typeof p.is_cd === 'boolean' ? p.is_cd : Boolean(Array.isArray(p.roles) && p.roles.includes('CD'));
+    const cleanRoles = Array.isArray(p.roles) ? p.roles.filter((r) => r !== 'CD') : ['Socio'];
+    return {
+      ...p,
+      is_cd,
+      roles: cleanRoles.length > 0 ? cleanRoles : ['Socio'],
+    };
   });
 
   if (!foundSuper) {
@@ -354,6 +365,22 @@ const server = http.createServer(async (req, res) => {
             incomingDb.lessonsUpdatedAt = existingLessonsTs;
           }
 
+          // Protezione Avvisi Video: non sovrascrivere mai con dati più vecchi
+          const existingVnTs = Number(existingDb.videoNoticesUpdatedAt || 0);
+          const incomingVnTs = Number(incomingDb.videoNoticesUpdatedAt || 0);
+          if (existingVnTs > incomingVnTs && Array.isArray(existingDb.videoNotices)) {
+            incomingDb.videoNotices = existingDb.videoNotices;
+            incomingDb.videoNoticesUpdatedAt = existingVnTs;
+          }
+
+          // Protezione Biblioteca Libri: non sovrascrivere mai con dati più vecchi
+          const existingLbTs = Number(existingDb.libraryBooksUpdatedAt || 0);
+          const incomingLbTs = Number(incomingDb.libraryBooksUpdatedAt || 0);
+          if (existingLbTs > incomingLbTs && Array.isArray(existingDb.libraryBooks)) {
+            incomingDb.libraryBooks = existingDb.libraryBooks;
+            incomingDb.libraryBooksUpdatedAt = existingLbTs;
+          }
+
           // Protezione Eliminacode: non sovrascrivere mai con dati più vecchi
           const existingQueueTs = Number((existingDb.queueState && existingDb.queueState.updatedAt) || 0);
           const incomingQueueTs = Number((incomingDb.queueState && incomingDb.queueState.updatedAt) || 0);
@@ -514,6 +541,111 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       sendJson(res, 400, { ok: false, error: 'Formato lezioni non valido' });
+    } catch (e) {
+      sendJson(res, 400, { ok: false, error: e.message });
+    }
+    return;
+  }
+
+  // Upload Immagini / File per Avvisi Video (JPG, PNG, GIF, PDF)
+  if (parsedUrl === '/api/upload-avviso' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      const fileName = body.fileName || 'avviso.jpg';
+      const fileData = body.fileData; // base64 o data:...;base64,...
+      if (!fileData) {
+        sendJson(res, 400, { ok: false, error: 'Dati file mancanti' });
+        return;
+      }
+      const base64Data = fileData.replace(/^data:[^;]+;base64,/, '');
+      const rawExt = path.extname(fileName).toLowerCase() || '.jpg';
+      const cleanExt = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.webp'].includes(rawExt) ? rawExt : '.jpg';
+      const safeName = `avviso_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${cleanExt}`;
+      const targetPath = path.join(UPLOADS_DIR, safeName);
+      fs.writeFileSync(targetPath, Buffer.from(base64Data, 'base64'));
+      sendJson(res, 200, {
+        ok: true,
+        url: `/uploads/avvisi/${safeName}`,
+        fileName: safeName,
+      });
+    } catch (e) {
+      sendJson(res, 500, { ok: false, error: e.message });
+    }
+    return;
+  }
+
+  // GET & POST /api/video-notices
+  if (parsedUrl === '/api/video-notices' && req.method === 'GET') {
+    const db = loadDb() || {};
+    sendJson(res, 200, {
+      ok: true,
+      videoNotices: db.videoNotices || [],
+      videoNoticesUpdatedAt: db.videoNoticesUpdatedAt || 0,
+    });
+    return;
+  }
+
+  if (parsedUrl === '/api/video-notices' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      if (body && Array.isArray(body.videoNotices)) {
+        const existingDb = loadDb() || {};
+        const incomingTs = Number(body.videoNoticesUpdatedAt || Date.now());
+        existingDb.videoNotices = body.videoNotices;
+        existingDb.videoNoticesUpdatedAt = incomingTs;
+        existingDb.updatedAt = new Date().toISOString();
+        saveDb(existingDb);
+        broadcastUpdate('VIDEO_NOTICES_SYNC', {
+          videoNotices: existingDb.videoNotices,
+          videoNoticesUpdatedAt: existingDb.videoNoticesUpdatedAt,
+        });
+        sendJson(res, 200, {
+          ok: true,
+          count: existingDb.videoNotices.length,
+          videoNoticesUpdatedAt: existingDb.videoNoticesUpdatedAt,
+        });
+        return;
+      }
+      sendJson(res, 400, { ok: false, error: 'Formato avvisi video non valido' });
+    } catch (e) {
+      sendJson(res, 400, { ok: false, error: e.message });
+    }
+    return;
+  }
+
+  // GET & POST /api/library-books
+  if (parsedUrl === '/api/library-books' && req.method === 'GET') {
+    const db = loadDb() || {};
+    sendJson(res, 200, {
+      ok: true,
+      libraryBooks: db.libraryBooks || [],
+      libraryBooksUpdatedAt: db.libraryBooksUpdatedAt || 0,
+    });
+    return;
+  }
+
+  if (parsedUrl === '/api/library-books' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      if (body && Array.isArray(body.libraryBooks)) {
+        const existingDb = loadDb() || {};
+        const incomingTs = Number(body.libraryBooksUpdatedAt || Date.now());
+        existingDb.libraryBooks = body.libraryBooks;
+        existingDb.libraryBooksUpdatedAt = incomingTs;
+        existingDb.updatedAt = new Date().toISOString();
+        saveDb(existingDb);
+        broadcastUpdate('LIBRARY_BOOKS_SYNC', {
+          libraryBooks: existingDb.libraryBooks,
+          libraryBooksUpdatedAt: existingDb.libraryBooksUpdatedAt,
+        });
+        sendJson(res, 200, {
+          ok: true,
+          count: existingDb.libraryBooks.length,
+          libraryBooksUpdatedAt: existingDb.libraryBooksUpdatedAt,
+        });
+        return;
+      }
+      sendJson(res, 400, { ok: false, error: 'Formato catalogo libri non valido' });
     } catch (e) {
       sendJson(res, 400, { ok: false, error: e.message });
     }

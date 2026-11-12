@@ -13,6 +13,8 @@ import {
   INITIAL_LESSONS,
   INITIAL_PROFILES,
   INITIAL_SUBJECT_NOTES,
+  INITIAL_VIDEO_NOTICES,
+  INITIAL_LIBRARY_BOOKS,
   isProtectedSegreteriaMember,
   isProtectedSuperAdmin,
   Lesson,
@@ -20,11 +22,20 @@ import {
   sanitizeSimultaneousAttendance,
   SubjectDidacticNote,
   getSubjectMeta,
+  VideoNotice,
+  LibraryBook,
 } from '../data/initialData';
 import { playSuccessSound } from '../utils/soundAndPdf';
 
 export type FontScale = 'normal' | 'large' | 'xlarge';
-export type AppSection = 'presenze' | 'piccola_cassa' | 'admin_dashboard' | 'anagrafica_soci' | 'eliminacode';
+export type AppSection =
+  | 'presenze'
+  | 'piccola_cassa'
+  | 'admin_dashboard'
+  | 'anagrafica_soci'
+  | 'biblioteca'
+  | 'avvisi_video'
+  | 'eliminacode';
 
 export interface QueueItem {
   number: number;
@@ -72,6 +83,10 @@ interface CloudDbSnapshot {
   cashUpdatedAt?: number;
   lessons: Lesson[];
   lessonsUpdatedAt?: number;
+  videoNotices?: VideoNotice[];
+  videoNoticesUpdatedAt?: number;
+  libraryBooks?: LibraryBook[];
+  libraryBooksUpdatedAt?: number;
   attendance: AttendanceRecord[];
   subjectNotes: SubjectDidacticNote[];
   visualHeadcounts: Record<ClassroomKey, number>;
@@ -154,6 +169,20 @@ interface AppContextType {
   updateLesson: (id: string, data: Partial<Lesson>) => void;
   deleteLesson: (id: string) => void;
   importLessonsBatch: (newLessons: Omit<Lesson, 'id'>[], mode: 'replace' | 'append') => { count: number };
+  // Avvisi Video (Proiezione Monitor, Ticker, Slide)
+  videoNotices: VideoNotice[];
+  videoNoticesUpdatedAt: number;
+  addVideoNotice: (notice: Omit<VideoNotice, 'id' | 'createdAt'>) => Promise<boolean>;
+  updateVideoNotice: (id: string, data: Partial<VideoNotice>) => void;
+  deleteVideoNotice: (id: string) => void;
+  reorderVideoNotices: (reordered: VideoNotice[]) => void;
+  // Biblioteca (Catalogo Libri per tutti i soci)
+  libraryBooks: LibraryBook[];
+  libraryBooksUpdatedAt: number;
+  addLibraryBook: (book: Omit<LibraryBook, 'id'>) => void;
+  updateLibraryBook: (id: string, data: Partial<LibraryBook>) => void;
+  deleteLibraryBook: (id: string) => void;
+  importLibraryBooksBatch: (newBooks: Omit<LibraryBook, 'id'>[], mode: 'replace' | 'append') => { count: number };
   saveSubjectNote: (note: SubjectDidacticNote) => void;
   resetDemoData: () => void;
 }
@@ -171,6 +200,10 @@ const STORAGE_KEYS = {
   CASH_TS: 'quartimbra_cash_updated_at_v4',
   LESSONS: 'quartimbra_lessons_v3',
   LESSONS_TS: 'quartimbra_lessons_updated_at_v4',
+  VIDEO_NOTICES: 'quartimbra_video_notices_v1',
+  VIDEO_NOTICES_TS: 'quartimbra_video_notices_ts_v1',
+  LIBRARY_BOOKS: 'quartimbra_library_books_v1',
+  LIBRARY_BOOKS_TS: 'quartimbra_library_books_ts_v1',
   ATTENDANCE: 'quartimbra_attendance_v3',
   NOTES: 'quartimbra_subject_notes_v3',
   HEADCOUNTS: 'quartimbra_headcounts_v3',
@@ -200,6 +233,8 @@ const DEFAULT_HEADCOUNTS: Record<ClassroomKey, number> = {
   san_benedetto: 40,
   biblioteca: 20,
   ferrini: 30,
+  porcu: 25,
+  teatro_sinnai: 60,
   polifunzionale: 35,
 };
 
@@ -241,7 +276,7 @@ function saveAdminDeletedSegreteriaNumbers(nums: Set<string>): void {
 
 function ensureDefaultRolesList(roles?: string[]): string[] {
   const base = Array.isArray(roles) && roles.length > 0 ? roles : DEFAULT_AVAILABLE_ROLES;
-  return Array.from(new Set([...DEFAULT_AVAILABLE_ROLES, ...base]));
+  return Array.from(new Set([...DEFAULT_AVAILABLE_ROLES, ...base])).filter((r) => r !== 'CD');
 }
 
 // Database IndexedDB ad alta capacità (fino a 500MB+) per garantire che l'Anagrafica Soci non vada MAI persa alla riapertura
@@ -331,7 +366,9 @@ function isCustomizedProfiles(list: Profile[]): boolean {
 // 7726 (e 7796) corrisponde SEMPRE ed ESCLUSIVAMENTE a Giampiero Pilia (Super Admin indistruttibile)
 function normalizeSuperAdminProfile(p?: Partial<Profile> | null): Profile {
   const base = INITIAL_PROFILES[0]; // 7726 Giampiero Pilia
-  const existingRoles = Array.isArray(p?.roles) ? p!.roles!.filter((r) => r !== 'Socio') : [];
+  const existingRoles = Array.isArray(p?.roles)
+    ? p!.roles!.filter((r) => r !== 'Socio' && r !== 'CD')
+    : [];
   const mergedRoles = Array.from(new Set(['Amministratore', ...existingRoles]));
 
   return {
@@ -345,7 +382,7 @@ function normalizeSuperAdminProfile(p?: Partial<Profile> | null): Profile {
     sede: p?.sede === 'Soleminis' ? 'Soleminis' : 'Quartu',
     role: 'admin',
     is_super_admin: true,
-    is_cd: true,
+    is_cd: typeof p?.is_cd === 'boolean' ? p.is_cd : true,
     roles: mergedRoles,
   };
 }
@@ -481,6 +518,8 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
     const initialMatch = INITIAL_PROFILES.find((ip) => ip.member_number === p.member_number);
     const roles = p.roles && p.roles.length > 0 ? p.roles : initialMatch?.roles || ['Socio'];
     const is_cd = typeof p.is_cd === 'boolean' ? p.is_cd : roles.includes('CD') || Boolean(initialMatch?.is_cd);
+    const cleanRoles = roles.filter((r) => r !== 'CD');
+    const finalRoles = cleanRoles.length > 0 ? cleanRoles : ['Socio'];
 
     const cleanedFirst = cleanPersonNameField(p.first_name) || initialMatch?.first_name || '';
     const cleanedLast = cleanPersonNameField(p.last_name) || initialMatch?.last_name || '';
@@ -495,7 +534,7 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
       last_name: cleanedLast,
       full_name: cleanedFull,
       is_cd,
-      roles: is_cd && !roles.includes('CD') ? [...roles, 'CD'] : roles,
+      roles: finalRoles,
     };
   });
 }
@@ -633,6 +672,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return Number(localStorage.getItem(STORAGE_KEYS.LESSONS_TS) || 0);
     } catch {
       return 0;
+    }
+  });
+
+  const [videoNoticesUpdatedAt, setVideoNoticesUpdatedAt] = useState<number>(() => {
+    try {
+      return Number(localStorage.getItem(STORAGE_KEYS.VIDEO_NOTICES_TS) || 0);
+    } catch {
+      return 0;
+    }
+  });
+
+  const [videoNotices, setVideoNotices] = useState<VideoNotice[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.VIDEO_NOTICES);
+      return saved ? JSON.parse(saved) : INITIAL_VIDEO_NOTICES;
+    } catch {
+      return INITIAL_VIDEO_NOTICES;
+    }
+  });
+
+  const [libraryBooksUpdatedAt, setLibraryBooksUpdatedAt] = useState<number>(() => {
+    try {
+      return Number(localStorage.getItem(STORAGE_KEYS.LIBRARY_BOOKS_TS) || 0);
+    } catch {
+      return 0;
+    }
+  });
+
+  const [libraryBooks, setLibraryBooks] = useState<LibraryBook[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.LIBRARY_BOOKS);
+      return saved ? JSON.parse(saved) : INITIAL_LIBRARY_BOOKS;
+    } catch {
+      return INITIAL_LIBRARY_BOOKS;
     }
   });
 
@@ -853,6 +926,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   lessonsRef.current = lessons;
   const lessonsUpdatedAtRef = useRef(lessonsUpdatedAt);
   lessonsUpdatedAtRef.current = lessonsUpdatedAt;
+  const videoNoticesRef = useRef<VideoNotice[]>(videoNotices);
+  videoNoticesRef.current = videoNotices;
+  const videoNoticesUpdatedAtRef = useRef(videoNoticesUpdatedAt);
+  videoNoticesUpdatedAtRef.current = videoNoticesUpdatedAt;
+  const libraryBooksRef = useRef<LibraryBook[]>(libraryBooks);
+  libraryBooksRef.current = libraryBooks;
+  const libraryBooksUpdatedAtRef = useRef(libraryBooksUpdatedAt);
+  libraryBooksUpdatedAtRef.current = libraryBooksUpdatedAt;
   const queueUpdatedAtRef = useRef(queueState.updatedAt || 0);
   queueUpdatedAtRef.current = queueState.updatedAt || 0;
 
@@ -1132,6 +1213,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       shouldPushBackLocalProtected = true;
     }
 
+    const remoteVnTs = Number(db.videoNoticesUpdatedAt || 0);
+    const localVnTs = videoNoticesUpdatedAtRef.current;
+    if (remoteVnTs > localVnTs) {
+      if (Array.isArray(db.videoNotices)) {
+        videoNoticesRef.current = db.videoNotices;
+        setVideoNotices(db.videoNotices);
+        safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES, JSON.stringify(db.videoNotices));
+      }
+      if (remoteVnTs > 0) {
+        videoNoticesUpdatedAtRef.current = remoteVnTs;
+        setVideoNoticesUpdatedAt(remoteVnTs);
+        safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES_TS, String(remoteVnTs));
+      }
+    } else if (localVnTs > remoteVnTs && Array.isArray(videoNoticesRef.current)) {
+      shouldPushBackLocalProtected = true;
+    }
+
+    const remoteLbTs = Number(db.libraryBooksUpdatedAt || 0);
+    const localLbTs = libraryBooksUpdatedAtRef.current;
+    if (remoteLbTs > localLbTs) {
+      if (Array.isArray(db.libraryBooks)) {
+        libraryBooksRef.current = db.libraryBooks;
+        setLibraryBooks(db.libraryBooks);
+        safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS, JSON.stringify(db.libraryBooks));
+      }
+      if (remoteLbTs > 0) {
+        libraryBooksUpdatedAtRef.current = remoteLbTs;
+        setLibraryBooksUpdatedAt(remoteLbTs);
+        safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS_TS, String(remoteLbTs));
+      }
+    } else if (localLbTs > remoteLbTs && Array.isArray(libraryBooksRef.current)) {
+      shouldPushBackLocalProtected = true;
+    }
+
     if (db.queueState) {
       const sanitizedRemoteQ = sanitizeQueueState(db.queueState, profilesRef.current);
       const remoteQueueTs = Number(sanitizedRemoteQ.updatedAt || 0);
@@ -1331,6 +1446,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               safeSetLocalStorage(STORAGE_KEYS.LESSONS_TS, String(remoteTs));
               setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
             }
+          } else if (parsed.type === 'VIDEO_NOTICES_SYNC' && Array.isArray(parsed.payload?.videoNotices)) {
+            const remoteTs = Number(parsed.payload.videoNoticesUpdatedAt || 0);
+            if (remoteTs > videoNoticesUpdatedAtRef.current) {
+              videoNoticesRef.current = parsed.payload.videoNotices;
+              videoNoticesUpdatedAtRef.current = remoteTs;
+              setVideoNotices(parsed.payload.videoNotices);
+              setVideoNoticesUpdatedAt(remoteTs);
+              safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES, JSON.stringify(parsed.payload.videoNotices));
+              safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES_TS, String(remoteTs));
+              setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
+            }
+          } else if (parsed.type === 'LIBRARY_BOOKS_SYNC' && Array.isArray(parsed.payload?.libraryBooks)) {
+            const remoteTs = Number(parsed.payload.libraryBooksUpdatedAt || 0);
+            if (remoteTs > libraryBooksUpdatedAtRef.current) {
+              libraryBooksRef.current = parsed.payload.libraryBooks;
+              libraryBooksUpdatedAtRef.current = remoteTs;
+              setLibraryBooks(parsed.payload.libraryBooks);
+              setLibraryBooksUpdatedAt(remoteTs);
+              safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS, JSON.stringify(parsed.payload.libraryBooks));
+              safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS_TS, String(remoteTs));
+              setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
+            }
           } else if (parsed.type === 'PUBLIC_URL' && parsed.payload?.publicUrl) {
             setPublicUrl(parsed.payload.publicUrl);
           }
@@ -1365,6 +1502,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setLessonsUpdatedAt(remoteTs);
             safeSetLocalStorage(STORAGE_KEYS.LESSONS, JSON.stringify(ev.data.lessons));
             safeSetLocalStorage(STORAGE_KEYS.LESSONS_TS, String(remoteTs));
+          }
+        } else if (ev.data?.type === 'VIDEO_NOTICES_SYNC' && Array.isArray(ev.data.videoNotices)) {
+          const remoteTs = Number(ev.data.videoNoticesUpdatedAt || 0);
+          if (remoteTs > videoNoticesUpdatedAtRef.current) {
+            videoNoticesRef.current = ev.data.videoNotices;
+            videoNoticesUpdatedAtRef.current = remoteTs;
+            setVideoNotices(ev.data.videoNotices);
+            setVideoNoticesUpdatedAt(remoteTs);
+            safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES, JSON.stringify(ev.data.videoNotices));
+            safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES_TS, String(remoteTs));
+          }
+        } else if (ev.data?.type === 'LIBRARY_BOOKS_SYNC' && Array.isArray(ev.data.libraryBooks)) {
+          const remoteTs = Number(ev.data.libraryBooksUpdatedAt || 0);
+          if (remoteTs > libraryBooksUpdatedAtRef.current) {
+            libraryBooksRef.current = ev.data.libraryBooks;
+            libraryBooksUpdatedAtRef.current = remoteTs;
+            setLibraryBooks(ev.data.libraryBooks);
+            setLibraryBooksUpdatedAt(remoteTs);
+            safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS, JSON.stringify(ev.data.libraryBooks));
+            safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS_TS, String(remoteTs));
           }
         } else if (ev.data?.type === 'QUEUE_SYNC' && ev.data.queueState) {
           const incomingQ = sanitizeQueueState(
@@ -1879,32 +2036,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const toggleMemberCD = (userId: string, isCd: boolean) => {
     const next = profilesRef.current.map((p) => {
       if (p.id !== userId) return p;
-      const currentRoles = p.roles || ['Socio'];
-      const nextRoles = isCd
-        ? Array.from(new Set([...currentRoles, 'CD']))
-        : currentRoles.filter((r) => r !== 'CD');
       return {
         ...p,
         is_cd: isCd,
-        roles: nextRoles.length > 0 ? nextRoles : ['Socio'],
       };
     });
     commitProfilesUpdate(next);
   };
 
   const toggleMemberRole = (userId: string, roleName: string) => {
+    if (roleName === 'CD') return;
     const next = profilesRef.current.map((p) => {
       if (p.id !== userId) return p;
-      const currentRoles = p.roles || ['Socio'];
+      const currentRoles = (p.roles || ['Socio']).filter((r) => r !== 'CD');
       const hasRole = currentRoles.includes(roleName);
       const nextRoles = hasRole
         ? currentRoles.filter((r) => r !== roleName)
         : [...currentRoles, roleName];
       const finalRoles = nextRoles.length > 0 ? nextRoles : ['Socio'];
-      const nextIsCd = roleName === 'CD' ? !hasRole : Boolean(p.is_cd || finalRoles.includes('CD'));
       return {
         ...p,
-        is_cd: nextIsCd,
         roles: finalRoles,
       };
     });
@@ -1978,7 +2129,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const nameParts = cleanFullName.split(/\s+/);
     const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : cleanFullName;
     const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
-    const assignedRoles = roles && roles.length > 0 ? roles : is_cd ? ['CD'] : ['Socio'];
+    const cleanRoles = (roles && roles.length > 0 ? roles : ['Socio']).filter((r) => r !== 'CD');
+    const finalRoles = cleanRoles.length > 0 ? cleanRoles : ['Socio'];
     const newProfile: Profile = {
       id: `u-${Date.now()}`,
       member_number: cleanNum,
@@ -1987,8 +2139,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       full_name: cleanFullName,
       sede,
       role: 'member',
-      is_cd: is_cd || assignedRoles.includes('CD'),
-      roles: assignedRoles,
+      is_cd: Boolean(is_cd),
+      roles: finalRoles,
       phone: phone?.trim() || '',
       joined_year: new Date().getFullYear(),
     };
@@ -2268,6 +2420,130 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { count: prepared.length };
   };
 
+  // Video Notices (Avvisi Video per /monitor)
+  const commitVideoNoticesUpdate = (nextVn: VideoNotice[], forceTs?: number) => {
+    const nowTs = forceTs || Date.now();
+    videoNoticesRef.current = nextVn;
+    videoNoticesUpdatedAtRef.current = nowTs;
+    setVideoNotices(nextVn);
+    setVideoNoticesUpdatedAt(nowTs);
+    safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES, JSON.stringify(nextVn));
+    safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES_TS, String(nowTs));
+
+    try {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.postMessage({
+          type: 'VIDEO_NOTICES_SYNC',
+          videoNotices: nextVn,
+          videoNoticesUpdatedAt: nowTs,
+        });
+      }
+    } catch {}
+
+    fetch('/api/video-notices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        videoNotices: nextVn,
+        videoNoticesUpdatedAt: nowTs,
+      }),
+    }).catch(() => {});
+  };
+
+  const addVideoNotice = async (noticeData: Omit<VideoNotice, 'id' | 'createdAt'>): Promise<boolean> => {
+    const nextOrder = videoNoticesRef.current.length > 0
+      ? Math.max(...videoNoticesRef.current.map((n) => n.orderIndex || 0)) + 1
+      : 0;
+    const newNotice: VideoNotice = {
+      ...noticeData,
+      id: `vn-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      orderIndex: typeof noticeData.orderIndex === 'number' ? noticeData.orderIndex : nextOrder,
+      createdAt: new Date().toISOString(),
+    };
+    const next = [...videoNoticesRef.current, newNotice];
+    commitVideoNoticesUpdate(next);
+    return true;
+  };
+
+  const updateVideoNotice = (id: string, data: Partial<VideoNotice>) => {
+    const next = videoNoticesRef.current.map((n) => (n.id === id ? { ...n, ...data } : n));
+    commitVideoNoticesUpdate(next);
+  };
+
+  const deleteVideoNotice = (id: string) => {
+    const next = videoNoticesRef.current.filter((n) => n.id !== id);
+    commitVideoNoticesUpdate(next);
+  };
+
+  const reorderVideoNotices = (reordered: VideoNotice[]) => {
+    const indexed = reordered.map((item, idx) => ({ ...item, orderIndex: idx }));
+    commitVideoNoticesUpdate(indexed);
+  };
+
+  // Biblioteca (Catalogo Libri per tutti i soci)
+  const commitLibraryBooksUpdate = (nextLb: LibraryBook[], forceTs?: number) => {
+    const nowTs = forceTs || Date.now();
+    libraryBooksRef.current = nextLb;
+    libraryBooksUpdatedAtRef.current = nowTs;
+    setLibraryBooks(nextLb);
+    setLibraryBooksUpdatedAt(nowTs);
+    safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS, JSON.stringify(nextLb));
+    safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS_TS, String(nowTs));
+
+    try {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.postMessage({
+          type: 'LIBRARY_BOOKS_SYNC',
+          libraryBooks: nextLb,
+          libraryBooksUpdatedAt: nowTs,
+        });
+      }
+    } catch {}
+
+    fetch('/api/library-books', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        libraryBooks: nextLb,
+        libraryBooksUpdatedAt: nowTs,
+      }),
+    }).catch(() => {});
+  };
+
+  const addLibraryBook = (bookData: Omit<LibraryBook, 'id'>) => {
+    const newBook: LibraryBook = {
+      ...bookData,
+      id: `book-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      createdAt: new Date().toISOString(),
+    };
+    const next = [newBook, ...libraryBooksRef.current];
+    commitLibraryBooksUpdate(next);
+  };
+
+  const updateLibraryBook = (id: string, data: Partial<LibraryBook>) => {
+    const next = libraryBooksRef.current.map((b) => (b.id === id ? { ...b, ...data } : b));
+    commitLibraryBooksUpdate(next);
+  };
+
+  const deleteLibraryBook = (id: string) => {
+    const next = libraryBooksRef.current.filter((b) => b.id !== id);
+    commitLibraryBooksUpdate(next);
+  };
+
+  const importLibraryBooksBatch = (
+    newBooks: Omit<LibraryBook, 'id'>[],
+    mode: 'replace' | 'append' = 'append'
+  ): { count: number } => {
+    const prepared: LibraryBook[] = newBooks.map((b, idx) => ({
+      ...b,
+      id: `book-imp-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+      createdAt: new Date().toISOString(),
+    }));
+    const next = mode === 'replace' ? prepared : [...prepared, ...libraryBooksRef.current];
+    commitLibraryBooksUpdate(next);
+    return { count: prepared.length };
+  };
+
   const saveSubjectNote = (note: SubjectDidacticNote) => {
     setSubjectNotes((prev) => {
       const exists = prev.some((n) => n.subject === note.subject);
@@ -2355,6 +2631,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateLesson,
         deleteLesson,
         importLessonsBatch,
+        videoNotices,
+        videoNoticesUpdatedAt,
+        addVideoNotice,
+        updateVideoNotice,
+        deleteVideoNotice,
+        reorderVideoNotices,
+        libraryBooks,
+        libraryBooksUpdatedAt,
+        addLibraryBook,
+        updateLibraryBook,
+        deleteLibraryBook,
+        importLibraryBooksBatch,
         saveSubjectNote,
         resetDemoData,
       }}
