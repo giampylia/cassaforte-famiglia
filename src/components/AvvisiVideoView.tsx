@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
+  Camera,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { VideoNotice } from '../data/initialData';
@@ -89,6 +90,61 @@ export const AvvisiVideoView: React.FC = () => {
     );
   }
 
+  // Helper per ridimensionare e comprimere l'immagine in formato Full HD (base64 permanente)
+  const compressImageFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const rawResult = e.target?.result as string;
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1600;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(rawResult);
+            return;
+          }
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Compressione ottimale per monitor TV (JPEG 82%, ~100-150KB)
+          const compressed = canvas.toDataURL('image/jpeg', 0.82);
+          resolve(compressed);
+        };
+        img.onerror = () => resolve(rawResult);
+        img.src = rawResult;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Gestione caricamento file immagine / PDF
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -99,41 +155,30 @@ export const AvvisiVideoView: React.FC = () => {
     setSelectedFileName(file.name);
 
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64Data = reader.result as string;
-        setPreviewImage(base64Data);
+      // 1) Comprimi l'immagine per avere un Data URL leggero (~100-150KB) e permanente
+      const dataUrl = await compressImageFile(file);
+      setPreviewImage(dataUrl);
+      setUploadedImageUrl(dataUrl);
 
-        // Upload sul server nella cartella /public/uploads/avvisi
-        try {
-          const resp = await fetch('/api/upload-avviso', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileData: base64Data,
-            }),
-          });
-          const data = await resp.json();
-          if (data && data.ok && data.url) {
-            setUploadedImageUrl(data.url);
-            setFormMsg({
-              type: 'success',
-              text: `✓ File caricato con successo nella cartella avvisi: ${data.fileName}`,
-            });
-          } else {
-            // Fallback con base64 diretto se server offline
-            setUploadedImageUrl(base64Data);
-          }
-        } catch {
-          setUploadedImageUrl(base64Data);
-        } finally {
-          setIsUploading(false);
-        }
-      };
-      reader.readAsDataURL(file);
+      // 2) Upload ridondante sul server
+      try {
+        fetch('/api/upload-avviso', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileData: dataUrl,
+          }),
+        }).catch(() => {});
+      } catch {}
+
+      setFormMsg({
+        type: 'success',
+        text: `✓ Immagine "${file.name}" ottimizzata e pronta per il monitor TV!`,
+      });
     } catch (err: any) {
       setFormMsg({ type: 'error', text: `Errore caricamento file: ${err.message}` });
+    } finally {
       setIsUploading(false);
     }
   };
@@ -616,7 +661,13 @@ export const AvvisiVideoView: React.FC = () => {
                             src={notice.imageUrl}
                             alt={notice.title}
                             className="h-full w-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
                           />
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none -z-10 text-[10px] text-slate-400 font-bold p-1 text-center">
+                            Foto UTE
+                          </div>
                           <span className="absolute bottom-1 right-1 rounded bg-black/75 px-1 text-[9px] font-bold text-white">
                             {notice.durationSec}s
                           </span>
@@ -699,6 +750,32 @@ export const AvvisiVideoView: React.FC = () => {
                         >
                           {notice.isActive ? 'Attivo' : 'Pausa'}
                         </button>
+
+                        {/* Cambia / Ricarica Foto */}
+                        <label
+                          className="rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 text-emerald-800 cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+                          title="Carica o sostituisci l'immagine dell'avviso"
+                        >
+                          <Camera className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Carica Foto</span>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              try {
+                                const compressed = await compressImageFile(f);
+                                updateVideoNotice(notice.id, { imageUrl: compressed });
+                                setFormMsg({ type: 'success', text: `✓ Nuova immagine salvata per "${notice.title}"!` });
+                                setTimeout(() => setFormMsg(null), 3500);
+                              } catch (err: any) {
+                                alert('Errore: ' + err.message);
+                              }
+                            }}
+                          />
+                        </label>
 
                         {/* Modifica */}
                         <button

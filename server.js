@@ -662,6 +662,15 @@ const server = http.createServer(async (req, res) => {
 
   fs.stat(filePath, (err, stats) => {
     if (err || !stats.isFile()) {
+      const isAssetOrUpload =
+        parsedUrl.startsWith('/uploads/') ||
+        parsedUrl.startsWith('/api/') ||
+        /\.(png|jpe?g|gif|webp|pdf|svg|ico|css|js|map|json|woff2?|ttf|eot)$/i.test(parsedUrl);
+      if (isAssetOrUpload) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('404 Not Found');
+        return;
+      }
       filePath = path.join(PUBLIC_DIR, 'index.html');
     }
     const ext = path.extname(filePath).toLowerCase();

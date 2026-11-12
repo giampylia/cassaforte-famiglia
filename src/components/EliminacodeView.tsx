@@ -665,6 +665,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
 
   const [currentSlideIndex, setCurrentSlideIndex] = useState<number>(0);
   const [slideOpacity, setSlideOpacity] = useState<number>(1);
+  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
   // Rotazione automatica degli avvisi video sul monitor con transizione dissolvenza e durata configurabile
   useEffect(() => {
@@ -2649,33 +2650,65 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         </header>
 
         {/* RIQUADRO CENTRALE SALA D'ATTESA: SLIDESHOW AVVISI VIDEO IN BLOCCO / STANDBY OPPURE SOLO TURNO CHIAMATO IN SVOLGIMENTO */}
-        <main className="flex-1 flex flex-col items-center justify-center p-3 sm:p-5 text-center overflow-hidden w-full">
+        <main className="flex-1 min-h-0 flex flex-col items-center justify-center p-2 sm:p-4 text-center overflow-hidden w-full">
           {isStandby ? (
             /* 1) QUANDO ELIMINACODE È IMPOSTATO CON UNO DEI MESSAGGI DI BLOCCO (Pausa, Chiuso, Temporaneamente Sospeso / In attesa):
                   SI VEDE SOLO LA VIDEATA DEGLI AVVISI CON L'IMMAGINE CHE OCCUPA TUTTO LO SPAZIO */
             currentVideoNotice ? (
               <div
                 style={{ opacity: slideOpacity, transition: 'opacity 0.4s ease-in-out' }}
-                className="w-full max-w-7xl h-[72vh] sm:h-[75vh] flex flex-col items-center justify-center transition-all duration-300"
+                className="w-full max-w-7xl h-full min-h-0 flex flex-col items-center justify-center transition-all duration-300"
               >
-                {/* Riquadro contornato di bianco: l'immagine si adatta e riempie tutto lo spazio */}
+                {/* Riquadro contornato di bianco: l'immagine si adatta e riempie tutto lo spazio disponibile */}
                 <div className="relative w-full h-full rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white bg-black flex items-center justify-center p-0">
-                  {currentVideoNotice.imageUrl.toLowerCase().endsWith('.pdf') ? (
-                    <iframe
-                      src={currentVideoNotice.imageUrl}
-                      title={currentVideoNotice.title}
-                      className="w-full h-full border-none bg-white"
-                    />
-                  ) : (
-                    <img
-                      src={currentVideoNotice.imageUrl}
-                      alt={currentVideoNotice.title}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
+                  {(() => {
+                    const isPdf = Boolean(currentVideoNotice.imageUrl?.toLowerCase().endsWith('.pdf'));
+                    const hasFailed = Boolean(imgErrors[currentVideoNotice.id]);
+
+                    if (hasFailed || !currentVideoNotice.imageUrl) {
+                      return (
+                        <div className="w-full h-full bg-gradient-to-br from-emerald-950 via-teal-900 to-emerald-900 flex flex-col items-center justify-center p-8 text-center">
+                          <img
+                            src="/logo-associazione-qu3.png?v=15"
+                            alt="Logo QU3"
+                            className="h-24 w-24 mb-5 rounded-2xl bg-white p-2 object-contain shadow-xl"
+                          />
+                          <h2 className="text-3xl sm:text-5xl font-black text-white mb-4 tracking-tight drop-shadow-lg max-w-4xl">
+                            {currentVideoNotice.title}
+                          </h2>
+                          {currentVideoNotice.tickerText && (
+                            <p className="text-lg sm:text-2xl text-emerald-200 font-bold max-w-3xl leading-relaxed">
+                              {currentVideoNotice.tickerText}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    if (isPdf) {
+                      return (
+                        <iframe
+                          src={currentVideoNotice.imageUrl}
+                          title={currentVideoNotice.title}
+                          className="w-full h-full border-none bg-white"
+                        />
+                      );
+                    }
+
+                    return (
+                      <img
+                        src={currentVideoNotice.imageUrl}
+                        alt={currentVideoNotice.title}
+                        className="w-full h-full object-cover"
+                        onError={() => {
+                          setImgErrors((prev) => ({ ...prev, [currentVideoNotice.id]: true }));
+                        }}
+                      />
+                    );
+                  })()}
 
                   {/* Badge in sovrimpressione per lo stato dello sportello e conteggio slide */}
-                  <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none">
+                  <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
                     <span className="rounded-full bg-emerald-900/90 text-white font-bold text-xs sm:text-sm px-4 py-1.5 border border-white/50 backdrop-blur-md shadow-md">
                       📺 {standbyDisplay.title}
                     </span>
@@ -2749,14 +2782,17 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           )}
         </main>
 
-        {/* NEWS TICKER: BANDA SCORREVOLE IN BASSO CON DESCRIZIONE AVVISO */}
-        <div className="bg-emerald-950 border-t-2 border-emerald-400/50 py-2.5 px-4 text-white flex items-center overflow-hidden shrink-0 shadow-lg">
+        {/* NEWS TICKER: BANDA SCORREVOLE IN BASSO CON DESCRIZIONE AVVISO A SCORRIMENTO VELOCE */}
+        <div className="bg-emerald-950 border-t-2 border-emerald-400/50 py-2.5 px-4 text-white flex items-center overflow-hidden shrink-0 shadow-lg z-20">
           <div className="inline-flex items-center gap-1.5 shrink-0 mr-3.5 bg-emerald-600 text-white text-xs sm:text-sm font-black uppercase px-3 py-1 rounded-lg tracking-wider shadow-xs">
             <Sparkles className="h-4 w-4 text-amber-300 animate-spin" style={{ animationDuration: '6s' }} />
             <span>News UTE</span>
           </div>
           <div className="flex-1 overflow-hidden relative">
-            <div className="animate-marquee whitespace-nowrap text-base sm:text-2xl font-bold tracking-wide text-emerald-50 drop-shadow-xs">
+            <div
+              key={`ticker-${currentVideoNotice?.id || currentSlideIndex}`}
+              className="animate-marquee whitespace-nowrap text-lg sm:text-3xl font-black tracking-wide text-amber-300 drop-shadow-md"
+            >
               {currentVideoNotice?.tickerText ||
                 currentVideoNotice?.title ||
                 'Università della Terza Età Quartu Sant’Elena — Benvenuti alle attività e lezioni'}
