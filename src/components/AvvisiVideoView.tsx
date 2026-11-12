@@ -753,11 +753,11 @@ export const AvvisiVideoView: React.FC = () => {
             </div>
 
             {/* Immagine avviso */}
-            <div className="flex-1 relative flex items-center justify-center bg-slate-900 overflow-hidden">
+            <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden m-3 rounded-2xl border-4 border-white shadow-lg">
               <img
                 src={activeNoticesList[previewIndex]?.imageUrl}
                 alt={activeNoticesList[previewIndex]?.title}
-                className="max-h-full max-w-full object-contain transition-all duration-700 ease-in-out"
+                className="w-full h-full object-cover transition-all duration-700 ease-in-out"
               />
             </div>
 

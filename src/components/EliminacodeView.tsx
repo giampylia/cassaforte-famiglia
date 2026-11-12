@@ -157,6 +157,9 @@ export function unlockAudioEngine() {
 
 let lastPlayedCallKey = '';
 let lastPlayedCallTimestamp = 0;
+let lastPlayedNumber = -1;
+let lastSpokenNumber = -1;
+let lastSpokenTimestamp = 0;
 let speechPendingTimeout: any = null;
 
 // Suono "Din-Don" professionale da tabellone sala d'attesa + sintesi vocale opzionale
@@ -166,13 +169,12 @@ function playQueueCallChime(
   voiceActive: boolean,
   force: boolean = false
 ) {
-  const callKey = `${number}-${(name || '').trim().toLowerCase()}`;
   const now = Date.now();
-  // Se non è una richiamata forzata manuale, ignora qualsiasi secondo trigger identico entro 3.5 secondi
-  if (!force && callKey === lastPlayedCallKey && now - lastPlayedCallTimestamp < 3500) {
+  // Se non è una richiamata forzata manuale, ignora categoricamente qualsiasi ripetizione dello stesso numero entro 8 secondi
+  if (!force && number === lastPlayedNumber && now - lastPlayedCallTimestamp < 8000) {
     return;
   }
-  lastPlayedCallKey = callKey;
+  lastPlayedNumber = number;
   lastPlayedCallTimestamp = now;
 
   let playedWav = false;
@@ -238,6 +240,12 @@ function playQueueCallChime(
   }
 
   if (voiceActive && 'speechSynthesis' in window) {
+    if (!force && number === lastSpokenNumber && now - lastSpokenTimestamp < 8000) {
+      return;
+    }
+    lastSpokenNumber = number;
+    lastSpokenTimestamp = now;
+
     try {
       if (speechPendingTimeout) {
         clearTimeout(speechPendingTimeout);
@@ -2641,25 +2649,26 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         </header>
 
         {/* RIQUADRO CENTRALE SALA D'ATTESA: SLIDESHOW AVVISI VIDEO O TURNO CHIAMATO */}
-        <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 text-center overflow-hidden">
+        <main className="flex-1 flex flex-col items-center justify-center p-3 sm:p-5 text-center overflow-hidden w-full">
           {isStandby ? (
             currentVideoNotice ? (
               <div
                 style={{ opacity: slideOpacity, transition: 'opacity 0.4s ease-in-out' }}
-                className="w-full max-w-6xl flex flex-col items-center justify-center transition-all duration-300"
+                className="w-full max-w-7xl h-[72vh] flex flex-col items-center justify-center transition-all duration-300"
               >
-                <div className="relative w-full flex flex-col items-center justify-center rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-black/40 p-2 sm:p-3">
+                {/* Riquadro contornato di bianco: l'immagine si adatta e riempie tutto lo spazio */}
+                <div className="relative w-full h-full rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white bg-black flex items-center justify-center p-0">
                   {currentVideoNotice.imageUrl.toLowerCase().endsWith('.pdf') ? (
                     <iframe
                       src={currentVideoNotice.imageUrl}
                       title={currentVideoNotice.title}
-                      className="w-full h-[65vh] rounded-2xl border-none bg-white"
+                      className="w-full h-full border-none bg-white"
                     />
                   ) : (
                     <img
                       src={currentVideoNotice.imageUrl}
                       alt={currentVideoNotice.title}
-                      className="max-h-[66vh] w-auto max-w-full object-contain rounded-2xl drop-shadow-lg"
+                      className="w-full h-full object-cover"
                     />
                   )}
 
@@ -2705,30 +2714,30 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             )
           ) : currentVideoNotice ? (
             /* Vista Mista: Slide a sinistra + Turno Chiamato a destra */
-            <div className="w-full max-w-7xl flex flex-col lg:flex-row items-stretch gap-6 justify-center">
-              {/* Proiezione Avviso Video */}
+            <div className="w-full max-w-7xl h-[70vh] flex flex-col lg:flex-row items-stretch gap-6 justify-center">
+              {/* Proiezione Avviso Video: Riquadro contornato di bianco riempito dall'immagine */}
               <div
                 style={{ opacity: slideOpacity, transition: 'opacity 0.4s ease-in-out' }}
-                className="flex-1 flex flex-col items-center justify-center rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-black/40 p-2 sm:p-3 min-h-[280px] lg:min-h-[500px]"
+                className="flex-1 w-full h-full rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white bg-black relative flex items-center justify-center p-0 min-h-[300px]"
               >
                 {currentVideoNotice.imageUrl.toLowerCase().endsWith('.pdf') ? (
                   <iframe
                     src={currentVideoNotice.imageUrl}
                     title={currentVideoNotice.title}
-                    className="w-full h-[52vh] rounded-2xl border-none bg-white"
+                    className="w-full h-full border-none bg-white"
                   />
                 ) : (
                   <img
                     src={currentVideoNotice.imageUrl}
                     alt={currentVideoNotice.title}
-                    className="max-h-[56vh] w-auto max-w-full object-contain rounded-2xl drop-shadow-lg"
+                    className="w-full h-full object-cover"
                   />
                 )}
               </div>
 
               {/* Riquadro Turno Chiamato in Sala */}
               <div
-                className={`w-full lg:w-[420px] rounded-3xl border-4 border-white px-6 py-8 transition-all duration-500 flex flex-col items-center justify-center shadow-2xl shrink-0 ${
+                className={`w-full lg:w-[420px] rounded-[2.5rem] border-4 border-white px-6 py-8 transition-all duration-500 flex flex-col items-center justify-center shadow-2xl shrink-0 ${
                   flashActive ? 'bg-emerald-600 scale-[1.02]' : 'bg-emerald-800/95'
                 }`}
               >
