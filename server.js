@@ -680,23 +680,29 @@ const server = http.createServer(async (req, res) => {
       ? 'no-cache, no-store, must-revalidate, max-age=0'
       : 'public, max-age=86400, stale-while-revalidate=604800';
 
+    function makeHeaders(isGzip) {
+      const h = {
+        'Content-Type': contentType,
+        'Cache-Control': cacheControl,
+      };
+      if (isGzip) {
+        h['Content-Encoding'] = 'gzip';
+      }
+      if (isNoCache) {
+        h['Pragma'] = 'no-cache';
+        h['Expires'] = '0';
+      }
+      return h;
+    }
+
     const cached = isNoCache ? null : staticCache.get(filePath);
     if (cached && stats && cached.mtimeMs === stats.mtimeMs) {
       if (canGzip && cached.gzipped) {
-        res.writeHead(200, {
-          'Content-Type': contentType,
-          'Content-Encoding': 'gzip',
-          'Cache-Control': cacheControl,
-          Pragma: isNoCache ? 'no-cache' : undefined,
-        });
+        res.writeHead(200, makeHeaders(true));
         res.end(cached.gzipped);
         return;
       }
-      res.writeHead(200, {
-        'Content-Type': contentType,
-        'Cache-Control': cacheControl,
-        Pragma: isNoCache ? 'no-cache' : undefined,
-      });
+      res.writeHead(200, makeHeaders(false));
       res.end(cached.raw);
       return;
     }
@@ -714,19 +720,10 @@ const server = http.createServer(async (req, res) => {
             staticCache.set(filePath, { mtimeMs, raw: content, gzipped: gzErr ? null : gzipped });
           }
           if (canGzip && !gzErr) {
-            res.writeHead(200, {
-              'Content-Type': contentType,
-              'Content-Encoding': 'gzip',
-              'Cache-Control': cacheControl,
-              Pragma: isNoCache ? 'no-cache' : undefined,
-            });
+            res.writeHead(200, makeHeaders(true));
             res.end(gzipped);
           } else {
-            res.writeHead(200, {
-              'Content-Type': contentType,
-              'Cache-Control': cacheControl,
-              Pragma: isNoCache ? 'no-cache' : undefined,
-            });
+            res.writeHead(200, makeHeaders(false));
             res.end(content);
           }
         });
@@ -734,11 +731,7 @@ const server = http.createServer(async (req, res) => {
         if (!isNoCache) {
           staticCache.set(filePath, { mtimeMs, raw: content, gzipped: null });
         }
-        res.writeHead(200, {
-          'Content-Type': contentType,
-          'Cache-Control': cacheControl,
-          Pragma: isNoCache ? 'no-cache' : undefined,
-        });
+        res.writeHead(200, makeHeaders(false));
         res.end(content);
       }
     });
