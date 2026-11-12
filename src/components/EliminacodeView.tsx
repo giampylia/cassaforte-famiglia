@@ -2662,10 +2662,11 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 {/* Riquadro contornato di bianco: l'immagine si adatta e riempie tutto lo spazio disponibile */}
                 <div className="relative w-full h-full rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white bg-black flex items-center justify-center p-0">
                   {(() => {
-                    const isPdf = Boolean(currentVideoNotice.imageUrl?.toLowerCase().endsWith('.pdf'));
-                    const hasFailed = Boolean(imgErrors[currentVideoNotice.id]);
+                    const imgUrl = String(currentVideoNotice?.imageUrl || '').trim();
+                    const isPdf = imgUrl.toLowerCase().endsWith('.pdf');
+                    const hasFailed = Boolean(currentVideoNotice?.id && imgErrors[currentVideoNotice.id]);
 
-                    if (hasFailed || !currentVideoNotice.imageUrl) {
+                    if (hasFailed || !imgUrl) {
                       return (
                         <div className="w-full h-full bg-gradient-to-br from-emerald-950 via-teal-900 to-emerald-900 flex flex-col items-center justify-center p-8 text-center">
                           <img

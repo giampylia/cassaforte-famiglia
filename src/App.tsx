@@ -441,11 +441,60 @@ const MainRouter: React.FC = () => {
   );
 };
 
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: any) {
+    console.error('App Error caught by ErrorBoundary:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-900 p-6 text-white text-center font-sans">
+          <div className="max-w-md w-full bg-slate-800 border-2 border-emerald-500 rounded-3xl p-6 shadow-2xl space-y-4">
+            <img src="/q3-icon-192.png?v=8" alt="Q3" className="w-16 h-16 mx-auto rounded-2xl bg-white p-1" />
+            <h2 className="text-xl font-bold text-white">Ripristino Applicazione Q3</h2>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              È stato rilevato un problema temporaneo di caricamento. Clicca il pulsante in basso per ripristinare e accedere al Portale.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  localStorage.removeItem('quartimbra_active_section');
+                } catch {}
+                window.location.reload();
+              }}
+              className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 text-sm transition cursor-pointer"
+            >
+              Riavvia Portale Q3
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function App() {
   return (
-    <AppProvider>
-      <MainRouter />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <MainRouter />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
 

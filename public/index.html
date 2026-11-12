@@ -15,7 +15,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#112825" />
     <link rel="manifest" href="/q3.webmanifest?v=8" />
-    <link rel="preload" href="/app.bundle.js?v=39" as="script" crossorigin />
+    <link rel="preload" href="/app.bundle.js?v=40" as="script" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -36,42 +36,49 @@
         }
       };
     </script>
-    <link rel="stylesheet" href="/app.bundle.css?v=39" />
+    <link rel="stylesheet" href="/app.bundle.css?v=40" />
+    <script>
+      window.addEventListener('error', function(e) {
+        console.error('App load error:', e.error || e.message);
+        var errBox = document.getElementById('q3-load-error-box');
+        if (!errBox) {
+          errBox = document.createElement('div');
+          errBox.id = 'q3-load-error-box';
+          errBox.style.cssText = 'position:fixed;bottom:24px;left:20px;right:20px;max-width:480px;margin:0 auto;background:#fff;border:2px solid #ef4444;border-radius:18px;padding:18px;box-shadow:0 20px 40px rgba(0,0,0,0.35);z-index:999999;font-family:sans-serif;color:#1e293b;text-align:center;';
+          document.body.appendChild(errBox);
+        }
+        errBox.innerHTML = '<div style="font-weight:bold;font-size:16px;color:#b91c1c;margin-bottom:8px;">Ripristino Sessione Necessario</div><div style="font-size:13px;color:#64748b;margin-bottom:14px;">È necessario svuotare la cache locale per completare l\'aggiornamento.</div><button onclick="localStorage.removeItem(\'quartimbra_active_section\');if(\'caches\' in window){caches.keys().then(function(k){k.forEach(function(n){caches.delete(n)})})};location.reload(true);" style="background:#059669;color:#fff;border:none;padding:10px 20px;border-radius:12px;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 4px 12px rgba(5,150,105,0.3);">Ricarica Portale</button>';
+      });
+    </script>
   </head>
   <body class="antialiased selection:bg-emerald-600 selection:text-white" style="background-color: #f8fafc; margin: 0;">
     <div id="root">
       <!-- Splash istantaneo su sfondo unico verde #112825 senza riquadri -->
-      <div style="min-height: 100vh; width: 100%; display: flex; align-items: center; justify-content: center; background-color: #112825;">
+      <div style="min-height: 100vh; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #112825; color: #fff; font-family: sans-serif;">
         <img src="/q3-icon-512.png?v=8" alt="Q3" style="width: 180px; height: 180px; object-fit: contain; display: block;" />
+        <div id="splash-emergency-btn" style="display: none; margin-top: 28px;">
+          <button
+            type="button"
+            onclick="localStorage.removeItem('quartimbra_active_section');if('caches' in window){caches.keys().then(function(k){k.forEach(function(n){caches.delete(n)})})};location.reload(true);"
+            style="background: #059669; color: #fff; border: 2px solid #34d399; padding: 12px 24px; border-radius: 14px; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.4);"
+          >
+            Entra nel Portale Q3
+          </button>
+        </div>
       </div>
     </div>
-    <script type="module" src="/app.bundle.js?v=39"></script>
+    <script>
+      // Mostra pulsante di ripristino se React dovesse impiegare più di 2.5s a montarsi
+      setTimeout(function() {
+        var btn = document.getElementById('splash-emergency-btn');
+        if (btn) btn.style.display = 'block';
+      }, 2500);
+    </script>
+    <script type="module" src="/app.bundle.js?v=40"></script>
     <script>
       if ('serviceWorker' in navigator) {
-        let refreshing = false;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (!refreshing) {
-            refreshing = true;
-            window.location.reload();
-          }
-        });
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js?v=39').then((reg) => {
-            reg.update();
-            if (reg.waiting) {
-              reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-            }
-            reg.addEventListener('updatefound', () => {
-              const newWorker = reg.installing;
-              if (newWorker) {
-                newWorker.addEventListener('statechange', () => {
-                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    newWorker.postMessage({ type: 'SKIP_WAITING' });
-                  }
-                });
-              }
-            });
-          }).catch(() => {});
+          navigator.serviceWorker.register('/sw.js?v=40').catch(() => {});
         });
       }
     </script>

@@ -3,7 +3,7 @@
   "private": true,
   "version": "2.0.0",
   "scripts": {
-    "build": "./node_modules/@esbuild/darwin-x64/bin/esbuild src/main.tsx --bundle --outfile=public/app.bundle.js --format=esm --target=es2020 --loader:.tsx=tsx --loader:.ts=ts --loader:.css=css --minify",
+    "build": "./node_modules/@esbuild/darwin-x64/bin/esbuild src/main.tsx --bundle --outfile=public/app.bundle.js --format=esm --target=es2018 --loader:.tsx=tsx --loader:.ts=ts --loader:.css=css --minify",
     "dev": "npm run build && node server.js",
     "start": "node server.js",
     "preview": "node server.js"
