@@ -11,6 +11,7 @@ import {
   Monitor,
   Tv,
   BookOpen,
+  RotateCw,
 } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { getMemberParts, isProtectedSegreteriaMember } from './data/initialData';
@@ -37,6 +38,24 @@ const MainRouter: React.FC = () => {
   } = useApp();
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+  const forceAppUpdate = () => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        for (const reg of regs) {
+          reg.unregister();
+        }
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then((names) => {
+        for (const name of names) {
+          caches.delete(name);
+        }
+      });
+    }
+    window.location.reload();
+  };
 
   // Permette di aprire direttamente lo schermo del Monitor Sala d'Attesa tramite /monitor, /sala o ?monitor=eliminacode senza login
   const isDirectMonitorUrl =
@@ -194,9 +213,14 @@ const MainRouter: React.FC = () => {
           <div className="space-y-5">
             {/* Riepilogo Utente essenziale con UN SOLO RUOLO indicato chiaramente */}
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3.5 space-y-1">
-              <p className="text-sm font-medium text-slate-900 leading-snug">
-                {currentUser.full_name}
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-slate-900 leading-snug">
+                  {currentUser.full_name}
+                </p>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300">
+                  v38
+                </span>
+              </div>
               <p className="text-xs font-normal text-slate-600">
                 Tessera N° {currentUser.member_number} · Sede {currentUser.sede}
               </p>
@@ -252,7 +276,16 @@ const MainRouter: React.FC = () => {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100">
+          <div className="pt-4 border-t border-slate-100 space-y-2">
+            <button
+              type="button"
+              onClick={forceAppUpdate}
+              className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 py-2 text-xs font-medium text-slate-600 transition"
+              title="Svuota la cache e aggiorna l'app all'ultima versione"
+            >
+              <RotateCw className="h-3.5 w-3.5" />
+              <span>Forza Aggiornamento (v38)</span>
+            </button>
             <button
               type="button"
               onClick={signOut}
@@ -295,9 +328,14 @@ const MainRouter: React.FC = () => {
 
                 {/* Riepilogo Utente con UN SOLO RUOLO identico al PC */}
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 space-y-1">
-                  <p className="text-sm font-medium text-slate-900 leading-snug">
-                    {currentUser.full_name}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-slate-900 leading-snug">
+                      {currentUser.full_name}
+                    </p>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300">
+                      v38
+                    </span>
+                  </div>
                   <p className="text-xs text-slate-600">
                     Tessera N° {currentUser.member_number} · Sede {currentUser.sede}
                   </p>
@@ -352,17 +390,28 @@ const MainRouter: React.FC = () => {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileDrawerOpen(false);
-                  signOut();
-                }}
-                className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-rose-600 text-white py-3 text-sm font-medium"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Esci dalla sessione</span>
-              </button>
+              <div className="mt-4 space-y-2">
+                <button
+                  type="button"
+                  onClick={forceAppUpdate}
+                  className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-medium text-slate-700 transition"
+                  title="Svuota la cache e aggiorna l'app all'ultima versione"
+                >
+                  <RotateCw className="h-3.5 w-3.5 text-emerald-700" />
+                  <span>Forza Aggiornamento (v38)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileDrawerOpen(false);
+                    signOut();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-600 text-white py-3 text-sm font-medium"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Esci dalla sessione</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

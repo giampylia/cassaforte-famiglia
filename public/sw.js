@@ -1,9 +1,9 @@
-const CACHE_NAME = 'q3-fast-v37';
+const CACHE_NAME = 'q3-fast-v38';
 const CORE_ASSETS = [
   '/',
   '/index.html',
-  '/app.bundle.js?v=37',
-  '/app.bundle.css?v=37',
+  '/app.bundle.js?v=38',
+  '/app.bundle.css?v=38',
   '/q3.webmanifest?v=8',
   '/q3-icon-192.png?v=8',
   '/q3-icon-512.png?v=8',
@@ -12,10 +12,10 @@ const CORE_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)).catch(() => {})
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -24,6 +24,12 @@ self.addEventListener('activate', (event) => {
       Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && (event.data.type === 'SKIP_WAITING' || event.data === 'skipWaiting')) {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', (event) => {

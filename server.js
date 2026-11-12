@@ -669,18 +669,25 @@ const server = http.createServer(async (req, res) => {
     const acceptEncoding = req.headers['accept-encoding'] || '';
     const canGzip = COMPRESSIBLE_EXTS.has(ext) && acceptEncoding.includes('gzip');
 
-    const cacheControl =
-      ext === '.html' || ext === '.webmanifest'
-        ? 'no-cache'
-        : 'public, max-age=86400, stale-while-revalidate=604800';
+    const baseName = path.basename(filePath);
+    const isNoCache =
+      ext === '.html' ||
+      ext === '.webmanifest' ||
+      baseName === 'sw.js' ||
+      baseName === 'index.html';
 
-    const cached = staticCache.get(filePath);
+    const cacheControl = isNoCache
+      ? 'no-cache, no-store, must-revalidate, max-age=0'
+      : 'public, max-age=86400, stale-while-revalidate=604800';
+
+    const cached = isNoCache ? null : staticCache.get(filePath);
     if (cached && stats && cached.mtimeMs === stats.mtimeMs) {
       if (canGzip && cached.gzipped) {
         res.writeHead(200, {
           'Content-Type': contentType,
           'Content-Encoding': 'gzip',
           'Cache-Control': cacheControl,
+          Pragma: isNoCache ? 'no-cache' : undefined,
         });
         res.end(cached.gzipped);
         return;
@@ -688,6 +695,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, {
         'Content-Type': contentType,
         'Cache-Control': cacheControl,
+        Pragma: isNoCache ? 'no-cache' : undefined,
       });
       res.end(cached.raw);
       return;
@@ -702,27 +710,34 @@ const server = http.createServer(async (req, res) => {
       const mtimeMs = stats ? stats.mtimeMs : Date.now();
       if (COMPRESSIBLE_EXTS.has(ext)) {
         zlib.gzip(content, (gzErr, gzipped) => {
-          staticCache.set(filePath, { mtimeMs, raw: content, gzipped: gzErr ? null : gzipped });
+          if (!isNoCache) {
+            staticCache.set(filePath, { mtimeMs, raw: content, gzipped: gzErr ? null : gzipped });
+          }
           if (canGzip && !gzErr) {
             res.writeHead(200, {
               'Content-Type': contentType,
               'Content-Encoding': 'gzip',
               'Cache-Control': cacheControl,
+              Pragma: isNoCache ? 'no-cache' : undefined,
             });
             res.end(gzipped);
           } else {
             res.writeHead(200, {
               'Content-Type': contentType,
               'Cache-Control': cacheControl,
+              Pragma: isNoCache ? 'no-cache' : undefined,
             });
             res.end(content);
           }
         });
       } else {
-        staticCache.set(filePath, { mtimeMs, raw: content, gzipped: null });
+        if (!isNoCache) {
+          staticCache.set(filePath, { mtimeMs, raw: content, gzipped: null });
+        }
         res.writeHead(200, {
           'Content-Type': contentType,
           'Cache-Control': cacheControl,
+          Pragma: isNoCache ? 'no-cache' : undefined,
         });
         res.end(content);
       }
