@@ -37,6 +37,7 @@ import {
 
 export type FontScale = 'normal' | 'large' | 'xlarge';
 export type AppSection =
+  | 'menu'
   | 'presenze'
   | 'piccola_cassa'
   | 'admin_dashboard'
@@ -1036,7 +1037,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
     } catch {}
-    return 'presenze';
+    return 'menu';
   });
 
   // Keep currentUser synchronized with updated roles/CD status in profiles

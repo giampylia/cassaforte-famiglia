@@ -34,6 +34,8 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
     setFontScale,
     voiceEnabled,
     setVoiceEnabled,
+    activeSection,
+    setActiveSection,
   } = useApp();
 
   const [showInstallModal, setShowInstallModal] = useState(false);
@@ -71,15 +73,21 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2">
           {/* Lato Sinistro: Pulsante Menu Laterale (su mobile/tablet) + Nome Utente ben leggibile */}
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            {showMenuButton && onOpenSideMenu ? (
+            {showMenuButton ? (
               <button
                 type="button"
-                onClick={onOpenSideMenu}
-                className="lg:hidden inline-flex items-center gap-1 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-2.5 py-2 text-xs font-medium shadow-xs transition active:scale-95 shrink-0"
-                title="Apri Menu Laterale"
+                onClick={() => {
+                  if (onOpenSideMenu) {
+                    onOpenSideMenu();
+                  } else {
+                    setActiveSection('menu');
+                  }
+                }}
+                className="lg:hidden inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 text-xs font-bold shadow-xs transition active:scale-95 shrink-0"
+                title="Torna al Menu Principale"
               >
                 <Menu className="h-4 w-4" />
-                <span>Menu</span>
+                <span>{activeSection === 'menu' ? 'Menu' : '‹ Menu'}</span>
               </button>
             ) : (
               <img

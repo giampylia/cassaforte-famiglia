@@ -13,6 +13,7 @@ import {
   BookOpen,
   RotateCw,
   Key,
+  Home,
 } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { getMemberParts, isProtectedSegreteriaMember } from './data/initialData';
@@ -41,7 +42,7 @@ const MainRouter: React.FC = () => {
     signOut,
   } = useApp();
 
-  const CURRENT_APP_VERSION = 'v51';
+  const CURRENT_APP_VERSION = 'v52';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
@@ -127,6 +128,12 @@ const MainRouter: React.FC = () => {
   const canSeeAutorizzazioni = isSuperAdmin || currentUser.role === 'admin';
 
   const menuItems = [
+    {
+      key: 'menu' as const,
+      label: 'Home / Menu Tasti',
+      sublabel: 'Dashboard con Tasti Glass',
+      icon: Home,
+    },
     ...(canSeePresenze
       ? [
           {
@@ -310,10 +317,18 @@ const MainRouter: React.FC = () => {
 
         {/* MENU PER SMARTPHONE IN STILE GLASSMORPHISM (SFONDO VERDE SCURO SPLASH + TASTI SEMITRASPARENTI) */}
         <MobileGlassMenu
-          isOpen={mobileDrawerOpen}
-          onClose={() => setMobileDrawerOpen(false)}
+          isOpen={activeSection === 'menu' || mobileDrawerOpen}
+          onClose={() => {
+            setMobileDrawerOpen(false);
+            if (activeSection === 'menu') {
+              setActiveSection('presenze');
+            }
+          }}
           activeSection={activeSection}
-          onSelectSection={(section) => setActiveSection(section)}
+          onSelectSection={(section) => {
+            setActiveSection(section);
+            setMobileDrawerOpen(false);
+          }}
           currentUser={currentUser}
           userRoleLabel={userSingleRoleLabel}
           appVersion={CURRENT_APP_VERSION}
@@ -328,11 +343,16 @@ const MainRouter: React.FC = () => {
           canSeeAvvisiVideo={canSeeAvvisiVideo}
           canSeeEliminacode={canSeeEliminacode}
           canSeeAutorizzazioni={canSeeAutorizzazioni}
+          showCloseButton={mobileDrawerOpen && activeSection !== 'menu'}
         />
 
         {/* Area Contenuto Principale */}
         <div className="flex-1 min-w-0">
-          {activeSection === 'autorizzazioni' && canSeeAutorizzazioni ? (
+          {activeSection === 'menu' ? (
+            <div className="hidden lg:block">
+              <MemberView />
+            </div>
+          ) : activeSection === 'autorizzazioni' && canSeeAutorizzazioni ? (
             <AutorizzazioniView />
           ) : activeSection === 'eliminacode' && canSeeEliminacode ? (
             <EliminacodeView />
