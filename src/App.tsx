@@ -26,6 +26,7 @@ import { EliminacodeView } from './components/EliminacodeView';
 import { AvvisiVideoView } from './components/AvvisiVideoView';
 import { BibliotecaView } from './components/BibliotecaView';
 import { AutorizzazioniView } from './components/AutorizzazioniView';
+import { MobileGlassMenu } from './components/MobileGlassMenu';
 
 const MainRouter: React.FC = () => {
   const {
@@ -40,7 +41,7 @@ const MainRouter: React.FC = () => {
     signOut,
   } = useApp();
 
-  const CURRENT_APP_VERSION = 'v50';
+  const CURRENT_APP_VERSION = 'v51';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
@@ -307,125 +308,27 @@ const MainRouter: React.FC = () => {
           </div>
         </aside>
 
-        {/* DRAWER MENU LATERALE A SCOMPARSA SU SMARTPHONE (Quando si tocca "☰ Menu" in alto a sinistra) */}
-        {mobileDrawerOpen && (
-          <div className="fixed inset-0 z-50 flex">
-            <div
-              className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"
-              onClick={() => setMobileDrawerOpen(false)}
-            />
-            <div className="relative z-10 w-80 max-w-[88vw] bg-white h-full p-4 flex flex-col justify-between shadow-2xl overflow-y-auto">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <img
-                      src="/q3-icon-512.png?v=8"
-                      alt="Q3"
-                      className="h-8 w-8 rounded-lg border border-slate-200"
-                    />
-                    <span className="text-base font-medium text-slate-900">
-                      Menu Principale
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setMobileDrawerOpen(false)}
-                    className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-
-                {/* Riepilogo Utente con UN SOLO RUOLO identico al PC */}
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-slate-900 leading-snug">
-                      {currentUser.full_name}
-                    </p>
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300">
-                      {CURRENT_APP_VERSION}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600">
-                    Tessera N° {currentUser.member_number} · Sede {currentUser.sede}
-                  </p>
-                  <div className="flex items-center gap-1.5 pt-1 text-xs font-medium text-emerald-800">
-                    <ShieldCheck className="h-4 w-4 text-emerald-700 shrink-0" />
-                    <span>Ruolo nell&apos;app: {userSingleRoleLabel}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <p className="px-2 text-[11px] font-medium uppercase tracking-wider text-slate-400">
-                    Menu Principale
-                  </p>
-                  {menuItems.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = activeSection === item.key;
-                    return (
-                      <button
-                        key={item.key}
-                        type="button"
-                        onClick={() => {
-                          setActiveSection(item.key);
-                          setMobileDrawerOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between gap-2.5 rounded-2xl px-3.5 py-3 text-left transition border ${
-                          isActive
-                            ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
-                            : 'bg-slate-50 text-slate-700 border-slate-200'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Icon
-                            className={`h-5 w-5 shrink-0 ${
-                              isActive ? 'text-white' : 'text-emerald-700'
-                            }`}
-                          />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium leading-snug">{item.label}</p>
-                            <p
-                              className={`text-xs font-normal leading-snug ${
-                                isActive ? 'text-emerald-100' : 'text-slate-500'
-                              }`}
-                            >
-                              {item.sublabel}
-                            </p>
-                          </div>
-                        </div>
-                        <ChevronRight className="h-4 w-4 shrink-0" />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-2">
-                <button
-                  type="button"
-                  onClick={forceAppUpdate}
-                  disabled={isUpdatingApp}
-                  className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-medium text-slate-700 transition cursor-pointer active:scale-95 disabled:opacity-60"
-                  title="Svuota la cache e aggiorna l'app all'ultima versione"
-                >
-                  <RotateCw className={`h-3.5 w-3.5 text-emerald-700 ${isUpdatingApp ? 'animate-spin' : ''}`} />
-                  <span>{isUpdatingApp ? 'Aggiornamento in corso...' : `Forza Aggiornamento (${CURRENT_APP_VERSION})`}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileDrawerOpen(false);
-                    signOut();
-                  }}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-600 text-white py-3 text-sm font-medium"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Esci dalla sessione</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* MENU PER SMARTPHONE IN STILE GLASSMORPHISM (SFONDO VERDE SCURO SPLASH + TASTI SEMITRASPARENTI) */}
+        <MobileGlassMenu
+          isOpen={mobileDrawerOpen}
+          onClose={() => setMobileDrawerOpen(false)}
+          activeSection={activeSection}
+          onSelectSection={(section) => setActiveSection(section)}
+          currentUser={currentUser}
+          userRoleLabel={userSingleRoleLabel}
+          appVersion={CURRENT_APP_VERSION}
+          isUpdatingApp={isUpdatingApp}
+          onForceUpdate={forceAppUpdate}
+          onSignOut={signOut}
+          canSeePresenze={canSeePresenze}
+          canSeeTimbratureAule={canSeeTimbratureAule}
+          canSeeAnagraficaSoci={canSeeAnagraficaSoci}
+          canSeePiccolaCassa={canSeePiccolaCassa}
+          canSeeBiblioteca={canSeeBiblioteca}
+          canSeeAvvisiVideo={canSeeAvvisiVideo}
+          canSeeEliminacode={canSeeEliminacode}
+          canSeeAutorizzazioni={canSeeAutorizzazioni}
+        />
 
         {/* Area Contenuto Principale */}
         <div className="flex-1 min-w-0">
