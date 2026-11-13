@@ -14,16 +14,19 @@ import {
   Tv,
   Monitor,
   Key,
+  Globe,
 } from 'lucide-react';
 import { useApp, AppSection, FontScale } from '../context/AppContext';
 import { Profile } from '../data/initialData';
 
 interface MenuItemConfig {
-  key: AppSection;
+  key: string;
   label: string;
   shortLabel: string;
   sublabel: string;
   icon: React.ComponentType<{ className?: string }>;
+  isExternal?: boolean;
+  url?: string;
 }
 
 interface MobileGlassMenuProps {
@@ -199,6 +202,15 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
           },
         ]
       : []),
+    {
+      key: 'sito_qu3',
+      label: 'Sito Qu3',
+      shortLabel: 'SITO QU3',
+      sublabel: 'www.univerquartu.it',
+      icon: Globe,
+      isExternal: true,
+      url: 'https://www.univerquartu.it',
+    },
   ];
 
   return (
@@ -256,7 +268,14 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
                   key={item.key}
                   type="button"
                   onClick={() => {
-                    onSelectSection(item.key);
+                    if (item.isExternal && item.url) {
+                      const w = window.open(item.url, '_blank', 'noopener,noreferrer');
+                      if (!w) {
+                        window.location.href = item.url;
+                      }
+                    } else {
+                      onSelectSection(item.key as AppSection);
+                    }
                   }}
                   className={`group relative aspect-square rounded-3xl transition-all duration-200 active:scale-95 flex flex-col items-center justify-center p-2 text-center cursor-pointer select-none shadow-xl ${
                     isActive

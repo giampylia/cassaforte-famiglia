@@ -14,6 +14,8 @@ import {
   RotateCw,
   Key,
   Home,
+  Globe,
+  ExternalLink,
 } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { getMemberParts, isProtectedSegreteriaMember } from './data/initialData';
@@ -42,7 +44,7 @@ const MainRouter: React.FC = () => {
     signOut,
   } = useApp();
 
-  const CURRENT_APP_VERSION = 'v56';
+  const CURRENT_APP_VERSION = 'v57';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
@@ -216,6 +218,14 @@ const MainRouter: React.FC = () => {
           },
         ]
       : []),
+    {
+      key: 'sito_qu3' as const,
+      label: 'Sito Qu3',
+      sublabel: 'www.univerquartu.it',
+      icon: Globe,
+      isExternal: true,
+      url: 'https://www.univerquartu.it',
+    },
   ];
 
   return (
@@ -260,7 +270,16 @@ const MainRouter: React.FC = () => {
                   <button
                     key={item.key}
                     type="button"
-                    onClick={() => setActiveSection(item.key)}
+                    onClick={() => {
+                      if ('isExternal' in item && item.isExternal && item.url) {
+                        const w = window.open(item.url, '_blank', 'noopener,noreferrer');
+                        if (!w) {
+                          window.location.href = item.url;
+                        }
+                      } else {
+                        setActiveSection(item.key as AppSection);
+                      }
+                    }}
                     className={`w-full flex items-center justify-between gap-2.5 rounded-2xl px-3.5 py-3 text-left transition border ${
                       isActive
                         ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
@@ -284,11 +303,19 @@ const MainRouter: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <ChevronRight
-                      className={`h-4 w-4 shrink-0 ${
-                        isActive ? 'text-white' : 'text-slate-400'
-                      }`}
-                    />
+                    {'isExternal' in item && item.isExternal ? (
+                      <ExternalLink
+                        className={`h-4 w-4 shrink-0 ${
+                          isActive ? 'text-white' : 'text-slate-400'
+                        }`}
+                      />
+                    ) : (
+                      <ChevronRight
+                        className={`h-4 w-4 shrink-0 ${
+                          isActive ? 'text-white' : 'text-slate-400'
+                        }`}
+                      />
+                    )}
                   </button>
                 );
               })}
