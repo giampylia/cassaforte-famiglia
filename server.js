@@ -238,7 +238,7 @@ function getSeedVideoNotices() {
   ];
 }
 
-const SEED_TIMESTAMP = 1000000; // Fixed timestamp in the past (epoch) so seed data never overwrites user data
+const SEED_TIMESTAMP = 1000; // Past epoch timestamp so seed/default data NEVER overwrites real user data
 
 function loadDb() {
   try {
@@ -608,6 +608,19 @@ const server = http.createServer(async (req, res) => {
         const existingDb = loadDb();
         const incomingDb = { ...existingDb, ...body.db };
 
+        if (Array.isArray(body.db.movements) && !Array.isArray(body.db.cashMovements)) {
+          incomingDb.cashMovements = body.db.movements;
+        }
+        if (typeof body.db.openingBalance === 'number' && typeof body.db.cashOpeningBalance !== 'number') {
+          incomingDb.cashOpeningBalance = body.db.openingBalance;
+        }
+        if (Array.isArray(body.db.categories) && !Array.isArray(body.db.expenseCategories)) {
+          incomingDb.expenseCategories = body.db.categories;
+        }
+        if (body.db.updatedAt && !body.db.cashUpdatedAt) {
+          incomingDb.cashUpdatedAt = body.db.updatedAt;
+        }
+
         if (existingDb) {
           // Protezione Anagrafica Soci e Ruoli: non sovrascrivere mai con dati più vecchi o con i 20 soci demo
           const existingProfTs = Number(existingDb.profilesUpdatedAt || 0);
@@ -831,18 +844,34 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       if (body) {
         const existingDb = loadDb() || {};
-        const incomingTs = Number(body.cashUpdatedAt || Date.now());
+        const incomingMovements = Array.isArray(body.cashMovements)
+          ? body.cashMovements
+          : Array.isArray(body.movements)
+          ? body.movements
+          : null;
+        const incomingBalance =
+          typeof body.cashOpeningBalance === 'number'
+            ? body.cashOpeningBalance
+            : typeof body.openingBalance === 'number'
+            ? body.openingBalance
+            : null;
+        const incomingCats = Array.isArray(body.expenseCategories)
+          ? body.expenseCategories
+          : Array.isArray(body.categories)
+          ? body.categories
+          : null;
+        const incomingTs = Number(body.cashUpdatedAt || body.updatedAt || Date.now());
         const existingTs = Number(existingDb.cashUpdatedAt || 0);
 
         if (incomingTs >= existingTs || !Array.isArray(existingDb.cashMovements)) {
-          if (Array.isArray(body.cashMovements)) {
-            existingDb.cashMovements = body.cashMovements;
+          if (incomingMovements !== null) {
+            existingDb.cashMovements = incomingMovements;
           }
-          if (typeof body.cashOpeningBalance === 'number') {
-            existingDb.cashOpeningBalance = body.cashOpeningBalance;
+          if (incomingBalance !== null) {
+            existingDb.cashOpeningBalance = incomingBalance;
           }
-          if (Array.isArray(body.expenseCategories)) {
-            existingDb.expenseCategories = body.expenseCategories;
+          if (incomingCats !== null) {
+            existingDb.expenseCategories = incomingCats;
           }
           existingDb.cashUpdatedAt = incomingTs;
           existingDb.updatedAt = new Date().toISOString();
@@ -934,7 +963,8 @@ const server = http.createServer(async (req, res) => {
       } catch {}
 
       const localUrl = `/uploads/avvisi/${safeName}`;
-      const finalUrl = driveUrl || localUrl;
+      // Se driveUrl non è disponibile, salva il dataUrl inline così non si perde mai al riavvio del container
+      const finalUrl = driveUrl || (fileData.startsWith('data:') ? fileData : localUrl);
 
       sendJson(res, 200, {
         ok: true,

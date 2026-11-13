@@ -552,6 +552,37 @@ function isCustomizedProfiles(list: Profile[]): boolean {
   return false;
 }
 
+// Verifica se un catalogo libri contiene libri inseriti o modificati dall'utente rispetto agli 8 demo
+function isCustomizedLibraryBooks(books: LibraryBook[]): boolean {
+  if (!Array.isArray(books) || books.length === 0) return false;
+  if (books.length !== 8) return true;
+  const seedIds = new Set(['book-1', 'book-2', 'book-3', 'book-4', 'book-5', 'book-6', 'book-7', 'book-8']);
+  return books.some((b) => !seedIds.has(b.id));
+}
+
+// Verifica se gli avvisi video contengono avvisi con immagini caricate dall'utente o diversi dai demo
+function isCustomizedVideoNotices(notices: VideoNotice[]): boolean {
+  if (!Array.isArray(notices) || notices.length === 0) return false;
+  if (notices.length !== 2) return true;
+  const seedIds = new Set(['vn-1', 'vn-2']);
+  return notices.some((n) => !seedIds.has(n.id) || (n.imageUrl && !n.imageUrl.startsWith('/assets/')));
+}
+
+// Riconciliazione movimenti di cassa: protegge i pagamenti già effettuati in locale dal regredire ad "in attesa"
+function reconcileCashMovements(localList: CashMovement[], remoteList: CashMovement[]): CashMovement[] {
+  if (!Array.isArray(remoteList) || remoteList.length === 0) return localList;
+  if (!Array.isArray(localList) || localList.length === 0) return remoteList;
+
+  const localMap = new Map(localList.map((m) => [m.id, m]));
+  return remoteList.map((remoteM) => {
+    const localM = localMap.get(remoteM.id);
+    if (localM && localM.status === 'pagato' && remoteM.status !== 'pagato') {
+      return localM;
+    }
+    return remoteM;
+  });
+}
+
 // 7726 (e 7796) corrisponde SEMPRE ed ESCLUSIVAMENTE a Giampiero Pilia (Super Admin indistruttibile)
 function normalizeSuperAdminProfile(p?: Partial<Profile> | null): Profile {
   const base = INITIAL_PROFILES[0]; // 7726 Giampiero Pilia
@@ -1419,14 +1450,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         safeSetLocalStorage(STORAGE_KEYS.CATEGORIES, JSON.stringify(db.expenseCategories));
       }
       if (Array.isArray(db.cashMovements)) {
-        setCashMovements(db.cashMovements);
-        cashMovementsRef.current = db.cashMovements;
-        safeSetLocalStorage(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(db.cashMovements));
+        const mergedMovements = reconcileCashMovements(cashMovementsRef.current, db.cashMovements);
+        setCashMovements(mergedMovements);
+        cashMovementsRef.current = mergedMovements;
+        safeSetLocalStorage(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(mergedMovements));
       }
       if (typeof db.cashOpeningBalance === 'number') {
-        setCashOpeningBalanceState(db.cashOpeningBalance);
-        cashOpeningBalanceRef.current = db.cashOpeningBalance;
-        safeSetLocalStorage(STORAGE_KEYS.CASH_BALANCE, String(db.cashOpeningBalance));
+        const localBal = cashOpeningBalanceRef.current;
+        if (localBal !== 500 && db.cashOpeningBalance === 500 && localCashTs > 0) {
+          shouldPushBackLocalProtected = true;
+        } else {
+          setCashOpeningBalanceState(db.cashOpeningBalance);
+          cashOpeningBalanceRef.current = db.cashOpeningBalance;
+          safeSetLocalStorage(STORAGE_KEYS.CASH_BALANCE, String(db.cashOpeningBalance));
+        }
       }
       if (remoteCashTs > 0) {
         setCashUpdatedAt(remoteCashTs);
@@ -1434,9 +1471,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         safeSetLocalStorage(STORAGE_KEYS.CASH_TS, String(remoteCashTs));
       }
       saveCashDataToIndexedDB({
-        movements: Array.isArray(db.cashMovements) ? db.cashMovements : cashMovementsRef.current,
-        openingBalance: typeof db.cashOpeningBalance === 'number' ? db.cashOpeningBalance : cashOpeningBalanceRef.current,
-        categories: Array.isArray(db.expenseCategories) ? db.expenseCategories : expenseCategoriesRef.current,
+        movements: cashMovementsRef.current,
+        openingBalance: cashOpeningBalanceRef.current,
+        categories: expenseCategoriesRef.current,
         updatedAt: remoteCashTs || Date.now(),
       });
     } else if (localCashTs > remoteCashTs) {
@@ -1462,7 +1499,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const remoteVnTs = Number(db.videoNoticesUpdatedAt || 0);
     const localVnTs = videoNoticesUpdatedAtRef.current;
-    if (remoteVnTs > localVnTs) {
+    const localCustomVn = isCustomizedVideoNotices(videoNoticesRef.current);
+    const remoteCustomVn = Array.isArray(db.videoNotices) ? isCustomizedVideoNotices(db.videoNotices) : false;
+
+    if (remoteCustomVn && remoteVnTs >= localVnTs) {
       if (Array.isArray(db.videoNotices)) {
         videoNoticesRef.current = db.videoNotices;
         setVideoNotices(db.videoNotices);
@@ -1474,16 +1514,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setVideoNoticesUpdatedAt(remoteVnTs);
         safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES_TS, String(remoteVnTs));
       }
-    } else if (localVnTs > remoteVnTs && Array.isArray(videoNoticesRef.current)) {
+    } else if (localCustomVn && (!remoteCustomVn || localVnTs > remoteVnTs)) {
       shouldPushBackLocalProtected = true;
+    } else if (!localCustomVn && remoteVnTs > localVnTs && Array.isArray(db.videoNotices) && db.videoNotices.length > 0) {
+      videoNoticesRef.current = db.videoNotices;
+      setVideoNotices(db.videoNotices);
+      safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES, JSON.stringify(db.videoNotices));
+      saveVideoNoticesToIndexedDB(db.videoNotices, remoteVnTs || Date.now());
+      if (remoteVnTs > 0) {
+        videoNoticesUpdatedAtRef.current = remoteVnTs;
+        setVideoNoticesUpdatedAt(remoteVnTs);
+        safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES_TS, String(remoteVnTs));
+      }
     }
 
     const remoteLbTs = Number(db.libraryBooksUpdatedAt || 0);
     const localLbTs = libraryBooksUpdatedAtRef.current;
-    if (
-      remoteLbTs > localLbTs ||
-      (localLbTs === 0 && Array.isArray(db.libraryBooks) && db.libraryBooks.length > 0)
-    ) {
+    const localCustomLb = isCustomizedLibraryBooks(libraryBooksRef.current);
+    const remoteCustomLb = Array.isArray(db.libraryBooks) ? isCustomizedLibraryBooks(db.libraryBooks) : false;
+
+    if (remoteCustomLb && remoteLbTs >= localLbTs) {
       if (Array.isArray(db.libraryBooks)) {
         libraryBooksRef.current = db.libraryBooks;
         setLibraryBooks(db.libraryBooks);
@@ -1495,8 +1545,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLibraryBooksUpdatedAt(remoteLbTs);
         safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS_TS, String(remoteLbTs));
       }
-    } else if (localLbTs > remoteLbTs && Array.isArray(libraryBooksRef.current) && libraryBooksRef.current.length > 0) {
+    } else if (localCustomLb && (!remoteCustomLb || localLbTs > remoteLbTs)) {
       shouldPushBackLocalProtected = true;
+    } else if (!localCustomLb && (remoteLbTs > localLbTs || (localLbTs === 0 && Array.isArray(db.libraryBooks) && db.libraryBooks.length > 0))) {
+      if (Array.isArray(db.libraryBooks)) {
+        libraryBooksRef.current = db.libraryBooks;
+        setLibraryBooks(db.libraryBooks);
+        safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS, JSON.stringify(db.libraryBooks));
+        saveLibraryBooksToIndexedDB(db.libraryBooks, remoteLbTs || Date.now());
+      }
+      if (remoteLbTs > 0) {
+        libraryBooksUpdatedAtRef.current = remoteLbTs;
+        setLibraryBooksUpdatedAt(remoteLbTs);
+        safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS_TS, String(remoteLbTs));
+      }
     }
 
     const remotePermsTs = Number(db.rolePermissionsUpdatedAt || 0);
@@ -1587,9 +1649,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   useEffect(() => {
-    // 1) Ripristino immediato da IndexedDB (nel caso in cui l'Anagrafica Soci avesse molti soci oltre la capienza di localStorage)
-    loadAnagraficaFromIndexedDB()
-      .then((idbData) => {
+    let isCancelled = false;
+
+    async function initHydration() {
+      // 1) Attendi il completamento di tutti i recuperi locali da IndexedDB
+      try {
+        const [idbData, idbBooks, idbCash, idbVn, idbPerms] = await Promise.all([
+          loadAnagraficaFromIndexedDB(),
+          loadLibraryBooksFromIndexedDB(),
+          loadCashDataFromIndexedDB(),
+          loadVideoNoticesFromIndexedDB(),
+          loadRolePermissionsFromIndexedDB(),
+        ]);
+
+        if (isCancelled) return;
+
+        // Anagrafica
         if (idbData && Array.isArray(idbData.profiles) && idbData.profiles.length > 0) {
           const idbCustom = isCustomizedProfiles(idbData.profiles);
           const curCustom = isCustomizedProfiles(profilesRef.current);
@@ -1630,15 +1705,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             profilesUpdatedAtRef.current || Date.now()
           );
         }
-      })
-      .catch(() => {});
 
-    // Ripristino Libri Biblioteca da IndexedDB
-    loadLibraryBooksFromIndexedDB()
-      .then((idbBooks) => {
+        // Libri Biblioteca
         if (idbBooks && Array.isArray(idbBooks.books) && idbBooks.books.length > 0) {
           const idbTs = Number(idbBooks.updatedAt || 0);
-          if (idbTs > libraryBooksUpdatedAtRef.current || libraryBooksRef.current.length === 0) {
+          if (
+            idbTs > libraryBooksUpdatedAtRef.current ||
+            libraryBooksRef.current.length === 0 ||
+            isCustomizedLibraryBooks(idbBooks.books)
+          ) {
             libraryBooksRef.current = idbBooks.books;
             libraryBooksUpdatedAtRef.current = idbTs;
             setLibraryBooks(idbBooks.books);
@@ -1647,19 +1722,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS_TS, String(idbTs));
           }
         }
-      })
-      .catch(() => {});
 
-    // Ripristino Piccola Cassa da IndexedDB
-    loadCashDataFromIndexedDB()
-      .then((idbCash) => {
+        // Piccola Cassa
         if (idbCash) {
           const idbTs = Number(idbCash.updatedAt || 0);
-          if (idbTs > cashUpdatedAtRef.current) {
+          if (
+            idbTs > cashUpdatedAtRef.current ||
+            (Array.isArray(idbCash.movements) && idbCash.movements.some((m) => m.status === 'pagato'))
+          ) {
             if (Array.isArray(idbCash.movements)) {
-              cashMovementsRef.current = idbCash.movements;
-              setCashMovements(idbCash.movements);
-              safeSetLocalStorage(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(idbCash.movements));
+              const merged = reconcileCashMovements(cashMovementsRef.current, idbCash.movements);
+              cashMovementsRef.current = merged;
+              setCashMovements(merged);
+              safeSetLocalStorage(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(merged));
             }
             if (typeof idbCash.openingBalance === 'number') {
               cashOpeningBalanceRef.current = idbCash.openingBalance;
@@ -1671,20 +1746,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               setExpenseCategories(idbCash.categories);
               safeSetLocalStorage(STORAGE_KEYS.CATEGORIES, JSON.stringify(idbCash.categories));
             }
-            cashUpdatedAtRef.current = idbTs;
-            setCashUpdatedAt(idbTs);
-            safeSetLocalStorage(STORAGE_KEYS.CASH_TS, String(idbTs));
+            const finalCashTs = Math.max(idbTs, cashUpdatedAtRef.current);
+            cashUpdatedAtRef.current = finalCashTs;
+            setCashUpdatedAt(finalCashTs);
+            safeSetLocalStorage(STORAGE_KEYS.CASH_TS, String(finalCashTs));
           }
         }
-      })
-      .catch(() => {});
 
-    // Ripristino Avvisi Video da IndexedDB (preserva immagini caricate in alta definizione / base64)
-    loadVideoNoticesFromIndexedDB()
-      .then((idbVn) => {
+        // Avvisi Video
         if (idbVn && Array.isArray(idbVn.notices) && idbVn.notices.length > 0) {
           const idbTs = Number(idbVn.updatedAt || 0);
-          if (idbTs > videoNoticesUpdatedAtRef.current || videoNoticesRef.current.length === 0) {
+          if (
+            idbTs > videoNoticesUpdatedAtRef.current ||
+            videoNoticesRef.current.length === 0 ||
+            isCustomizedVideoNotices(idbVn.notices)
+          ) {
             videoNoticesRef.current = idbVn.notices;
             videoNoticesUpdatedAtRef.current = idbTs;
             setVideoNotices(idbVn.notices);
@@ -1693,12 +1769,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES_TS, String(idbTs));
           }
         }
-      })
-      .catch(() => {});
 
-    // Ripristino Autorizzazioni Ruoli da IndexedDB
-    loadRolePermissionsFromIndexedDB()
-      .then((idbPerms) => {
+        // Autorizzazioni Ruoli
         if (idbPerms && idbPerms.permissions) {
           const idbTs = Number(idbPerms.updatedAt || 0);
           if (idbTs > rolePermissionsUpdatedAtRef.current) {
@@ -1710,13 +1782,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             safeSetLocalStorage(STORAGE_KEYS.ROLE_PERMISSIONS_TS, String(idbTs));
           }
         }
-      })
-      .catch(() => {});
+      } catch (err) {
+        console.warn('Errore idb hydration:', err);
+      }
 
-    // 2) Sincronizzazione con il Cloud Server (/api/state)
-    fetch('/api/state')
-      .then((r) => r.json())
-      .then((data) => {
+      if (isCancelled) return;
+
+      // 2) Sincronizzazione con il Cloud Server (/api/state) SOLO DOPO che la memoria locale è protetta
+      try {
+        const res = await fetch('/api/state');
+        const data = await res.json();
+        if (isCancelled) return;
         setCloudConnected(true);
         if (data.publicUrl) setPublicUrl(data.publicUrl);
         if (typeof data.connectedDevices === 'number') {
@@ -1764,11 +1840,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             updatedAt: new Date().toISOString(),
           });
         }
-      })
-      .catch(() => {
+      } catch {
         hasHydratedRef.current = true;
         setCloudConnected(false);
-      });
+      }
+    }
+
+    initHydration();
 
     let es: EventSource | null = null;
     try {
@@ -1956,6 +2034,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 1800);
 
     return () => {
+      isCancelled = true;
       clearInterval(queuePollTimer);
       if (es) es.close();
       if (broadcastChannelRef.current) broadcastChannelRef.current.close();
@@ -2514,9 +2593,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        cashMovements: nextMovements,
         movements: nextMovements,
+        cashOpeningBalance: finalBalance,
         openingBalance: finalBalance,
+        expenseCategories: finalCats,
         categories: finalCats,
+        cashUpdatedAt: nowTs,
         updatedAt: nowTs,
       }),
     }).catch(() => {});

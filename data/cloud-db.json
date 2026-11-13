@@ -4397,7 +4397,7 @@
       "created_at": "2026-07-05T10:00:00.000Z"
     }
   ],
-  "cashUpdatedAt": 1794524792479,
+  "cashUpdatedAt": 1000,
   "cashOpeningBalance": 500,
   "libraryBooks": [
     {
@@ -4481,5 +4481,34 @@
       "available": true
     }
   ],
-  "libraryBooksUpdatedAt": 1794531786206
+  "libraryBooksUpdatedAt": 1000,
+  "videoNotices": [
+    {
+      "id": "vn-1",
+      "title": "Benvenuti all'Università della Terza Età",
+      "imageUrl": "/assets/aula-verde.png",
+      "tickerText": "★ Benvenuti all'Università della Terza Età di Quartu Sant'Elena — Anno Accademico 2026/2027 — Segreteria aperta dal Lunedì al Venerdì ore 09:00 - 12:00 e 16:00 - 18:30",
+      "durationSec": 7,
+      "transition": "dissolvenza",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "isActive": true,
+      "orderIndex": 0,
+      "createdAt": "2026-10-01T08:00:00.000Z"
+    },
+    {
+      "id": "vn-2",
+      "title": "Avviso Iscrizione Laboratori e Corsi",
+      "imageUrl": "/assets/aula-san-benedetto.png",
+      "tickerText": "★ Sono aperte le iscrizioni ai nuovi laboratori culturali e artistici. Rivolgersi allo sportello segreteria o consultare il registro corsi.",
+      "durationSec": 7,
+      "transition": "dissolvenza",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "isActive": true,
+      "orderIndex": 1,
+      "createdAt": "2026-10-01T08:00:00.000Z"
+    }
+  ],
+  "videoNoticesUpdatedAt": 1000
 }
