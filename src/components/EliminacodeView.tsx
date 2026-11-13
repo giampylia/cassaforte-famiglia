@@ -722,21 +722,25 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
   const quickNameInputRef = useRef<HTMLInputElement | null>(null);
   const lastPlayedPulseRef = useRef<number>(queueState.callPulse || 0);
 
-  // Sblocca automaticamente l'audio al primo tocco o clic su qualsiasi punto della pagina
+  // In modalità Monitor (Smart TV 55 pollici), imposta categoricamente lo sfondo html e body su verde scuro (#064e3b) per evitare bande bianche
   useEffect(() => {
-    const handleFirstInteraction = () => {
-      unlockAudioEngine();
-      setAudioUnlocked(true);
-    };
-    window.addEventListener('click', handleFirstInteraction, { passive: true });
-    window.addEventListener('touchstart', handleFirstInteraction, { passive: true });
-    window.addEventListener('keydown', handleFirstInteraction, { passive: true });
-    return () => {
-      window.removeEventListener('click', handleFirstInteraction);
-      window.removeEventListener('touchstart', handleFirstInteraction);
-      window.removeEventListener('keydown', handleFirstInteraction);
-    };
-  }, []);
+    if (viewMode === 'monitor') {
+      const origBodyBg = document.body.style.backgroundColor;
+      const origHtmlBg = document.documentElement.style.backgroundColor;
+      const origBodyMargin = document.body.style.margin;
+      const origBodyOverflow = document.body.style.overflow;
+      document.body.style.backgroundColor = '#064e3b';
+      document.documentElement.style.backgroundColor = '#064e3b';
+      document.body.style.margin = '0px';
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.backgroundColor = origBodyBg;
+        document.documentElement.style.backgroundColor = origHtmlBg;
+        document.body.style.margin = origBodyMargin;
+        document.body.style.overflow = origBodyOverflow;
+      };
+    }
+  }, [viewMode]);
 
   // Sincronizza il campo "Numero da cui partire" quando cambia il numero attuale
   useEffect(() => {
@@ -2558,106 +2562,30 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
             }
           }
         }}
-        className="fixed inset-0 z-50 flex flex-col justify-between bg-emerald-700 text-white select-none overflow-hidden"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh',
+          minHeight: '100vh',
+          backgroundColor: '#064e3b',
+          zIndex: 99999,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          overflow: 'hidden',
+          margin: 0,
+          padding: 0,
+        }}
+        className="select-none text-white"
       >
-        {/* BARRA SUPERIORE DISCRETA PER CONTROLLI SCHERMO SALA D'ATTESA */}
-        <header className="flex items-center justify-between px-6 py-4 bg-emerald-800/80 border-b border-white/25">
-          <div className="flex items-center gap-3.5">
-            <img
-              src="/logo-associazione-qu3.png?v=15"
-              alt="Logo QU3"
-              className="h-12 w-12 rounded-xl bg-white p-1 object-contain shadow-xs shrink-0"
-            />
-            <div className="flex flex-col text-left">
-              <span className="text-base sm:text-2xl font-bold tracking-tight text-white leading-tight">
-                Università della Terza Età — Quartu Sant&apos;Elena
-              </span>
-              {isStandby && (
-                <span className="text-xs sm:text-sm font-extrabold text-amber-300 tracking-wide mt-0.5">
-                  ● {standbyDisplay.title}
-                </span>
-              )}
-            </div>
-          </div>
+        {/* PARTE ALTA RIMOSSA COME RICHIESTO: L'IMMAGINE ORA OCCUPA QUASI TUTTO LO SCHERMO DELLA TV 55" */}
 
-          <div className="flex items-center gap-2.5">
-            {!audioUnlocked && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  unlockAudioEngine();
-                  setAudioUnlocked(true);
-                  setSoundEnabled(true);
-                  if (!isStandby && queueState.currentNumber > 0) {
-                    playQueueCallChime(queueState.currentNumber, currentItem?.name || '', true);
-                  } else {
-                    playQueueCallChime(1, '', false);
-                  }
-                }}
-                className="flex items-center gap-2 rounded-xl bg-white text-emerald-950 px-4 py-2 text-xs sm:text-sm font-extrabold border-2 border-white shadow-md animate-pulse cursor-pointer"
-              >
-                <Volume2 className="h-4 w-4 text-emerald-700" />
-                <span>Clicca qui per attivare il Suono sul Monitor</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                unlockAudioEngine();
-                setAudioUnlocked(true);
-                const nextVal = !soundEnabled;
-                setSoundEnabled(nextVal);
-                if (nextVal) {
-                  if (!isStandby && queueState.currentNumber > 0) {
-                    playQueueCallChime(queueState.currentNumber, currentItem?.name || '', true);
-                  } else {
-                    playQueueCallChime(1, '', false);
-                  }
-                }
-              }}
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold border transition cursor-pointer ${
-                soundEnabled
-                  ? 'bg-white text-emerald-900 border-white'
-                  : 'bg-emerald-900/70 border-white/40 text-white/80'
-              }`}
-            >
-              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-              <span className="hidden sm:inline">
-                {soundEnabled ? 'Audio Attivo (Prova)' : 'Audio Muto'}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={toggleBrowserFullscreen}
-              className="flex items-center gap-1.5 rounded-xl bg-emerald-900/70 hover:bg-emerald-900 border border-white/40 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white transition cursor-pointer"
-            >
-              {isFullscreen ? (
-                <Minimize2 className="h-4 w-4" />
-              ) : (
-                <Maximize2 className="h-4 w-4" />
-              )}
-              <span className="hidden sm:inline">Tutto Schermo</span>
-            </button>
-
-            {!forceMonitorMode && (
-              <button
-                type="button"
-                onClick={() => setViewMode('remote')}
-                className="flex items-center gap-1.5 rounded-xl bg-white hover:bg-emerald-50 px-4 py-2 text-xs sm:text-sm font-bold text-emerald-900 transition shadow-xs cursor-pointer"
-              >
-                <Smartphone className="h-4 w-4" />
-                <span>Torna alla Segreteria</span>
-              </button>
-            )}
-          </div>
-        </header>
-
-        {/* RIQUADRO CENTRALE SALA D'ATTESA: SLIDESHOW AVVISI VIDEO IN BLOCCO / STANDBY OPPURE SOLO TURNO CHIAMATO IN SVOLGIMENTO */}
-        <main className="flex-1 min-h-0 flex flex-col items-center justify-center p-2 sm:p-4 text-center overflow-hidden w-full">
+        {/* RIQUADRO CENTRALE SALA D'ATTESA: SLIDESHOW AVVISI VIDEO A TUTTO SCHERMO OPPURE NUMERO TURNO */}
+        <main className="flex-1 min-h-0 w-full h-full flex flex-col items-center justify-center p-1 sm:p-2 text-center overflow-hidden">
           {isStandby ? (
             /* 1) QUANDO ELIMINACODE È IMPOSTATO CON UNO DEI MESSAGGI DI BLOCCO (Pausa, Chiuso, Temporaneamente Sospeso / In attesa):
                   SI VEDE SOLO LA VIDEATA DEGLI AVVISI CON L'IMMAGINE CHE OCCUPA TUTTO LO SPAZIO */
@@ -2666,9 +2594,9 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 style={{ opacity: slideOpacity, transition: 'opacity 0.4s ease-in-out' }}
                 className="w-full h-full min-h-0 flex items-center justify-center transition-all duration-300"
               >
-                {/* Riquadro contornato di bianco in proporzioni esatte 4961 x 3508 (locandina A3/A4) */}
+                {/* Riquadro contornato di bianco in proporzioni esatte 4961 x 3508 (locandina orizzontale) */}
                 <div
-                  className="relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white bg-black flex items-center justify-center p-0"
+                  className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border-2 sm:border-4 border-white bg-black flex items-center justify-center p-0"
                   style={{
                     aspectRatio: '4961 / 3508',
                     maxHeight: '100%',
@@ -2726,7 +2654,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                     );
                   })()}
 
-                  {/* Conteggio slide discreto in basso a destra sopra il bordo, senza coprire i titoli in alto */}
+                  {/* Conteggio slide discreto in basso a destra sopra il bordo */}
                   {activeVideoNotices.length > 1 && (
                     <div className="absolute bottom-3 right-4 pointer-events-none z-10">
                       <span className="rounded-full bg-black/80 text-emerald-200 font-bold text-xs sm:text-sm px-3.5 py-1 border border-white/30 backdrop-blur-md shadow-md">
@@ -2799,15 +2727,15 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
         </main>
 
         {/* NEWS TICKER: BANDA SCORREVOLE IN BASSO CON DESCRIZIONE AVVISO A SCORRIMENTO VELOCE */}
-        <div className="bg-emerald-950 border-t-2 border-emerald-400/50 py-2.5 px-4 text-white flex items-center overflow-hidden shrink-0 shadow-lg z-20">
-          <div className="inline-flex items-center gap-1.5 shrink-0 mr-3.5 bg-emerald-600 text-white text-xs sm:text-sm font-black uppercase px-3 py-1 rounded-lg tracking-wider shadow-xs">
-            <Sparkles className="h-4 w-4 text-amber-300 animate-spin" style={{ animationDuration: '6s' }} />
+        <div className="bg-emerald-950 border-t border-emerald-500/40 py-1.5 sm:py-2 px-3 sm:px-4 text-white flex items-center overflow-hidden shrink-0 shadow-lg z-20">
+          <div className="inline-flex items-center gap-1.5 shrink-0 mr-3 bg-emerald-600 text-white text-xs sm:text-sm font-black uppercase px-2.5 py-1 rounded-md tracking-wider shadow-xs">
+            <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-spin" style={{ animationDuration: '6s' }} />
             <span>News UTE</span>
           </div>
           <div className="flex-1 overflow-hidden relative">
             <div
               key={`ticker-${currentVideoNotice?.id || currentSlideIndex}`}
-              className="animate-marquee whitespace-nowrap text-lg sm:text-3xl font-black tracking-wide text-amber-300 drop-shadow-md"
+              className="animate-marquee whitespace-nowrap text-base sm:text-2xl font-black tracking-wide text-amber-300 drop-shadow-md"
             >
               {currentVideoNotice?.tickerText ||
                 currentVideoNotice?.title ||
@@ -2816,19 +2744,98 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
           </div>
         </div>
 
-        {/* PIE' DI PAGINA CON INDICAZIONE DEL PROSSIMO TURNO */}
-        <footer className="px-6 py-3 bg-emerald-900/95 border-t border-white/20 text-center text-sm sm:text-lg font-semibold text-emerald-100 flex flex-wrap items-center justify-between gap-2 shrink-0">
-          <span>Università della Terza Età — Quartu Sant’Elena</span>
-          {isStandby ? (
-            <span className="text-emerald-200 font-bold">{standbyDisplay.title}</span>
-          ) : (
-            <span>
-              Prossimo turno:{' '}
-              <strong className="font-extrabold text-white">
-                N° {nextItem.number} — {nextItem.name || UNKNOWN_SOCIO_LABEL}
-              </strong>
+        {/* PIE' DI PAGINA: LOGO + SCRITTE SOLO IN BASSO + SOLO ICONA ALTOPARLANTE + SOLO ICONA TUTTO SCHERMO */}
+        <footer className="px-3 sm:px-6 py-2 sm:py-2.5 bg-emerald-900/95 border-t border-white/20 text-center text-xs sm:text-base font-semibold text-emerald-100 flex items-center justify-between gap-3 shrink-0 z-20">
+          {/* A sinistra: Logo QU3 e titolo UTE */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <img
+              src="/logo-associazione-qu3.png?v=15"
+              alt="Logo QU3"
+              className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-white p-0.5 object-contain shadow-xs shrink-0"
+            />
+            <span className="font-bold text-white text-xs sm:text-base hidden md:inline">
+              Università della Terza Età — Quartu Sant&apos;Elena
             </span>
-          )}
+            <span className="font-bold text-white text-xs sm:text-sm md:hidden">
+              UTE Quartu
+            </span>
+          </div>
+
+          {/* Al centro: Stato turno o messaggio di blocco */}
+          <div className="flex-1 text-center truncate px-2">
+            {isStandby ? (
+              <span className="inline-flex items-center gap-2 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 px-3.5 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wide">
+                ● {standbyDisplay.title}
+              </span>
+            ) : (
+              <span className="text-white text-xs sm:text-sm font-bold">
+                Prossimo turno:{' '}
+                <strong className="text-amber-300 font-extrabold">
+                  N° {nextItem.number} {nextItem.name ? `— ${nextItem.name}` : ''}
+                </strong>
+              </span>
+            )}
+          </div>
+
+          {/* A destra: Solo le icone di controllo (altoparlante, tutto schermo, ritorno) */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Solo icona altoparlante */}
+            <button
+              type="button"
+              title={soundEnabled ? 'Audio Attivo (clicca per mutare)' : 'Audio Muto (clicca per attivare)'}
+              onClick={(e) => {
+                e.stopPropagation();
+                unlockAudioEngine();
+                setAudioUnlocked(true);
+                const nextVal = !soundEnabled;
+                setSoundEnabled(nextVal);
+                if (nextVal) {
+                  if (!isStandby && queueState.currentNumber > 0) {
+                    playQueueCallChime(queueState.currentNumber, currentItem?.name || '', true);
+                  } else {
+                    playQueueCallChime(1, '', false);
+                  }
+                }
+              }}
+              className={`p-2 rounded-xl transition cursor-pointer border ${
+                !audioUnlocked
+                  ? 'bg-amber-400 text-emerald-950 border-amber-300 shadow-md animate-pulse'
+                  : soundEnabled
+                  ? 'bg-white text-emerald-900 border-white shadow-xs'
+                  : 'bg-emerald-950/80 text-white/70 border-white/30 hover:text-white'
+              }`}
+            >
+              {soundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+            </button>
+
+            {/* Solo icona tutto schermo */}
+            <button
+              type="button"
+              title={isFullscreen ? 'Esci da tutto schermo' : 'Tutto schermo'}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleBrowserFullscreen();
+              }}
+              className="p-2 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-white/30 text-white transition cursor-pointer shadow-xs"
+            >
+              {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+            </button>
+
+            {/* Pulsante ritorno se non in forceMonitorMode */}
+            {!forceMonitorMode && (
+              <button
+                type="button"
+                title="Torna alla Segreteria"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setViewMode('remote');
+                }}
+                className="p-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-950 border border-white transition cursor-pointer shadow-xs"
+              >
+                <Smartphone className="h-5 w-5" />
+              </button>
+            )}
+          </div>
         </footer>
       </div>
     );

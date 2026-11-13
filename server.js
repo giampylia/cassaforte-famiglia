@@ -37,17 +37,152 @@ function getSeedCashMovements() {
   return [];
 }
 
+function getSeedLibraryBooks() {
+  return [
+    {
+      id: 'book-1',
+      title: 'Canne al vento',
+      author: 'Grazia Deledda',
+      genre: 'Narrativa Sarda',
+      collocation: 'SARD-01',
+      year: 1913,
+      notes: 'Capolavoro del Premio Nobel per la Letteratura',
+      available: true,
+    },
+    {
+      id: 'book-2',
+      title: "Un anno sull'Altipiano",
+      author: 'Emilio Lussu',
+      genre: 'Storia & Memorialistica',
+      collocation: 'STOR-14',
+      year: 1938,
+      notes: 'Memoria storica della Brigata Sassari',
+      available: true,
+    },
+    {
+      id: 'book-3',
+      title: 'La Divina Commedia',
+      author: 'Dante Alighieri',
+      genre: 'Poesia Classica',
+      collocation: 'POES-05',
+      year: 1321,
+      notes: 'Edizione integrale commentata',
+      available: true,
+    },
+    {
+      id: 'book-4',
+      title: 'Il barone rampante',
+      author: 'Italo Calvino',
+      genre: 'Narrativa Italiana',
+      collocation: 'NARR-22',
+      year: 1957,
+      notes: 'Trilogia de I nostri antenati',
+      available: true,
+    },
+    {
+      id: 'book-5',
+      title: 'Il giorno del giudizio',
+      author: 'Salvatore Satta',
+      genre: 'Narrativa Sarda',
+      collocation: 'SARD-03',
+      year: 1979,
+      notes: 'Romanzo corale ambientato a Nuoro',
+      available: true,
+    },
+    {
+      id: 'book-6',
+      title: 'Storia dei Sardi e della Sardegna',
+      author: 'Massimo Pittau',
+      genre: 'Saggistica Sarda',
+      collocation: 'SAG-08',
+      year: 1984,
+      notes: 'Origini della civiltà nuragica e lingua sarda',
+      available: true,
+    },
+    {
+      id: 'book-7',
+      title: 'I promessi sposi',
+      author: 'Alessandro Manzoni',
+      genre: 'Romanzo Storico',
+      collocation: 'CLASS-02',
+      year: 1840,
+      notes: 'Edizione con illustrazioni e note storiche',
+      available: true,
+    },
+    {
+      id: 'book-8',
+      title: 'Se questo è un uomo',
+      author: 'Primo Levi',
+      genre: 'Testimonianza Storica',
+      collocation: 'STOR-09',
+      year: 1947,
+      notes: 'Testimonianza fondamentale del Novecento',
+      available: true,
+    },
+  ];
+}
+
+function getSeedVideoNotices() {
+  return [
+    {
+      id: 'vn-1',
+      title: "Benvenuti all'Università della Terza Età",
+      imageUrl: '/assets/aula-verde.png',
+      tickerText: "★ Benvenuti all'Università della Terza Età di Quartu Sant'Elena — Anno Accademico 2026/2027 — Segreteria aperta dal Lunedì al Venerdì ore 09:00 - 12:00 e 16:00 - 18:30",
+      durationSec: 7,
+      transition: 'dissolvenza',
+      startDate: '2026-01-01',
+      endDate: '2026-12-31',
+      isActive: true,
+      orderIndex: 0,
+      createdAt: '2026-10-01T08:00:00.000Z',
+    },
+    {
+      id: 'vn-2',
+      title: 'Avviso Iscrizione Laboratori e Corsi',
+      imageUrl: '/assets/aula-san-benedetto.png',
+      tickerText: '★ Sono aperte le iscrizioni ai nuovi laboratori culturali e artistici. Rivolgersi allo sportello segreteria o consultare il registro corsi.',
+      durationSec: 7,
+      transition: 'dissolvenza',
+      startDate: '2026-01-01',
+      endDate: '2026-12-31',
+      isActive: true,
+      orderIndex: 1,
+      createdAt: '2026-10-01T08:00:00.000Z',
+    },
+  ];
+}
+
 function loadDb() {
   try {
     if (fs.existsSync(DB_FILE)) {
       const parsed = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-      if (parsed && (!Array.isArray(parsed.cashMovements) || parsed.cashMovements.length === 0)) {
-        parsed.cashMovements = getSeedCashMovements();
-        parsed.cashUpdatedAt = Date.now();
-        if (typeof parsed.cashOpeningBalance !== 'number') parsed.cashOpeningBalance = 500;
-        saveDb(parsed);
+      let modified = false;
+      if (parsed) {
+        if (!Array.isArray(parsed.cashMovements)) {
+          parsed.cashMovements = getSeedCashMovements();
+          parsed.cashUpdatedAt = Date.now();
+          modified = true;
+        }
+        if (typeof parsed.cashOpeningBalance !== 'number') {
+          parsed.cashOpeningBalance = 500;
+          modified = true;
+        }
+        if (!Array.isArray(parsed.libraryBooks) || parsed.libraryBooks.length === 0) {
+          parsed.libraryBooks = getSeedLibraryBooks();
+          parsed.libraryBooksUpdatedAt = Date.now();
+          modified = true;
+        }
+        if (!Array.isArray(parsed.videoNotices) || parsed.videoNotices.length === 0) {
+          parsed.videoNotices = getSeedVideoNotices();
+          parsed.videoNoticesUpdatedAt = Date.now();
+          modified = true;
+        }
+        if (modified) {
+          saveDb(parsed);
+        }
+        return parsed;
       }
-      return parsed;
     }
   } catch (e) {
     console.error('Error reading DB:', e);
@@ -56,6 +191,10 @@ function loadDb() {
     cashMovements: getSeedCashMovements(),
     cashOpeningBalance: 500,
     cashUpdatedAt: Date.now(),
+    libraryBooks: getSeedLibraryBooks(),
+    libraryBooksUpdatedAt: Date.now(),
+    videoNotices: getSeedVideoNotices(),
+    videoNoticesUpdatedAt: Date.now(),
     updatedAt: new Date().toISOString(),
   };
   saveDb(seed);
@@ -351,7 +490,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       if (body && body.db) {
         const existingDb = loadDb();
-        const incomingDb = { ...body.db };
+        const incomingDb = { ...existingDb, ...body.db };
 
         if (existingDb) {
           // Protezione Anagrafica Soci e Ruoli: non sovrascrivere mai con dati più vecchi o con i 20 soci demo
@@ -370,17 +509,11 @@ const server = http.createServer(async (req, res) => {
             incomingDb.profilesUpdatedAt = Math.max(existingProfTs, incomingProfTs);
           }
 
-          // Protezione Piccola Cassa: non sovrascrivere mai con dati più vecchi o vuoti
+          // Protezione Piccola Cassa: sincronizzazione temporale e preservazione del saldo
           const existingCashTs = Number(existingDb.cashUpdatedAt || 0);
           const incomingCashTs = Number(incomingDb.cashUpdatedAt || 0);
-          const existingCashCount = Array.isArray(existingDb.cashMovements) ? existingDb.cashMovements.length : 0;
-          const incomingCashCount = Array.isArray(incomingDb.cashMovements) ? incomingDb.cashMovements.length : 0;
-          const incomingLooksEmpty = incomingCashCount === 0 && existingCashCount > 0;
 
-          if (
-            Array.isArray(existingDb.cashMovements) &&
-            (existingCashTs > incomingCashTs || incomingLooksEmpty || !Array.isArray(incomingDb.cashMovements))
-          ) {
+          if (existingCashTs > incomingCashTs && Array.isArray(existingDb.cashMovements)) {
             incomingDb.cashMovements = existingDb.cashMovements;
             incomingDb.expenseCategories = existingDb.expenseCategories || incomingDb.expenseCategories;
             incomingDb.cashOpeningBalance =
@@ -388,6 +521,17 @@ const server = http.createServer(async (req, res) => {
                 ? existingDb.cashOpeningBalance
                 : incomingDb.cashOpeningBalance;
             incomingDb.cashUpdatedAt = existingCashTs;
+          } else {
+            // Incoming è più recente o uguale: accetta modifiche ed eliminazioni
+            if (!Array.isArray(incomingDb.cashMovements) && Array.isArray(existingDb.cashMovements)) {
+              incomingDb.cashMovements = existingDb.cashMovements;
+            }
+            if (!Array.isArray(incomingDb.expenseCategories) && Array.isArray(existingDb.expenseCategories)) {
+              incomingDb.expenseCategories = existingDb.expenseCategories;
+            }
+            if (typeof incomingDb.cashOpeningBalance !== 'number' && typeof existingDb.cashOpeningBalance === 'number') {
+              incomingDb.cashOpeningBalance = existingDb.cashOpeningBalance;
+            }
           }
 
           // Protezione Orario Lezioni: non sovrascrivere mai con dati più vecchi
@@ -396,20 +540,28 @@ const server = http.createServer(async (req, res) => {
           if (existingLessonsTs > incomingLessonsTs && Array.isArray(existingDb.lessons)) {
             incomingDb.lessons = existingDb.lessons;
             incomingDb.lessonsUpdatedAt = existingLessonsTs;
+          } else if (!Array.isArray(incomingDb.lessons) && Array.isArray(existingDb.lessons)) {
+            incomingDb.lessons = existingDb.lessons;
           }
 
-          // Protezione Avvisi Video: non sovrascrivere mai con dati più vecchi
+          // Protezione Avvisi Video: non sovrascrivere mai con dati più vecchi o vuoti accidentali
           const existingVnTs = Number(existingDb.videoNoticesUpdatedAt || 0);
           const incomingVnTs = Number(incomingDb.videoNoticesUpdatedAt || 0);
-          if (existingVnTs > incomingVnTs && Array.isArray(existingDb.videoNotices)) {
+          if (existingVnTs > incomingVnTs && Array.isArray(existingDb.videoNotices) && existingDb.videoNotices.length > 0) {
+            incomingDb.videoNotices = existingDb.videoNotices;
+            incomingDb.videoNoticesUpdatedAt = existingVnTs;
+          } else if (!Array.isArray(incomingDb.videoNotices) && Array.isArray(existingDb.videoNotices)) {
             incomingDb.videoNotices = existingDb.videoNotices;
             incomingDb.videoNoticesUpdatedAt = existingVnTs;
           }
 
-          // Protezione Biblioteca Libri: non sovrascrivere mai con dati più vecchi
+          // Protezione Biblioteca Libri: non sovrascrivere mai con dati più vecchi o vuoti accidentali
           const existingLbTs = Number(existingDb.libraryBooksUpdatedAt || 0);
           const incomingLbTs = Number(incomingDb.libraryBooksUpdatedAt || 0);
-          if (existingLbTs > incomingLbTs && Array.isArray(existingDb.libraryBooks)) {
+          if (existingLbTs > incomingLbTs && Array.isArray(existingDb.libraryBooks) && existingDb.libraryBooks.length > 0) {
+            incomingDb.libraryBooks = existingDb.libraryBooks;
+            incomingDb.libraryBooksUpdatedAt = existingLbTs;
+          } else if (!Array.isArray(incomingDb.libraryBooks) && Array.isArray(existingDb.libraryBooks)) {
             incomingDb.libraryBooks = existingDb.libraryBooks;
             incomingDb.libraryBooksUpdatedAt = existingLbTs;
           }
