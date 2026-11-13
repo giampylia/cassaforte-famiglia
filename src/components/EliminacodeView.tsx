@@ -2584,11 +2584,14 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
       >
         {/* PARTE ALTA RIMOSSA COME RICHIESTO: L'IMMAGINE ORA OCCUPA QUASI TUTTO LO SCHERMO DELLA TV 55" */}
 
-        {/* RIQUADRO CENTRALE SALA D'ATTESA: SLIDESHOW AVVISI VIDEO A TUTTO SCHERMO OPPURE NUMERO TURNO */}
+        {/* RIQUADRO CENTRALE SALA D'ATTESA:
+            1. SPORTELLO CHIUSO: chiude il servizio eliminacode e mostra il loop avvisi video
+            2. PAUSA o IN ATTESA DI PRIMA CHIAMATA: mostra il riquadro verde relativo
+            3. CHIAMATA SOCI ATTIVA: mostra il numero gigante del turno e il nome del socio */}
         <main className="flex-1 min-h-0 w-full h-full flex flex-col items-center justify-center p-1 sm:p-2 text-center overflow-hidden">
-          {isStandby ? (
-            /* 1) QUANDO ELIMINACODE È IMPOSTATO CON UNO DEI MESSAGGI DI BLOCCO (Pausa, Chiuso, Temporaneamente Sospeso / In attesa):
-                  SI VEDE SOLO LA VIDEATA DEGLI AVVISI CON L'IMMAGINE CHE OCCUPA TUTTO LO SPAZIO */
+          {queueState.standbyMode === 'closed' ? (
+            /* 1) SOLO QUANDO L'ELIMINACODE È SU "SPORTELLO CHIUSO":
+                  SI CHIUDE IL SERVIZIO ELIMINACODE E SI MOSTRA IL LOOP DEGLI AVVISI VIDEO A TUTTO SCHERMO */
             currentVideoNotice ? (
               <div
                 style={{ opacity: slideOpacity, transition: 'opacity 0.4s ease-in-out' }}
@@ -2665,6 +2668,7 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 </div>
               </div>
             ) : (
+              /* Fallback se non vi sono avvisi video configurati */
               <div
                 className={`w-full max-w-6xl rounded-[2.5rem] border-4 border-white px-8 py-10 sm:py-14 transition-all duration-500 flex flex-col items-center justify-center shadow-2xl ${
                   flashActive ? 'bg-emerald-600 scale-[1.02]' : 'bg-emerald-800/90'
@@ -2691,9 +2695,39 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
                 </div>
               </div>
             )
+          ) : queueState.standbyMode === 'paused' ||
+            queueState.standbyMode === 'waiting' ||
+            (queueState.currentNumber <= 0 && queueState.standbyMode !== 'none') ? (
+            /* 2) SE IN PAUSA O IN ATTESA DI PRIMA CHIAMATA:
+                  COMPARE IL RIQUADRO RELATIVO DEDICATO (NON IL LOOP DEGLI AVVISI) */
+            <div
+              className={`w-full max-w-6xl rounded-[2.5rem] border-4 border-white px-8 py-10 sm:py-14 transition-all duration-500 flex flex-col items-center justify-center shadow-2xl ${
+                flashActive ? 'bg-emerald-600 scale-[1.02]' : 'bg-emerald-800/90'
+              }`}
+            >
+              <div className="rounded-full border-2 border-white bg-white/15 px-8 py-2 text-lg sm:text-2xl font-extrabold uppercase tracking-[0.2em] text-white mb-6">
+                {standbyDisplay.badge}
+              </div>
+
+              <div
+                className="font-black uppercase tracking-wide text-white leading-tight drop-shadow-md py-4"
+                style={{ fontSize: 'clamp(2.8rem, 7vw, 6.2rem)' }}
+              >
+                {standbyDisplay.title}
+              </div>
+
+              <div className="mt-6 w-full border-t-2 border-white/60 pt-6">
+                <div
+                  className="font-semibold text-emerald-100 tracking-wide leading-snug"
+                  style={{ fontSize: 'clamp(1.4rem, 3.2vw, 2.6rem)' }}
+                >
+                  {standbyDisplay.subtitle}
+                </div>
+              </div>
+            </div>
           ) : (
-            /* 2) SE INVECE L'ELIMINACODE È IN FASE DI SVOLGIMENTO:
-                  SI VEDONO SOLO I NUMERI CHIAMATI PER L'ELIMINACODE */
+            /* 3) SE INVECE SI STANNO CHIAMANDO I SOCI IN ATTESA:
+                  SI VEDE IL NUMERO DEL SOCIO COME ATTUALMENTE PROGETTATO (NESSUNA MODIFICA) */
             <div
               className={`w-full max-w-6xl rounded-[2.5rem] border-4 border-white px-8 py-10 sm:py-14 transition-all duration-500 flex flex-col items-center justify-center shadow-2xl ${
                 flashActive ? 'bg-emerald-600 scale-[1.02]' : 'bg-emerald-800/90'

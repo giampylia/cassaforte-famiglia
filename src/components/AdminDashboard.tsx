@@ -51,6 +51,7 @@ import {
   ClassroomInfo,
   ClassroomKey,
   DAYS_IT,
+  findLessonConflicts,
   getSubjectMeta,
   Lesson,
   Profile,
@@ -221,6 +222,11 @@ export const AdminDashboard: React.FC = () => {
     colorType: 'blue',
   });
   const [classroomNotice, setClassroomNotice] = useState<string | null>(null);
+
+  // Mappa reattiva di tutti i conflitti d'aula e sovrapposizioni d'orario tra le lezioni
+  const lessonConflictsMap = useMemo(() => {
+    return findLessonConflicts(lessons);
+  }, [lessons]);
 
   // Controllo sovrapposizioni e conflitti: in una stessa aula non possono esserci 2 corsi nello stesso orario e giorno
   const checkLessonConflict = (
@@ -2113,6 +2119,23 @@ export const AdminDashboard: React.FC = () => {
                 </p>
               </div>
 
+              {/* BANNER ERRORE NEI TURNI: CONFLITTO AULE */}
+              {lessonConflictsMap.size > 0 && (
+                <div className="rounded-2xl border-2 border-rose-400 bg-rose-50 p-4 sm:p-5 text-rose-950 shadow-md space-y-2 animate-fadeIn">
+                  <div className="flex items-start gap-3 text-rose-800">
+                    <AlertTriangle className="h-6 w-6 text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="text-base sm:text-lg font-bold text-rose-900">
+                        ⚠️ ERRORE NEI TURNI: Rilevate {lessonConflictsMap.size} lezioni con aula sovrapposta!
+                      </h3>
+                      <p className="mt-1 text-xs sm:text-sm text-rose-800 leading-relaxed">
+                        In una stessa aula non possono svolgersi 2 lezioni contemporaneamente allo stesso orario e data. Controlla e correggi i turni contrassegnati in rosso nella tabella sottostante modificando l&apos;aula o gli orari.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-normal text-slate-500 block mb-1">Aula</label>
@@ -2339,10 +2362,16 @@ export const AdminDashboard: React.FC = () => {
                       .map((les) => {
                         const meta = getSubjectMeta(les.subject);
                         const isSol = les.classroom === 'polifunzionale';
+                        const conflicts = lessonConflictsMap.get(les.id) || [];
+                        const hasConflict = conflicts.length > 0;
                         return (
                           <tr
                             key={les.id}
-                            className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80"
+                            className={`border-b transition ${
+                              hasConflict
+                                ? 'bg-rose-50/90 border-rose-300 hover:bg-rose-100/90'
+                                : 'border-slate-100 last:border-0 hover:bg-slate-50/80'
+                            }`}
                           >
                             <td className="p-4 font-normal text-slate-700">
                               {DAYS_IT[les.day_of_week]}
@@ -2356,13 +2385,28 @@ export const AdminDashboard: React.FC = () => {
                               </span>
                             </td>
                             <td className="p-4 font-medium text-slate-900">
-                              {meta.emoji} {les.subject}
+                              <div>
+                                <span>{meta.emoji} {les.subject}</span>
+                                {hasConflict && (
+                                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5 rounded-lg border border-rose-300 bg-rose-100/90 px-2.5 py-1 text-xs font-bold text-rose-800 shadow-2xs">
+                                    <AlertTriangle className="h-3.5 w-3.5 text-rose-600 shrink-0" />
+                                    <span>
+                                      ⚠️ Errore Turno: Aula già occupata da{' '}
+                                      {conflicts
+                                        .map((c) => `«${c.subject}» (${c.start_time.slice(0, 5)}–${c.end_time.slice(0, 5)})`)
+                                        .join(', ')}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
                             </td>
                             <td className="p-4 text-sm font-normal text-slate-600">
                               {les.teacher}
                             </td>
                             <td className="p-4 font-normal tabular-nums text-slate-700">
-                              {les.start_time.slice(0, 5)} – {les.end_time.slice(0, 5)}
+                              <span className={hasConflict ? 'font-bold text-rose-700' : ''}>
+                                {les.start_time.slice(0, 5)} – {les.end_time.slice(0, 5)}
+                              </span>
                             </td>
                             <td className="p-4 text-right">
                               <div className="flex items-center justify-end gap-1.5">

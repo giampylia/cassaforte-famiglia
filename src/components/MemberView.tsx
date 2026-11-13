@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Check,
   Calendar,
@@ -8,6 +8,7 @@ import {
   Hand,
   Award,
   AlertCircle,
+  AlertTriangle,
   User,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -17,6 +18,7 @@ import {
   ClassroomInfo,
   DAYS_IT,
   doLessonsOverlap,
+  findLessonConflicts,
   getSubjectMeta,
   Lesson,
 } from '../data/initialData';
@@ -49,6 +51,11 @@ export const MemberView: React.FC = () => {
     timeStr: string;
     rated?: 1 | 2 | 3;
   } | null>(null);
+
+  // Mappa delle sovrapposizioni d'aula tra le lezioni programmate
+  const lessonConflictsMap = useMemo(() => {
+    return findLessonConflicts(lessons);
+  }, [lessons]);
 
   if (!currentUser) return null;
 
@@ -493,10 +500,16 @@ export const MemberView: React.FC = () => {
                     {dayGroup.lessons.map((les) => {
                       const meta = getSubjectMeta(les.subject);
                       const roomObj = classrooms.find((r) => r.key === les.classroom);
+                      const conflicts = lessonConflictsMap.get(les.id) || [];
+                      const hasConflict = conflicts.length > 0;
                       return (
                         <div
                           key={les.id}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-slate-200 bg-white p-3.5"
+                          className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border p-3.5 ${
+                            hasConflict
+                              ? 'border-rose-300 bg-rose-50/60'
+                              : 'border-slate-200 bg-white'
+                          }`}
                         >
                           <div className="flex items-start gap-3 min-w-0">
                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xl">
@@ -513,6 +526,12 @@ export const MemberView: React.FC = () => {
                                 <span className="text-xs font-normal text-slate-500">
                                   {les.start_time.slice(0, 5)} – {les.end_time.slice(0, 5)}
                                 </span>
+                                {hasConflict && (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-rose-100 border border-rose-300 px-2 py-0.5 text-[11px] font-bold text-rose-800">
+                                    <AlertTriangle className="h-3 w-3 text-rose-600 shrink-0" />
+                                    <span>Errore Turno: Aula sovrapposta</span>
+                                  </span>
+                                )}
                               </div>
                               <p className="mt-1 text-base sm:text-lg font-medium text-slate-900 leading-snug">
                                 {les.subject}

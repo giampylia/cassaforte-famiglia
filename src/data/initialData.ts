@@ -214,6 +214,43 @@ export interface Lesson {
   end_time: string;    // "HH:MM"
 }
 
+/**
+ * Rileva conflitti e sovrapposizioni d'aula tra lezioni nello stesso giorno e orario:
+ * in una stessa aula non possono svolgersi 2 lezioni in contemporanea.
+ * Ritorna una Map dove la chiave è l'id della lezione e il valore è la lista di lezioni con cui è in conflitto.
+ */
+export function findLessonConflicts(allLessons: Lesson[]): Map<string, Lesson[]> {
+  const conflictMap = new Map<string, Lesson[]>();
+  if (!Array.isArray(allLessons) || allLessons.length < 2) return conflictMap;
+
+  for (let i = 0; i < allLessons.length; i++) {
+    const a = allLessons[i];
+    const s1 = (a.start_time || '').trim().slice(0, 5);
+    const e1 = (a.end_time || '').trim().slice(0, 5);
+    if (!s1 || !e1 || s1 >= e1) continue;
+
+    for (let j = i + 1; j < allLessons.length; j++) {
+      const b = allLessons[j];
+      if (a.classroom !== b.classroom) continue;
+      if (Number(a.day_of_week) !== Number(b.day_of_week)) continue;
+
+      const s2 = (b.start_time || '').trim().slice(0, 5);
+      const e2 = (b.end_time || '').trim().slice(0, 5);
+      if (!s2 || !e2 || s2 >= e2) continue;
+
+      // Sovrapposizione temporale su intervalli [s1, e1) e [s2, e2): s1 < e2 && s2 < e1
+      if (s1 < e2 && s2 < e1) {
+        if (!conflictMap.has(a.id)) conflictMap.set(a.id, []);
+        if (!conflictMap.has(b.id)) conflictMap.set(b.id, []);
+        conflictMap.get(a.id)!.push(b);
+        conflictMap.get(b.id)!.push(a);
+      }
+    }
+  }
+
+  return conflictMap;
+}
+
 export interface AttendanceRecord {
   id: string;
   user_id: string;
