@@ -989,6 +989,49 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // GET & POST /api/permissions (Dashboard Autorizzazioni Ruoli)
+  if (parsedUrl === '/api/permissions' && req.method === 'GET') {
+    const db = loadDb() || {};
+    sendJson(res, 200, {
+      ok: true,
+      rolePermissions: db.rolePermissions || null,
+      rolePermissionsUpdatedAt: Number(db.rolePermissionsUpdatedAt || 0),
+    });
+    return;
+  }
+
+  if (parsedUrl === '/api/permissions' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      if (body && body.rolePermissions) {
+        const existingDb = loadDb() || {};
+        const incomingTs = Number(body.rolePermissionsUpdatedAt || Date.now());
+        const existingTs = Number(existingDb.rolePermissionsUpdatedAt || 0);
+
+        if (incomingTs >= existingTs || !existingDb.rolePermissions) {
+          existingDb.rolePermissions = body.rolePermissions;
+          existingDb.rolePermissionsUpdatedAt = incomingTs;
+          existingDb.updatedAt = new Date().toISOString();
+          saveDb(existingDb);
+          broadcastUpdate('PERMISSIONS_SYNC', {
+            rolePermissions: existingDb.rolePermissions,
+            rolePermissionsUpdatedAt: existingDb.rolePermissionsUpdatedAt,
+          });
+        }
+        sendJson(res, 200, {
+          ok: true,
+          rolePermissions: existingDb.rolePermissions,
+          rolePermissionsUpdatedAt: existingDb.rolePermissionsUpdatedAt,
+        });
+        return;
+      }
+      sendJson(res, 400, { ok: false, error: 'Formato permessi non valido' });
+    } catch (e) {
+      sendJson(res, 400, { ok: false, error: e.message });
+    }
+    return;
+  }
+
   // GET & POST /api/library-books
   if (parsedUrl === '/api/library-books' && req.method === 'GET') {
     const db = loadDb() || {};

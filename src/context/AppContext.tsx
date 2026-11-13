@@ -28,6 +28,12 @@ import {
   LibraryBook,
 } from '../data/initialData';
 import { playSuccessSound } from '../utils/soundAndPdf';
+import {
+  PermissionLevel,
+  RolePermissionsMap,
+  DEFAULT_ROLE_PERMISSIONS,
+  computeUserSectionPermission,
+} from '../data/permissionsData';
 
 export type FontScale = 'normal' | 'large' | 'xlarge';
 export type AppSection =
@@ -37,7 +43,8 @@ export type AppSection =
   | 'anagrafica_soci'
   | 'biblioteca'
   | 'avvisi_video'
-  | 'eliminacode';
+  | 'eliminacode'
+  | 'autorizzazioni';
 
 export interface QueueItem {
   number: number;
@@ -89,6 +96,8 @@ interface CloudDbSnapshot {
   videoNoticesUpdatedAt?: number;
   libraryBooks?: LibraryBook[];
   libraryBooksUpdatedAt?: number;
+  rolePermissions?: RolePermissionsMap;
+  rolePermissionsUpdatedAt?: number;
   attendance: AttendanceRecord[];
   subjectNotes: SubjectDidacticNote[];
   visualHeadcounts: Record<ClassroomKey, number>;
@@ -192,6 +201,11 @@ interface AppContextType {
   deleteLibraryBook: (id: string) => void;
   importLibraryBooksBatch: (newBooks: Omit<LibraryBook, 'id'>[], mode: 'replace' | 'append') => { count: number };
   saveSubjectNote: (note: SubjectDidacticNote) => void;
+  rolePermissions: RolePermissionsMap;
+  rolePermissionsUpdatedAt: number;
+  updateRolePermission: (sectionKey: string, roleName: string, level: PermissionLevel) => void;
+  resetRolePermissions: () => void;
+  getUserSectionPermission: (sectionKey: string) => PermissionLevel;
   resetDemoData: () => void;
 }
 
@@ -213,6 +227,8 @@ const STORAGE_KEYS = {
   VIDEO_NOTICES_TS: 'quartimbra_video_notices_ts_v1',
   LIBRARY_BOOKS: 'quartimbra_library_books_v1',
   LIBRARY_BOOKS_TS: 'quartimbra_library_books_ts_v1',
+  ROLE_PERMISSIONS: 'quartimbra_role_permissions_v1',
+  ROLE_PERMISSIONS_TS: 'quartimbra_role_permissions_ts_v1',
   ATTENDANCE: 'quartimbra_attendance_v3',
   NOTES: 'quartimbra_subject_notes_v3',
   HEADCOUNTS: 'quartimbra_headcounts_v3',
@@ -470,6 +486,46 @@ async function loadVideoNoticesFromIndexedDB(): Promise<{
     try {
       const tx = db.transaction(IDB_STORE, 'readonly');
       const req = tx.objectStore(IDB_STORE).get(IDB_VIDEO_NOTICES_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+const IDB_PERMISSIONS_KEY = 'protected_role_permissions_v1';
+
+async function saveRolePermissionsToIndexedDB(
+  permissions: RolePermissionsMap,
+  updatedAt: number
+): Promise<void> {
+  const db = await openAnagraficaIdb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(
+      {
+        permissions,
+        updatedAt: updatedAt || Date.now(),
+      },
+      IDB_PERMISSIONS_KEY
+    );
+  } catch {
+    // Ignore IDB errors
+  }
+}
+
+async function loadRolePermissionsFromIndexedDB(): Promise<{
+  permissions: RolePermissionsMap;
+  updatedAt?: number;
+} | null> {
+  const db = await openAnagraficaIdb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(IDB_PERMISSIONS_KEY);
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => resolve(null);
     } catch {
@@ -841,6 +897,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [rolePermissionsUpdatedAt, setRolePermissionsUpdatedAt] = useState<number>(() => {
+    try {
+      return Number(localStorage.getItem(STORAGE_KEYS.ROLE_PERMISSIONS_TS) || 0);
+    } catch {
+      return 0;
+    }
+  });
+
+  const [rolePermissions, setRolePermissions] = useState<RolePermissionsMap>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.ROLE_PERMISSIONS);
+      return saved ? JSON.parse(saved) : DEFAULT_ROLE_PERMISSIONS;
+    } catch {
+      return DEFAULT_ROLE_PERMISSIONS;
+    }
+  });
+
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
@@ -1087,6 +1160,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   libraryBooksRef.current = libraryBooks;
   const libraryBooksUpdatedAtRef = useRef(libraryBooksUpdatedAt);
   libraryBooksUpdatedAtRef.current = libraryBooksUpdatedAt;
+  const rolePermissionsRef = useRef<RolePermissionsMap>(rolePermissions);
+  rolePermissionsRef.current = rolePermissions;
+  const rolePermissionsUpdatedAtRef = useRef(rolePermissionsUpdatedAt);
+  rolePermissionsUpdatedAtRef.current = rolePermissionsUpdatedAt;
   const queueUpdatedAtRef = useRef(queueState.updatedAt || 0);
   queueUpdatedAtRef.current = queueState.updatedAt || 0;
 
@@ -1421,6 +1498,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       shouldPushBackLocalProtected = true;
     }
 
+    const remotePermsTs = Number(db.rolePermissionsUpdatedAt || 0);
+    const localPermsTs = rolePermissionsUpdatedAtRef.current;
+    if (remotePermsTs > localPermsTs && db.rolePermissions) {
+      rolePermissionsRef.current = db.rolePermissions;
+      setRolePermissions(db.rolePermissions);
+      safeSetLocalStorage(STORAGE_KEYS.ROLE_PERMISSIONS, JSON.stringify(db.rolePermissions));
+      saveRolePermissionsToIndexedDB(db.rolePermissions, remotePermsTs || Date.now());
+      if (remotePermsTs > 0) {
+        rolePermissionsUpdatedAtRef.current = remotePermsTs;
+        setRolePermissionsUpdatedAt(remotePermsTs);
+        safeSetLocalStorage(STORAGE_KEYS.ROLE_PERMISSIONS_TS, String(remotePermsTs));
+      }
+    } else if (localPermsTs > remotePermsTs && rolePermissionsRef.current) {
+      shouldPushBackLocalProtected = true;
+    }
+
     if (db.queueState) {
       const sanitizedRemoteQ = sanitizeQueueState(db.queueState, profilesRef.current);
       const remoteQueueTs = Number(sanitizedRemoteQ.updatedAt || 0);
@@ -1474,6 +1567,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             videoNoticesUpdatedAt: videoNoticesUpdatedAtRef.current,
             libraryBooks: libraryBooksRef.current,
             libraryBooksUpdatedAt: libraryBooksUpdatedAtRef.current,
+            rolePermissions: rolePermissionsRef.current,
+            rolePermissionsUpdatedAt: rolePermissionsUpdatedAtRef.current,
             attendance: Array.isArray(db.attendance) ? db.attendance : attendance,
             subjectNotes: Array.isArray(db.subjectNotes) ? db.subjectNotes : subjectNotes,
             visualHeadcounts: db.visualHeadcounts || visualHeadcounts,
@@ -1595,6 +1690,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setVideoNoticesUpdatedAt(idbTs);
             safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES, JSON.stringify(idbVn.notices));
             safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES_TS, String(idbTs));
+          }
+        }
+      })
+      .catch(() => {});
+
+    // Ripristino Autorizzazioni Ruoli da IndexedDB
+    loadRolePermissionsFromIndexedDB()
+      .then((idbPerms) => {
+        if (idbPerms && idbPerms.permissions) {
+          const idbTs = Number(idbPerms.updatedAt || 0);
+          if (idbTs > rolePermissionsUpdatedAtRef.current) {
+            rolePermissionsRef.current = idbPerms.permissions;
+            rolePermissionsUpdatedAtRef.current = idbTs;
+            setRolePermissions(idbPerms.permissions);
+            setRolePermissionsUpdatedAt(idbTs);
+            safeSetLocalStorage(STORAGE_KEYS.ROLE_PERMISSIONS, JSON.stringify(idbPerms.permissions));
+            safeSetLocalStorage(STORAGE_KEYS.ROLE_PERMISSIONS_TS, String(idbTs));
           }
         }
       })
@@ -1722,6 +1834,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS_TS, String(remoteTs));
               setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
             }
+          } else if (parsed.type === 'PERMISSIONS_SYNC' && parsed.payload?.rolePermissions) {
+            const remoteTs = Number(parsed.payload.rolePermissionsUpdatedAt || 0);
+            if (remoteTs > rolePermissionsUpdatedAtRef.current) {
+              rolePermissionsRef.current = parsed.payload.rolePermissions;
+              rolePermissionsUpdatedAtRef.current = remoteTs;
+              setRolePermissions(parsed.payload.rolePermissions);
+              setRolePermissionsUpdatedAt(remoteTs);
+              safeSetLocalStorage(STORAGE_KEYS.ROLE_PERMISSIONS, JSON.stringify(parsed.payload.rolePermissions));
+              safeSetLocalStorage(STORAGE_KEYS.ROLE_PERMISSIONS_TS, String(remoteTs));
+              saveRolePermissionsToIndexedDB(parsed.payload.rolePermissions, remoteTs);
+              setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
+            }
           } else if (parsed.type === 'PUBLIC_URL' && parsed.payload?.publicUrl) {
             setPublicUrl(parsed.payload.publicUrl);
           }
@@ -1781,6 +1905,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setLibraryBooksUpdatedAt(remoteTs);
             safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS, JSON.stringify(ev.data.libraryBooks));
             safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS_TS, String(remoteTs));
+          }
+        } else if (ev.data?.type === 'PERMISSIONS_SYNC' && ev.data.rolePermissions) {
+          const remoteTs = Number(ev.data.rolePermissionsUpdatedAt || 0);
+          if (remoteTs > rolePermissionsUpdatedAtRef.current) {
+            rolePermissionsRef.current = ev.data.rolePermissions;
+            rolePermissionsUpdatedAtRef.current = remoteTs;
+            setRolePermissions(ev.data.rolePermissions);
+            setRolePermissionsUpdatedAt(remoteTs);
+            safeSetLocalStorage(STORAGE_KEYS.ROLE_PERMISSIONS, JSON.stringify(ev.data.rolePermissions));
+            safeSetLocalStorage(STORAGE_KEYS.ROLE_PERMISSIONS_TS, String(remoteTs));
+            saveRolePermissionsToIndexedDB(ev.data.rolePermissions, remoteTs);
           }
         } else if (ev.data?.type === 'QUEUE_SYNC' && ev.data.queueState) {
           const incomingQ = sanitizeQueueState(
@@ -3034,6 +3169,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLiveFeed([]);
   };
 
+  // Gestione Autorizzazioni Ruoli (Dashboard Amministratore)
+  const commitRolePermissionsUpdate = (nextPerms: RolePermissionsMap, forceTs?: number) => {
+    const nowTs = forceTs || Date.now();
+    rolePermissionsRef.current = nextPerms;
+    rolePermissionsUpdatedAtRef.current = nowTs;
+    setRolePermissions(nextPerms);
+    setRolePermissionsUpdatedAt(nowTs);
+    safeSetLocalStorage(STORAGE_KEYS.ROLE_PERMISSIONS, JSON.stringify(nextPerms));
+    safeSetLocalStorage(STORAGE_KEYS.ROLE_PERMISSIONS_TS, String(nowTs));
+    saveRolePermissionsToIndexedDB(nextPerms, nowTs);
+
+    try {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.postMessage({
+          type: 'PERMISSIONS_SYNC',
+          rolePermissions: nextPerms,
+          rolePermissionsUpdatedAt: nowTs,
+        });
+      }
+    } catch {}
+
+    fetch('/api/permissions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rolePermissions: nextPerms,
+        rolePermissionsUpdatedAt: nowTs,
+      }),
+    }).catch(() => {});
+
+    pushCloudSnapshot({
+      profiles: profilesRef.current,
+      availableRoles: availableRolesRef.current,
+      profilesUpdatedAt: profilesUpdatedAtRef.current,
+      expenseCategories: expenseCategoriesRef.current,
+      cashMovements: cashMovementsRef.current,
+      cashOpeningBalance: cashOpeningBalanceRef.current,
+      cashUpdatedAt: cashUpdatedAtRef.current,
+      lessons: lessonsRef.current,
+      lessonsUpdatedAt: lessonsUpdatedAtRef.current,
+      videoNotices: videoNoticesRef.current,
+      videoNoticesUpdatedAt: videoNoticesUpdatedAtRef.current,
+      libraryBooks: libraryBooksRef.current,
+      libraryBooksUpdatedAt: libraryBooksUpdatedAtRef.current,
+      rolePermissions: nextPerms,
+      rolePermissionsUpdatedAt: nowTs,
+      attendance,
+      subjectNotes,
+      visualHeadcounts,
+      liveFeed,
+      queueState,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const updateRolePermission = (sectionKey: string, roleName: string, level: PermissionLevel) => {
+    const current = rolePermissionsRef.current || DEFAULT_ROLE_PERMISSIONS;
+    const sectionObj = { ...(current[sectionKey] || DEFAULT_ROLE_PERMISSIONS[sectionKey] || {}) };
+    sectionObj[roleName] = level;
+    const nextMap: RolePermissionsMap = {
+      ...current,
+      [sectionKey]: sectionObj,
+    };
+    commitRolePermissionsUpdate(nextMap);
+  };
+
+  const resetRolePermissions = () => {
+    commitRolePermissionsUpdate(DEFAULT_ROLE_PERMISSIONS);
+  };
+
+  const getUserSectionPermission = (sectionKey: string): PermissionLevel => {
+    return computeUserSectionPermission(sectionKey, currentUser, rolePermissions);
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -3123,6 +3332,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteLibraryBook,
         importLibraryBooksBatch,
         saveSubjectNote,
+        rolePermissions,
+        rolePermissionsUpdatedAt,
+        updateRolePermission,
+        resetRolePermissions,
+        getUserSectionPermission,
         resetDemoData,
       }}
     >

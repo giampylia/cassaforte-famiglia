@@ -12,6 +12,7 @@ import {
   Tv,
   BookOpen,
   RotateCw,
+  Key,
 } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { getMemberParts, isProtectedSegreteriaMember } from './data/initialData';
@@ -24,6 +25,7 @@ import { AnagraficaSociView } from './components/AnagraficaSociView';
 import { EliminacodeView } from './components/EliminacodeView';
 import { AvvisiVideoView } from './components/AvvisiVideoView';
 import { BibliotecaView } from './components/BibliotecaView';
+import { AutorizzazioniView } from './components/AutorizzazioniView';
 
 const MainRouter: React.FC = () => {
   const {
@@ -34,10 +36,11 @@ const MainRouter: React.FC = () => {
     isSegreteriaMember,
     activeSection,
     setActiveSection,
+    getUserSectionPermission,
     signOut,
   } = useApp();
 
-  const CURRENT_APP_VERSION = 'v48';
+  const CURRENT_APP_VERSION = 'v49';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
@@ -110,28 +113,20 @@ const MainRouter: React.FC = () => {
     ? 'Segreteria'
     : getMemberParts(currentUser).primaryRole;
 
-  const canSeeTimbratureAule =
-    !isSegreteriaOnly &&
-    (isSuperAdmin || currentUser.role === 'admin' || isDidatticaMember);
+  // Controllo autorizzazioni dinamiche per ciascuna sezione del menu
+  const canSeePresenze = getUserSectionPermission('presenze') !== 'none';
+  const canSeeTimbratureAule = getUserSectionPermission('admin_dashboard') !== 'none';
+  const canSeeAnagraficaSoci = getUserSectionPermission('anagrafica_soci') !== 'none';
+  const canSeePiccolaCassa = getUserSectionPermission('piccola_cassa') !== 'none';
+  const canSeeBiblioteca = getUserSectionPermission('biblioteca') !== 'none';
+  const canSeeAvvisiVideo = getUserSectionPermission('avvisi_video') !== 'none';
+  const canSeeEliminacode = getUserSectionPermission('eliminacode') !== 'none';
 
-  const canSeeAnagraficaSoci =
-    isSuperAdmin || currentUser.role === 'admin' || isCDMember || isSegreteriaUser;
-
-  const canSeePiccolaCassa = !isSegreteriaOnly && (isSuperAdmin || isCDMember);
-
-  // Biblioteca visibile a tutti i soci
-  const canSeeBiblioteca = !isSegreteriaOnly;
-
-  // Avvisi Video visibile solo da amministratore e membri CD (is_cd === true), posizionato subito prima di Eliminacode
-  const canSeeAvvisiVideo =
-    !isSegreteriaOnly &&
-    (isSuperAdmin || isCDMember || currentUser.role === 'admin');
-
-  // Eliminacode visibile da Super Admin (7726) e da Segreteria (9999 / 9998)
-  const canSeeEliminacode = isSuperAdmin || isSegreteriaUser;
+  // Autorizzazioni visibile esclusivamente ad Amministratore (7726 o role === 'admin')
+  const canSeeAutorizzazioni = isSuperAdmin || currentUser.role === 'admin';
 
   const menuItems = [
-    ...(!isSegreteriaOnly
+    ...(canSeePresenze
       ? [
           {
             key: 'presenze' as const,
@@ -198,6 +193,16 @@ const MainRouter: React.FC = () => {
             label: 'Eliminacode',
             sublabel: 'Telecomando e Monitor Numeri PDF',
             icon: Monitor,
+          },
+        ]
+      : []),
+    ...(canSeeAutorizzazioni
+      ? [
+          {
+            key: 'autorizzazioni' as const,
+            label: 'Autorizzazioni',
+            sublabel: 'Gestione Permessi per Singolo Ruolo',
+            icon: Key,
           },
         ]
       : []),
@@ -424,7 +429,9 @@ const MainRouter: React.FC = () => {
 
         {/* Area Contenuto Principale */}
         <div className="flex-1 min-w-0">
-          {activeSection === 'eliminacode' && canSeeEliminacode ? (
+          {activeSection === 'autorizzazioni' && canSeeAutorizzazioni ? (
+            <AutorizzazioniView />
+          ) : activeSection === 'eliminacode' && canSeeEliminacode ? (
             <EliminacodeView />
           ) : activeSection === 'avvisi_video' && canSeeAvvisiVideo ? (
             <AvvisiVideoView />
