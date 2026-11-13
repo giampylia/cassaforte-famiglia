@@ -618,21 +618,34 @@ export const PiccolaCassaView: React.FC = () => {
   }, [accountingYearMovements, statusFilter, typeFilter, searchQuery]);
 
   // Statistiche e Riepilogo Contabile sull'Anno Contabile selezionato (1° Luglio – 30 Giugno)
+  // REGOLA: Solo i movimenti in stato 'pagato' concorrono ai totali e al saldo finale della cassa.
+  // Le richieste inviate o approvate restano visibili ma NON impattano il saldo finché non sono pagate.
   const stats = useMemo(() => {
     const totalCount = accountingYearMovements.length;
     const pendingCount = accountingYearMovements.filter((m) => m.status === 'inviato').length;
     const approvedCount = accountingYearMovements.filter((m) => m.status === 'approvato').length;
     const paidCount = accountingYearMovements.filter((m) => m.status === 'pagato').length;
 
-    const totalEntrate = accountingYearMovements
+    // Solo i movimenti pagati
+    const paidMovements = accountingYearMovements.filter((m) => m.status === 'pagato');
+    const totalEntrate = paidMovements
       .filter((m) => m.entry_type === 'entrata')
       .reduce((acc, m) => acc + Number(m.amount_requested || 0), 0);
 
-    const totalSpese = accountingYearMovements
+    const totalSpese = paidMovements
       .filter((m) => m.entry_type === 'spesa')
       .reduce((acc, m) => acc + Number(m.amount_requested || 0), 0);
 
     const finalBalance = cashOpeningBalance + totalEntrate - totalSpese;
+
+    // Pratiche in attesa di essere approvate e pagate (escluse dal saldo)
+    const pendingMovements = accountingYearMovements.filter((m) => m.status !== 'pagato');
+    const pendingEntrate = pendingMovements
+      .filter((m) => m.entry_type === 'entrata')
+      .reduce((acc, m) => acc + Number(m.amount_requested || 0), 0);
+    const pendingSpese = pendingMovements
+      .filter((m) => m.entry_type === 'spesa')
+      .reduce((acc, m) => acc + Number(m.amount_requested || 0), 0);
 
     return {
       totalCount,
@@ -642,6 +655,9 @@ export const PiccolaCassaView: React.FC = () => {
       totalEntrate,
       totalSpese,
       finalBalance,
+      pendingEntrate,
+      pendingSpese,
+      pendingCountTotal: pendingMovements.length,
     };
   }, [accountingYearMovements, cashOpeningBalance]);
 
@@ -752,7 +768,9 @@ export const PiccolaCassaView: React.FC = () => {
           ? 'Tutti'
           : `${selectedAccountingYear} (${formatAccountingYearRange(selectedAccountingYear)})`
       }`,
-      subtitle: `Saldo Iniziale: € ${cashOpeningBalance.toFixed(2)} · Entrate: +€ ${stats.totalEntrate.toFixed(2)} · Spese: -€ ${stats.totalSpese.toFixed(2)} · Saldo Finale: € ${stats.finalBalance.toFixed(2)}`,
+      subtitle: `Saldo Iniziale: € ${cashOpeningBalance.toFixed(2)} · Versamenti (Pagati): +€ ${stats.totalEntrate.toFixed(2)} · Rimborsi (Pagati): -€ ${stats.totalSpese.toFixed(2)} · Saldo Cassa Effettivo: € ${stats.finalBalance.toFixed(2)}${
+        stats.pendingCountTotal > 0 ? ` · [${stats.pendingCountTotal} pratiche non a saldo]` : ''
+      }`,
       head: [
         'Data Rich.',
         'Data Scontr.',
@@ -776,7 +794,7 @@ export const PiccolaCassaView: React.FC = () => {
           cName !== bName ? `${cName} (a nome di ${bName})` : cName,
           m.category_name,
           `${m.entry_type === 'entrata' ? '+' : '-'} € ${Number(m.amount_requested).toFixed(2)}`,
-          m.status.toUpperCase(),
+          m.status === 'pagato' ? 'PAGATO' : `${m.status.toUpperCase()} (NON A SALDO)`,
         ];
       }),
       fileName: `registro_piccola_cassa_QU3_${todayIso}.pdf`,
@@ -1050,7 +1068,7 @@ export const PiccolaCassaView: React.FC = () => {
             </button>
           </div>
 
-          {/* Riepilogo Saldo in 4 caselle pulite */}
+          {/* Riepilogo Saldo in 4 caselle pulite: calcolato unicamente su operazioni PAGATE */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
             <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3">
               <span className="text-[11px] font-normal text-slate-500 block">
@@ -1059,23 +1077,43 @@ export const PiccolaCassaView: React.FC = () => {
               <span className="text-base sm:text-lg font-medium text-slate-800 tabular-nums">
                 € {cashOpeningBalance.toFixed(2)}
               </span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Inizio esercizio</span>
             </div>
             <div className="rounded-2xl bg-emerald-50/60 border border-emerald-200 p-3">
-              <span className="text-[11px] font-normal text-emerald-800 block">+ Versamenti</span>
+              <span className="text-[11px] font-normal text-emerald-800 block">+ Versamenti (Pagati)</span>
               <span className="text-base sm:text-lg font-medium text-emerald-700 tabular-nums">
                 + € {stats.totalEntrate.toFixed(2)}
               </span>
+              {stats.pendingEntrate > 0 ? (
+                <span className="text-[10px] font-medium text-amber-700 block mt-0.5">
+                  In attesa: +€ {stats.pendingEntrate.toFixed(2)}
+                </span>
+              ) : (
+                <span className="text-[10px] text-emerald-600/70 block mt-0.5">Solo pagati a saldo</span>
+              )}
             </div>
             <div className="rounded-2xl bg-rose-50/60 border border-rose-200 p-3">
-              <span className="text-[11px] font-normal text-rose-800 block">- Rimborsi</span>
+              <span className="text-[11px] font-normal text-rose-800 block">- Rimborsi (Pagati)</span>
               <span className="text-base sm:text-lg font-medium text-rose-700 tabular-nums">
                 - € {stats.totalSpese.toFixed(2)}
               </span>
+              {stats.pendingSpese > 0 ? (
+                <span className="text-[10px] font-medium text-amber-700 block mt-0.5">
+                  In attesa: -€ {stats.pendingSpese.toFixed(2)}
+                </span>
+              ) : (
+                <span className="text-[10px] text-rose-600/70 block mt-0.5">Solo pagati a saldo</span>
+              )}
             </div>
             <div className="rounded-2xl bg-emerald-700 text-white p-3">
-              <span className="text-[11px] font-normal text-emerald-100 block">Saldo Cassa</span>
+              <span className="text-[11px] font-normal text-emerald-100 block">Saldo Cassa Effettivo</span>
               <span className="text-base sm:text-lg font-medium tabular-nums">
                 € {stats.finalBalance.toFixed(2)}
+              </span>
+              <span className="text-[10px] text-emerald-200 block mt-0.5">
+                {stats.pendingCountTotal > 0
+                  ? `${stats.pendingCountTotal} ${stats.pendingCountTotal === 1 ? 'pratica' : 'pratiche'} non a saldo`
+                  : 'Tutte le pratiche regolate'}
               </span>
             </div>
           </div>
@@ -1215,12 +1253,21 @@ export const PiccolaCassaView: React.FC = () => {
                       <div className="text-right shrink-0 space-y-1">
                         <p
                           className={`text-lg sm:text-xl font-medium tabular-nums ${
-                            isEntrata ? 'text-emerald-700' : 'text-rose-700'
+                            mov.status === 'pagato'
+                              ? isEntrata
+                                ? 'text-emerald-700'
+                                : 'text-rose-700'
+                              : 'text-slate-400'
                           }`}
                         >
                           {isEntrata ? '+' : '-'} € {Number(mov.amount_requested).toFixed(2)}
                         </p>
                         <div>{statusBadge(mov.status)}</div>
+                        {mov.status !== 'pagato' && (
+                          <span className="inline-block text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                            Non a saldo
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -1807,6 +1854,11 @@ export const PiccolaCassaView: React.FC = () => {
               <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
                 <span className="text-xs text-slate-500 block">Stato</span>
                 <div className="mt-0.5">{statusBadge(selectedMovement.status)}</div>
+                {selectedMovement.status !== 'pagato' && (
+                  <span className="text-[11px] text-amber-700 font-medium block mt-1">
+                    Non a saldo (richiede pagamento)
+                  </span>
+                )}
               </div>
               <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
                 <span className="text-xs text-slate-500 block">
@@ -1894,7 +1946,43 @@ export const PiccolaCassaView: React.FC = () => {
                 <span>Stampa Modulo con Firme</span>
               </button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {isSuperAdmin && selectedMovement.status === 'inviato' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateCashMovement(selectedMovement.id, { status: 'approvato' });
+                      setSelectedMovement((prev) => (prev ? { ...prev, status: 'approvato' } : null));
+                      showToast('✓ Richiesta approvata.');
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 px-3.5 py-2 text-xs sm:text-sm font-normal text-white"
+                  >
+                    <Check className="h-4 w-4" />
+                    <span>Approva</span>
+                  </button>
+                )}
+
+                {isSuperAdmin && selectedMovement.status !== 'pagato' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nowIso = new Date().toISOString();
+                      updateCashMovement(selectedMovement.id, {
+                        status: 'pagato',
+                        payment_date: nowIso,
+                      });
+                      setSelectedMovement((prev) =>
+                        prev ? { ...prev, status: 'pagato', payment_date: nowIso } : null
+                      );
+                      showToast('✓ Movimento segnato come Pagato e accreditato a saldo.');
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs sm:text-sm font-normal text-white"
+                  >
+                    <Banknote className="h-4 w-4" />
+                    <span>Paga</span>
+                  </button>
+                )}
+
                 {(isSuperAdmin ||
                   ((selectedMovement.requester_id === currentUser?.id ||
                     selectedMovement.compiled_by_id === currentUser?.id) &&
