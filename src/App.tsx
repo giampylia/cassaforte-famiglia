@@ -17,6 +17,8 @@ import {
   Globe,
   ExternalLink,
   Compass,
+  Zap,
+  Scale,
 } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { getMemberParts, isProtectedSegreteriaMember } from './data/initialData';
@@ -31,6 +33,8 @@ import { AvvisiVideoView } from './components/AvvisiVideoView';
 import { BibliotecaView } from './components/BibliotecaView';
 import { AutorizzazioniView } from './components/AutorizzazioniView';
 import { LezioniCampoView } from './components/LezioniCampoView';
+import { BolletteView } from './components/BolletteView';
+import { BilancioView } from './components/BilancioView';
 import { MobileGlassMenu } from './components/MobileGlassMenu';
 
 const MainRouter: React.FC = () => {
@@ -46,7 +50,7 @@ const MainRouter: React.FC = () => {
     signOut,
   } = useApp();
 
-  const CURRENT_APP_VERSION = 'v59';
+  const CURRENT_APP_VERSION = 'v60';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
@@ -130,6 +134,8 @@ const MainRouter: React.FC = () => {
   const canSeeAvvisiVideo = getUserSectionPermission('avvisi_video') !== 'none';
   const canSeeEliminacode = getUserSectionPermission('eliminacode') !== 'none';
   const canSeeLezioniCampo = getUserSectionPermission('lezioni_campo') !== 'none';
+  const canSeeBollette = getUserSectionPermission('bollette') !== 'none';
+  const canSeeBilancio = getUserSectionPermission('bilancio') !== 'none';
 
   // Autorizzazioni visibile esclusivamente ad Amministratore (7726 o role === 'admin')
   const canSeeAutorizzazioni = isSuperAdmin || currentUser.role === 'admin';
@@ -218,6 +224,26 @@ const MainRouter: React.FC = () => {
             label: 'Lezioni sul Campo',
             sublabel: 'Escursioni, Visite e Preventivi',
             icon: Compass,
+          },
+        ]
+      : []),
+    ...(canSeeBollette
+      ? [
+          {
+            key: 'bollette' as const,
+            label: 'Consumi Elettrici',
+            sublabel: 'Bollette & Ripartizione Alveas/Qu3',
+            icon: Zap,
+          },
+        ]
+      : []),
+    ...(canSeeBilancio
+      ? [
+          {
+            key: 'bilancio' as const,
+            label: 'Bilancio & Contabilità',
+            sublabel: 'Consuntivo ETS, Preventivo e Liquidità',
+            icon: Scale,
           },
         ]
       : []),
@@ -383,6 +409,8 @@ const MainRouter: React.FC = () => {
           canSeeEliminacode={canSeeEliminacode}
           canSeeAutorizzazioni={canSeeAutorizzazioni}
           canSeeLezioniCampo={canSeeLezioniCampo}
+          canSeeBollette={canSeeBollette}
+          canSeeBilancio={canSeeBilancio}
           showCloseButton={mobileDrawerOpen && activeSection !== 'menu'}
         />
 
@@ -396,6 +424,10 @@ const MainRouter: React.FC = () => {
             <AutorizzazioniView />
           ) : activeSection === 'lezioni_campo' && canSeeLezioniCampo ? (
             <LezioniCampoView />
+          ) : activeSection === 'bollette' && canSeeBollette ? (
+            <BolletteView />
+          ) : activeSection === 'bilancio' && canSeeBilancio ? (
+            <BilancioView />
           ) : activeSection === 'eliminacode' && canSeeEliminacode ? (
             <EliminacodeView />
           ) : activeSection === 'avvisi_video' && canSeeAvvisiVideo ? (

@@ -16,6 +16,8 @@ import {
   Key,
   Globe,
   Compass,
+  Zap,
+  Scale,
 } from 'lucide-react';
 import { useApp, AppSection, FontScale } from '../context/AppContext';
 import { Profile } from '../data/initialData';
@@ -50,6 +52,8 @@ interface MobileGlassMenuProps {
   canSeeEliminacode: boolean;
   canSeeAutorizzazioni: boolean;
   canSeeLezioniCampo?: boolean;
+  canSeeBollette?: boolean;
+  canSeeBilancio?: boolean;
   showCloseButton?: boolean;
 }
 
@@ -73,6 +77,8 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
   canSeeEliminacode,
   canSeeAutorizzazioni,
   canSeeLezioniCampo = true,
+  canSeeBollette = true,
+  canSeeBilancio = true,
   showCloseButton = false,
 }) => {
   const {
@@ -213,6 +219,28 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
             shortLabel: 'LEZIONI SUL CAMPO',
             sublabel: 'Escursioni e Spese',
             icon: Compass,
+          },
+        ]
+      : []),
+    ...(canSeeBollette
+      ? [
+          {
+            key: 'bollette' as AppSection,
+            label: 'Consumi Elettrici',
+            shortLabel: 'BOLLETTE',
+            sublabel: 'Ripartizione & Spese',
+            icon: Zap,
+          },
+        ]
+      : []),
+    ...(canSeeBilancio
+      ? [
+          {
+            key: 'bilancio' as AppSection,
+            label: 'Bilancio & Contabilità',
+            shortLabel: 'BILANCIO',
+            sublabel: 'Consuntivo & Liquidità',
+            icon: Scale,
           },
         ]
       : []),

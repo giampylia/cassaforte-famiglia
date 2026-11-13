@@ -58,6 +58,18 @@ export const MANAGED_MENU_SECTIONS: MenuSectionDef[] = [
     sublabel: 'Gestione Escursioni, Preventivi e Spese',
     iconName: 'Compass',
   },
+  {
+    key: 'bollette',
+    label: 'Bollette e Consumi',
+    sublabel: 'Ripartizione Luce Sede Alveas / Qu3',
+    iconName: 'Zap',
+  },
+  {
+    key: 'bilancio',
+    label: 'Bilanci',
+    sublabel: 'Consuntivo ETS, Preventivo e Liquidità',
+    iconName: 'Scale',
+  },
 ];
 
 export const MANAGED_ROLES = [
@@ -175,6 +187,30 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsMap = {
     'Biblioteca': 'none',
     'Presidenza': 'view',
     'LsC': 'edit',
+  },
+  bollette: {
+    'Solo CD': 'view',
+    'Socio': 'none',
+    'Segreteria': 'view',
+    'Amministrativo': 'edit',
+    'Didattica': 'none',
+    'Viaggi': 'none',
+    'Amministratore': 'edit',
+    'Biblioteca': 'none',
+    'Presidenza': 'view',
+    'LsC': 'none',
+  },
+  bilancio: {
+    'Solo CD': 'view',
+    'Socio': 'none',
+    'Segreteria': 'view',
+    'Amministrativo': 'edit',
+    'Didattica': 'none',
+    'Viaggi': 'none',
+    'Amministratore': 'edit',
+    'Biblioteca': 'none',
+    'Presidenza': 'view',
+    'LsC': 'none',
   },
 };
 

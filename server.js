@@ -721,6 +721,28 @@ const server = http.createServer(async (req, res) => {
           if (Array.isArray(existingDb.classrooms) && (!Array.isArray(incomingDb.classrooms) || incomingDb.classrooms.length === 0)) {
             incomingDb.classrooms = existingDb.classrooms;
           }
+
+          // Preservazione Bollette & Consumi Elettrici
+          if (Array.isArray(existingDb.electricBills) && (!Array.isArray(incomingDb.electricBills) || incomingDb.electricBills.length === 0)) {
+            incomingDb.electricBills = existingDb.electricBills;
+          }
+
+          // Preservazione Bilanci & Contabilità
+          if (Array.isArray(existingDb.bilanci) && (!Array.isArray(incomingDb.bilanci) || incomingDb.bilanci.length === 0)) {
+            incomingDb.bilanci = existingDb.bilanci;
+          }
+          if (Array.isArray(existingDb.bilancioConti) && (!Array.isArray(incomingDb.bilancioConti) || incomingDb.bilancioConti.length === 0)) {
+            incomingDb.bilancioConti = existingDb.bilancioConti;
+          }
+          if (Array.isArray(existingDb.bilancioPreventivo) && (!Array.isArray(incomingDb.bilancioPreventivo) || incomingDb.bilancioPreventivo.length === 0)) {
+            incomingDb.bilancioPreventivo = existingDb.bilancioPreventivo;
+          }
+          if (Array.isArray(existingDb.liquiditaSettings) && (!Array.isArray(incomingDb.liquiditaSettings) || incomingDb.liquiditaSettings.length === 0)) {
+            incomingDb.liquiditaSettings = existingDb.liquiditaSettings;
+          }
+          if (Array.isArray(existingDb.liquiditaRighe) && (!Array.isArray(incomingDb.liquiditaRighe) || incomingDb.liquiditaRighe.length === 0)) {
+            incomingDb.liquiditaRighe = existingDb.liquiditaRighe;
+          }
         }
 
         if (Array.isArray(incomingDb.profiles)) {

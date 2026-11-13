@@ -42,6 +42,22 @@ import {
   INITIAL_EXCURSION_PAYMENTS,
   INITIAL_EXCURSION_ADJUSTMENTS,
 } from '../data/lezioniCampoData';
+import {
+  ElectricBill,
+  INITIAL_ELECTRIC_BILLS,
+} from '../data/bolletteData';
+import {
+  BilancioEsercizio,
+  BilancioConto,
+  BilancioPreventivoRow,
+  LiquiditaSetting,
+  LiquiditaRiga,
+  INITIAL_BILANCI,
+  INITIAL_BILANCIO_CONTI,
+  INITIAL_BILANCIO_PREVENTIVO,
+  INITIAL_LIQUIDITA_SETTINGS,
+  INITIAL_LIQUIDITA_RIGHE,
+} from '../data/bilancioData';
 
 export type FontScale = 'normal' | 'large' | 'xlarge';
 export type AppSection =
@@ -54,7 +70,9 @@ export type AppSection =
   | 'avvisi_video'
   | 'eliminacode'
   | 'autorizzazioni'
-  | 'lezioni_campo';
+  | 'lezioni_campo'
+  | 'bollette'
+  | 'bilancio';
 
 export interface QueueItem {
   number: number;
@@ -112,6 +130,14 @@ interface CloudDbSnapshot {
   excursionPayments?: ExcursionPayment[];
   excursionAdjustments?: ExcursionAdjustment[];
   excursionsUpdatedAt?: number;
+  electricBills?: ElectricBill[];
+  electricBillsUpdatedAt?: number;
+  bilanci?: BilancioEsercizio[];
+  bilancioConti?: BilancioConto[];
+  bilancioPreventivo?: BilancioPreventivoRow[];
+  liquiditaSettings?: LiquiditaSetting[];
+  liquiditaRighe?: LiquiditaRiga[];
+  bilancioUpdatedAt?: number;
   attendance: AttendanceRecord[];
   subjectNotes: SubjectDidacticNote[];
   visualHeadcounts: Record<ClassroomKey, number>;
@@ -228,6 +254,25 @@ interface AppContextType {
   saveExcursion: (excursion: Partial<Excursion>, payments: ExcursionPayment[]) => Promise<void>;
   deleteExcursion: (id: string) => Promise<void>;
   saveAdjustments: (adjustments: ExcursionAdjustment[]) => Promise<void>;
+  // Bollette & Consumi Elettrici
+  electricBills: ElectricBill[];
+  electricBillsUpdatedAt: number;
+  saveElectricBill: (bill: Partial<ElectricBill>) => Promise<void>;
+  deleteElectricBill: (id: string) => Promise<void>;
+  // Bilancio ETS & Rendiconto Gestionale
+  bilanci: BilancioEsercizio[];
+  bilancioConti: BilancioConto[];
+  bilancioPreventivo: BilancioPreventivoRow[];
+  liquiditaSettings: LiquiditaSetting[];
+  liquiditaRighe: LiquiditaRiga[];
+  bilancioUpdatedAt: number;
+  saveBilancioConto: (conto: Partial<BilancioConto>) => Promise<void>;
+  saveBilancioContiBatch: (conti: BilancioConto[]) => Promise<void>;
+  createBilancioEsercizio: (es: Partial<BilancioEsercizio>) => Promise<void>;
+  saveLiquiditaSetting: (setting: Partial<LiquiditaSetting>) => Promise<void>;
+  saveLiquiditaRiga: (riga: Partial<LiquiditaRiga>) => Promise<void>;
+  deleteLiquiditaRiga: (id: string) => Promise<void>;
+  saveBilancioPreventivoRow: (row: Partial<BilancioPreventivoRow>) => Promise<void>;
   resetDemoData: () => void;
 }
 
@@ -255,6 +300,14 @@ const STORAGE_KEYS = {
   EXCURSIONS_PAYMENTS: 'quartimbra_excursions_payments_v1',
   EXCURSIONS_ADJUSTMENTS: 'quartimbra_excursions_adjustments_v1',
   EXCURSIONS_TS: 'quartimbra_excursions_ts_v1',
+  ELECTRIC_BILLS: 'quartimbra_electric_bills_v1',
+  ELECTRIC_BILLS_TS: 'quartimbra_electric_bills_ts_v1',
+  BILANCI: 'quartimbra_bilanci_v1',
+  BILANCIO_CONTI: 'quartimbra_bilancio_conti_v1',
+  BILANCIO_PREVENTIVO: 'quartimbra_bilancio_preventivo_v1',
+  LIQUIDITA_SETTINGS: 'quartimbra_liquidita_settings_v1',
+  LIQUIDITA_RIGHE: 'quartimbra_liquidita_righe_v1',
+  BILANCIO_TS: 'quartimbra_bilancio_ts_v1',
   ATTENDANCE: 'quartimbra_attendance_v3',
   NOTES: 'quartimbra_subject_notes_v3',
   HEADCOUNTS: 'quartimbra_headcounts_v3',
@@ -596,6 +649,94 @@ async function loadLezioniCampoFromIndexedDB(): Promise<{
     try {
       const tx = db.transaction(IDB_STORE, 'readonly');
       const req = tx.objectStore(IDB_STORE).get(IDB_LEZIONI_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+const IDB_BOLLETTE_KEY = 'protected_electric_bills_v1';
+
+async function saveBolletteToIndexedDB(data: {
+  electricBills: ElectricBill[];
+  updatedAt: number;
+}): Promise<void> {
+  const db = await openAnagraficaIdb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(
+      {
+        ...data,
+        updatedAt: data.updatedAt || Date.now(),
+      },
+      IDB_BOLLETTE_KEY
+    );
+  } catch {
+    // Ignore IDB errors
+  }
+}
+
+async function loadBolletteFromIndexedDB(): Promise<{
+  electricBills?: ElectricBill[];
+  updatedAt?: number;
+} | null> {
+  const db = await openAnagraficaIdb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(IDB_BOLLETTE_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+const IDB_BILANCIO_KEY = 'protected_bilancio_v1';
+
+async function saveBilancioToIndexedDB(data: {
+  bilanci: BilancioEsercizio[];
+  bilancioConti: BilancioConto[];
+  bilancioPreventivo: BilancioPreventivoRow[];
+  liquiditaSettings: LiquiditaSetting[];
+  liquiditaRighe: LiquiditaRiga[];
+  updatedAt: number;
+}): Promise<void> {
+  const db = await openAnagraficaIdb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(
+      {
+        ...data,
+        updatedAt: data.updatedAt || Date.now(),
+      },
+      IDB_BILANCIO_KEY
+    );
+  } catch {
+    // Ignore IDB errors
+  }
+}
+
+async function loadBilancioFromIndexedDB(): Promise<{
+  bilanci?: BilancioEsercizio[];
+  bilancioConti?: BilancioConto[];
+  bilancioPreventivo?: BilancioPreventivoRow[];
+  liquiditaSettings?: LiquiditaSetting[];
+  liquiditaRighe?: LiquiditaRiga[];
+  updatedAt?: number;
+} | null> {
+  const db = await openAnagraficaIdb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(IDB_BILANCIO_KEY);
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => resolve(null);
     } catch {
@@ -1050,6 +1191,76 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [electricBillsUpdatedAt, setElectricBillsUpdatedAt] = useState<number>(() => {
+    try {
+      return Number(localStorage.getItem(STORAGE_KEYS.ELECTRIC_BILLS_TS) || 0);
+    } catch {
+      return 0;
+    }
+  });
+
+  const [electricBills, setElectricBills] = useState<ElectricBill[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.ELECTRIC_BILLS);
+      return saved ? JSON.parse(saved) : INITIAL_ELECTRIC_BILLS;
+    } catch {
+      return INITIAL_ELECTRIC_BILLS;
+    }
+  });
+
+  const [bilancioUpdatedAt, setBilancioUpdatedAt] = useState<number>(() => {
+    try {
+      return Number(localStorage.getItem(STORAGE_KEYS.BILANCIO_TS) || 0);
+    } catch {
+      return 0;
+    }
+  });
+
+  const [bilanci, setBilanci] = useState<BilancioEsercizio[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.BILANCI);
+      return saved ? JSON.parse(saved) : INITIAL_BILANCI;
+    } catch {
+      return INITIAL_BILANCI;
+    }
+  });
+
+  const [bilancioConti, setBilancioConti] = useState<BilancioConto[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.BILANCIO_CONTI);
+      return saved ? JSON.parse(saved) : INITIAL_BILANCIO_CONTI;
+    } catch {
+      return INITIAL_BILANCIO_CONTI;
+    }
+  });
+
+  const [bilancioPreventivo, setBilancioPreventivo] = useState<BilancioPreventivoRow[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.BILANCIO_PREVENTIVO);
+      return saved ? JSON.parse(saved) : INITIAL_BILANCIO_PREVENTIVO;
+    } catch {
+      return INITIAL_BILANCIO_PREVENTIVO;
+    }
+  });
+
+  const [liquiditaSettings, setLiquiditaSettings] = useState<LiquiditaSetting[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.LIQUIDITA_SETTINGS);
+      return saved ? JSON.parse(saved) : INITIAL_LIQUIDITA_SETTINGS;
+    } catch {
+      return INITIAL_LIQUIDITA_SETTINGS;
+    }
+  });
+
+  const [liquiditaRighe, setLiquiditaRighe] = useState<LiquiditaRiga[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.LIQUIDITA_RIGHE);
+      return saved ? JSON.parse(saved) : INITIAL_LIQUIDITA_RIGHE;
+    } catch {
+      return INITIAL_LIQUIDITA_RIGHE;
+    }
+  });
+
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
@@ -1308,6 +1519,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   excursionAdjustmentsRef.current = excursionAdjustments;
   const excursionsUpdatedAtRef = useRef(excursionsUpdatedAt);
   excursionsUpdatedAtRef.current = excursionsUpdatedAt;
+  const electricBillsRef = useRef<ElectricBill[]>(electricBills);
+  electricBillsRef.current = electricBills;
+  const electricBillsUpdatedAtRef = useRef(electricBillsUpdatedAt);
+  electricBillsUpdatedAtRef.current = electricBillsUpdatedAt;
+
+  const bilanciRef = useRef<BilancioEsercizio[]>(bilanci);
+  bilanciRef.current = bilanci;
+  const bilancioContiRef = useRef<BilancioConto[]>(bilancioConti);
+  bilancioContiRef.current = bilancioConti;
+  const bilancioPreventivoRef = useRef<BilancioPreventivoRow[]>(bilancioPreventivo);
+  bilancioPreventivoRef.current = bilancioPreventivo;
+  const liquiditaSettingsRef = useRef<LiquiditaSetting[]>(liquiditaSettings);
+  liquiditaSettingsRef.current = liquiditaSettings;
+  const liquiditaRigheRef = useRef<LiquiditaRiga[]>(liquiditaRighe);
+  liquiditaRigheRef.current = liquiditaRighe;
+  const bilancioUpdatedAtRef = useRef(bilancioUpdatedAt);
+  bilancioUpdatedAtRef.current = bilancioUpdatedAt;
+
   const queueUpdatedAtRef = useRef(queueState.updatedAt || 0);
   queueUpdatedAtRef.current = queueState.updatedAt || 0;
 
@@ -1718,6 +1947,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       shouldPushBackLocalProtected = true;
     }
 
+    const remoteBillsTs = Number(db.electricBillsUpdatedAt || 0);
+    const localBillsTs = electricBillsUpdatedAtRef.current;
+    if (remoteBillsTs > localBillsTs && Array.isArray(db.electricBills) && db.electricBills.length > 0) {
+      electricBillsRef.current = db.electricBills;
+      setElectricBills(db.electricBills);
+      safeSetLocalStorage(STORAGE_KEYS.ELECTRIC_BILLS, JSON.stringify(db.electricBills));
+      electricBillsUpdatedAtRef.current = remoteBillsTs;
+      setElectricBillsUpdatedAt(remoteBillsTs);
+      safeSetLocalStorage(STORAGE_KEYS.ELECTRIC_BILLS_TS, String(remoteBillsTs));
+      saveBolletteToIndexedDB({
+        electricBills: db.electricBills,
+        updatedAt: remoteBillsTs || Date.now(),
+      });
+    } else if (localBillsTs > remoteBillsTs && Array.isArray(electricBillsRef.current)) {
+      shouldPushBackLocalProtected = true;
+    }
+
+    const remoteBilancioTs = Number(db.bilancioUpdatedAt || 0);
+    const localBilancioTs = bilancioUpdatedAtRef.current;
+    if (remoteBilancioTs > localBilancioTs && Array.isArray(db.bilanci) && db.bilanci.length > 0) {
+      bilanciRef.current = db.bilanci;
+      setBilanci(db.bilanci);
+      safeSetLocalStorage(STORAGE_KEYS.BILANCI, JSON.stringify(db.bilanci));
+      if (Array.isArray(db.bilancioConti)) {
+        bilancioContiRef.current = db.bilancioConti;
+        setBilancioConti(db.bilancioConti);
+        safeSetLocalStorage(STORAGE_KEYS.BILANCIO_CONTI, JSON.stringify(db.bilancioConti));
+      }
+      if (Array.isArray(db.bilancioPreventivo)) {
+        bilancioPreventivoRef.current = db.bilancioPreventivo;
+        setBilancioPreventivo(db.bilancioPreventivo);
+        safeSetLocalStorage(STORAGE_KEYS.BILANCIO_PREVENTIVO, JSON.stringify(db.bilancioPreventivo));
+      }
+      if (Array.isArray(db.liquiditaSettings)) {
+        liquiditaSettingsRef.current = db.liquiditaSettings;
+        setLiquiditaSettings(db.liquiditaSettings);
+        safeSetLocalStorage(STORAGE_KEYS.LIQUIDITA_SETTINGS, JSON.stringify(db.liquiditaSettings));
+      }
+      if (Array.isArray(db.liquiditaRighe)) {
+        liquiditaRigheRef.current = db.liquiditaRighe;
+        setLiquiditaRighe(db.liquiditaRighe);
+        safeSetLocalStorage(STORAGE_KEYS.LIQUIDITA_RIGHE, JSON.stringify(db.liquiditaRighe));
+      }
+      bilancioUpdatedAtRef.current = remoteBilancioTs;
+      setBilancioUpdatedAt(remoteBilancioTs);
+      safeSetLocalStorage(STORAGE_KEYS.BILANCIO_TS, String(remoteBilancioTs));
+      saveBilancioToIndexedDB({
+        bilanci: db.bilanci,
+        bilancioConti: db.bilancioConti || [],
+        bilancioPreventivo: db.bilancioPreventivo || [],
+        liquiditaSettings: db.liquiditaSettings || [],
+        liquiditaRighe: db.liquiditaRighe || [],
+        updatedAt: remoteBilancioTs || Date.now(),
+      });
+    } else if (localBilancioTs > remoteBilancioTs && Array.isArray(bilanciRef.current)) {
+      shouldPushBackLocalProtected = true;
+    }
+
     if (db.queueState) {
       const sanitizedRemoteQ = sanitizeQueueState(db.queueState, profilesRef.current);
       const remoteQueueTs = Number(sanitizedRemoteQ.updatedAt || 0);
@@ -1795,13 +2082,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     async function initHydration() {
       // 1) Attendi il completamento di tutti i recuperi locali da IndexedDB
       try {
-        const [idbData, idbBooks, idbCash, idbVn, idbPerms, idbLezioni] = await Promise.all([
+        const [idbData, idbBooks, idbCash, idbVn, idbPerms, idbLezioni, idbBollette, idbBilancio] = await Promise.all([
           loadAnagraficaFromIndexedDB(),
           loadLibraryBooksFromIndexedDB(),
           loadCashDataFromIndexedDB(),
           loadVideoNoticesFromIndexedDB(),
           loadRolePermissionsFromIndexedDB(),
           loadLezioniCampoFromIndexedDB(),
+          loadBolletteFromIndexedDB(),
+          loadBilancioFromIndexedDB(),
         ]);
 
         if (isCancelled) return;
@@ -1945,6 +2234,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS_PAYMENTS, JSON.stringify(idbLezioni.payments || []));
             safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS_ADJUSTMENTS, JSON.stringify(idbLezioni.adjustments || []));
             safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS_TS, String(idbTs));
+          }
+        }
+
+        // Bollette
+        if (idbBollette && Array.isArray(idbBollette.electricBills) && idbBollette.electricBills.length > 0) {
+          const idbTs = Number(idbBollette.updatedAt || 0);
+          if (idbTs > electricBillsUpdatedAtRef.current || electricBillsRef.current.length === 0) {
+            electricBillsRef.current = idbBollette.electricBills;
+            setElectricBills(idbBollette.electricBills);
+            electricBillsUpdatedAtRef.current = idbTs;
+            setElectricBillsUpdatedAt(idbTs);
+            safeSetLocalStorage(STORAGE_KEYS.ELECTRIC_BILLS, JSON.stringify(idbBollette.electricBills));
+            safeSetLocalStorage(STORAGE_KEYS.ELECTRIC_BILLS_TS, String(idbTs));
+          }
+        }
+
+        // Bilancio
+        if (idbBilancio && Array.isArray(idbBilancio.bilanci) && idbBilancio.bilanci.length > 0) {
+          const idbTs = Number(idbBilancio.updatedAt || 0);
+          if (idbTs > bilancioUpdatedAtRef.current || bilanciRef.current.length === 0) {
+            bilanciRef.current = idbBilancio.bilanci;
+            setBilanci(idbBilancio.bilanci);
+            if (Array.isArray(idbBilancio.bilancioConti)) {
+              bilancioContiRef.current = idbBilancio.bilancioConti;
+              setBilancioConti(idbBilancio.bilancioConti);
+            }
+            if (Array.isArray(idbBilancio.bilancioPreventivo)) {
+              bilancioPreventivoRef.current = idbBilancio.bilancioPreventivo;
+              setBilancioPreventivo(idbBilancio.bilancioPreventivo);
+            }
+            if (Array.isArray(idbBilancio.liquiditaSettings)) {
+              liquiditaSettingsRef.current = idbBilancio.liquiditaSettings;
+              setLiquiditaSettings(idbBilancio.liquiditaSettings);
+            }
+            if (Array.isArray(idbBilancio.liquiditaRighe)) {
+              liquiditaRigheRef.current = idbBilancio.liquiditaRighe;
+              setLiquiditaRighe(idbBilancio.liquiditaRighe);
+            }
+            bilancioUpdatedAtRef.current = idbTs;
+            setBilancioUpdatedAt(idbTs);
+            safeSetLocalStorage(STORAGE_KEYS.BILANCI, JSON.stringify(idbBilancio.bilanci));
+            safeSetLocalStorage(STORAGE_KEYS.BILANCIO_CONTI, JSON.stringify(idbBilancio.bilancioConti || []));
+            safeSetLocalStorage(STORAGE_KEYS.BILANCIO_PREVENTIVO, JSON.stringify(idbBilancio.bilancioPreventivo || []));
+            safeSetLocalStorage(STORAGE_KEYS.LIQUIDITA_SETTINGS, JSON.stringify(idbBilancio.liquiditaSettings || []));
+            safeSetLocalStorage(STORAGE_KEYS.LIQUIDITA_RIGHE, JSON.stringify(idbBilancio.liquiditaRighe || []));
+            safeSetLocalStorage(STORAGE_KEYS.BILANCIO_TS, String(idbTs));
           }
         }
       } catch (err) {
@@ -3604,6 +3939,326 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     commitLezioniCampo(excursionsRef.current, excursionPaymentsRef.current, adjustmentsData);
   };
 
+  // --------------------------------------------------------------------------
+  // Bollette & Consumi Elettrici
+  // --------------------------------------------------------------------------
+  const commitElectricBills = (nextBills: ElectricBill[]) => {
+    const nowTs = Date.now();
+    electricBillsRef.current = nextBills;
+    electricBillsUpdatedAtRef.current = nowTs;
+    setElectricBills(nextBills);
+    setElectricBillsUpdatedAt(nowTs);
+    safeSetLocalStorage(STORAGE_KEYS.ELECTRIC_BILLS, JSON.stringify(nextBills));
+    safeSetLocalStorage(STORAGE_KEYS.ELECTRIC_BILLS_TS, String(nowTs));
+
+    saveBolletteToIndexedDB({
+      electricBills: nextBills,
+      updatedAt: nowTs,
+    });
+
+    pushCloudSnapshot({
+      profiles: profilesRef.current,
+      availableRoles: availableRolesRef.current,
+      profilesUpdatedAt: profilesUpdatedAtRef.current,
+      expenseCategories: expenseCategoriesRef.current,
+      cashMovements: cashMovementsRef.current,
+      cashOpeningBalance: cashOpeningBalanceRef.current,
+      cashUpdatedAt: cashUpdatedAtRef.current,
+      lessons: lessonsRef.current,
+      lessonsUpdatedAt: lessonsUpdatedAtRef.current,
+      videoNotices: videoNoticesRef.current,
+      videoNoticesUpdatedAt: videoNoticesUpdatedAtRef.current,
+      libraryBooks: libraryBooksRef.current,
+      libraryBooksUpdatedAt: libraryBooksUpdatedAtRef.current,
+      rolePermissions: rolePermissionsRef.current,
+      rolePermissionsUpdatedAt: rolePermissionsUpdatedAtRef.current,
+      excursions: excursionsRef.current,
+      excursionPayments: excursionPaymentsRef.current,
+      excursionAdjustments: excursionAdjustmentsRef.current,
+      excursionsUpdatedAt: excursionsUpdatedAtRef.current,
+      electricBills: nextBills,
+      electricBillsUpdatedAt: nowTs,
+      bilanci: bilanciRef.current,
+      bilancioConti: bilancioContiRef.current,
+      bilancioPreventivo: bilancioPreventivoRef.current,
+      liquiditaSettings: liquiditaSettingsRef.current,
+      liquiditaRighe: liquiditaRigheRef.current,
+      bilancioUpdatedAt: bilancioUpdatedAtRef.current,
+      attendance,
+      subjectNotes,
+      visualHeadcounts,
+      liveFeed,
+      queueState,
+      updatedAt: new Date().toISOString(),
+    }, 'ELECTRIC_BILLS_UPDATE');
+  };
+
+  const saveElectricBill = async (billData: Partial<ElectricBill>): Promise<void> => {
+    const isNew = !billData.id;
+    const billId = billData.id || `bill-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const fullBill: ElectricBill = {
+      id: billId,
+      periodo_dal: billData.periodo_dal || new Date().toISOString().split('T')[0],
+      periodo_al: billData.periodo_al || new Date().toISOString().split('T')[0],
+      scadenza: billData.scadenza || null,
+      tipo_documento: billData.tipo_documento || 'Fattura per fornitura energia elettrica',
+      totale_fattura: Number(billData.totale_fattura) || 0,
+      kwh_totali: Number(billData.kwh_totali) || 0,
+      kwh_qu3: Number(billData.kwh_qu3) || 0,
+      kwh_alveas: Number(billData.kwh_alveas) || 0,
+      quota_fissa_commercializzazione: Number(billData.quota_fissa_commercializzazione) || 0,
+      quota_energia_f0: Number(billData.quota_energia_f0) || 0,
+      maggior_prezzo_energia: Number(billData.maggior_prezzo_energia) || 0,
+      perdite_rete: Number(billData.perdite_rete) || 0,
+      corrispettivo_servizio_vendita: Number(billData.corrispettivo_servizio_vendita) || 0,
+      oneri_dispacciamento: Number(billData.oneri_dispacciamento) || 0,
+      capacita_picco: Number(billData.capacita_picco) || 0,
+      corrispettivo_capacita: Number(billData.corrispettivo_capacita) || 0,
+      quota_fissa_rete: Number(billData.quota_fissa_rete) || 0,
+      quota_potenza_rete: Number(billData.quota_potenza_rete) || 0,
+      quota_energia_rete: Number(billData.quota_energia_rete) || 0,
+      reattiva_f3_capacitiva: Number(billData.reattiva_f3_capacitiva) || 0,
+      asos_quota_fissa: Number(billData.asos_quota_fissa) || 0,
+      asos_quota_potenza: Number(billData.asos_quota_potenza) || 0,
+      asos_quota_energia: Number(billData.asos_quota_energia) || 0,
+      arim_quota_fissa: Number(billData.arim_quota_fissa) || 0,
+      arim_quota_potenza: Number(billData.arim_quota_potenza) || 0,
+      arim_quota_energia: Number(billData.arim_quota_energia) || 0,
+      accise_imposta_erariale: Number(billData.accise_imposta_erariale) || 0,
+      iva_totale: Number(billData.iva_totale) || 0,
+      created_by: billData.created_by || currentUser?.id,
+      created_at: billData.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    let nextBills: ElectricBill[];
+    if (isNew) {
+      nextBills = [fullBill, ...electricBillsRef.current];
+    } else {
+      nextBills = electricBillsRef.current.map((b) => (b.id === billId ? fullBill : b));
+    }
+    commitElectricBills(nextBills);
+  };
+
+  const deleteElectricBill = async (id: string): Promise<void> => {
+    const nextBills = electricBillsRef.current.filter((b) => b.id !== id);
+    commitElectricBills(nextBills);
+  };
+
+  // --------------------------------------------------------------------------
+  // Bilancio ETS & Rendiconto Gestionale
+  // --------------------------------------------------------------------------
+  const commitBilancioState = (
+    nextBilanci: BilancioEsercizio[],
+    nextConti: BilancioConto[],
+    nextPreventivo: BilancioPreventivoRow[],
+    nextSettings: LiquiditaSetting[],
+    nextRighe: LiquiditaRiga[]
+  ) => {
+    const nowTs = Date.now();
+    bilanciRef.current = nextBilanci;
+    bilancioContiRef.current = nextConti;
+    bilancioPreventivoRef.current = nextPreventivo;
+    liquiditaSettingsRef.current = nextSettings;
+    liquiditaRigheRef.current = nextRighe;
+    bilancioUpdatedAtRef.current = nowTs;
+
+    setBilanci(nextBilanci);
+    setBilancioConti(nextConti);
+    setBilancioPreventivo(nextPreventivo);
+    setLiquiditaSettings(nextSettings);
+    setLiquiditaRighe(nextRighe);
+    setBilancioUpdatedAt(nowTs);
+
+    safeSetLocalStorage(STORAGE_KEYS.BILANCI, JSON.stringify(nextBilanci));
+    safeSetLocalStorage(STORAGE_KEYS.BILANCIO_CONTI, JSON.stringify(nextConti));
+    safeSetLocalStorage(STORAGE_KEYS.BILANCIO_PREVENTIVO, JSON.stringify(nextPreventivo));
+    safeSetLocalStorage(STORAGE_KEYS.LIQUIDITA_SETTINGS, JSON.stringify(nextSettings));
+    safeSetLocalStorage(STORAGE_KEYS.LIQUIDITA_RIGHE, JSON.stringify(nextRighe));
+    safeSetLocalStorage(STORAGE_KEYS.BILANCIO_TS, String(nowTs));
+
+    saveBilancioToIndexedDB({
+      bilanci: nextBilanci,
+      bilancioConti: nextConti,
+      bilancioPreventivo: nextPreventivo,
+      liquiditaSettings: nextSettings,
+      liquiditaRighe: nextRighe,
+      updatedAt: nowTs,
+    });
+
+    pushCloudSnapshot({
+      profiles: profilesRef.current,
+      availableRoles: availableRolesRef.current,
+      profilesUpdatedAt: profilesUpdatedAtRef.current,
+      expenseCategories: expenseCategoriesRef.current,
+      cashMovements: cashMovementsRef.current,
+      cashOpeningBalance: cashOpeningBalanceRef.current,
+      cashUpdatedAt: cashUpdatedAtRef.current,
+      lessons: lessonsRef.current,
+      lessonsUpdatedAt: lessonsUpdatedAtRef.current,
+      videoNotices: videoNoticesRef.current,
+      videoNoticesUpdatedAt: videoNoticesUpdatedAtRef.current,
+      libraryBooks: libraryBooksRef.current,
+      libraryBooksUpdatedAt: libraryBooksUpdatedAtRef.current,
+      rolePermissions: rolePermissionsRef.current,
+      rolePermissionsUpdatedAt: rolePermissionsUpdatedAtRef.current,
+      excursions: excursionsRef.current,
+      excursionPayments: excursionPaymentsRef.current,
+      excursionAdjustments: excursionAdjustmentsRef.current,
+      excursionsUpdatedAt: excursionsUpdatedAtRef.current,
+      electricBills: electricBillsRef.current,
+      electricBillsUpdatedAt: electricBillsUpdatedAtRef.current,
+      bilanci: nextBilanci,
+      bilancioConti: nextConti,
+      bilancioPreventivo: nextPreventivo,
+      liquiditaSettings: nextSettings,
+      liquiditaRighe: nextRighe,
+      bilancioUpdatedAt: nowTs,
+      attendance,
+      subjectNotes,
+      visualHeadcounts,
+      liveFeed,
+      queueState,
+      updatedAt: new Date().toISOString(),
+    }, 'BILANCIO_UPDATE');
+  };
+
+  const saveBilancioConto = async (contoData: Partial<BilancioConto>): Promise<void> => {
+    if (!contoData.id) return;
+    const nextConti = bilancioContiRef.current.map((c) =>
+      c.id === contoData.id ? { ...c, ...contoData, updated_at: new Date().toISOString() } : c
+    );
+    commitBilancioState(
+      bilanciRef.current,
+      nextConti,
+      bilancioPreventivoRef.current,
+      liquiditaSettingsRef.current,
+      liquiditaRigheRef.current
+    );
+  };
+
+  const saveBilancioContiBatch = async (updatedConti: BilancioConto[]): Promise<void> => {
+    const map = new Map(updatedConti.map((c) => [c.id, c]));
+    const nextConti = bilancioContiRef.current.map((c) => map.get(c.id) || c);
+    commitBilancioState(
+      bilanciRef.current,
+      nextConti,
+      bilancioPreventivoRef.current,
+      liquiditaSettingsRef.current,
+      liquiditaRigheRef.current
+    );
+  };
+
+  const createBilancioEsercizio = async (esData: Partial<BilancioEsercizio>): Promise<void> => {
+    const id = esData.id || `bil-${Date.now()}`;
+    const newEs: BilancioEsercizio = {
+      id,
+      esercizio: esData.esercizio || '2027/2028',
+      anno_inizio: esData.anno_inizio || 2027,
+      anno_fine: esData.anno_fine || 2028,
+      created_by: currentUser?.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      utile_ap: 0,
+    };
+    const nextBilanci = [...bilanciRef.current, newEs];
+    commitBilancioState(
+      nextBilanci,
+      bilancioContiRef.current,
+      bilancioPreventivoRef.current,
+      liquiditaSettingsRef.current,
+      liquiditaRigheRef.current
+    );
+  };
+
+  const saveLiquiditaSetting = async (settingData: Partial<LiquiditaSetting>): Promise<void> => {
+    const anno = settingData.anno || 2026;
+    const existingIndex = liquiditaSettingsRef.current.findIndex((s) => s.anno === anno);
+    let nextSettings: LiquiditaSetting[];
+    if (existingIndex >= 0) {
+      nextSettings = liquiditaSettingsRef.current.map((s, idx) =>
+        idx === existingIndex ? { ...s, ...settingData, updated_at: new Date().toISOString() } : s
+      );
+    } else {
+      const newSetting: LiquiditaSetting = {
+        id: settingData.id || `lset-${Date.now()}`,
+        anno,
+        saldo_iniziale_data: settingData.saldo_iniziale_data || '2026-07-01',
+        saldo_iniziale: Number(settingData.saldo_iniziale) || 0,
+        totale_lavori: Number(settingData.totale_lavori) || 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      nextSettings = [...liquiditaSettingsRef.current, newSetting];
+    }
+    commitBilancioState(
+      bilanciRef.current,
+      bilancioContiRef.current,
+      bilancioPreventivoRef.current,
+      nextSettings,
+      liquiditaRigheRef.current
+    );
+  };
+
+  const saveLiquiditaRiga = async (rigaData: Partial<LiquiditaRiga>): Promise<void> => {
+    const isNew = !rigaData.id || rigaData.id.startsWith('new_');
+    const rigaId = isNew ? `lriga-${Date.now()}-${Math.random().toString(36).substring(2, 7)}` : rigaData.id!;
+    const fullRiga: LiquiditaRiga = {
+      id: rigaId,
+      anno: rigaData.anno || 2026,
+      periodo_fine: rigaData.periodo_fine || new Date().toISOString().split('T')[0],
+      rsa: Number(rigaData.rsa) || 0,
+      iscrizioni: Number(rigaData.iscrizioni) || 0,
+      via_pizzetti: Number(rigaData.via_pizzetti) || 0,
+      lsc: Number(rigaData.lsc) || 0,
+      eventi: Number(rigaData.eventi) || 0,
+      stipendi: Number(rigaData.stipendi) || 0,
+      docenze: Number(rigaData.docenze) || 0,
+      ordinarie: Number(rigaData.ordinarie) || 0,
+      created_at: rigaData.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    let nextRighe: LiquiditaRiga[];
+    if (isNew) {
+      nextRighe = [...liquiditaRigheRef.current, fullRiga];
+    } else {
+      nextRighe = liquiditaRigheRef.current.map((r) => (r.id === rigaId ? fullRiga : r));
+    }
+    commitBilancioState(
+      bilanciRef.current,
+      bilancioContiRef.current,
+      bilancioPreventivoRef.current,
+      liquiditaSettingsRef.current,
+      nextRighe
+    );
+  };
+
+  const deleteLiquiditaRiga = async (id: string): Promise<void> => {
+    const nextRighe = liquiditaRigheRef.current.filter((r) => r.id !== id);
+    commitBilancioState(
+      bilanciRef.current,
+      bilancioContiRef.current,
+      bilancioPreventivoRef.current,
+      liquiditaSettingsRef.current,
+      nextRighe
+    );
+  };
+
+  const saveBilancioPreventivoRow = async (rowData: Partial<BilancioPreventivoRow>): Promise<void> => {
+    if (!rowData.id) return;
+    const nextPrev = bilancioPreventivoRef.current.map((r) =>
+      r.id === rowData.id ? { ...r, ...rowData, updated_at: new Date().toISOString() } : r
+    );
+    commitBilancioState(
+      bilanciRef.current,
+      bilancioContiRef.current,
+      nextPrev,
+      liquiditaSettingsRef.current,
+      liquiditaRigheRef.current
+    );
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -3705,6 +4360,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         saveExcursion,
         deleteExcursion,
         saveAdjustments,
+        electricBills,
+        electricBillsUpdatedAt,
+        saveElectricBill,
+        deleteElectricBill,
+        bilanci,
+        bilancioConti,
+        bilancioPreventivo,
+        liquiditaSettings,
+        liquiditaRighe,
+        bilancioUpdatedAt,
+        saveBilancioConto,
+        saveBilancioContiBatch,
+        createBilancioEsercizio,
+        saveLiquiditaSetting,
+        saveLiquiditaRiga,
+        deleteLiquiditaRiga,
+        saveBilancioPreventivoRow,
         resetDemoData,
       }}
     >
