@@ -119,6 +119,7 @@ interface AppContextType {
   addCashMovement: (movement: Omit<CashMovement, 'id' | 'created_at'>) => CashMovement;
   updateCashMovement: (id: string, data: Partial<CashMovement>) => void;
   deleteCashMovement: (id: string) => void;
+  importCashMovements: (movements: CashMovement[], replaceAll?: boolean) => void;
   lessons: Lesson[];
   attendance: AttendanceRecord[];
   subjectNotes: SubjectDidacticNote[];
@@ -922,6 +923,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   profilesUpdatedAtRef.current = profilesUpdatedAt;
   const cashUpdatedAtRef = useRef(cashUpdatedAt);
   cashUpdatedAtRef.current = cashUpdatedAt;
+  const cashMovementsRef = useRef<CashMovement[]>(cashMovements);
+  cashMovementsRef.current = cashMovements;
   const lessonsRef = useRef<Lesson[]>(lessons);
   lessonsRef.current = lessons;
   const lessonsUpdatedAtRef = useRef(lessonsUpdatedAt);
@@ -1186,7 +1189,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setExpenseCategories(db.expenseCategories);
       }
       if (Array.isArray(db.cashMovements)) {
-        setCashMovements(db.cashMovements);
+        if (db.cashMovements.length > 0) {
+          setCashMovements(db.cashMovements);
+        } else if (cashMovementsRef.current.length > 0) {
+          shouldPushBackLocalProtected = true;
+        } else {
+          setCashMovements(INITIAL_CASH_MOVEMENTS);
+          shouldPushBackLocalProtected = true;
+        }
       }
       if (typeof db.cashOpeningBalance === 'number') {
         setCashOpeningBalanceState(db.cashOpeningBalance);
@@ -2112,6 +2122,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCashUpdatedAt(Date.now());
   };
 
+  const importCashMovements = (incoming: CashMovement[], replaceAll = false) => {
+    if (!Array.isArray(incoming) || incoming.length === 0) return;
+    setCashMovements((prev) => {
+      if (replaceAll) return incoming;
+      const combined = [...incoming, ...prev];
+      const seen = new Set<string>();
+      const result: CashMovement[] = [];
+      for (const m of combined) {
+        const sig = `${m.request_date}_${m.requester_name}_${m.amount_requested}_${m.entry_type}_${m.receipt_number || ''}`;
+        if (!seen.has(sig)) {
+          seen.add(sig);
+          result.push(m);
+        }
+      }
+      return result;
+    });
+    setCashUpdatedAt(Date.now());
+  };
+
   const addMember = (
     member_number: string,
     full_name: string,
@@ -2587,6 +2616,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addCashMovement,
         updateCashMovement,
         deleteCashMovement,
+        importCashMovements,
         lessons,
         attendance,
         subjectNotes,

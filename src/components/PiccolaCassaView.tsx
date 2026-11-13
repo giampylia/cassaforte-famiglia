@@ -244,6 +244,7 @@ export const PiccolaCassaView: React.FC = () => {
     addCashMovement,
     updateCashMovement,
     deleteCashMovement,
+    importCashMovements,
   } = useApp();
 
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -288,6 +289,7 @@ export const PiccolaCassaView: React.FC = () => {
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const csvImportInputRef = useRef<HTMLInputElement | null>(null);
 
   // Modal Dettaglio / Stampa Ricevuta
   const [selectedMovement, setSelectedMovement] = useState<CashMovement | null>(null);
@@ -326,6 +328,16 @@ export const PiccolaCassaView: React.FC = () => {
       if (p.roles && p.roles.length > 0) {
         return p.roles.some((r) => r.trim().toLowerCase() !== 'socio');
       }
+      if (
+        cashMovements.some(
+          (m) =>
+            m.requester_id === p.id ||
+            m.user_id === p.id ||
+            (m.requester_name && m.requester_name.toLowerCase() === p.full_name.toLowerCase())
+        )
+      ) {
+        return true;
+      }
       return false;
     });
 
@@ -334,7 +346,7 @@ export const PiccolaCassaView: React.FC = () => {
       if (currentUser && b.id === currentUser.id) return 1;
       return a.full_name.localeCompare(b.full_name, 'it', { sensitivity: 'base' });
     });
-  }, [profiles, currentUser]);
+  }, [profiles, currentUser, cashMovements]);
 
   const filteredBeneficiaries = useMemo(() => {
     const q = beneficiarySearch.trim().toLowerCase();
@@ -569,12 +581,20 @@ export const PiccolaCassaView: React.FC = () => {
     setShowFormModal(false);
   };
 
-  // Movimenti dell'Anno Contabile selezionato (1° Luglio – 30 Giugno)
+  // Movimenti dell'Anno Contabile selezionato (1° Luglio – 30 Giugno) ordinati per data decrescente
   const accountingYearMovements = useMemo(() => {
-    if (selectedAccountingYear === 'all') return cashMovements;
-    return cashMovements.filter(
-      (m) => getAccountingYearForDate(m.request_date || m.receipt_date) === selectedAccountingYear
-    );
+    const list =
+      selectedAccountingYear === 'all'
+        ? cashMovements
+        : cashMovements.filter(
+            (m) => getAccountingYearForDate(m.request_date || m.receipt_date) === selectedAccountingYear
+          );
+    return list.slice().sort((a, b) => {
+      const dateA = a.request_date || a.receipt_date || '';
+      const dateB = b.request_date || b.receipt_date || '';
+      if (dateA !== dateB) return dateB.localeCompare(dateA);
+      return b.id.localeCompare(a.id);
+    });
   }, [cashMovements, selectedAccountingYear]);
 
   // Filtra movimenti per stato, tipo e testo
@@ -800,6 +820,117 @@ export const PiccolaCassaView: React.FC = () => {
     );
   };
 
+  const handleImportCsvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = String(event.target?.result || '');
+        const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+        if (lines.length < 2) {
+          showToast('File CSV vuoto o non valido.');
+          return;
+        }
+
+        const separator = lines[0].includes(';') ? ';' : ',';
+        const newMovements: CashMovement[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i];
+          if (!line || line.toUpperCase().includes('TOTALE')) continue;
+          const parts = line.split(separator);
+          if (parts.length < 4) continue;
+
+          const dateRaw = parts[0]?.trim() || '';
+          const receiptNum = parts[1]?.trim() || '';
+          const personName = parts[2]?.trim() || 'Socio';
+          const typeRaw = parts[3]?.trim().toLowerCase() || 'spesa';
+          let catRaw = parts[4]?.trim() || '';
+          const amountRaw = parts[5]?.trim() || '';
+          const amountPaidRaw = parts[6]?.trim() || '';
+          const statusRaw = parts[7]?.trim().toLowerCase() || 'pagato';
+          const noteRaw = parts[8]?.trim() || '';
+
+          if (!catRaw && noteRaw) {
+            catRaw = noteRaw;
+          } else if (!catRaw) {
+            catRaw = typeRaw.includes('entrata') ? 'Quote e Versamenti Soci' : 'Generale';
+          }
+
+          let isoDate = todayIso;
+          if (dateRaw.includes('/')) {
+            const [d, m, y] = dateRaw.split('/');
+            if (d && m && y) {
+              isoDate = `${y.length === 2 ? '20' + y : y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+            }
+          } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) {
+            isoDate = dateRaw;
+          }
+
+          const parsedAmount = parseFloat(amountRaw.replace(/[^\d,\.]/g, '').replace(',', '.'));
+          if (isNaN(parsedAmount) || parsedAmount <= 0) continue;
+
+          let parsedAmountPaid: number | null = null;
+          if (amountPaidRaw) {
+            const p = parseFloat(amountPaidRaw.replace(/[^\d,\.]/g, '').replace(',', '.'));
+            if (!isNaN(p)) parsedAmountPaid = p;
+          }
+
+          const finalStatus: CashMovement['status'] =
+            statusRaw === 'pagato' ? 'pagato' : statusRaw === 'approvato' ? 'approvato' : 'inviato';
+
+          const matchedProfile = profiles.find((p) => {
+            const full = (p.full_name || '').toLowerCase();
+            const target = personName.toLowerCase();
+            return full === target || (full.includes(target) && target.length > 4);
+          });
+
+          newMovements.push({
+            id: `cash-csv-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 6)}`,
+            requester_id: matchedProfile?.id || `u-${personName.toLowerCase().replace(/\s+/g, '-')}`,
+            requester_name: matchedProfile?.full_name || personName,
+            compiled_by_id: currentUser?.id || 'admin-7726',
+            compiled_by_name: currentUser?.full_name || 'Giampiero Pilia',
+            user_id: matchedProfile?.id,
+            member_number: matchedProfile?.member_number,
+            first_name: matchedProfile?.first_name || personName.split(' ')[0],
+            last_name: matchedProfile?.last_name || personName.split(' ').slice(1).join(' '),
+            entry_type: typeRaw.includes('entrata') ? 'entrata' : 'spesa',
+            request_date: isoDate,
+            receipt_date: isoDate,
+            receipt_number: receiptNum || undefined,
+            amount_requested: Math.round(parsedAmount * 100) / 100,
+            amount_paid: parsedAmountPaid !== null ? parsedAmountPaid : (finalStatus === 'pagato' ? parsedAmount : null),
+            category_id: null,
+            category_name: catRaw,
+            description: noteRaw || undefined,
+            status: finalStatus,
+            signed_by_requester: true,
+            signed_by_treasurer: finalStatus === 'pagato',
+            payment_date: finalStatus === 'pagato' ? isoDate : undefined,
+            created_at: `${isoDate}T10:00:00.000Z`,
+          });
+        }
+
+        if (newMovements.length === 0) {
+          showToast('Nessun movimento valido trovato nel file CSV.');
+          return;
+        }
+
+        importCashMovements(newMovements);
+        showToast(`✓ Importati con successo ${newMovements.length} movimenti dal file CSV.`);
+      } catch (err) {
+        console.error('Errore import CSV:', err);
+        showToast('Errore durante la lettura del file CSV.');
+      } finally {
+        if (e.target) e.target.value = '';
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+  };
+
   const statusBadge = (status: CashMovement['status']) => {
     if (status === 'inviato') {
       return (
@@ -993,6 +1124,27 @@ export const PiccolaCassaView: React.FC = () => {
                 <FileDown className="h-4 w-4 text-slate-500" />
                 <span>CSV</span>
               </button>
+
+              {isSuperAdmin && (
+                <>
+                  <input
+                    ref={csvImportInputRef}
+                    type="file"
+                    accept=".csv,text/csv,text/plain"
+                    className="hidden"
+                    onChange={handleImportCsvFile}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => csvImportInputRef.current?.click()}
+                    className="h-10 inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-3 text-xs sm:text-sm font-medium text-emerald-800 transition"
+                    title="Carica un file CSV con i movimenti di cassa"
+                  >
+                    <Upload className="h-4 w-4 text-emerald-700" />
+                    <span>Importa CSV</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 

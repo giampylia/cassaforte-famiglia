@@ -25,15 +25,41 @@ let publicCloudUrl = process.env.PUBLIC_URL || 'https://qu3.onrender.com';
 // Memory cache for static files (raw + gzipped) for sub-millisecond response times
 const staticCache = new Map();
 
+function getSeedCashMovements() {
+  try {
+    const histPath = path.join(__dirname, 'src', 'data', 'historicalCashMovements.json');
+    if (fs.existsSync(histPath)) {
+      return JSON.parse(fs.readFileSync(histPath, 'utf8'));
+    }
+  } catch (e) {
+    console.error('Error reading seed cash movements:', e);
+  }
+  return [];
+}
+
 function loadDb() {
   try {
     if (fs.existsSync(DB_FILE)) {
-      return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+      const parsed = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+      if (parsed && (!Array.isArray(parsed.cashMovements) || parsed.cashMovements.length === 0)) {
+        parsed.cashMovements = getSeedCashMovements();
+        parsed.cashUpdatedAt = Date.now();
+        if (typeof parsed.cashOpeningBalance !== 'number') parsed.cashOpeningBalance = 500;
+        saveDb(parsed);
+      }
+      return parsed;
     }
   } catch (e) {
     console.error('Error reading DB:', e);
   }
-  return null;
+  const seed = {
+    cashMovements: getSeedCashMovements(),
+    cashOpeningBalance: 500,
+    cashUpdatedAt: Date.now(),
+    updatedAt: new Date().toISOString(),
+  };
+  saveDb(seed);
+  return seed;
 }
 
 function saveDb(data) {
@@ -344,10 +370,17 @@ const server = http.createServer(async (req, res) => {
             incomingDb.profilesUpdatedAt = Math.max(existingProfTs, incomingProfTs);
           }
 
-          // Protezione Piccola Cassa: non sovrascrivere mai con dati più vecchi
+          // Protezione Piccola Cassa: non sovrascrivere mai con dati più vecchi o vuoti
           const existingCashTs = Number(existingDb.cashUpdatedAt || 0);
           const incomingCashTs = Number(incomingDb.cashUpdatedAt || 0);
-          if (existingCashTs > incomingCashTs && Array.isArray(existingDb.cashMovements)) {
+          const existingCashCount = Array.isArray(existingDb.cashMovements) ? existingDb.cashMovements.length : 0;
+          const incomingCashCount = Array.isArray(incomingDb.cashMovements) ? incomingDb.cashMovements.length : 0;
+          const incomingLooksEmpty = incomingCashCount === 0 && existingCashCount > 0;
+
+          if (
+            Array.isArray(existingDb.cashMovements) &&
+            (existingCashTs > incomingCashTs || incomingLooksEmpty || !Array.isArray(incomingDb.cashMovements))
+          ) {
             incomingDb.cashMovements = existingDb.cashMovements;
             incomingDb.expenseCategories = existingDb.expenseCategories || incomingDb.expenseCategories;
             incomingDb.cashOpeningBalance =
