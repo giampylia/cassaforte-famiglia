@@ -22,6 +22,91 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 const sseClients = new Set();
 let publicCloudUrl = process.env.PUBLIC_URL || 'https://qu3.onrender.com';
 
+const GOOGLE_DRIVE_WEBHOOK_URL =
+  process.env.GOOGLE_DRIVE_WEBHOOK_URL ||
+  'https://script.google.com/macros/s/AKfycbwCGwOb_vfwikYZ9iE41r9suoWpfnfV7MXLeKIJaiP4SjjwM6M4iUslAakAQjyzIbFs/exec';
+
+function uploadToGoogleDrive(fileName, fileData) {
+  return new Promise((resolve) => {
+    if (!GOOGLE_DRIVE_WEBHOOK_URL) return resolve(null);
+    try {
+      const payload = JSON.stringify({ fileName, fileData });
+      const parsedUrl = new URL(GOOGLE_DRIVE_WEBHOOK_URL);
+
+      const makeRequest = (targetUrl) => {
+        const req = https.request(
+          targetUrl,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(payload),
+            },
+            timeout: 25000,
+          },
+          (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+              https
+                .get(res.headers.location, { timeout: 25000 }, (redRes) => {
+                  let body = '';
+                  redRes.on('data', (chunk) => (body += chunk));
+                  redRes.on('end', () => {
+                    try {
+                      const json = JSON.parse(body);
+                      if (json && json.ok && json.fileUrl) {
+                        console.log('Google Drive upload success:', json.fileUrl);
+                        resolve(json.fileUrl);
+                      } else {
+                        resolve(null);
+                      }
+                    } catch {
+                      resolve(null);
+                    }
+                  });
+                })
+                .on('error', (e) => {
+                  console.error('Google Drive redirect error:', e.message);
+                  resolve(null);
+                });
+            } else {
+              let body = '';
+              res.on('data', (chunk) => (body += chunk));
+              res.on('end', () => {
+                try {
+                  const json = JSON.parse(body);
+                  if (json && json.ok && json.fileUrl) {
+                    console.log('Google Drive upload success:', json.fileUrl);
+                    resolve(json.fileUrl);
+                  } else {
+                    resolve(null);
+                  }
+                } catch {
+                  resolve(null);
+                }
+              });
+            }
+          }
+        );
+        req.on('error', (err) => {
+          console.error('Google Drive request error:', err.message);
+          resolve(null);
+        });
+        req.on('timeout', () => {
+          req.destroy();
+          resolve(null);
+        });
+        req.write(payload);
+        req.end();
+      };
+
+      makeRequest(parsedUrl);
+    } catch (e) {
+      console.error('uploadToGoogleDrive exception:', e.message);
+      resolve(null);
+    }
+  });
+}
+
 // Memory cache for static files (raw + gzipped) for sub-millisecond response times
 const staticCache = new Map();
 
@@ -819,7 +904,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Upload Immagini / File per Avvisi Video (JPG, PNG, GIF, PDF)
+  // Upload Immagini / File per Avvisi Video (JPG, PNG, GIF, PDF) con salvataggio su Google Drive
   if (parsedUrl === '/api/upload-avviso' && req.method === 'POST') {
     try {
       const body = await readJsonBody(req);
@@ -829,15 +914,34 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 400, { ok: false, error: 'Dati file mancanti' });
         return;
       }
+
+      // 1) Tentativo di upload su Google Drive
+      let driveUrl = null;
+      try {
+        driveUrl = await uploadToGoogleDrive(fileName, fileData);
+      } catch (err) {
+        console.error('Google drive upload error:', err.message);
+      }
+
+      // 2) Salvataggio di sicurezza locale su server
       const base64Data = fileData.replace(/^data:[^;]+;base64,/, '');
       const rawExt = path.extname(fileName).toLowerCase() || '.jpg';
       const cleanExt = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.webp'].includes(rawExt) ? rawExt : '.jpg';
       const safeName = `avviso_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${cleanExt}`;
       const targetPath = path.join(UPLOADS_DIR, safeName);
-      fs.writeFileSync(targetPath, Buffer.from(base64Data, 'base64'));
+      try {
+        fs.writeFileSync(targetPath, Buffer.from(base64Data, 'base64'));
+      } catch {}
+
+      const localUrl = `/uploads/avvisi/${safeName}`;
+      const finalUrl = driveUrl || localUrl;
+
       sendJson(res, 200, {
         ok: true,
-        url: `/uploads/avvisi/${safeName}`,
+        url: finalUrl,
+        driveUrl: driveUrl,
+        localUrl: localUrl,
+        savedToDrive: Boolean(driveUrl),
         fileName: safeName,
       });
     } catch (e) {

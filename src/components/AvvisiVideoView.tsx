@@ -155,26 +155,36 @@ export const AvvisiVideoView: React.FC = () => {
     setSelectedFileName(file.name);
 
     try {
-      // 1) Comprimi l'immagine per avere un Data URL leggero (~100-150KB) e permanente
+      // 1) Comprimi l'immagine per avere un Data URL leggero (~100-150KB) e anteprima immediata
       const dataUrl = await compressImageFile(file);
       setPreviewImage(dataUrl);
       setUploadedImageUrl(dataUrl);
 
-      // 2) Upload ridondante sul server
+      // 2) Caricamento su Google Drive tramite il server Q3
+      let isDrive = false;
       try {
-        fetch('/api/upload-avviso', {
+        const res = await fetch('/api/upload-avviso', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             fileName: file.name,
             fileData: dataUrl,
           }),
-        }).catch(() => {});
+        });
+        const json = await res.json();
+        if (json && json.ok && json.driveUrl) {
+          setUploadedImageUrl(json.driveUrl);
+          isDrive = true;
+        } else if (json && json.ok && json.url) {
+          setUploadedImageUrl(json.url);
+        }
       } catch {}
 
       setFormMsg({
         type: 'success',
-        text: `✓ Immagine "${file.name}" ottimizzata e pronta per il monitor TV!`,
+        text: isDrive
+          ? `✓ Immagine "${file.name}" salvata su Google Drive e pronta per il monitor TV!`
+          : `✓ Immagine "${file.name}" ottimizzata e pronta per il monitor TV!`,
       });
     } catch (err: any) {
       setFormMsg({ type: 'error', text: `Errore caricamento file: ${err.message}` });
@@ -767,8 +777,29 @@ export const AvvisiVideoView: React.FC = () => {
                               if (!f) return;
                               try {
                                 const compressed = await compressImageFile(f);
-                                updateVideoNotice(notice.id, { imageUrl: compressed });
-                                setFormMsg({ type: 'success', text: `✓ Nuova immagine salvata per "${notice.title}"!` });
+                                let finalUrl = compressed;
+                                let isDrive = false;
+                                try {
+                                  const res = await fetch('/api/upload-avviso', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ fileName: f.name, fileData: compressed }),
+                                  });
+                                  const json = await res.json();
+                                  if (json && json.ok && json.driveUrl) {
+                                    finalUrl = json.driveUrl;
+                                    isDrive = true;
+                                  } else if (json && json.ok && json.url) {
+                                    finalUrl = json.url;
+                                  }
+                                } catch {}
+                                updateVideoNotice(notice.id, { imageUrl: finalUrl });
+                                setFormMsg({
+                                  type: 'success',
+                                  text: isDrive
+                                    ? `✓ Nuova immagine salvata su Google Drive per "${notice.title}"!`
+                                    : `✓ Nuova immagine salvata per "${notice.title}"!`,
+                                });
                                 setTimeout(() => setFormMsg(null), 3500);
                               } catch (err: any) {
                                 alert('Errore: ' + err.message);
