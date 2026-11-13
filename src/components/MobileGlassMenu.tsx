@@ -202,15 +202,15 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-between overflow-y-auto bg-gradient-to-b from-[#064e3b] via-[#043d2f] to-[#022c22] text-white p-3.5 sm:p-5 select-none animate-fadeIn">
-      {/* SFONDO SPLASH CON LOGO STILIZZATO GRANDE IN FILIGRANA */}
+    <div className="fixed inset-0 z-50 flex flex-col justify-between overflow-y-auto bg-[#112825] text-white p-3.5 sm:p-5 select-none animate-fadeIn">
+      {/* SFONDO SPLASH CON LOGO STILIZZATO MODERNO (MONOGRAMMA ORO Q3) */}
       <div className="fixed inset-0 pointer-events-none flex items-center justify-center overflow-hidden z-0">
         <img
-          src="/logo-associazione-qu3.png?v=15"
-          alt="Watermark Q3"
-          className="w-80 h-80 sm:w-[480px] sm:h-[480px] object-contain opacity-15 filter drop-shadow-[0_15px_35px_rgba(0,0,0,0.6)] select-none pointer-events-none"
+          src="/q3-icon-512.png?v=8"
+          alt="Logo Stilizzato Q3"
+          className="w-72 h-72 sm:w-96 sm:h-96 object-contain opacity-40 mix-blend-screen select-none pointer-events-none drop-shadow-[0_15px_35px_rgba(0,0,0,0.6)]"
         />
-        {/* Alone smeraldo profondo */}
+        {/* Alone smeraldo / oro profondo */}
         <div className="absolute w-[380px] h-[380px] rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
       </div>
 
