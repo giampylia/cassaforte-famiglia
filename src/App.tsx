@@ -37,23 +37,27 @@ const MainRouter: React.FC = () => {
     signOut,
   } = useApp();
 
+  const CURRENT_APP_VERSION = 'v47';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
-  const forceAppUpdate = () => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then((regs) => {
+  const forceAppUpdate = async () => {
+    setIsUpdatingApp(true);
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
         for (const reg of regs) {
-          reg.unregister();
+          await reg.unregister();
         }
-      });
-    }
-    if ('caches' in window) {
-      caches.keys().then((names) => {
+      }
+      if ('caches' in window) {
+        const names = await caches.keys();
         for (const name of names) {
-          caches.delete(name);
+          await caches.delete(name);
         }
-      });
-    }
+      }
+      localStorage.removeItem('quartimbra_active_section');
+    } catch {}
     window.location.reload();
   };
 
@@ -209,7 +213,7 @@ const MainRouter: React.FC = () => {
       {/* Contenitore principale: Menu Laterale a sinistra (su PC) + Contenuto */}
       <div className="flex-1 flex">
         {/* MENU LATERALE DESKTOP */}
-        <aside className="hidden lg:flex w-72 shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4">
+        <aside className="hidden lg:flex w-72 shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4 overflow-y-auto max-h-screen sticky top-0">
           <div className="space-y-5">
             {/* Riepilogo Utente essenziale con UN SOLO RUOLO indicato chiaramente */}
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3.5 space-y-1">
@@ -218,7 +222,7 @@ const MainRouter: React.FC = () => {
                   {currentUser.full_name}
                 </p>
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300">
-                  v38
+                  {CURRENT_APP_VERSION}
                 </span>
               </div>
               <p className="text-xs font-normal text-slate-600">
@@ -280,11 +284,12 @@ const MainRouter: React.FC = () => {
             <button
               type="button"
               onClick={forceAppUpdate}
-              className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 py-2 text-xs font-medium text-slate-600 transition"
+              disabled={isUpdatingApp}
+              className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 py-2 text-xs font-medium text-slate-600 transition cursor-pointer active:scale-95 disabled:opacity-60"
               title="Svuota la cache e aggiorna l'app all'ultima versione"
             >
-              <RotateCw className="h-3.5 w-3.5" />
-              <span>Forza Aggiornamento (v38)</span>
+              <RotateCw className={`h-3.5 w-3.5 ${isUpdatingApp ? 'animate-spin text-emerald-700' : ''}`} />
+              <span>{isUpdatingApp ? 'Aggiornamento in corso...' : `Forza Aggiornamento (${CURRENT_APP_VERSION})`}</span>
             </button>
             <button
               type="button"
@@ -333,7 +338,7 @@ const MainRouter: React.FC = () => {
                       {currentUser.full_name}
                     </p>
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300">
-                      v38
+                      {CURRENT_APP_VERSION}
                     </span>
                   </div>
                   <p className="text-xs text-slate-600">
@@ -394,11 +399,12 @@ const MainRouter: React.FC = () => {
                 <button
                   type="button"
                   onClick={forceAppUpdate}
-                  className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-medium text-slate-700 transition"
+                  disabled={isUpdatingApp}
+                  className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-medium text-slate-700 transition cursor-pointer active:scale-95 disabled:opacity-60"
                   title="Svuota la cache e aggiorna l'app all'ultima versione"
                 >
-                  <RotateCw className="h-3.5 w-3.5 text-emerald-700" />
-                  <span>Forza Aggiornamento (v38)</span>
+                  <RotateCw className={`h-3.5 w-3.5 text-emerald-700 ${isUpdatingApp ? 'animate-spin' : ''}`} />
+                  <span>{isUpdatingApp ? 'Aggiornamento in corso...' : `Forza Aggiornamento (${CURRENT_APP_VERSION})`}</span>
                 </button>
                 <button
                   type="button"

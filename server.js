@@ -153,6 +153,8 @@ function getSeedVideoNotices() {
   ];
 }
 
+const SEED_TIMESTAMP = 1000000; // Fixed timestamp in the past (epoch) so seed data never overwrites user data
+
 function loadDb() {
   try {
     if (fs.existsSync(DB_FILE)) {
@@ -161,7 +163,7 @@ function loadDb() {
       if (parsed) {
         if (!Array.isArray(parsed.cashMovements)) {
           parsed.cashMovements = getSeedCashMovements();
-          parsed.cashUpdatedAt = Date.now();
+          parsed.cashUpdatedAt = SEED_TIMESTAMP;
           modified = true;
         }
         if (typeof parsed.cashOpeningBalance !== 'number') {
@@ -170,12 +172,12 @@ function loadDb() {
         }
         if (!Array.isArray(parsed.libraryBooks) || parsed.libraryBooks.length === 0) {
           parsed.libraryBooks = getSeedLibraryBooks();
-          parsed.libraryBooksUpdatedAt = Date.now();
+          parsed.libraryBooksUpdatedAt = SEED_TIMESTAMP;
           modified = true;
         }
         if (!Array.isArray(parsed.videoNotices) || parsed.videoNotices.length === 0) {
           parsed.videoNotices = getSeedVideoNotices();
-          parsed.videoNoticesUpdatedAt = Date.now();
+          parsed.videoNoticesUpdatedAt = SEED_TIMESTAMP;
           modified = true;
         }
         if (modified) {
@@ -190,11 +192,11 @@ function loadDb() {
   const seed = {
     cashMovements: getSeedCashMovements(),
     cashOpeningBalance: 500,
-    cashUpdatedAt: Date.now(),
+    cashUpdatedAt: SEED_TIMESTAMP,
     libraryBooks: getSeedLibraryBooks(),
-    libraryBooksUpdatedAt: Date.now(),
+    libraryBooksUpdatedAt: SEED_TIMESTAMP,
     videoNotices: getSeedVideoNotices(),
-    videoNoticesUpdatedAt: Date.now(),
+    videoNoticesUpdatedAt: SEED_TIMESTAMP,
     updatedAt: new Date().toISOString(),
   };
   saveDb(seed);
@@ -720,6 +722,57 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         connectedDevices: sseClients.size,
       });
+    } catch (e) {
+      sendJson(res, 400, { ok: false, error: e.message });
+    }
+    return;
+  }
+
+  // Endpoint dedicato per il salvataggio immediato e indistruttibile della Piccola Cassa
+  if (parsedUrl === '/api/cash' && req.method === 'GET') {
+    const existingDb = loadDb() || {};
+    sendJson(res, 200, {
+      ok: true,
+      cashMovements: existingDb.cashMovements || [],
+      cashOpeningBalance: typeof existingDb.cashOpeningBalance === 'number' ? existingDb.cashOpeningBalance : 500,
+      expenseCategories: existingDb.expenseCategories || [],
+      cashUpdatedAt: Number(existingDb.cashUpdatedAt || 0),
+    });
+    return;
+  }
+
+  if (parsedUrl === '/api/cash' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      if (body) {
+        const existingDb = loadDb() || {};
+        const incomingTs = Number(body.cashUpdatedAt || Date.now());
+        const existingTs = Number(existingDb.cashUpdatedAt || 0);
+
+        if (incomingTs >= existingTs || !Array.isArray(existingDb.cashMovements)) {
+          if (Array.isArray(body.cashMovements)) {
+            existingDb.cashMovements = body.cashMovements;
+          }
+          if (typeof body.cashOpeningBalance === 'number') {
+            existingDb.cashOpeningBalance = body.cashOpeningBalance;
+          }
+          if (Array.isArray(body.expenseCategories)) {
+            existingDb.expenseCategories = body.expenseCategories;
+          }
+          existingDb.cashUpdatedAt = incomingTs;
+          existingDb.updatedAt = new Date().toISOString();
+          saveDb(existingDb);
+          broadcastUpdate('STATE_SYNC', { db: existingDb, eventLabel: 'CASH_UPDATE' });
+        }
+        sendJson(res, 200, {
+          ok: true,
+          count: Array.isArray(existingDb.cashMovements) ? existingDb.cashMovements.length : 0,
+          cashOpeningBalance: existingDb.cashOpeningBalance,
+          cashUpdatedAt: existingDb.cashUpdatedAt,
+        });
+        return;
+      }
+      sendJson(res, 400, { ok: false, error: 'Dati cassa non validi' });
     } catch (e) {
       sendJson(res, 400, { ok: false, error: e.message });
     }

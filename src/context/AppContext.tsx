@@ -438,6 +438,46 @@ async function loadCashDataFromIndexedDB(): Promise<{
   });
 }
 
+const IDB_VIDEO_NOTICES_KEY = 'protected_video_notices_v1';
+
+async function saveVideoNoticesToIndexedDB(
+  notices: VideoNotice[],
+  updatedAt: number
+): Promise<void> {
+  const db = await openAnagraficaIdb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(
+      {
+        notices,
+        updatedAt: updatedAt || Date.now(),
+      },
+      IDB_VIDEO_NOTICES_KEY
+    );
+  } catch {
+    // Ignore IDB errors
+  }
+}
+
+async function loadVideoNoticesFromIndexedDB(): Promise<{
+  notices: VideoNotice[];
+  updatedAt?: number;
+} | null> {
+  const db = await openAnagraficaIdb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(IDB_VIDEO_NOTICES_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
 // Verifica se un elenco di soci contiene modifiche/importazioni rispetto ai dati demo iniziali
 function isCustomizedProfiles(list: Profile[]): boolean {
   if (!Array.isArray(list) || list.length === 0) return false;
@@ -1294,7 +1334,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const remoteCashTs = Number(db.cashUpdatedAt || 0);
     const localCashTs = cashUpdatedAtRef.current;
-    if (remoteCashTs >= localCashTs) {
+    if (remoteCashTs > localCashTs) {
       if (Array.isArray(db.expenseCategories) && db.expenseCategories.length > 0) {
         setExpenseCategories(db.expenseCategories);
         expenseCategoriesRef.current = db.expenseCategories;
@@ -1321,7 +1361,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         categories: Array.isArray(db.expenseCategories) ? db.expenseCategories : expenseCategoriesRef.current,
         updatedAt: remoteCashTs || Date.now(),
       });
-    } else {
+    } else if (localCashTs > remoteCashTs) {
       shouldPushBackLocalProtected = true;
     }
 
@@ -1349,6 +1389,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         videoNoticesRef.current = db.videoNotices;
         setVideoNotices(db.videoNotices);
         safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES, JSON.stringify(db.videoNotices));
+        saveVideoNoticesToIndexedDB(db.videoNotices, remoteVnTs || Date.now());
       }
       if (remoteVnTs > 0) {
         videoNoticesUpdatedAtRef.current = remoteVnTs;
@@ -1542,6 +1583,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
       .catch(() => {});
 
+    // Ripristino Avvisi Video da IndexedDB (preserva immagini caricate in alta definizione / base64)
+    loadVideoNoticesFromIndexedDB()
+      .then((idbVn) => {
+        if (idbVn && Array.isArray(idbVn.notices) && idbVn.notices.length > 0) {
+          const idbTs = Number(idbVn.updatedAt || 0);
+          if (idbTs > videoNoticesUpdatedAtRef.current || videoNoticesRef.current.length === 0) {
+            videoNoticesRef.current = idbVn.notices;
+            videoNoticesUpdatedAtRef.current = idbTs;
+            setVideoNotices(idbVn.notices);
+            setVideoNoticesUpdatedAt(idbTs);
+            safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES, JSON.stringify(idbVn.notices));
+            safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES_TS, String(idbTs));
+          }
+        }
+      })
+      .catch(() => {});
+
     // 2) Sincronizzazione con il Cloud Server (/api/state)
     fetch('/api/state')
       .then((r) => r.json())
@@ -1650,6 +1708,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               setVideoNoticesUpdatedAt(remoteTs);
               safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES, JSON.stringify(parsed.payload.videoNotices));
               safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES_TS, String(remoteTs));
+              saveVideoNoticesToIndexedDB(parsed.payload.videoNotices, remoteTs);
               setLastCloudSync(new Date().toLocaleTimeString('it-IT'));
             }
           } else if (parsed.type === 'LIBRARY_BOOKS_SYNC' && Array.isArray(parsed.payload?.libraryBooks)) {
@@ -1711,6 +1770,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setVideoNoticesUpdatedAt(remoteTs);
             safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES, JSON.stringify(ev.data.videoNotices));
             safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES_TS, String(remoteTs));
+            saveVideoNoticesToIndexedDB(ev.data.videoNotices, remoteTs);
           }
         } else if (ev.data?.type === 'LIBRARY_BOOKS_SYNC' && Array.isArray(ev.data.libraryBooks)) {
           const remoteTs = Number(ev.data.libraryBooksUpdatedAt || 0);
@@ -2314,6 +2374,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: nowTs,
     });
 
+    fetch('/api/cash', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        movements: nextMovements,
+        openingBalance: finalBalance,
+        categories: finalCats,
+        updatedAt: nowTs,
+      }),
+    }).catch(() => {});
+
     pushCloudSnapshot({
       profiles: profilesRef.current,
       availableRoles: availableRolesRef.current,
@@ -2785,6 +2856,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setVideoNoticesUpdatedAt(nowTs);
     safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES, JSON.stringify(nextVn));
     safeSetLocalStorage(STORAGE_KEYS.VIDEO_NOTICES_TS, String(nowTs));
+    saveVideoNoticesToIndexedDB(nextVn, nowTs);
 
     try {
       if (broadcastChannelRef.current) {
