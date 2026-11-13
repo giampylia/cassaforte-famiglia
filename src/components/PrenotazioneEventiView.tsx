@@ -35,6 +35,13 @@ import {
   calcolaPostiResiduiOnline,
   calcolaPostiInAttesa,
   calcolaStatoLiveEvento,
+  getEventoDate,
+  getEventoTipoId,
+  getEventoPostiOnline,
+  getEventoPostiTotali,
+  getEventoPostiAttesa,
+  getEventoCosto,
+  getEventoRichiedePagamento,
 } from '../data/eventiData';
 import { exportCsv, exportOfficialPdf, ASSOCIATION_LOGO_URL } from '../utils/soundAndPdf';
 
@@ -119,14 +126,17 @@ async function downloadPrenotazionePdf(prenotazione: PrenotazioneEvento, evento:
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(51, 65, 85);
-  const dataStr = new Date(evento.data_ora_evento).toLocaleString('it-IT', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const evDate = getEventoDate(evento);
+  const dataStr = !isNaN(evDate.getTime())
+    ? evDate.toLocaleString('it-IT', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '';
   doc.text(`Data e Ora: ${dataStr}`, 20, y + 18);
   doc.text(`Luogo: ${evento.luogo}`, 20, y + 26);
   doc.text(`Anno Accademico: ${evento.anno_accademico}`, 20, y + 34);
@@ -302,7 +312,8 @@ export const PrenotazioneEventiView: React.FC = () => {
   const filteredEventi = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return eventi.filter((ev) => {
-      if (selectedTipoId !== 'ALL' && ev.tipo_attivita_id !== selectedTipoId) return false;
+      const tipoId = getEventoTipoId(ev);
+      if (selectedTipoId !== 'ALL' && tipoId !== selectedTipoId) return false;
       if (selectedAnno !== 'ALL' && ev.anno_accademico !== selectedAnno) return false;
       if (filterOnlyMyBookings) {
         const hasMine = eventiPrenotazioni.some(
@@ -387,8 +398,8 @@ export const PrenotazioneEventiView: React.FC = () => {
         ospite_tessera: bookingOspiteTessera.trim(),
         stato: res.stato,
         posizione_attesa: res.posizioneAttesa,
-        stato_pagamento: (bookingEvento.costo_biglietto || 0) > 0 ? 'da_pagare_in_sede' : 'gratuito',
-        quota_totale: (bookingEvento.costo_biglietto || 0) * bookingNumPosti,
+        stato_pagamento: getEventoCosto(bookingEvento) > 0 ? 'da_pagare_in_sede' : 'gratuito',
+        quota_totale: getEventoCosto(bookingEvento) * bookingNumPosti,
         booking_code: `Q3-${bookingEvento.id.slice(-4).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -409,7 +420,18 @@ export const PrenotazioneEventiView: React.FC = () => {
   // Apertura modale nuovo/modifica evento
   const handleOpenEditEvento = (evento?: Evento) => {
     if (evento) {
-      setEditingEvento({ ...evento });
+      const d = getEventoDate(evento);
+      const dataOraStr = !isNaN(d.getTime()) ? d.toISOString().slice(0, 16) : '';
+      setEditingEvento({
+        ...evento,
+        tipo_attivita_id: getEventoTipoId(evento),
+        data_ora_evento: evento.data_ora_evento || dataOraStr,
+        totale_posti: getEventoPostiTotali(evento),
+        posti_prenotabili_online: getEventoPostiOnline(evento),
+        limite_lista_attesa: getEventoPostiAttesa(evento),
+        costo_biglietto: getEventoCosto(evento),
+        richiede_pagamento_sede: getEventoRichiedePagamento(evento),
+      });
     } else {
       const now = new Date();
       const inTwoWeeks = new Date(now.getTime() + 14 * 86400000);
@@ -492,7 +514,7 @@ export const PrenotazioneEventiView: React.FC = () => {
     const list = eventiPrenotazioni.filter((p) => p.evento_id === evento.id && p.stato !== 'annullata');
     exportOfficialPdf({
       title: `Foglio Presenze: ${evento.titolo}`,
-      subtitle: `Data Evento: ${new Date(evento.data_ora_evento).toLocaleDateString('it-IT')} · Luogo: ${evento.luogo} · Totale Iscritti: ${list.reduce((acc, p) => acc + p.num_posti, 0)} posti`,
+      subtitle: `Data Evento: ${getEventoDate(evento).toLocaleDateString('it-IT')} · Luogo: ${evento.luogo} · Totale Iscritti: ${list.reduce((acc, p) => acc + p.num_posti, 0)} posti`,
       head: ['N°', 'Tessera', 'Nominativo', '2° Ospite', 'Posti', 'Stato', 'Pagamento', 'Firma Presenza'],
       body: list.map((p, idx) => [
         idx + 1,
@@ -660,18 +682,21 @@ export const PrenotazioneEventiView: React.FC = () => {
         {/* GRIGLIA EVENTI */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredEventi.map((evento) => {
-            const tipo = eventiTipologie.find((t) => t.id === evento.tipo_attivita_id) || {
+            const tipo = eventiTipologie.find((t) => t.id === getEventoTipoId(evento)) || {
               id: 'generic',
               nome: 'Attività',
               colore: '#10b981',
             };
 
-            const liveState = calcolaStatoLiveEvento(evento);
+            const liveState = calcolaStatoLiveEvento(evento, eventiPrenotazioni);
             const postiOccupati = calcolaPostiOccupatiConfermati(evento.id, eventiPrenotazioni);
             const postiResidui = calcolaPostiResiduiOnline(evento, eventiPrenotazioni);
             const inAttesa = calcolaPostiInAttesa(evento.id, eventiPrenotazioni);
-            const maxAttesa = evento.limite_lista_attesa || 0;
+            const maxAttesa = getEventoPostiAttesa(evento);
             const attesaResidua = Math.max(0, maxAttesa - inAttesa);
+            const postiOnlineTot = getEventoPostiOnline(evento);
+            const costoBiglietto = getEventoCosto(evento);
+            const richiedePagamento = getEventoRichiedePagamento(evento);
 
             // Verifica se l'utente corrente è già prenotato
             const myBooking = currentUser?.member_number
@@ -684,10 +709,12 @@ export const PrenotazioneEventiView: React.FC = () => {
               : null;
 
             // Formattazione data evento
-            const dataEventoObj = new Date(evento.data_ora_evento);
-            const giornoSettimana = dataEventoObj.toLocaleDateString('it-IT', { weekday: 'short' });
-            const giornoMese = dataEventoObj.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
-            const orario = dataEventoObj.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+            const dataEventoObj = getEventoDate(evento);
+            const isValidDate = !isNaN(dataEventoObj.getTime());
+            const giornoSettimana = isValidDate ? dataEventoObj.toLocaleDateString('it-IT', { weekday: 'short' }) : '';
+            const giornoMese = isValidDate ? dataEventoObj.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }) : '';
+            const orario = isValidDate ? dataEventoObj.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '';
+            const annoEvento = isValidDate ? dataEventoObj.getFullYear() : '';
 
             const isSoldOut = postiResidui <= 0 && attesaResidua <= 0;
             const isWaitingListMode = postiResidui <= 0 && attesaResidua > 0;
@@ -756,7 +783,7 @@ export const PrenotazioneEventiView: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-emerald-700 shrink-0" />
                       <span className="font-semibold text-slate-800 capitalize">
-                        {giornoSettimana} {giornoMese} {dataEventoObj.getFullYear()}
+                        {giornoSettimana} {giornoMese} {annoEvento}
                       </span>
                       <span className="text-slate-400">·</span>
                       <span className="font-medium text-slate-700">{orario}</span>
@@ -771,9 +798,9 @@ export const PrenotazioneEventiView: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         <CreditCard className="h-4 w-4 text-emerald-700 shrink-0" />
                         <span className="font-semibold text-slate-800">
-                          {(evento.costo_biglietto || 0) > 0 ? `€ ${(evento.costo_biglietto || 0).toFixed(2)}` : 'Gratuito'}
+                          {costoBiglietto > 0 ? `€ ${costoBiglietto.toFixed(2)}` : 'Gratuito'}
                         </span>
-                        {evento.richiede_pagamento_sede && (
+                        {richiedePagamento && (
                           <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
                             Pagamento in sede
                           </span>
@@ -791,7 +818,7 @@ export const PrenotazioneEventiView: React.FC = () => {
                     <div className="flex items-center justify-between text-xs font-semibold">
                       <span className="text-slate-600">Disponibilità Online:</span>
                       <span className={postiResidui > 0 ? 'text-emerald-700' : 'text-amber-700'}>
-                        {postiResidui > 0 ? `${postiResidui} su ${evento.posti_prenotabili_online} liberi` : 'Posti online esauriti'}
+                        {postiResidui > 0 ? `${postiResidui} su ${postiOnlineTot} liberi` : 'Posti online esauriti'}
                       </span>
                     </div>
 
@@ -804,7 +831,7 @@ export const PrenotazioneEventiView: React.FC = () => {
                         style={{
                           width: `${Math.min(
                             100,
-                            Math.round((postiOccupati / (evento.posti_prenotabili_online || 1)) * 100)
+                            Math.round((postiOccupati / (postiOnlineTot || 1)) * 100)
                           )}%`,
                         }}
                       />
@@ -1111,12 +1138,12 @@ export const PrenotazioneEventiView: React.FC = () => {
                 <div className="flex items-center justify-between font-bold text-slate-900">
                   <span>Totale da Saldate:</span>
                   <span>
-                    {(bookingEvento.costo_biglietto || 0) > 0
-                      ? `€ ${((bookingEvento.costo_biglietto || 0) * bookingNumPosti).toFixed(2)}`
+                    {getEventoCosto(bookingEvento) > 0
+                      ? `€ ${(getEventoCosto(bookingEvento) * bookingNumPosti).toFixed(2)}`
                       : 'Gratuito'}
                   </span>
                 </div>
-                {(bookingEvento.costo_biglietto || 0) > 0 && (
+                {getEventoCosto(bookingEvento) > 0 && (
                   <p className="text-[11px] text-slate-600">
                     Il pagamento verrà regolarizzato presso la segreteria dell'associazione.
                   </p>
@@ -1227,14 +1254,19 @@ export const PrenotazioneEventiView: React.FC = () => {
                 </span>
                 <h3 className="text-lg sm:text-xl font-bold text-slate-900">{guestListEvento.titolo}</h3>
                 <p className="text-xs text-slate-500">
-                  {new Date(guestListEvento.data_ora_evento).toLocaleDateString('it-IT', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}{' '}
+                  {(() => {
+                    const d = getEventoDate(guestListEvento);
+                    return !isNaN(d.getTime())
+                      ? d.toLocaleDateString('it-IT', {
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : '';
+                  })()}{' '}
                   · {guestListEvento.luogo}
                 </p>
               </div>
@@ -1751,7 +1783,7 @@ export const PrenotazioneEventiView: React.FC = () => {
               </span>
               <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto">
                 {eventiTipologie.map((tipo) => {
-                  const numEventi = eventi.filter((e) => e.tipo_attivita_id === tipo.id).length;
+                  const numEventi = eventi.filter((e) => getEventoTipoId(e) === tipo.id).length;
                   return (
                     <div key={tipo.id} className="py-2.5 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">

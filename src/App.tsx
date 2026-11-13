@@ -52,7 +52,7 @@ const MainRouter: React.FC = () => {
     signOut,
   } = useApp();
 
-  const CURRENT_APP_VERSION = 'v61';
+  const CURRENT_APP_VERSION = 'v62';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
@@ -494,13 +494,26 @@ class ErrorBoundary extends React.Component<
             <p className="text-xs text-slate-300 leading-relaxed">
               È stato rilevato un problema temporaneo di caricamento. Clicca il pulsante in basso per ripristinare e accedere al Portale.
             </p>
+            {this.state.error && (
+              <div className="text-[11px] text-rose-300 font-mono bg-slate-900/90 p-2.5 rounded-xl text-left overflow-auto max-h-32 border border-rose-500/30">
+                {String(this.state.error?.message || this.state.error)}
+              </div>
+            )}
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 try {
                   localStorage.removeItem('quartimbra_active_section');
+                  if ('serviceWorker' in navigator) {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    for (const r of regs) await r.unregister();
+                  }
+                  if ('caches' in window) {
+                    const keys = await caches.keys();
+                    for (const k of keys) await caches.delete(k);
+                  }
                 } catch {}
-                window.location.reload();
+                window.location.href = '/?reload=' + Date.now();
               }}
               className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 text-sm transition cursor-pointer"
             >

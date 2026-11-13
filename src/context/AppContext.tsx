@@ -794,23 +794,38 @@ async function loadBilancioFromIndexedDB(): Promise<{
 
 const IDB_EVENTI_KEY = 'protected_eventi_v1';
 
-async function saveEventiToIndexedDB(data: {
-  eventiTipologie: TipoAttivitaEvento[];
-  eventi: Evento[];
-  eventiPrenotazioni: PrenotazioneEvento[];
-  updatedAt: number;
-}): Promise<void> {
+async function saveEventiToIndexedDB(
+  dataOrEventi: any,
+  maybeTipi?: TipoAttivitaEvento[],
+  maybePren?: PrenotazioneEvento[],
+  maybeTs?: number
+): Promise<void> {
   const db = await openAnagraficaIdb();
   if (!db) return;
   try {
+    let payload: {
+      eventi: Evento[];
+      eventiTipologie: TipoAttivitaEvento[];
+      eventiPrenotazioni: PrenotazioneEvento[];
+      updatedAt: number;
+    };
+    if (Array.isArray(dataOrEventi)) {
+      payload = {
+        eventi: dataOrEventi,
+        eventiTipologie: maybeTipi || [],
+        eventiPrenotazioni: maybePren || [],
+        updatedAt: maybeTs || Date.now(),
+      };
+    } else {
+      payload = {
+        eventi: dataOrEventi?.eventi || [],
+        eventiTipologie: dataOrEventi?.eventiTipologie || [],
+        eventiPrenotazioni: dataOrEventi?.eventiPrenotazioni || [],
+        updatedAt: dataOrEventi?.updatedAt || Date.now(),
+      };
+    }
     const tx = db.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).put(
-      {
-        ...data,
-        updatedAt: data.updatedAt || Date.now(),
-      },
-      IDB_EVENTI_KEY
-    );
+    tx.objectStore(IDB_STORE).put(payload, IDB_EVENTI_KEY);
   } catch {
     // Ignore IDB errors
   }
