@@ -52,6 +52,12 @@ export const MANAGED_MENU_SECTIONS: MenuSectionDef[] = [
     sublabel: 'Telecomando e Monitor Numeri PDF',
     iconName: 'Monitor',
   },
+  {
+    key: 'lezioni_campo',
+    label: 'Lezioni sul Campo',
+    sublabel: 'Gestione Escursioni, Preventivi e Spese',
+    iconName: 'Compass',
+  },
 ];
 
 export const MANAGED_ROLES = [
@@ -157,6 +163,18 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsMap = {
     'Biblioteca': 'none',
     'Presidenza': 'view',
     'LsC': 'none',
+  },
+  lezioni_campo: {
+    'Solo CD': 'view',
+    'Socio': 'none',
+    'Segreteria': 'view',
+    'Amministrativo': 'view',
+    'Didattica': 'view',
+    'Viaggi': 'edit',
+    'Amministratore': 'edit',
+    'Biblioteca': 'none',
+    'Presidenza': 'view',
+    'LsC': 'edit',
   },
 };
 

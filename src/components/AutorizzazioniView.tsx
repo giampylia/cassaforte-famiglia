@@ -25,6 +25,7 @@ import {
   BookOpen,
   Tv,
   Monitor,
+  Compass,
 } from 'lucide-react';
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -35,6 +36,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   BookOpen,
   Tv,
   Monitor,
+  Compass,
 };
 
 export const AutorizzazioniView: React.FC = () => {

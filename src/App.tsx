@@ -16,6 +16,7 @@ import {
   Home,
   Globe,
   ExternalLink,
+  Compass,
 } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { getMemberParts, isProtectedSegreteriaMember } from './data/initialData';
@@ -29,6 +30,7 @@ import { EliminacodeView } from './components/EliminacodeView';
 import { AvvisiVideoView } from './components/AvvisiVideoView';
 import { BibliotecaView } from './components/BibliotecaView';
 import { AutorizzazioniView } from './components/AutorizzazioniView';
+import { LezioniCampoView } from './components/LezioniCampoView';
 import { MobileGlassMenu } from './components/MobileGlassMenu';
 
 const MainRouter: React.FC = () => {
@@ -44,7 +46,7 @@ const MainRouter: React.FC = () => {
     signOut,
   } = useApp();
 
-  const CURRENT_APP_VERSION = 'v57';
+  const CURRENT_APP_VERSION = 'v58';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
@@ -127,6 +129,7 @@ const MainRouter: React.FC = () => {
   const canSeeBiblioteca = getUserSectionPermission('biblioteca') !== 'none';
   const canSeeAvvisiVideo = getUserSectionPermission('avvisi_video') !== 'none';
   const canSeeEliminacode = getUserSectionPermission('eliminacode') !== 'none';
+  const canSeeLezioniCampo = getUserSectionPermission('lezioni_campo') !== 'none';
 
   // Autorizzazioni visibile esclusivamente ad Amministratore (7726 o role === 'admin')
   const canSeeAutorizzazioni = isSuperAdmin || currentUser.role === 'admin';
@@ -205,6 +208,16 @@ const MainRouter: React.FC = () => {
             label: 'Eliminacode',
             sublabel: 'Telecomando e Monitor Numeri PDF',
             icon: Monitor,
+          },
+        ]
+      : []),
+    ...(canSeeLezioniCampo
+      ? [
+          {
+            key: 'lezioni_campo' as const,
+            label: 'Lezioni sul Campo',
+            sublabel: 'Escursioni, Visite e Preventivi',
+            icon: Compass,
           },
         ]
       : []),
@@ -369,6 +382,7 @@ const MainRouter: React.FC = () => {
           canSeeAvvisiVideo={canSeeAvvisiVideo}
           canSeeEliminacode={canSeeEliminacode}
           canSeeAutorizzazioni={canSeeAutorizzazioni}
+          canSeeLezioniCampo={canSeeLezioniCampo}
           showCloseButton={mobileDrawerOpen && activeSection !== 'menu'}
         />
 
@@ -380,6 +394,8 @@ const MainRouter: React.FC = () => {
             </div>
           ) : activeSection === 'autorizzazioni' && canSeeAutorizzazioni ? (
             <AutorizzazioniView />
+          ) : activeSection === 'lezioni_campo' && canSeeLezioniCampo ? (
+            <LezioniCampoView />
           ) : activeSection === 'eliminacode' && canSeeEliminacode ? (
             <EliminacodeView />
           ) : activeSection === 'avvisi_video' && canSeeAvvisiVideo ? (

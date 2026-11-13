@@ -15,6 +15,7 @@ import {
   Monitor,
   Key,
   Globe,
+  Compass,
 } from 'lucide-react';
 import { useApp, AppSection, FontScale } from '../context/AppContext';
 import { Profile } from '../data/initialData';
@@ -48,6 +49,7 @@ interface MobileGlassMenuProps {
   canSeeAvvisiVideo: boolean;
   canSeeEliminacode: boolean;
   canSeeAutorizzazioni: boolean;
+  canSeeLezioniCampo?: boolean;
   showCloseButton?: boolean;
 }
 
@@ -70,6 +72,7 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
   canSeeAvvisiVideo,
   canSeeEliminacode,
   canSeeAutorizzazioni,
+  canSeeLezioniCampo = true,
   showCloseButton = false,
 }) => {
   const {
@@ -202,6 +205,17 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
           },
         ]
       : []),
+    ...(canSeeLezioniCampo
+      ? [
+          {
+            key: 'lezioni_campo' as AppSection,
+            label: 'Lezioni sul Campo',
+            shortLabel: 'LEZIONI SUL CAMPO',
+            sublabel: 'Escursioni e Spese',
+            icon: Compass,
+          },
+        ]
+      : []),
     {
       key: 'sito_qu3',
       label: 'Sito Qu3',
@@ -215,15 +229,16 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
 
   return (
     <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-between overflow-y-auto bg-gradient-to-b from-[#064e3b] via-[#043d2f] to-[#022c22] text-white p-3.5 sm:p-5 select-none animate-fadeIn">
-      {/* SFONDO CON LOGO STILIZZATO IN TOTALE TRASPARENZA (SENZA ALCUN RIQUADRO) */}
+      {/* SFONDO CON LOGO STILIZZATO IN TOTALE TRASPARENZA (AMPIO, NITIDO E BEN DEFINITO) */}
       <div className="fixed inset-0 pointer-events-none flex items-center justify-center overflow-hidden z-0">
         <img
-          src="/q3-logo-transparent.png?v=1"
+          src="/q3-logo-transparent.png?v=2"
           alt="Logo Stilizzato Q3"
-          className="w-72 h-72 sm:w-96 sm:h-96 object-contain opacity-30 select-none pointer-events-none drop-shadow-[0_20px_40px_rgba(0,0,0,0.6)]"
+          className="w-[360px] h-[360px] sm:w-[440px] sm:h-[440px] max-w-[92vw] max-h-[92vw] object-contain opacity-65 contrast-115 select-none pointer-events-none drop-shadow-[0_15px_35px_rgba(0,0,0,0.6)]"
         />
-        {/* Alone smeraldo profondo */}
-        <div className="absolute w-[380px] h-[380px] rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+        {/* Alone dorato e smeraldo profondo */}
+        <div className="absolute w-[440px] h-[440px] rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
+        <div className="absolute w-[360px] h-[360px] rounded-full bg-emerald-500/10 blur-2xl pointer-events-none" />
       </div>
 
       {/* CONTENUTO PRINCIPALE IN PRIMO PIANO */}
@@ -279,8 +294,8 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
                   }}
                   className={`group relative aspect-square rounded-3xl transition-all duration-200 active:scale-95 flex flex-col items-center justify-center p-2 text-center cursor-pointer select-none shadow-xl ${
                     isActive
-                      ? 'bg-white/30 border-2 border-emerald-300 backdrop-blur-xl shadow-[0_0_20px_rgba(52,211,153,0.35)]'
-                      : 'bg-white/14 hover:bg-white/24 active:bg-white/30 backdrop-blur-md border border-white/25 hover:border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]'
+                      ? 'bg-white/28 border-2 border-emerald-300 backdrop-blur-md shadow-[0_0_20px_rgba(52,211,153,0.4)]'
+                      : 'bg-white/[0.08] hover:bg-white/[0.16] active:bg-white/[0.22] backdrop-blur-[2.5px] border border-white/20 hover:border-white/35 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]'
                   }`}
                 >
                   {/* Icona a linea in bianco */}

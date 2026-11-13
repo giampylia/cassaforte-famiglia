@@ -34,6 +34,14 @@ import {
   DEFAULT_ROLE_PERMISSIONS,
   computeUserSectionPermission,
 } from '../data/permissionsData';
+import {
+  Excursion,
+  ExcursionPayment,
+  ExcursionAdjustment,
+  INITIAL_EXCURSIONS,
+  INITIAL_EXCURSION_PAYMENTS,
+  INITIAL_EXCURSION_ADJUSTMENTS,
+} from '../data/lezioniCampoData';
 
 export type FontScale = 'normal' | 'large' | 'xlarge';
 export type AppSection =
@@ -45,7 +53,8 @@ export type AppSection =
   | 'biblioteca'
   | 'avvisi_video'
   | 'eliminacode'
-  | 'autorizzazioni';
+  | 'autorizzazioni'
+  | 'lezioni_campo';
 
 export interface QueueItem {
   number: number;
@@ -99,6 +108,10 @@ interface CloudDbSnapshot {
   libraryBooksUpdatedAt?: number;
   rolePermissions?: RolePermissionsMap;
   rolePermissionsUpdatedAt?: number;
+  excursions?: Excursion[];
+  excursionPayments?: ExcursionPayment[];
+  excursionAdjustments?: ExcursionAdjustment[];
+  excursionsUpdatedAt?: number;
   attendance: AttendanceRecord[];
   subjectNotes: SubjectDidacticNote[];
   visualHeadcounts: Record<ClassroomKey, number>;
@@ -207,6 +220,14 @@ interface AppContextType {
   updateRolePermission: (sectionKey: string, roleName: string, level: PermissionLevel) => void;
   resetRolePermissions: () => void;
   getUserSectionPermission: (sectionKey: string) => PermissionLevel;
+  // Lezioni sul Campo (Escursioni, Pagamenti, Rettifiche)
+  excursions: Excursion[];
+  excursionPayments: ExcursionPayment[];
+  excursionAdjustments: ExcursionAdjustment[];
+  excursionsUpdatedAt: number;
+  saveExcursion: (excursion: Partial<Excursion>, payments: ExcursionPayment[]) => Promise<void>;
+  deleteExcursion: (id: string) => Promise<void>;
+  saveAdjustments: (adjustments: ExcursionAdjustment[]) => Promise<void>;
   resetDemoData: () => void;
 }
 
@@ -230,6 +251,10 @@ const STORAGE_KEYS = {
   LIBRARY_BOOKS_TS: 'quartimbra_library_books_ts_v1',
   ROLE_PERMISSIONS: 'quartimbra_role_permissions_v1',
   ROLE_PERMISSIONS_TS: 'quartimbra_role_permissions_ts_v1',
+  EXCURSIONS: 'quartimbra_excursions_v1',
+  EXCURSIONS_PAYMENTS: 'quartimbra_excursions_payments_v1',
+  EXCURSIONS_ADJUSTMENTS: 'quartimbra_excursions_adjustments_v1',
+  EXCURSIONS_TS: 'quartimbra_excursions_ts_v1',
   ATTENDANCE: 'quartimbra_attendance_v3',
   NOTES: 'quartimbra_subject_notes_v3',
   HEADCOUNTS: 'quartimbra_headcounts_v3',
@@ -527,6 +552,50 @@ async function loadRolePermissionsFromIndexedDB(): Promise<{
     try {
       const tx = db.transaction(IDB_STORE, 'readonly');
       const req = tx.objectStore(IDB_STORE).get(IDB_PERMISSIONS_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+const IDB_LEZIONI_KEY = 'protected_lezioni_campo_v1';
+
+async function saveLezioniCampoToIndexedDB(data: {
+  excursions: Excursion[];
+  payments: ExcursionPayment[];
+  adjustments: ExcursionAdjustment[];
+  updatedAt: number;
+}): Promise<void> {
+  const db = await openAnagraficaIdb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(
+      {
+        ...data,
+        updatedAt: data.updatedAt || Date.now(),
+      },
+      IDB_LEZIONI_KEY
+    );
+  } catch {
+    // Ignore IDB errors
+  }
+}
+
+async function loadLezioniCampoFromIndexedDB(): Promise<{
+  excursions?: Excursion[];
+  payments?: ExcursionPayment[];
+  adjustments?: ExcursionAdjustment[];
+  updatedAt?: number;
+} | null> {
+  const db = await openAnagraficaIdb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(IDB_LEZIONI_KEY);
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => resolve(null);
     } catch {
@@ -946,6 +1015,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [excursionsUpdatedAt, setExcursionsUpdatedAt] = useState<number>(() => {
+    try {
+      return Number(localStorage.getItem(STORAGE_KEYS.EXCURSIONS_TS) || 0);
+    } catch {
+      return 0;
+    }
+  });
+
+  const [excursions, setExcursions] = useState<Excursion[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.EXCURSIONS);
+      return saved ? JSON.parse(saved) : INITIAL_EXCURSIONS;
+    } catch {
+      return INITIAL_EXCURSIONS;
+    }
+  });
+
+  const [excursionPayments, setExcursionPayments] = useState<ExcursionPayment[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.EXCURSIONS_PAYMENTS);
+      return saved ? JSON.parse(saved) : INITIAL_EXCURSION_PAYMENTS;
+    } catch {
+      return INITIAL_EXCURSION_PAYMENTS;
+    }
+  });
+
+  const [excursionAdjustments, setExcursionAdjustments] = useState<ExcursionAdjustment[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.EXCURSIONS_ADJUSTMENTS);
+      return saved ? JSON.parse(saved) : INITIAL_EXCURSION_ADJUSTMENTS;
+    } catch {
+      return INITIAL_EXCURSION_ADJUSTMENTS;
+    }
+  });
+
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
@@ -1196,6 +1300,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   rolePermissionsRef.current = rolePermissions;
   const rolePermissionsUpdatedAtRef = useRef(rolePermissionsUpdatedAt);
   rolePermissionsUpdatedAtRef.current = rolePermissionsUpdatedAt;
+  const excursionsRef = useRef<Excursion[]>(excursions);
+  excursionsRef.current = excursions;
+  const excursionPaymentsRef = useRef<ExcursionPayment[]>(excursionPayments);
+  excursionPaymentsRef.current = excursionPayments;
+  const excursionAdjustmentsRef = useRef<ExcursionAdjustment[]>(excursionAdjustments);
+  excursionAdjustmentsRef.current = excursionAdjustments;
+  const excursionsUpdatedAtRef = useRef(excursionsUpdatedAt);
+  excursionsUpdatedAtRef.current = excursionsUpdatedAt;
   const queueUpdatedAtRef = useRef(queueState.updatedAt || 0);
   queueUpdatedAtRef.current = queueState.updatedAt || 0;
 
@@ -1577,6 +1689,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       shouldPushBackLocalProtected = true;
     }
 
+    const remoteExcTs = Number(db.excursionsUpdatedAt || 0);
+    const localExcTs = excursionsUpdatedAtRef.current;
+    if (remoteExcTs > localExcTs && Array.isArray(db.excursions) && db.excursions.length > 0) {
+      excursionsRef.current = db.excursions;
+      setExcursions(db.excursions);
+      safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS, JSON.stringify(db.excursions));
+      if (Array.isArray(db.excursionPayments)) {
+        excursionPaymentsRef.current = db.excursionPayments;
+        setExcursionPayments(db.excursionPayments);
+        safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS_PAYMENTS, JSON.stringify(db.excursionPayments));
+      }
+      if (Array.isArray(db.excursionAdjustments)) {
+        excursionAdjustmentsRef.current = db.excursionAdjustments;
+        setExcursionAdjustments(db.excursionAdjustments);
+        safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS_ADJUSTMENTS, JSON.stringify(db.excursionAdjustments));
+      }
+      excursionsUpdatedAtRef.current = remoteExcTs;
+      setExcursionsUpdatedAt(remoteExcTs);
+      safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS_TS, String(remoteExcTs));
+      saveLezioniCampoToIndexedDB({
+        excursions: db.excursions,
+        payments: db.excursionPayments || [],
+        adjustments: db.excursionAdjustments || [],
+        updatedAt: remoteExcTs || Date.now(),
+      });
+    } else if (localExcTs > remoteExcTs && Array.isArray(excursionsRef.current)) {
+      shouldPushBackLocalProtected = true;
+    }
+
     if (db.queueState) {
       const sanitizedRemoteQ = sanitizeQueueState(db.queueState, profilesRef.current);
       const remoteQueueTs = Number(sanitizedRemoteQ.updatedAt || 0);
@@ -1654,12 +1795,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     async function initHydration() {
       // 1) Attendi il completamento di tutti i recuperi locali da IndexedDB
       try {
-        const [idbData, idbBooks, idbCash, idbVn, idbPerms] = await Promise.all([
+        const [idbData, idbBooks, idbCash, idbVn, idbPerms, idbLezioni] = await Promise.all([
           loadAnagraficaFromIndexedDB(),
           loadLibraryBooksFromIndexedDB(),
           loadCashDataFromIndexedDB(),
           loadVideoNoticesFromIndexedDB(),
           loadRolePermissionsFromIndexedDB(),
+          loadLezioniCampoFromIndexedDB(),
         ]);
 
         if (isCancelled) return;
@@ -1780,6 +1922,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setRolePermissionsUpdatedAt(idbTs);
             safeSetLocalStorage(STORAGE_KEYS.ROLE_PERMISSIONS, JSON.stringify(idbPerms.permissions));
             safeSetLocalStorage(STORAGE_KEYS.ROLE_PERMISSIONS_TS, String(idbTs));
+          }
+        }
+
+        // Lezioni sul Campo
+        if (idbLezioni && Array.isArray(idbLezioni.excursions) && idbLezioni.excursions.length > 0) {
+          const idbTs = Number(idbLezioni.updatedAt || 0);
+          if (idbTs > excursionsUpdatedAtRef.current || excursionsRef.current.length === 0) {
+            excursionsRef.current = idbLezioni.excursions;
+            setExcursions(idbLezioni.excursions);
+            if (Array.isArray(idbLezioni.payments)) {
+              excursionPaymentsRef.current = idbLezioni.payments;
+              setExcursionPayments(idbLezioni.payments);
+            }
+            if (Array.isArray(idbLezioni.adjustments)) {
+              excursionAdjustmentsRef.current = idbLezioni.adjustments;
+              setExcursionAdjustments(idbLezioni.adjustments);
+            }
+            excursionsUpdatedAtRef.current = idbTs;
+            setExcursionsUpdatedAt(idbTs);
+            safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS, JSON.stringify(idbLezioni.excursions));
+            safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS_PAYMENTS, JSON.stringify(idbLezioni.payments || []));
+            safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS_ADJUSTMENTS, JSON.stringify(idbLezioni.adjustments || []));
+            safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS_TS, String(idbTs));
           }
         }
       } catch (err) {
@@ -3327,6 +3492,118 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return computeUserSectionPermission(sectionKey, currentUser, rolePermissions);
   };
 
+  const commitLezioniCampo = (
+    nextExcursions: Excursion[],
+    nextPayments: ExcursionPayment[],
+    nextAdjustments: ExcursionAdjustment[]
+  ) => {
+    const nowTs = Date.now();
+    excursionsRef.current = nextExcursions;
+    excursionPaymentsRef.current = nextPayments;
+    excursionAdjustmentsRef.current = nextAdjustments;
+    excursionsUpdatedAtRef.current = nowTs;
+
+    setExcursions(nextExcursions);
+    setExcursionPayments(nextPayments);
+    setExcursionAdjustments(nextAdjustments);
+    setExcursionsUpdatedAt(nowTs);
+
+    safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS, JSON.stringify(nextExcursions));
+    safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS_PAYMENTS, JSON.stringify(nextPayments));
+    safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS_ADJUSTMENTS, JSON.stringify(nextAdjustments));
+    safeSetLocalStorage(STORAGE_KEYS.EXCURSIONS_TS, String(nowTs));
+
+    saveLezioniCampoToIndexedDB({
+      excursions: nextExcursions,
+      payments: nextPayments,
+      adjustments: nextAdjustments,
+      updatedAt: nowTs,
+    });
+
+    pushCloudSnapshot({
+      profiles: profilesRef.current,
+      availableRoles: availableRolesRef.current,
+      profilesUpdatedAt: profilesUpdatedAtRef.current,
+      expenseCategories: expenseCategoriesRef.current,
+      cashMovements: cashMovementsRef.current,
+      cashOpeningBalance: cashOpeningBalanceRef.current,
+      cashUpdatedAt: cashUpdatedAtRef.current,
+      lessons: lessonsRef.current,
+      lessonsUpdatedAt: lessonsUpdatedAtRef.current,
+      videoNotices: videoNoticesRef.current,
+      videoNoticesUpdatedAt: videoNoticesUpdatedAtRef.current,
+      libraryBooks: libraryBooksRef.current,
+      libraryBooksUpdatedAt: libraryBooksUpdatedAtRef.current,
+      rolePermissions: rolePermissionsRef.current,
+      rolePermissionsUpdatedAt: rolePermissionsUpdatedAtRef.current,
+      excursions: nextExcursions,
+      excursionPayments: nextPayments,
+      excursionAdjustments: nextAdjustments,
+      excursionsUpdatedAt: nowTs,
+      attendance,
+      subjectNotes,
+      visualHeadcounts,
+      liveFeed,
+      queueState,
+      updatedAt: new Date().toISOString(),
+    }, 'LEZIONI_CAMPO_UPDATE');
+  };
+
+  const saveExcursion = async (
+    excursionData: Partial<Excursion>,
+    paymentsData: ExcursionPayment[]
+  ): Promise<void> => {
+    const isNew = !excursionData.id;
+    const excursionId = excursionData.id || `exc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const fullExcursion: Excursion = {
+      id: excursionId,
+      name: excursionData.name || 'Nuova Escursione',
+      excursion_type: excursionData.excursion_type || 'lezione_sul_campo',
+      excursion_date: excursionData.excursion_date || new Date().toISOString().split('T')[0],
+      description: excursionData.description || null,
+      quota: excursionData.quota || 0,
+      num_participants: excursionData.num_participants || 0,
+      quota_mezzi_propri: excursionData.quota_mezzi_propri || 0,
+      num_participants_mezzi_propri: excursionData.num_participants_mezzi_propri || 0,
+      docente: excursionData.docente || null,
+      num_accompagnatori: excursionData.num_accompagnatori || 0,
+      accompagnatore_1: excursionData.accompagnatore_1 || null,
+      accompagnatore_2: excursionData.accompagnatore_2 || null,
+      nome_hotel: excursionData.nome_hotel || null,
+      nome_ristorante: excursionData.nome_ristorante || null,
+      created_by: excursionData.created_by || currentUser?.id,
+      created_at: excursionData.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    let nextExcursions: Excursion[];
+    if (isNew) {
+      nextExcursions = [fullExcursion, ...excursionsRef.current];
+    } else {
+      nextExcursions = excursionsRef.current.map((e) => (e.id === excursionId ? fullExcursion : e));
+    }
+
+    const filteredPayments = excursionPaymentsRef.current.filter((p) => p.excursion_id !== excursionId);
+    const updatedPayments = paymentsData.map((p) => ({
+      ...p,
+      id: p.id || `pay-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      excursion_id: excursionId,
+    }));
+    const nextPayments = [...filteredPayments, ...updatedPayments];
+
+    commitLezioniCampo(nextExcursions, nextPayments, excursionAdjustmentsRef.current);
+  };
+
+  const deleteExcursion = async (id: string): Promise<void> => {
+    const nextExcursions = excursionsRef.current.filter((e) => e.id !== id);
+    const nextPayments = excursionPaymentsRef.current.filter((p) => p.excursion_id !== id);
+    commitLezioniCampo(nextExcursions, nextPayments, excursionAdjustmentsRef.current);
+  };
+
+  const saveAdjustments = async (adjustmentsData: ExcursionAdjustment[]): Promise<void> => {
+    commitLezioniCampo(excursionsRef.current, excursionPaymentsRef.current, adjustmentsData);
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -3421,6 +3698,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateRolePermission,
         resetRolePermissions,
         getUserSectionPermission,
+        excursions,
+        excursionPayments,
+        excursionAdjustments,
+        excursionsUpdatedAt,
+        saveExcursion,
+        deleteExcursion,
+        saveAdjustments,
         resetDemoData,
       }}
     >

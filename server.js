@@ -695,6 +695,21 @@ const server = http.createServer(async (req, res) => {
             incomingDb.libraryBooksUpdatedAt = existingLbTs;
           }
 
+          // Protezione Lezioni sul Campo (Escursioni, Pagamenti, Rettifiche)
+          const existingExcTs = Number(existingDb.excursionsUpdatedAt || 0);
+          const incomingExcTs = Number(incomingDb.excursionsUpdatedAt || 0);
+          if (existingExcTs > incomingExcTs && Array.isArray(existingDb.excursions) && existingDb.excursions.length > 0) {
+            incomingDb.excursions = existingDb.excursions;
+            incomingDb.excursionPayments = existingDb.excursionPayments || incomingDb.excursionPayments;
+            incomingDb.excursionAdjustments = existingDb.excursionAdjustments || incomingDb.excursionAdjustments;
+            incomingDb.excursionsUpdatedAt = existingExcTs;
+          } else if (!Array.isArray(incomingDb.excursions) && Array.isArray(existingDb.excursions)) {
+            incomingDb.excursions = existingDb.excursions;
+            incomingDb.excursionPayments = existingDb.excursionPayments;
+            incomingDb.excursionAdjustments = existingDb.excursionAdjustments;
+            incomingDb.excursionsUpdatedAt = existingExcTs;
+          }
+
           // Protezione Eliminacode: non sovrascrivere mai con dati più vecchi
           const existingQueueTs = Number((existingDb.queueState && existingDb.queueState.updatedAt) || 0);
           const incomingQueueTs = Number((incomingDb.queueState && incomingDb.queueState.updatedAt) || 0);
