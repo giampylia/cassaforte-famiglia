@@ -70,6 +70,12 @@ export const MANAGED_MENU_SECTIONS: MenuSectionDef[] = [
     sublabel: 'Consuntivo ETS, Preventivo e Liquidità',
     iconName: 'Scale',
   },
+  {
+    key: 'prenotazione_eventi',
+    label: 'Prenotazione Eventi',
+    sublabel: 'Cinema, Gite, Conferenze e Lista Ospiti',
+    iconName: 'Ticket',
+  },
 ];
 
 export const MANAGED_ROLES = [
@@ -211,6 +217,18 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsMap = {
     'Biblioteca': 'none',
     'Presidenza': 'view',
     'LsC': 'none',
+  },
+  prenotazione_eventi: {
+    'Solo CD': 'edit',
+    'Socio': 'view',
+    'Segreteria': 'edit',
+    'Amministrativo': 'edit',
+    'Didattica': 'view',
+    'Viaggi': 'edit',
+    'Amministratore': 'edit',
+    'Biblioteca': 'view',
+    'Presidenza': 'edit',
+    'LsC': 'view',
   },
 };
 

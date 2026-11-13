@@ -37,6 +37,7 @@ export interface Profile {
   is_cd?: boolean;
   roles?: string[];
   phone?: string;
+  email?: string;
   joined_year?: number;
 }
 
@@ -452,12 +453,12 @@ export function getSubjectMeta(subject: string): SubjectMeta {
 }
 
 export const INITIAL_PROFILES: Profile[] = [
-  { id: 'admin-7726', member_number: '7726', first_name: 'Giampiero', last_name: 'Pilia', full_name: 'Giampiero Pilia', sede: 'Quartu', role: 'admin', is_super_admin: true, is_cd: true, roles: ['Amministratore'], phone: '070 881234', joined_year: 2018 },
-  { id: 'u-cd-sotgiu', member_number: 'CD-SOTGIU', first_name: 'Maria Giovanna', last_name: 'Sotgiu', full_name: 'Maria Giovanna Sotgiu', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: true, roles: ['Socio'], phone: '', joined_year: 2024 },
-  { id: 'u-6128', member_number: '6128', first_name: 'Docente Didattica', last_name: 'QU3', full_name: 'Docente Didattica QU3', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: true, roles: ['Didattica'], phone: '070 881234', joined_year: 2020 },
-  { id: 'segreteria-9999', member_number: '9999', first_name: 'Nives', last_name: 'Cocco', full_name: 'Nives Cocco', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: false, roles: ['Segreteria'], phone: '', joined_year: 2024 },
-  { id: 'segreteria-9998', member_number: '9998', first_name: 'Josh Ronald', last_name: 'Cocco', full_name: 'Josh Ronald Cocco', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: false, roles: ['Segreteria'], phone: '', joined_year: 2024 },
-  { id: 'admin-1', member_number: '000', first_name: 'Ufficio', last_name: 'Presenze QU3', full_name: 'Ufficio Presenze QU3', sede: 'Quartu', role: 'admin', is_super_admin: false, is_cd: false, roles: ['Didattica'], phone: '070 881234', joined_year: 2018 },
+  { id: 'admin-7726', member_number: '7726', first_name: 'Giampiero', last_name: 'Pilia', full_name: 'Giampiero Pilia', sede: 'Quartu', role: 'admin', is_super_admin: true, is_cd: true, roles: ['Amministratore'], phone: '070 881234', email: 'giampiero.lia@gmail.com', joined_year: 2018 },
+  { id: 'u-cd-sotgiu', member_number: 'CD-SOTGIU', first_name: 'Maria Giovanna', last_name: 'Sotgiu', full_name: 'Maria Giovanna Sotgiu', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: true, roles: ['Socio'], phone: '', email: 'mariagiovanna.sotgiu@gmail.com', joined_year: 2024 },
+  { id: 'u-6128', member_number: '6128', first_name: 'Docente Didattica', last_name: 'QU3', full_name: 'Docente Didattica QU3', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: true, roles: ['Didattica'], phone: '070 881234', email: 'didattica@univerquartu.it', joined_year: 2020 },
+  { id: 'segreteria-9999', member_number: '9999', first_name: 'Nives', last_name: 'Cocco', full_name: 'Nives Cocco', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: false, roles: ['Segreteria'], phone: '', email: 'nives.cocco@gmail.com', joined_year: 2024 },
+  { id: 'segreteria-9998', member_number: '9998', first_name: 'Josh Ronald', last_name: 'Cocco', full_name: 'Josh Ronald Cocco', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: false, roles: ['Segreteria'], phone: '', email: 'josh.cocco@gmail.com', joined_year: 2024 },
+  { id: 'admin-1', member_number: '000', first_name: 'Ufficio', last_name: 'Presenze QU3', full_name: 'Ufficio Presenze QU3', sede: 'Quartu', role: 'admin', is_super_admin: false, is_cd: false, roles: ['Didattica'], phone: '070 881234', email: 'segreteria@univerquartu.it', joined_year: 2018 },
   { id: 'u-101', member_number: '101', first_name: 'Maria Bonaria', last_name: 'Melis', full_name: 'Maria Bonaria Melis', sede: 'Quartu', role: 'member', is_cd: true, roles: ['Amministrativo'], phone: '347 1122334', joined_year: 2021 },
   { id: 'u-102', member_number: '102', first_name: 'Efisio', last_name: 'Piras', full_name: 'Efisio Piras', sede: 'Quartu', role: 'member', is_cd: true, roles: ['Amministrativo'], phone: '348 2233445', joined_year: 2020 },
   { id: 'u-103', member_number: '103', first_name: 'Anna Rita', last_name: 'Cao', full_name: 'Anna Rita Cao', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '349 3344556', joined_year: 2022 },

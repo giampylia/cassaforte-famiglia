@@ -28,6 +28,7 @@ import {
   Compass,
   Zap,
   Scale,
+  Ticket,
 } from 'lucide-react';
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -41,6 +42,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Compass,
   Zap,
   Scale,
+  Ticket,
 };
 
 export const AutorizzazioniView: React.FC = () => {

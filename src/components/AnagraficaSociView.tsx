@@ -81,6 +81,8 @@ export const AnagraficaSociView: React.FC = () => {
   const [newTessera, setNewTessera] = useState('');
   const [newFirstName, setNewFirstName] = useState('');
   const [newLastName, setNewLastName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPhone, setNewPhone] = useState('');
   const [newSede, setNewSede] = useState<'Quartu' | 'Soleminis'>('Quartu');
   const [newRole, setNewRole] = useState<string>('Socio');
   const [newCustomRole, setNewCustomRole] = useState('');
@@ -91,6 +93,8 @@ export const AnagraficaSociView: React.FC = () => {
     member_number: string;
     first_name: string;
     last_name: string;
+    email: string;
+    phone: string;
     sede: 'Quartu' | 'Soleminis';
     roleName: string;
     is_cd: boolean;
@@ -98,6 +102,8 @@ export const AnagraficaSociView: React.FC = () => {
     member_number: '',
     first_name: '',
     last_name: '',
+    email: '',
+    phone: '',
     sede: 'Quartu',
     roleName: 'Socio',
     is_cd: false,
@@ -231,6 +237,8 @@ export const AnagraficaSociView: React.FC = () => {
         member_number: cleanNum,
         first_name: cleanFirst,
         last_name: cleanLast,
+        email: newEmail.trim(),
+        phone: newPhone.trim(),
         sede: newSede,
         roleName: newRole || 'Socio',
       },
@@ -239,6 +247,8 @@ export const AnagraficaSociView: React.FC = () => {
     setNewTessera('');
     setNewFirstName('');
     setNewLastName('');
+    setNewEmail('');
+    setNewPhone('');
     showNotice(
       'success',
       res.added > 0
@@ -281,6 +291,8 @@ export const AnagraficaSociView: React.FC = () => {
     let idxNominativo = -1;
     let idxSede = -1;
     let idxRuolo = -1;
+    let idxEmail = -1;
+    let idxPhone = -1;
 
     if (headerRowIdx >= 0) {
       const headerCols = cleanRows[headerRowIdx].map((c) => c.toLowerCase().trim());
@@ -327,6 +339,10 @@ export const AnagraficaSociView: React.FC = () => {
           if (idxSede === -1) idxSede = idx;
         } else if (col.includes('ruolo') || col.includes('carica') || col === 'cd') {
           if (idxRuolo === -1) idxRuolo = idx;
+        } else if (col.includes('mail') || col.includes('e-mail')) {
+          if (idxEmail === -1) idxEmail = idx;
+        } else if (col.includes('tel') || col.includes('cell') || col.includes('phone') || col.includes('recapito')) {
+          if (idxPhone === -1) idxPhone = idx;
         }
       });
     }
@@ -477,12 +493,17 @@ export const AnagraficaSociView: React.FC = () => {
           ? rawRuoloCell
           : 'Socio';
 
+      const email = idxEmail >= 0 ? (r[idxEmail] || '').trim() : '';
+      const phone = idxPhone >= 0 ? (r[idxPhone] || '').trim() : '';
+
       result.push({
         member_number: tessera,
         first_name: nome,
         last_name: cognome,
         sede,
         roleName: ruolo,
+        email,
+        phone,
       });
     }
 
@@ -568,12 +589,12 @@ export const AnagraficaSociView: React.FC = () => {
   const handleDownloadTemplate = () => {
     exportCsv(
       'modello_importazione_soci_Q3.csv',
-      ['Tessera', 'Nome', 'Cognome', 'Sede', 'Ruolo'],
+      ['Tessera', 'Nome', 'Cognome', 'Sede', 'Ruolo', 'Email', 'Telefono'],
       [
-        ['115', 'Mario', 'Rossi', 'Quartu', 'Socio'],
-        ['116', 'Anna', 'Bianchi', 'Quartu', 'CD'],
-        ['117', 'Giuseppe', 'Verdi', 'Quartu', 'Didattica'],
-        ['205', 'Lucia', 'Spiga', 'Soleminis', 'Socio'],
+        ['115', 'Mario', 'Rossi', 'Quartu', 'Socio', 'mario.rossi@example.com', '3401234567'],
+        ['116', 'Anna', 'Bianchi', 'Quartu', 'CD', 'anna.bianchi@example.com', '3471234567'],
+        ['117', 'Giuseppe', 'Verdi', 'Quartu', 'Didattica', 'giuseppe.verdi@example.com', '3351234567'],
+        ['205', 'Lucia', 'Spiga', 'Soleminis', 'Socio', '', ''],
       ]
     );
   };
@@ -582,13 +603,15 @@ export const AnagraficaSociView: React.FC = () => {
   const handleExportAllCsv = () => {
     exportCsv(
       `anagrafica_soci_Q3_${new Date().toISOString().slice(0, 10)}.csv`,
-      ['Tessera', 'Nome', 'Cognome', 'Sede', 'Ruolo'],
+      ['Tessera', 'Nome', 'Cognome', 'Sede', 'Ruolo', 'Email', 'Telefono'],
       sortedMembers.map((m) => [
         m.member_number,
         m.parsedFirstName,
         m.parsedLastName,
         m.sede,
         m.parsedRole,
+        m.email || '',
+        m.phone || '',
       ])
     );
   };
@@ -608,13 +631,14 @@ export const AnagraficaSociView: React.FC = () => {
           ? 'Sede'
           : 'Ruolo'
       }`,
-      head: ['N° Tessera (Password)', 'Nome', 'Cognome', 'Sede', 'Ruolo'],
+      head: ['N° Tessera (Password)', 'Nome', 'Cognome', 'Sede', 'Ruolo', 'Email'],
       body: sortedMembers.map((m) => [
         m.member_number,
         m.parsedFirstName,
         m.parsedLastName,
         m.sede,
         m.parsedRole,
+        m.email || '-',
       ]),
       fileName: `anagrafica_soci_Q3_${new Date().toISOString().slice(0, 10)}.pdf`,
     });
@@ -870,7 +894,7 @@ export const AnagraficaSociView: React.FC = () => {
 
               <form
                 onSubmit={handleAddSingleMember}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5"
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5"
               >
                 <input
                   type="text"
@@ -891,6 +915,20 @@ export const AnagraficaSociView: React.FC = () => {
                   placeholder="Cognome *"
                   value={newLastName}
                   onChange={(e) => setNewLastName(e.target.value)}
+                  className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
+                />
+                <input
+                  type="email"
+                  placeholder="Email (es. socio@email.it)"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
+                />
+                <input
+                  type="tel"
+                  placeholder="Telefono (opzionale)"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
                   className={`h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
                 />
                 <select
@@ -1030,6 +1068,7 @@ export const AnagraficaSociView: React.FC = () => {
                   >
                     Sede {renderSortIcon('sede')}
                   </th>
+                  <th className="p-3.5 whitespace-nowrap">Email</th>
                   <th
                     onClick={() => handleSortClick('role')}
                     className="p-3.5 cursor-pointer hover:bg-slate-100 transition whitespace-nowrap"
@@ -1105,6 +1144,17 @@ export const AnagraficaSociView: React.FC = () => {
                             </select>
                           </td>
                           <td className="p-3">
+                            <input
+                              type="email"
+                              placeholder="Email socio"
+                              value={editRow.email}
+                              onChange={(e) =>
+                                setEditRow({ ...editRow, email: e.target.value })
+                              }
+                              className={`h-9 w-full rounded-lg px-2 text-sm ${inputClass}`}
+                            />
+                          </td>
+                          <td className="p-3">
                             {isProtectedAdmin ? (
                               <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-900">
                                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-700" />
@@ -1160,6 +1210,8 @@ export const AnagraficaSociView: React.FC = () => {
                                   last_name: editRow.last_name.trim(),
                                   full_name: fullName,
                                   sede: editRow.sede,
+                                  email: editRow.email.trim(),
+                                  phone: editRow.phone.trim(),
                                   is_cd: editRow.is_cd,
                                   roles: isProtectedAdmin
                                     ? Array.from(new Set(['Amministratore', editRow.roleName]))
@@ -1216,6 +1268,19 @@ export const AnagraficaSociView: React.FC = () => {
                           </td>
                           <td className="p-3.5 text-sm font-normal text-slate-600 whitespace-nowrap">
                             {m.sede}
+                          </td>
+                          <td className="p-3.5 text-sm font-normal text-slate-600 whitespace-nowrap">
+                            {m.email ? (
+                              <a
+                                href={`mailto:${m.email}`}
+                                className="text-emerald-700 hover:text-emerald-800 hover:underline text-xs font-mono"
+                                title={`Invia email a ${m.email}`}
+                              >
+                                {m.email}
+                              </a>
+                            ) : (
+                              <span className="text-slate-400 text-xs italic">-</span>
+                            )}
                           </td>
                           <td className="p-3.5 whitespace-nowrap">
                             {isProtectedAdmin ? (
@@ -1291,6 +1356,8 @@ export const AnagraficaSociView: React.FC = () => {
                                       member_number: m.member_number,
                                       first_name: m.parsedFirstName,
                                       last_name: m.parsedLastName,
+                                      email: m.email || '',
+                                      phone: m.phone || '',
                                       sede: m.sede,
                                       roleName: m.parsedRole.split(',')[0].trim() || 'Socio',
                                       is_cd: isCd,

@@ -19,6 +19,7 @@ import {
   Compass,
   Zap,
   Scale,
+  Ticket,
 } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { getMemberParts, isProtectedSegreteriaMember } from './data/initialData';
@@ -35,6 +36,7 @@ import { AutorizzazioniView } from './components/AutorizzazioniView';
 import { LezioniCampoView } from './components/LezioniCampoView';
 import { BolletteView } from './components/BolletteView';
 import { BilancioView } from './components/BilancioView';
+import { PrenotazioneEventiView } from './components/PrenotazioneEventiView';
 import { MobileGlassMenu } from './components/MobileGlassMenu';
 
 const MainRouter: React.FC = () => {
@@ -50,7 +52,7 @@ const MainRouter: React.FC = () => {
     signOut,
   } = useApp();
 
-  const CURRENT_APP_VERSION = 'v60';
+  const CURRENT_APP_VERSION = 'v61';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
@@ -136,6 +138,7 @@ const MainRouter: React.FC = () => {
   const canSeeLezioniCampo = getUserSectionPermission('lezioni_campo') !== 'none';
   const canSeeBollette = getUserSectionPermission('bollette') !== 'none';
   const canSeeBilancio = getUserSectionPermission('bilancio') !== 'none';
+  const canSeePrenotazioneEventi = getUserSectionPermission('prenotazione_eventi') !== 'none';
 
   // Autorizzazioni visibile esclusivamente ad Amministratore (7726 o role === 'admin')
   const canSeeAutorizzazioni = isSuperAdmin || currentUser.role === 'admin';
@@ -254,6 +257,16 @@ const MainRouter: React.FC = () => {
             label: 'Autorizzazioni',
             sublabel: 'Gestione Permessi per Singolo Ruolo',
             icon: Key,
+          },
+        ]
+      : []),
+    ...(canSeePrenotazioneEventi
+      ? [
+          {
+            key: 'prenotazione_eventi' as const,
+            label: 'Prenotazione Eventi',
+            sublabel: 'Cinema, Gite, Conferenze e Corsi',
+            icon: Ticket,
           },
         ]
       : []),
@@ -411,6 +424,7 @@ const MainRouter: React.FC = () => {
           canSeeLezioniCampo={canSeeLezioniCampo}
           canSeeBollette={canSeeBollette}
           canSeeBilancio={canSeeBilancio}
+          canSeePrenotazioneEventi={canSeePrenotazioneEventi}
           showCloseButton={mobileDrawerOpen && activeSection !== 'menu'}
         />
 
@@ -420,6 +434,8 @@ const MainRouter: React.FC = () => {
             <div className="hidden lg:block">
               <MemberView />
             </div>
+          ) : activeSection === 'prenotazione_eventi' && canSeePrenotazioneEventi ? (
+            <PrenotazioneEventiView />
           ) : activeSection === 'autorizzazioni' && canSeeAutorizzazioni ? (
             <AutorizzazioniView />
           ) : activeSection === 'lezioni_campo' && canSeeLezioniCampo ? (

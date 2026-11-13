@@ -13881,5 +13881,129 @@
       "created_at": "2026-10-12T14:05:02.393524+00:00",
       "updated_at": "2026-10-12T14:05:02.393524+00:00"
     }
+  ],
+  "eventiTipologie": [
+    {
+      "id": "tipo-cinema",
+      "nome": "Cinema",
+      "descrizione": "Proiezioni cinematografiche, cineforum e dibattiti d'autore",
+      "colore": "indigo",
+      "icona": "Film",
+      "created_at": "2026-11-01T10:00:00.000Z"
+    },
+    {
+      "id": "tipo-gite",
+      "nome": "Gite naturalistiche",
+      "descrizione": "Escursioni guidate, parchi naturali e percorsi archeologici",
+      "colore": "emerald",
+      "icona": "Compass",
+      "created_at": "2026-11-01T10:00:00.000Z"
+    },
+    {
+      "id": "tipo-conferenze",
+      "nome": "Conferenze",
+      "descrizione": "Incontri culturali, lectio magistralis e tavole rotonde",
+      "colore": "amber",
+      "icona": "Mic",
+      "created_at": "2026-11-01T10:00:00.000Z"
+    }
+  ],
+  "eventi": [
+    {
+      "id": "evt-cinema-01",
+      "titolo": "Proiezione Cinema: \"La Grazia\" e dibattito con il critico",
+      "tipo_id": "tipo-cinema",
+      "tipo_nome": "Cinema",
+      "descrizione": "Serata di cineforum dedicata al cinema sardo contemporaneo con introduzione del docente e dibattito finale.",
+      "luogo": "Sala Magna — Sede Quartu Sant'Elena",
+      "data_evento": "2026-11-28",
+      "ora_evento": "17:30",
+      "posti_totali": 90,
+      "posti_online": 70,
+      "max_posti_per_socio": 2,
+      "posti_lista_attesa": 15,
+      "apertura_prenotazioni": "2026-11-10T08:00",
+      "chiusura_prenotazioni": "2026-11-27T20:00",
+      "costo": 0,
+      "richiede_pagamento_in_sede": false,
+      "stato_manuale": "pubblicato",
+      "created_at": "2026-11-10T08:00:00.000Z",
+      "updated_at": "2026-11-10T08:00:00.000Z"
+    },
+    {
+      "id": "evt-gita-01",
+      "titolo": "Gita Naturalistica: Sentiero dei Sette Fratelli e Foresta Demaniale",
+      "tipo_id": "tipo-gite",
+      "tipo_nome": "Gite naturalistiche",
+      "descrizione": "Escursione a piedi di livello turistico (T) con guida botanica e pranzo al sacco tra i lecci secolari del Parco dei Sette Fratelli.",
+      "luogo": "Partenza in pullman da Piazza Dessì (Quartu)",
+      "data_evento": "2026-12-05",
+      "ora_evento": "08:30",
+      "posti_totali": 54,
+      "posti_online": 50,
+      "max_posti_per_socio": 2,
+      "posti_lista_attesa": 10,
+      "apertura_prenotazioni": "2026-11-12T09:00",
+      "chiusura_prenotazioni": "2026-12-02T19:00",
+      "costo": 18,
+      "richiede_pagamento_in_sede": true,
+      "note_pagamento": "Quota pullman e guida da versare in segreteria entro mercoledì 2 dicembre ore 18:00.",
+      "stato_manuale": "pubblicato",
+      "created_at": "2026-11-12T09:00:00.000Z",
+      "updated_at": "2026-11-12T09:00:00.000Z"
+    },
+    {
+      "id": "evt-conf-01",
+      "titolo": "Conferenza Magistrale: Storia e Tradizioni della Sardegna",
+      "tipo_id": "tipo-conferenze",
+      "tipo_nome": "Conferenze",
+      "descrizione": "Lectio magistralis aperta sui tesori archeologici e l'identità culturale della nostra isola.",
+      "luogo": "Auditorium Sede Centrale — Quartu",
+      "data_evento": "2026-12-12",
+      "ora_evento": "16:45",
+      "posti_totali": 110,
+      "posti_online": 100,
+      "max_posti_per_socio": 1,
+      "posti_lista_attesa": 20,
+      "apertura_prenotazioni": "2026-11-20T08:00",
+      "chiusura_prenotazioni": "2026-12-11T20:00",
+      "costo": 0,
+      "richiede_pagamento_in_sede": false,
+      "stato_manuale": "pubblicato",
+      "created_at": "2026-11-13T10:00:00.000Z",
+      "updated_at": "2026-11-13T10:00:00.000Z"
+    }
+  ],
+  "eventiPrenotazioni": [
+    {
+      "id": "pren-demo-01",
+      "evento_id": "evt-cinema-01",
+      "socio_id": "u-17",
+      "socio_tessera": "7726",
+      "socio_nominativo": "Giampiero Lia",
+      "socio_email": "giampiero.lia@gmail.com",
+      "num_posti": 2,
+      "ospite_tessera": "7727",
+      "ospite_nominativo": "Lucia Demurtas",
+      "stato": "confermata",
+      "stato_pagamento": "gratuito",
+      "data_prenotazione": "2026-11-11T10:15:00.000Z",
+      "conferma_email_inviata": true
+    },
+    {
+      "id": "pren-demo-02",
+      "evento_id": "evt-gita-01",
+      "socio_id": "u-17",
+      "socio_tessera": "7726",
+      "socio_nominativo": "Giampiero Lia",
+      "socio_email": "giampiero.lia@gmail.com",
+      "num_posti": 2,
+      "ospite_tessera": "7727",
+      "ospite_nominativo": "Lucia Demurtas",
+      "stato": "confermata",
+      "stato_pagamento": "da_pagare_in_sede",
+      "data_prenotazione": "2026-11-13T14:30:00.000Z",
+      "conferma_email_inviata": true
+    }
   ]
 }

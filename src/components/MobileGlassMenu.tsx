@@ -18,6 +18,7 @@ import {
   Compass,
   Zap,
   Scale,
+  Ticket,
 } from 'lucide-react';
 import { useApp, AppSection, FontScale } from '../context/AppContext';
 import { Profile } from '../data/initialData';
@@ -54,6 +55,7 @@ interface MobileGlassMenuProps {
   canSeeLezioniCampo?: boolean;
   canSeeBollette?: boolean;
   canSeeBilancio?: boolean;
+  canSeePrenotazioneEventi?: boolean;
   showCloseButton?: boolean;
 }
 
@@ -79,6 +81,7 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
   canSeeLezioniCampo = true,
   canSeeBollette = true,
   canSeeBilancio = true,
+  canSeePrenotazioneEventi = true,
   showCloseButton = false,
 }) => {
   const {
@@ -241,6 +244,17 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
             shortLabel: 'BILANCIO',
             sublabel: 'Consuntivo & Liquidità',
             icon: Scale,
+          },
+        ]
+      : []),
+    ...(canSeePrenotazioneEventi
+      ? [
+          {
+            key: 'prenotazione_eventi' as AppSection,
+            label: 'Prenotazione Eventi',
+            shortLabel: 'PRENOTAZIONI',
+            sublabel: 'Cinema, Gite, Corsi',
+            icon: Ticket,
           },
         ]
       : []),

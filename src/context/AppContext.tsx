@@ -58,6 +58,18 @@ import {
   INITIAL_LIQUIDITA_SETTINGS,
   INITIAL_LIQUIDITA_RIGHE,
 } from '../data/bilancioData';
+import {
+  TipoAttivitaEvento,
+  Evento,
+  PrenotazioneEvento,
+  INITIAL_TIPI_ATTIVITA,
+  INITIAL_EVENTI,
+  INITIAL_PRENOTAZIONI,
+  calcolaPostiOccupatiConfermati,
+  calcolaPostiResiduiOnline,
+  calcolaPostiInAttesa,
+  calcolaStatoLiveEvento,
+} from '../data/eventiData';
 
 export type FontScale = 'normal' | 'large' | 'xlarge';
 export type AppSection =
@@ -72,7 +84,8 @@ export type AppSection =
   | 'autorizzazioni'
   | 'lezioni_campo'
   | 'bollette'
-  | 'bilancio';
+  | 'bilancio'
+  | 'prenotazione_eventi';
 
 export interface QueueItem {
   number: number;
@@ -98,6 +111,8 @@ export interface ImportedMemberRow {
   last_name: string;
   sede: 'Quartu' | 'Soleminis';
   roleName: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface LiveFeedEvent {
@@ -138,6 +153,10 @@ interface CloudDbSnapshot {
   liquiditaSettings?: LiquiditaSetting[];
   liquiditaRighe?: LiquiditaRiga[];
   bilancioUpdatedAt?: number;
+  eventiTipologie?: TipoAttivitaEvento[];
+  eventi?: Evento[];
+  eventiPrenotazioni?: PrenotazioneEvento[];
+  eventiUpdatedAt?: number;
   attendance: AttendanceRecord[];
   subjectNotes: SubjectDidacticNote[];
   visualHeadcounts: Record<ClassroomKey, number>;
@@ -218,7 +237,7 @@ interface AppContextType {
   // Live Classroom Headcount
   setRoomVisualHeadcount: (room: ClassroomKey, count: number) => void;
   // Admin actions
-  addMember: (member_number: string, full_name: string, sede: 'Quartu' | 'Soleminis', phone?: string, is_cd?: boolean, roles?: string[]) => { ok: boolean; message?: string };
+  addMember: (member_number: string, full_name: string, sede: 'Quartu' | 'Soleminis', phone?: string, is_cd?: boolean, roles?: string[], email?: string) => { ok: boolean; message?: string };
   updateMember: (id: string, data: Partial<Profile>) => void;
   deleteMember: (id: string) => void;
   deleteMembersBatch: (ids: string[]) => void;
@@ -273,6 +292,30 @@ interface AppContextType {
   saveLiquiditaRiga: (riga: Partial<LiquiditaRiga>) => Promise<void>;
   deleteLiquiditaRiga: (id: string) => Promise<void>;
   saveBilancioPreventivoRow: (row: Partial<BilancioPreventivoRow>) => Promise<void>;
+  // Prenotazione Eventi (Cinema, Gite, Conferenze, ecc.)
+  eventiTipologie: TipoAttivitaEvento[];
+  eventi: Evento[];
+  eventiPrenotazioni: PrenotazioneEvento[];
+  eventiUpdatedAt: number;
+  saveEvento: (evento: Partial<Evento>) => Promise<void>;
+  deleteEvento: (id: string) => Promise<void>;
+  saveTipoAttivita: (tipo: Partial<TipoAttivitaEvento>) => Promise<void>;
+  deleteTipoAttivita: (id: string) => Promise<void>;
+  prenotaEvento: (prenotazione: {
+    evento_id: string;
+    socio_id: string;
+    socio_tessera: string;
+    socio_nominativo: string;
+    socio_email?: string;
+    socio_telefono?: string;
+    num_posti: 1 | 2;
+    ospite_tessera?: string;
+    ospite_nominativo?: string;
+    note_staff?: string;
+  }) => Promise<{ ok: boolean; stato: 'confermata' | 'lista_attesa'; posizioneAttesa?: number; message?: string }>;
+  annullaPrenotazione: (prenotazioneId: string) => Promise<void>;
+  aggiornaStatoPagamentoPrenotazione: (prenotazioneId: string, statoPagamento: 'gratuito' | 'da_pagare_in_sede' | 'pagato') => Promise<void>;
+  promuoviDaListaAttesa: (prenotazioneId: string) => Promise<void>;
   resetDemoData: () => void;
 }
 
@@ -308,6 +351,10 @@ const STORAGE_KEYS = {
   LIQUIDITA_SETTINGS: 'quartimbra_liquidita_settings_v1',
   LIQUIDITA_RIGHE: 'quartimbra_liquidita_righe_v1',
   BILANCIO_TS: 'quartimbra_bilancio_ts_v1',
+  EVENTI_TIPI: 'quartimbra_eventi_tipi_v1',
+  EVENTI: 'quartimbra_eventi_v1',
+  EVENTI_PRENOTAZIONI: 'quartimbra_eventi_prenotazioni_v1',
+  EVENTI_TS: 'quartimbra_eventi_ts_v1',
   ATTENDANCE: 'quartimbra_attendance_v3',
   NOTES: 'quartimbra_subject_notes_v3',
   HEADCOUNTS: 'quartimbra_headcounts_v3',
@@ -737,6 +784,50 @@ async function loadBilancioFromIndexedDB(): Promise<{
     try {
       const tx = db.transaction(IDB_STORE, 'readonly');
       const req = tx.objectStore(IDB_STORE).get(IDB_BILANCIO_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+const IDB_EVENTI_KEY = 'protected_eventi_v1';
+
+async function saveEventiToIndexedDB(data: {
+  eventiTipologie: TipoAttivitaEvento[];
+  eventi: Evento[];
+  eventiPrenotazioni: PrenotazioneEvento[];
+  updatedAt: number;
+}): Promise<void> {
+  const db = await openAnagraficaIdb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(
+      {
+        ...data,
+        updatedAt: data.updatedAt || Date.now(),
+      },
+      IDB_EVENTI_KEY
+    );
+  } catch {
+    // Ignore IDB errors
+  }
+}
+
+async function loadEventiFromIndexedDB(): Promise<{
+  eventiTipologie?: TipoAttivitaEvento[];
+  eventi?: Evento[];
+  eventiPrenotazioni?: PrenotazioneEvento[];
+  updatedAt?: number;
+} | null> {
+  const db = await openAnagraficaIdb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(IDB_EVENTI_KEY);
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => resolve(null);
     } catch {
@@ -1261,6 +1352,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [eventiUpdatedAt, setEventiUpdatedAt] = useState<number>(() => {
+    try {
+      return Number(localStorage.getItem(STORAGE_KEYS.EVENTI_TS) || 0);
+    } catch {
+      return 0;
+    }
+  });
+
+  const [eventiTipologie, setEventiTipologie] = useState<TipoAttivitaEvento[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.EVENTI_TIPI);
+      return saved ? JSON.parse(saved) : INITIAL_TIPI_ATTIVITA;
+    } catch {
+      return INITIAL_TIPI_ATTIVITA;
+    }
+  });
+
+  const [eventi, setEventi] = useState<Evento[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.EVENTI);
+      return saved ? JSON.parse(saved) : INITIAL_EVENTI;
+    } catch {
+      return INITIAL_EVENTI;
+    }
+  });
+
+  const [eventiPrenotazioni, setEventiPrenotazioni] = useState<PrenotazioneEvento[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.EVENTI_PRENOTAZIONI);
+      return saved ? JSON.parse(saved) : INITIAL_PRENOTAZIONI;
+    } catch {
+      return INITIAL_PRENOTAZIONI;
+    }
+  });
+
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
@@ -1536,6 +1662,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   liquiditaRigheRef.current = liquiditaRighe;
   const bilancioUpdatedAtRef = useRef(bilancioUpdatedAt);
   bilancioUpdatedAtRef.current = bilancioUpdatedAt;
+
+  const eventiTipologieRef = useRef<TipoAttivitaEvento[]>(eventiTipologie);
+  eventiTipologieRef.current = eventiTipologie;
+  const eventiRef = useRef<Evento[]>(eventi);
+  eventiRef.current = eventi;
+  const eventiPrenotazioniRef = useRef<PrenotazioneEvento[]>(eventiPrenotazioni);
+  eventiPrenotazioniRef.current = eventiPrenotazioni;
+  const eventiUpdatedAtRef = useRef(eventiUpdatedAt);
+  eventiUpdatedAtRef.current = eventiUpdatedAt;
 
   const queueUpdatedAtRef = useRef(queueState.updatedAt || 0);
   queueUpdatedAtRef.current = queueState.updatedAt || 0;
@@ -2005,6 +2140,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       shouldPushBackLocalProtected = true;
     }
 
+    const remoteEventiTs = Number(db.eventiUpdatedAt || 0);
+    const localEventiTs = eventiUpdatedAtRef.current;
+    if (remoteEventiTs > localEventiTs && Array.isArray(db.eventi) && db.eventi.length > 0) {
+      eventiRef.current = db.eventi;
+      setEventi(db.eventi);
+      safeSetLocalStorage(STORAGE_KEYS.EVENTI, JSON.stringify(db.eventi));
+      if (Array.isArray(db.eventiTipologie)) {
+        eventiTipologieRef.current = db.eventiTipologie;
+        setEventiTipologie(db.eventiTipologie);
+        safeSetLocalStorage(STORAGE_KEYS.EVENTI_TIPI, JSON.stringify(db.eventiTipologie));
+      }
+      if (Array.isArray(db.eventiPrenotazioni)) {
+        eventiPrenotazioniRef.current = db.eventiPrenotazioni;
+        setEventiPrenotazioni(db.eventiPrenotazioni);
+        safeSetLocalStorage(STORAGE_KEYS.EVENTI_PRENOTAZIONI, JSON.stringify(db.eventiPrenotazioni));
+      }
+      eventiUpdatedAtRef.current = remoteEventiTs;
+      setEventiUpdatedAt(remoteEventiTs);
+      safeSetLocalStorage(STORAGE_KEYS.EVENTI_TS, String(remoteEventiTs));
+      saveEventiToIndexedDB({
+        eventiTipologie: db.eventiTipologie || [],
+        eventi: db.eventi,
+        eventiPrenotazioni: db.eventiPrenotazioni || [],
+        updatedAt: remoteEventiTs || Date.now(),
+      });
+    } else if (localEventiTs > remoteEventiTs && Array.isArray(eventiRef.current)) {
+      shouldPushBackLocalProtected = true;
+    }
+
     if (db.queueState) {
       const sanitizedRemoteQ = sanitizeQueueState(db.queueState, profilesRef.current);
       const remoteQueueTs = Number(sanitizedRemoteQ.updatedAt || 0);
@@ -2082,7 +2246,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     async function initHydration() {
       // 1) Attendi il completamento di tutti i recuperi locali da IndexedDB
       try {
-        const [idbData, idbBooks, idbCash, idbVn, idbPerms, idbLezioni, idbBollette, idbBilancio] = await Promise.all([
+        const [
+          idbData,
+          idbBooks,
+          idbCash,
+          idbVn,
+          idbPerms,
+          idbLezioni,
+          idbBollette,
+          idbBilancio,
+          idbEventi,
+        ] = await Promise.all([
           loadAnagraficaFromIndexedDB(),
           loadLibraryBooksFromIndexedDB(),
           loadCashDataFromIndexedDB(),
@@ -2091,6 +2265,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           loadLezioniCampoFromIndexedDB(),
           loadBolletteFromIndexedDB(),
           loadBilancioFromIndexedDB(),
+          loadEventiFromIndexedDB(),
         ]);
 
         if (isCancelled) return;
@@ -2280,6 +2455,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             safeSetLocalStorage(STORAGE_KEYS.LIQUIDITA_SETTINGS, JSON.stringify(idbBilancio.liquiditaSettings || []));
             safeSetLocalStorage(STORAGE_KEYS.LIQUIDITA_RIGHE, JSON.stringify(idbBilancio.liquiditaRighe || []));
             safeSetLocalStorage(STORAGE_KEYS.BILANCIO_TS, String(idbTs));
+          }
+        }
+
+        // Eventi e Prenotazioni
+        if (idbEventi && Array.isArray(idbEventi.eventi) && idbEventi.eventi.length > 0) {
+          const idbTs = Number(idbEventi.updatedAt || 0);
+          if (idbTs > eventiUpdatedAtRef.current || eventiRef.current.length === 0) {
+            eventiRef.current = idbEventi.eventi;
+            setEventi(idbEventi.eventi);
+            if (Array.isArray(idbEventi.eventiTipologie)) {
+              eventiTipologieRef.current = idbEventi.eventiTipologie;
+              setEventiTipologie(idbEventi.eventiTipologie);
+            }
+            if (Array.isArray(idbEventi.eventiPrenotazioni)) {
+              eventiPrenotazioniRef.current = idbEventi.eventiPrenotazioni;
+              setEventiPrenotazioni(idbEventi.eventiPrenotazioni);
+            }
+            eventiUpdatedAtRef.current = idbTs;
+            setEventiUpdatedAt(idbTs);
+            safeSetLocalStorage(STORAGE_KEYS.EVENTI, JSON.stringify(idbEventi.eventi));
+            safeSetLocalStorage(STORAGE_KEYS.EVENTI_TIPI, JSON.stringify(idbEventi.eventiTipologie || []));
+            safeSetLocalStorage(STORAGE_KEYS.EVENTI_PRENOTAZIONI, JSON.stringify(idbEventi.eventiPrenotazioni || []));
+            safeSetLocalStorage(STORAGE_KEYS.EVENTI_TS, String(idbTs));
           }
         }
       } catch (err) {
@@ -3197,7 +3395,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sede: 'Quartu' | 'Soleminis',
     phone?: string,
     is_cd = false,
-    roles?: string[]
+    roles?: string[],
+    email?: string
   ) => {
     const cleanNum = member_number.trim();
     if (!cleanNum) return { ok: false, message: 'Inserisci il numero di tessera.' };
@@ -3221,6 +3420,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       is_cd: Boolean(is_cd),
       roles: finalRoles,
       phone: phone?.trim() || '',
+      email: email?.trim() || '',
       joined_year: new Date().getFullYear(),
     };
     commitProfilesUpdate([...profilesRef.current, newProfile]);
@@ -3327,6 +3527,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             is_super_admin: false,
             role: isAdminRole ? 'admin' : next[existingIndex].role,
             roles: finalRoles,
+            phone: row.phone?.trim() || next[existingIndex].phone || '',
+            email: row.email?.trim() || next[existingIndex].email || '',
           };
         }
         updated++;
@@ -3335,6 +3537,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           next.unshift(
             normalizeSuperAdminProfile({
               sede,
+              email: row.email?.trim(),
+              phone: row.phone?.trim(),
               roles: Array.from(
                 new Set(['Amministratore', ...finalRoles.filter((r) => r !== 'Socio')])
               ),
@@ -3354,6 +3558,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             is_super_admin: false,
             is_cd: isCd,
             roles: finalRoles,
+            phone: row.phone?.trim() || '',
+            email: row.email?.trim() || '',
             joined_year: new Date().getFullYear(),
           });
         }
@@ -4259,6 +4465,258 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  const commitEventiUpdate = (
+    nextEventi: Evento[],
+    nextTipi: TipoAttivitaEvento[],
+    nextPrenotazioni: PrenotazioneEvento[]
+  ) => {
+    const ts = Date.now();
+    setEventi(nextEventi);
+    eventiRef.current = nextEventi;
+    setEventiTipologie(nextTipi);
+    eventiTipologieRef.current = nextTipi;
+    setEventiPrenotazioni(nextPrenotazioni);
+    eventiPrenotazioniRef.current = nextPrenotazioni;
+    setEventiUpdatedAt(ts);
+    eventiUpdatedAtRef.current = ts;
+
+    try {
+      localStorage.setItem(STORAGE_KEYS.EVENTI, JSON.stringify(nextEventi));
+      localStorage.setItem(STORAGE_KEYS.EVENTI_TIPI, JSON.stringify(nextTipi));
+      localStorage.setItem(STORAGE_KEYS.EVENTI_PRENOTAZIONI, JSON.stringify(nextPrenotazioni));
+      localStorage.setItem(STORAGE_KEYS.EVENTI_TS, String(ts));
+    } catch (e) {
+      console.warn('[AppContext] Impossibile salvare eventi in localStorage', e);
+    }
+    saveEventiToIndexedDB(nextEventi, nextTipi, nextPrenotazioni, ts);
+    pushCloudSnapshot({
+      eventi: nextEventi,
+      eventiTipologie: nextTipi,
+      eventiPrenotazioni: nextPrenotazioni,
+      eventiUpdatedAt: ts,
+    });
+  };
+
+  const saveEvento = async (eventoData: Partial<Evento>): Promise<void> => {
+    const existing = eventiRef.current.find((e) => e.id === eventoData.id);
+    let nextList: Evento[];
+    const nowIso = new Date().toISOString();
+    if (existing) {
+      nextList = eventiRef.current.map((e) =>
+        e.id === eventoData.id ? { ...e, ...eventoData, updated_at: nowIso } : e
+      );
+    } else {
+      const newEv: Evento = {
+        id: eventoData.id || `ev-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        titolo: eventoData.titolo || 'Nuovo Evento',
+        descrizione: eventoData.descrizione || '',
+        luogo: eventoData.luogo || 'Sede Sociale',
+        data_ora_evento: eventoData.data_ora_evento || nowIso,
+        data_ora_fine: eventoData.data_ora_fine,
+        tipo_attivita_id: eventoData.tipo_attivita_id || (eventiTipologieRef.current[0]?.id || 'cinema'),
+        costo_biglietto: Number(eventoData.costo_biglietto ?? 0),
+        richiede_pagamento_sede: Boolean(eventoData.richiede_pagamento_sede),
+        totale_posti: Number(eventoData.totale_posti || 50),
+        posti_prenotabili_online: Number(eventoData.posti_prenotabili_online || 50),
+        max_posti_per_socio: (Number(eventoData.max_posti_per_socio) === 2 ? 2 : 1),
+        limite_lista_attesa: Number(eventoData.limite_lista_attesa || 0),
+        apertura_prenotazioni: eventoData.apertura_prenotazioni || nowIso,
+        chiusura_prenotazioni: eventoData.chiusura_prenotazioni || nowIso,
+        note: eventoData.note,
+        immagine_url: eventoData.immagine_url,
+        anno_accademico: eventoData.anno_accademico || '2026/2027',
+        is_annullato: false,
+        created_at: nowIso,
+        updated_at: nowIso,
+      };
+      nextList = [newEv, ...eventiRef.current];
+    }
+    commitEventiUpdate(nextList, eventiTipologieRef.current, eventiPrenotazioniRef.current);
+  };
+
+  const deleteEvento = async (id: string): Promise<void> => {
+    const nextList = eventiRef.current.filter((e) => e.id !== id);
+    const nextPrenotazioni = eventiPrenotazioniRef.current.filter((p) => p.evento_id !== id);
+    commitEventiUpdate(nextList, eventiTipologieRef.current, nextPrenotazioni);
+  };
+
+  const saveTipoAttivita = async (tipoData: Partial<TipoAttivitaEvento>): Promise<void> => {
+    const existing = eventiTipologieRef.current.find((t) => t.id === tipoData.id);
+    let nextList: TipoAttivitaEvento[];
+    if (existing) {
+      nextList = eventiTipologieRef.current.map((t) =>
+        t.id === tipoData.id ? { ...t, ...tipoData } : t
+      );
+    } else {
+      const newTipo: TipoAttivitaEvento = {
+        id: tipoData.id || `tipo-${Date.now()}`,
+        nome: tipoData.nome || 'Nuova Tipologia',
+        descrizione: tipoData.descrizione || '',
+        colore: tipoData.colore || '#3b82f6',
+        icona: tipoData.icona || 'Ticket',
+        is_default: false,
+      };
+      nextList = [...eventiTipologieRef.current, newTipo];
+    }
+    commitEventiUpdate(eventiRef.current, nextList, eventiPrenotazioniRef.current);
+  };
+
+  const deleteTipoAttivita = async (id: string): Promise<void> => {
+    const nextList = eventiTipologieRef.current.filter((t) => t.id !== id);
+    commitEventiUpdate(eventiRef.current, nextList, eventiPrenotazioniRef.current);
+  };
+
+  const prenotaEvento = async (prenotazioneInput: {
+    evento_id: string;
+    socio_id: string;
+    socio_tessera: string;
+    socio_nominativo: string;
+    socio_email?: string;
+    socio_telefono?: string;
+    num_posti: 1 | 2;
+    ospite_tessera?: string;
+    ospite_nominativo?: string;
+    note_staff?: string;
+  }): Promise<{ ok: boolean; stato: 'confermata' | 'lista_attesa'; posizioneAttesa?: number; message?: string }> => {
+    const evento = eventiRef.current.find((e) => e.id === prenotazioneInput.evento_id);
+    if (!evento) {
+      return { ok: false, stato: 'confermata', message: 'Evento non trovato.' };
+    }
+
+    const { stato } = calcolaStatoLiveEvento(evento);
+    if (stato === 'non_aperto') {
+      return { ok: false, stato: 'confermata', message: 'Le prenotazioni per questo evento non sono ancora aperte.' };
+    }
+    if (stato === 'chiuso' || stato === 'annullato') {
+      return { ok: false, stato: 'confermata', message: "Le prenotazioni per questo evento sono chiuse o l'evento è stato annullato." };
+    }
+
+    const alreadyBooked = eventiPrenotazioniRef.current.some(
+      (p) => p.evento_id === evento.id && p.socio_tessera === prenotazioneInput.socio_tessera && p.stato !== 'annullata'
+    );
+    if (alreadyBooked) {
+      return { ok: false, stato: 'confermata', message: 'Hai già effettuato una prenotazione per questo evento.' };
+    }
+
+    const postiResidui = calcolaPostiResiduiOnline(evento, eventiPrenotazioniRef.current);
+    const inAttesaAttuali = calcolaPostiInAttesa(evento.id, eventiPrenotazioniRef.current);
+    const limiteAttesa = evento.limite_lista_attesa || 0;
+
+    let statoPrenotazione: 'confermata' | 'lista_attesa' = 'confermata';
+    let posizioneAttesa: number | undefined = undefined;
+
+    if (postiResidui >= prenotazioneInput.num_posti) {
+      statoPrenotazione = 'confermata';
+    } else if (inAttesaAttuali + prenotazioneInput.num_posti <= limiteAttesa) {
+      statoPrenotazione = 'lista_attesa';
+      posizioneAttesa = inAttesaAttuali + 1;
+    } else {
+      return {
+        ok: false,
+        stato: 'confermata',
+        message: "Posti esauriti e lista d'attesa al completo per questo evento.",
+      };
+    }
+
+    const nowIso = new Date().toISOString();
+    const costoUnitario = evento.costo_biglietto || 0;
+    const quotaTotale = costoUnitario * prenotazioneInput.num_posti;
+    let statoPagamento: 'gratuito' | 'da_pagare_in_sede' | 'pagato' = 'gratuito';
+    if (quotaTotale > 0) {
+      statoPagamento = 'da_pagare_in_sede';
+    }
+
+    const bookingCode = `Q3-${evento.id.slice(-4).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const newPrenotazione: PrenotazioneEvento = {
+      id: `pren-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      evento_id: evento.id,
+      socio_id: prenotazioneInput.socio_id,
+      socio_tessera: prenotazioneInput.socio_tessera,
+      socio_nominativo: prenotazioneInput.socio_nominativo,
+      socio_email: prenotazioneInput.socio_email,
+      socio_telefono: prenotazioneInput.socio_telefono,
+      num_posti: prenotazioneInput.num_posti,
+      ospite_tessera: prenotazioneInput.ospite_tessera,
+      ospite_nominativo: prenotazioneInput.ospite_nominativo,
+      stato: statoPrenotazione,
+      posizione_attesa: posizioneAttesa,
+      stato_pagamento: statoPagamento,
+      quota_totale: quotaTotale,
+      booking_code: bookingCode,
+      note_staff: prenotazioneInput.note_staff,
+      created_at: nowIso,
+      updated_at: nowIso,
+    };
+
+    const nextPrenotazioni = [newPrenotazione, ...eventiPrenotazioniRef.current];
+    commitEventiUpdate(eventiRef.current, eventiTipologieRef.current, nextPrenotazioni);
+
+    if (prenotazioneInput.socio_email && prenotazioneInput.socio_email.trim()) {
+      const emailTrimmed = prenotazioneInput.socio_email.trim();
+      const existingProfile = profilesRef.current.find(
+        (p) => p.member_number === prenotazioneInput.socio_tessera || p.id === prenotazioneInput.socio_id
+      );
+      if (existingProfile && existingProfile.email !== emailTrimmed) {
+        updateMember(existingProfile.id, { email: emailTrimmed });
+      }
+    }
+
+    if (prenotazioneInput.socio_email) {
+      try {
+        fetch('/api/send-booking-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prenotazione: newPrenotazione,
+            evento,
+          }),
+        }).catch((err) => console.warn('[AppContext] send-booking-email call failed:', err));
+      } catch (err) {
+        console.warn('[AppContext] send-booking-email fetch exception:', err);
+      }
+    }
+
+    return {
+      ok: true,
+      stato: statoPrenotazione,
+      posizioneAttesa,
+    };
+  };
+
+  const annullaPrenotazione = async (prenotazioneId: string): Promise<void> => {
+    const target = eventiPrenotazioniRef.current.find((p) => p.id === prenotazioneId);
+    if (!target) return;
+    const nowIso = new Date().toISOString();
+    const nextList = eventiPrenotazioniRef.current.map((p) =>
+      p.id === prenotazioneId ? { ...p, stato: 'annullata' as const, updated_at: nowIso } : p
+    );
+    commitEventiUpdate(eventiRef.current, eventiTipologieRef.current, nextList);
+  };
+
+  const aggiornaStatoPagamentoPrenotazione = async (
+    prenotazioneId: string,
+    statoPagamento: 'gratuito' | 'da_pagare_in_sede' | 'pagato'
+  ): Promise<void> => {
+    const nowIso = new Date().toISOString();
+    const nextList = eventiPrenotazioniRef.current.map((p) =>
+      p.id === prenotazioneId ? { ...p, stato_pagamento: statoPagamento, updated_at: nowIso } : p
+    );
+    commitEventiUpdate(eventiRef.current, eventiTipologieRef.current, nextList);
+  };
+
+  const promuoviDaListaAttesa = async (prenotazioneId: string): Promise<void> => {
+    const target = eventiPrenotazioniRef.current.find((p) => p.id === prenotazioneId);
+    if (!target) return;
+    const nowIso = new Date().toISOString();
+    const nextList = eventiPrenotazioniRef.current.map((p) =>
+      p.id === prenotazioneId
+        ? { ...p, stato: 'confermata' as const, posizione_attesa: undefined, updated_at: nowIso }
+        : p
+    );
+    commitEventiUpdate(eventiRef.current, eventiTipologieRef.current, nextList);
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -4377,6 +4835,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         saveLiquiditaRiga,
         deleteLiquiditaRiga,
         saveBilancioPreventivoRow,
+        eventiTipologie,
+        eventi,
+        eventiPrenotazioni,
+        eventiUpdatedAt,
+        saveEvento,
+        deleteEvento,
+        saveTipoAttivita,
+        deleteTipoAttivita,
+        prenotaEvento,
+        annullaPrenotazione,
+        aggiornaStatoPagamentoPrenotazione,
+        promuoviDaListaAttesa,
         resetDemoData,
       }}
     >
