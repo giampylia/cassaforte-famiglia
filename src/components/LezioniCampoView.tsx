@@ -34,6 +34,12 @@ import {
   EXCURSION_TYPE_LABELS,
   PAYMENT_CATEGORY_LABELS,
 } from '../data/lezioniCampoData';
+import {
+  getAcademicYear,
+  getCurrentAcademicYear,
+  formatAcademicYear,
+  getAvailableAcademicYears,
+} from '../utils/academicYear';
 
 declare global {
   interface Window {
@@ -113,6 +119,26 @@ export const LezioniCampoView: React.FC = () => {
   const [filterType, setFilterType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Filtro Anno Accademico (default: Anno Accademico in corso, es. 2026/2027)
+  const currentAA = useMemo(() => getCurrentAcademicYear(), []);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(currentAA);
+
+  // Elenco Anni Accademici disponibili calcolati dalle date di tutte le escursioni + anno corrente
+  const availableAcademicYears = useMemo(() => {
+    const dates = excursions.map((e) => e.excursion_date);
+    return getAvailableAcademicYears(dates, true);
+  }, [excursions]);
+
+  // Conteggio escursioni per ciascun Anno Accademico
+  const countByAcademicYear = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const e of excursions) {
+      const aa = getAcademicYear(e.excursion_date);
+      map[aa] = (map[aa] || 0) + 1;
+    }
+    return map;
+  }, [excursions]);
 
   // Modal stato creazione/modifica
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -379,9 +405,59 @@ export const LezioniCampoView: React.FC = () => {
     showToast('Scritture contabili di rettifica salvate con successo!');
   };
 
-  // Filtro escursioni
+  // Escursioni filtrate per l'Anno Accademico selezionato
+  const aaScopedExcursions = useMemo(() => {
+    if (selectedAcademicYear === 'all') return excursions;
+    return excursions.filter((e) => getAcademicYear(e.excursion_date) === selectedAcademicYear);
+  }, [excursions, selectedAcademicYear]);
+
+  // Statistiche economiche e presenze per l'Anno Accademico selezionato (o per tutti)
+  const aaSummaryStats = useMemo(() => {
+    let totRicavi = 0;
+    let totCosti = 0;
+    let totalParticipants = 0;
+
+    for (const exc of aaScopedExcursions) {
+      const pays = excursionPayments.filter((p) => p.excursion_id === exc.id);
+      const fin = calcExcursionFinance(exc, pays);
+      totRicavi += fin.totalRicavi;
+      totCosti += fin.totalCosti;
+      totalParticipants += (exc.num_participants || 0) + (exc.num_participants_mezzi_propri || 0);
+    }
+
+    const scopedAdjustments = adjustmentsList.filter((adj) => {
+      if (selectedAcademicYear === 'all') return true;
+      if (adj.entry_date) {
+        return getAcademicYear(adj.entry_date) === selectedAcademicYear;
+      }
+      if (adj.created_at) {
+        return getAcademicYear(adj.created_at) === selectedAcademicYear;
+      }
+      return false;
+    });
+
+    const totDare = scopedAdjustments.reduce((s, a) => s + (Number(a.dare) || 0), 0);
+    const totAvere = scopedAdjustments.reduce((s, a) => s + (Number(a.avere) || 0), 0);
+
+    totCosti += totDare;
+    totRicavi += totAvere;
+    const saldoNetto = totRicavi - totCosti;
+
+    return {
+      count: aaScopedExcursions.length,
+      totalParticipants,
+      totRicavi,
+      totCosti,
+      saldoNetto,
+      totDare,
+      totAvere,
+      scopedAdjustments,
+    };
+  }, [aaScopedExcursions, excursionPayments, adjustmentsList, selectedAcademicYear]);
+
+  // Filtro escursioni per tipologia e ricerca testo (sulle escursioni dell'A.A. selezionato)
   const filteredExcursions = useMemo(() => {
-    return excursions
+    return aaScopedExcursions
       .filter((exc) => {
         if (filterType !== 'all' && exc.excursion_type !== filterType) return false;
         if (searchQuery.trim()) {
@@ -394,9 +470,9 @@ export const LezioniCampoView: React.FC = () => {
         return true;
       })
       .sort((a, b) => (b.excursion_date || '').localeCompare(a.excursion_date || ''));
-  }, [excursions, filterType, searchQuery]);
+  }, [aaScopedExcursions, filterType, searchQuery]);
 
-  // Esportazione Excel
+  // Esportazione Excel per l'Anno Accademico selezionato
   const handleExportExcel = () => {
     if (!window.XLSX) {
       alert('Libreria Excel in fase di caricamento, riprova tra qualche istante.');
@@ -405,7 +481,7 @@ export const LezioniCampoView: React.FC = () => {
     const wb = window.XLSX.utils.book_new();
 
     // Foglio 1: Lezioni sul Campo
-    const lezioni = excursions.filter((e) => e.excursion_type === 'lezione_sul_campo');
+    const lezioni = aaScopedExcursions.filter((e) => e.excursion_type === 'lezione_sul_campo');
     if (lezioni.length > 0) {
       const data = lezioni.map((y) => {
         const pays = excursionPayments.filter((p) => p.excursion_id === y.id);
@@ -418,6 +494,7 @@ export const LezioniCampoView: React.FC = () => {
 
         return {
           Nome: y.name,
+          'Anno Accademico': `A.A. ${getAcademicYear(y.excursion_date)}`,
           Data: formatDateShort(y.excursion_date),
           'Quota (€)': y.quota || 0,
           'N. Partecipanti': y.num_participants || 0,
@@ -442,10 +519,11 @@ export const LezioniCampoView: React.FC = () => {
     }
 
     // Foglio 2: Visite Naturalistiche
-    const visiteNat = excursions.filter((e) => e.excursion_type === 'visita_naturalistica');
+    const visiteNat = aaScopedExcursions.filter((e) => e.excursion_type === 'visita_naturalistica');
     if (visiteNat.length > 0) {
       const data = visiteNat.map((y) => ({
         Nome: y.name,
+        'Anno Accademico': `A.A. ${getAcademicYear(y.excursion_date)}`,
         Data: formatDateShort(y.excursion_date),
         'N. Partecipanti': y.num_participants || 0,
         Docente: y.docente || '',
@@ -456,10 +534,11 @@ export const LezioniCampoView: React.FC = () => {
     }
 
     // Foglio 3: Visite della Domenica
-    const visiteDom = excursions.filter((e) => e.excursion_type === 'visita_della_domenica');
+    const visiteDom = aaScopedExcursions.filter((e) => e.excursion_type === 'visita_della_domenica');
     if (visiteDom.length > 0) {
       const data = visiteDom.map((y) => ({
         Nome: y.name,
+        'Anno Accademico': `A.A. ${getAcademicYear(y.excursion_date)}`,
         Data: formatDateShort(y.excursion_date),
         'N. Partecipanti': y.num_participants || 0,
         Docente: y.docente || '',
@@ -470,10 +549,11 @@ export const LezioniCampoView: React.FC = () => {
     }
 
     // Foglio 4: Rettifiche Contabili
-    if (excursionAdjustments.length > 0) {
-      const data = excursionAdjustments.map((r, i) => ({
+    if (aaSummaryStats.scopedAdjustments.length > 0) {
+      const data = aaSummaryStats.scopedAdjustments.map((r, i) => ({
         Riga: i + 1,
         Data: formatDateShort(r.entry_date),
+        'Anno Accademico': r.entry_date ? `A.A. ${getAcademicYear(r.entry_date)}` : '-',
         Descrizione: r.description || '',
         'Dare (Costo €)': r.dare || 0,
         'Avere (Ricavo €)': r.avere || 0,
@@ -482,12 +562,13 @@ export const LezioniCampoView: React.FC = () => {
       window.XLSX.utils.book_append_sheet(wb, ws, 'Rettifiche Contabili');
     }
 
+    const aaSlug = selectedAcademicYear === 'all' ? 'tutti_gli_anni' : `AA_${selectedAcademicYear.replace('/', '_')}`;
     const dateSuffix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    window.XLSX.writeFile(wb, `lezioni_sul_campo_${dateSuffix}.xlsx`);
-    showToast('Report Excel esportato con successo!');
+    window.XLSX.writeFile(wb, `lezioni_campo_${aaSlug}_${dateSuffix}.xlsx`);
+    showToast(`Report Excel esportato per ${selectedAcademicYear === 'all' ? 'tutti gli anni' : `A.A. ${selectedAcademicYear}`}!`);
   };
 
-  // Esportazione PDF Riassuntivo Globale
+  // Esportazione PDF Riassuntivo per l'Anno Accademico selezionato
   const handleExportSummaryPdf = () => {
     if (!window.jspdf || !window.jspdf.jsPDF) {
       alert('Libreria PDF in fase di caricamento, riprova tra qualche istante.');
@@ -504,30 +585,18 @@ export const LezioniCampoView: React.FC = () => {
 
     doc.setFontSize(14);
     doc.setTextColor(30, 41, 59);
-    doc.text('Riepilogo Generale — Lezioni sul Campo ed Escursioni', 14, 23);
+    const aaTitle = selectedAcademicYear === 'all' ? 'Tutti gli Anni Accademici' : `Anno Accademico ${selectedAcademicYear}`;
+    doc.text(`Riepilogo Generale — Lezioni sul Campo (${aaTitle})`, 14, 23);
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 116, 139);
     doc.text(`Generato il ${new Date().toLocaleDateString('it-IT')} ore ${new Date().toLocaleTimeString('it-IT')}`, 14, 29);
 
-    let totRicavi = 0;
-    let totCosti = 0;
-
-    const lezioni = excursions.filter((e) => e.excursion_type === 'lezione_sul_campo');
-    for (const l of lezioni) {
-      const pays = excursionPayments.filter((p) => p.excursion_id === l.id);
-      const fin = calcExcursionFinance(l, pays);
-      totRicavi += fin.totalRicavi;
-      totCosti += fin.totalCosti;
-    }
-
-    const totDareRettifiche = excursionAdjustments.reduce((s, a) => s + (Number(a.dare) || 0), 0);
-    const totAvereRettifiche = excursionAdjustments.reduce((s, a) => s + (Number(a.avere) || 0), 0);
-
-    totCosti += totDareRettifiche;
-    totRicavi += totAvereRettifiche;
-    const saldoNetto = totRicavi - totCosti;
+    const lezioni = aaScopedExcursions.filter((e) => e.excursion_type === 'lezione_sul_campo');
+    const totRicavi = aaSummaryStats.totRicavi;
+    const totCosti = aaSummaryStats.totCosti;
+    const saldoNetto = aaSummaryStats.saldoNetto;
 
     // Riquadri indicatori in alto
     const boxW = (pageWidth - 28 - 16) / 3;
@@ -629,7 +698,8 @@ export const LezioniCampoView: React.FC = () => {
       });
     }
 
-    doc.save(`riepilogo_lezioni_campo_${new Date().toISOString().slice(0, 10)}.pdf`);
+    const aaSlug = selectedAcademicYear === 'all' ? 'tutti_anni' : `AA_${selectedAcademicYear.replace('/', '_')}`;
+    doc.save(`riepilogo_lezioni_campo_${aaSlug}_${new Date().toISOString().slice(0, 10)}.pdf`);
     showToast('PDF Riassuntivo scaricato con successo!');
   };
 
@@ -797,9 +867,149 @@ export const LezioniCampoView: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. FILTRI & BARRA DI RICERCA */}
+      {/* 2. SELETTORE ANNO ACCADEMICO */}
+      <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 text-white p-4 sm:p-5 rounded-3xl shadow-md border border-emerald-800/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+            <Calendar className="h-4 w-4 text-emerald-400" />
+            <span>Filtro Anno Accademico</span>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-300">
+            Ogni anno accademico decorre dal <strong>1° Luglio</strong> al <strong>30 Giugno</strong> dell&apos;anno successivo.
+          </p>
+        </div>
+
+        {/* Pulsanti Rapidi Anno Accademico */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {availableAcademicYears.map((ay) => {
+            const isCurrent = ay === currentAA;
+            const isSelected = selectedAcademicYear === ay;
+            const count = countByAcademicYear[ay] || 0;
+            return (
+              <button
+                key={ay}
+                type="button"
+                onClick={() => setSelectedAcademicYear(ay)}
+                className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center gap-2 ${
+                  isSelected
+                    ? 'bg-emerald-500 text-slate-950 shadow-md ring-2 ring-emerald-300'
+                    : 'bg-white/10 hover:bg-white/20 text-white border border-white/10'
+                }`}
+              >
+                <span>A.A. {ay}</span>
+                {isCurrent && (
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                      isSelected ? 'bg-slate-950 text-emerald-300' : 'bg-emerald-400 text-emerald-950'
+                    }`}
+                  >
+                    In corso
+                  </span>
+                )}
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
+                    isSelected ? 'bg-emerald-600/50 text-slate-950' : 'bg-white/20 text-white'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => setSelectedAcademicYear('all')}
+            className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+              selectedAcademicYear === 'all'
+                ? 'bg-emerald-500 text-slate-950 shadow-md ring-2 ring-emerald-300'
+                : 'bg-white/10 hover:bg-white/20 text-slate-300 border border-white/10'
+            }`}
+          >
+            <span>Tutti gli Anni</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
+                selectedAcademicYear === 'all' ? 'bg-emerald-600/50 text-slate-950' : 'bg-white/20 text-white'
+              }`}
+            >
+              {excursions.length}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* 3. QUADRO ECONOMICO E STATISTICO DELL'ANNO ACCADEMICO SELEZIONATO */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Box 1: Attività & Presenze */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            Attività {selectedAcademicYear === 'all' ? 'Totali' : `A.A. ${selectedAcademicYear}`}
+          </span>
+          <div className="mt-2">
+            <p className="text-xl sm:text-2xl font-extrabold text-slate-900">
+              {aaSummaryStats.count} <span className="text-xs font-normal text-slate-500">escursioni</span>
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {aaSummaryStats.totalParticipants} partecipanti complessivi
+            </p>
+          </div>
+        </div>
+
+        {/* Box 2: Totale Ricavi */}
+        <div className="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200 shadow-xs flex flex-col justify-between">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+            Totale Ricavi Quote
+          </span>
+          <div className="mt-2">
+            <p className="text-xl sm:text-2xl font-extrabold text-emerald-900">
+              {formatEuro(aaSummaryStats.totRicavi)}
+            </p>
+            <p className="text-xs text-emerald-700 mt-0.5">
+              {aaSummaryStats.totAvere > 0 ? `Include +${formatEuro(aaSummaryStats.totAvere)} rettifiche` : 'Quote soci incassate'}
+            </p>
+          </div>
+        </div>
+
+        {/* Box 3: Totale Costi */}
+        <div className="bg-rose-50/70 p-4 rounded-2xl border border-rose-200 shadow-xs flex flex-col justify-between">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-rose-800">
+            Totale Costi Spese
+          </span>
+          <div className="mt-2">
+            <p className="text-xl sm:text-2xl font-extrabold text-rose-900">
+              {formatEuro(aaSummaryStats.totCosti)}
+            </p>
+            <p className="text-xs text-rose-700 mt-0.5">
+              {aaSummaryStats.totDare > 0 ? `Include +${formatEuro(aaSummaryStats.totDare)} rettifiche` : 'Fatture e spese pagate'}
+            </p>
+          </div>
+        </div>
+
+        {/* Box 4: Saldo Netto */}
+        <div
+          className={`p-4 rounded-2xl border shadow-xs flex flex-col justify-between ${
+            aaSummaryStats.saldoNetto >= 0
+              ? 'bg-emerald-100/70 border-emerald-300 text-emerald-950'
+              : 'bg-rose-100/70 border-rose-300 text-rose-950'
+          }`}
+        >
+          <span className="text-[11px] font-bold uppercase tracking-wider">
+            Saldo Netto Periodo
+          </span>
+          <div className="mt-2">
+            <p className="text-xl sm:text-2xl font-extrabold">
+              {(aaSummaryStats.saldoNetto >= 0 ? '+' : '') + formatEuro(aaSummaryStats.saldoNetto)}
+            </p>
+            <p className="text-xs opacity-80 mt-0.5">
+              {aaSummaryStats.saldoNetto >= 0 ? 'Gestione in attivo' : 'Gestione con disavanzo'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. FILTRI & BARRA DI RICERCA */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
-        {/* Tabs per tipologia */}
+        {/* Tabs per tipologia con conteggi contestuali all'Anno Accademico */}
         <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
           <button
             type="button"
@@ -810,7 +1020,7 @@ export const LezioniCampoView: React.FC = () => {
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            Tutte ({excursions.length})
+            Tutte ({aaScopedExcursions.length})
           </button>
           <button
             type="button"
@@ -821,7 +1031,7 @@ export const LezioniCampoView: React.FC = () => {
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            Lezioni sul campo ({excursions.filter((e) => e.excursion_type === 'lezione_sul_campo').length})
+            Lezioni sul campo ({aaScopedExcursions.filter((e) => e.excursion_type === 'lezione_sul_campo').length})
           </button>
           <button
             type="button"
@@ -832,7 +1042,7 @@ export const LezioniCampoView: React.FC = () => {
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            Visite naturalistiche ({excursions.filter((e) => e.excursion_type === 'visita_naturalistica').length})
+            Visite naturalistiche ({aaScopedExcursions.filter((e) => e.excursion_type === 'visita_naturalistica').length})
           </button>
           <button
             type="button"
@@ -843,7 +1053,7 @@ export const LezioniCampoView: React.FC = () => {
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            Visite domenica ({excursions.filter((e) => e.excursion_type === 'visita_della_domenica').length})
+            Visite domenica ({aaScopedExcursions.filter((e) => e.excursion_type === 'visita_della_domenica').length})
           </button>
         </div>
 
@@ -888,6 +1098,9 @@ export const LezioniCampoView: React.FC = () => {
                       <h3 className="text-base sm:text-lg font-bold text-slate-900 capitalize">
                         {exc.name}
                       </h3>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        A.A. {getAcademicYear(exc.excursion_date)}
+                      </span>
                       <span
                         className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
                           exc.excursion_type === 'lezione_sul_campo'
@@ -1308,6 +1521,18 @@ export const LezioniCampoView: React.FC = () => {
                     onChange={(e) => setFormDate(e.target.value)}
                     className="w-full text-xs sm:text-sm rounded-xl border border-slate-300 p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
+                  {formDate && (
+                    <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md">
+                        {formatAcademicYear(getAcademicYear(formDate))}
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        {formDate < '2026-07-01'
+                          ? '(Attività svolta nello scorso anno accademico)'
+                          : '(Attività dell\'anno accademico in corso)'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

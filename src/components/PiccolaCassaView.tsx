@@ -1014,10 +1014,10 @@ export const PiccolaCassaView: React.FC = () => {
                 >
                   {availableAccountingYears.map((ay) => (
                     <option key={ay} value={ay}>
-                      Anno Contabile {ay} ({formatAccountingYearRange(ay)})
+                      Anno Accademico {ay} ({formatAccountingYearRange(ay)})
                     </option>
                   ))}
-                  <option value="all">Tutti gli anni contabili</option>
+                  <option value="all">Tutti gli Anni Accademici</option>
                 </select>
               </div>
 
