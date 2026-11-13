@@ -8,7 +8,8 @@ export type ClassroomKey =
   | 'ferrini'
   | 'porcu'
   | 'teatro_sinnai'
-  | 'polifunzionale';
+  | 'polifunzionale'
+  | (string & {});
 
 export interface ClassroomInfo {
   key: ClassroomKey;
@@ -21,6 +22,7 @@ export interface ClassroomInfo {
   sede: 'Quartu' | 'Soleminis';
   capacity: number;
   locationNote: string;
+  isCustom?: boolean;
 }
 
 export interface Profile {
@@ -44,6 +46,9 @@ export const DEFAULT_AVAILABLE_ROLES: string[] = [
   'Amministrativo',
   'Didattica',
   'Viaggi',
+  'Biblioteca',
+  'Presidenza',
+  'LsC',
   'Amministratore',
 ];
 
@@ -358,6 +363,8 @@ export const CLASSROOMS: ClassroomInfo[] = [
     locationNote: 'Centro Culturale · Sede di Soleminis',
   },
 ];
+
+export const DEFAULT_CLASSROOMS = CLASSROOMS;
 
 export const CLASSROOM_LABELS: Record<ClassroomKey, string> = {
   verde: 'Aula Verde',

@@ -25,6 +25,7 @@ export const MemberView: React.FC = () => {
   const {
     currentUser,
     lessons,
+    classrooms,
     attendance,
     activeLessons,
     getActiveLessonForRoom,
@@ -53,9 +54,9 @@ export const MemberView: React.FC = () => {
 
   const isSoleminisMember = (currentUser.sede || 'Quartu').toLowerCase() === 'soleminis';
 
-  const visibleClassrooms = CLASSROOMS.filter((room) => {
-    if (isSoleminisMember) return room.key === 'polifunzionale';
-    return room.key !== 'polifunzionale';
+  const visibleClassrooms = classrooms.filter((room) => {
+    if (isSoleminisMember) return room.sede === 'Soleminis' || room.key === 'polifunzionale';
+    return room.sede !== 'Soleminis' && room.key !== 'polifunzionale';
   }).sort((a, b) => {
     const aActive = Boolean(getActiveLessonForRoom(a.key));
     const bActive = Boolean(getActiveLessonForRoom(b.key));
@@ -491,7 +492,7 @@ export const MemberView: React.FC = () => {
                   <div className="grid grid-cols-1 gap-2">
                     {dayGroup.lessons.map((les) => {
                       const meta = getSubjectMeta(les.subject);
-                      const roomObj = CLASSROOMS.find((r) => r.key === les.classroom);
+                      const roomObj = classrooms.find((r) => r.key === les.classroom);
                       return (
                         <div
                           key={les.id}

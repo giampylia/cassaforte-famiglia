@@ -420,15 +420,34 @@ const MIME_TYPES = {
 
 const COMPRESSIBLE_EXTS = new Set(['.html', '.js', '.css', '.json', '.webmanifest', '.svg']);
 
-function sendJson(res, status, obj) {
-  res.writeHead(status, {
+function sendJson(res, status, obj, req = null) {
+  const jsonStr = typeof obj === 'string' ? obj : JSON.stringify(obj);
+  const effectiveReq = req || res.req;
+  const acceptEncoding = (effectiveReq && effectiveReq.headers && effectiveReq.headers['accept-encoding']) || '';
+  const headers = {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Cache-Control': 'no-cache',
-  });
-  res.end(JSON.stringify(obj));
+  };
+
+  if (acceptEncoding.includes('gzip') && jsonStr.length > 1024) {
+    zlib.gzip(Buffer.from(jsonStr, 'utf8'), (err, zipped) => {
+      if (err) {
+        res.writeHead(status, headers);
+        res.end(jsonStr);
+      } else {
+        headers['Content-Encoding'] = 'gzip';
+        headers['Vary'] = 'Accept-Encoding';
+        res.writeHead(status, headers);
+        res.end(zipped);
+      }
+    });
+  } else {
+    res.writeHead(status, headers);
+    res.end(jsonStr);
+  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -462,6 +481,16 @@ const server = http.createServer(async (req, res) => {
     req.on('close', () => {
       sseClients.delete(res);
     });
+    return;
+  }
+
+  if (parsedUrl === '/api/ping') {
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache',
+    });
+    res.end('{"ok":true}');
     return;
   }
 
@@ -571,6 +600,11 @@ const server = http.createServer(async (req, res) => {
           const incomingQueueTs = Number((incomingDb.queueState && incomingDb.queueState.updatedAt) || 0);
           if (existingQueueTs > incomingQueueTs && existingDb.queueState) {
             incomingDb.queueState = existingDb.queueState;
+          }
+
+          // Preservazione Aule Didattiche Dinamiche
+          if (Array.isArray(existingDb.classrooms) && (!Array.isArray(incomingDb.classrooms) || incomingDb.classrooms.length === 0)) {
+            incomingDb.classrooms = existingDb.classrooms;
           }
         }
 
@@ -935,7 +969,7 @@ const server = http.createServer(async (req, res) => {
 // Keep-alive self-ping every 10 minutes so Render never puts the server into cold-start sleep
 setInterval(() => {
   try {
-    https.get('https://qu3.onrender.com/api/state', (res) => {
+    https.get('https://qu3.onrender.com/api/ping', (res) => {
       res.resume();
     }).on('error', () => {});
   } catch {}

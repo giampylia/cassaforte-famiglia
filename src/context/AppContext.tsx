@@ -3,8 +3,10 @@ import {
   AttendanceRecord,
   CashMovement,
   CLASSROOM_LABELS,
+  ClassroomInfo,
   ClassroomKey,
   DEFAULT_AVAILABLE_ROLES,
+  DEFAULT_CLASSROOMS,
   doLessonsOverlap,
   ExpenseCategory,
   generateInitialAttendance,
@@ -121,6 +123,11 @@ interface AppContextType {
   deleteCashMovement: (id: string) => void;
   importCashMovements: (movements: CashMovement[], replaceAll?: boolean) => void;
   lessons: Lesson[];
+  classrooms: ClassroomInfo[];
+  addClassroom: (room: Omit<ClassroomInfo, 'key'> & { key?: string }) => ClassroomInfo;
+  updateClassroom: (key: string, data: Partial<ClassroomInfo>) => void;
+  deleteClassroom: (key: string) => void;
+  getClassroomLabel: (key: string) => string;
   attendance: AttendanceRecord[];
   subjectNotes: SubjectDidacticNote[];
   visualHeadcounts: Record<ClassroomKey, number>;
@@ -201,6 +208,7 @@ const STORAGE_KEYS = {
   CASH_TS: 'quartimbra_cash_updated_at_v4',
   LESSONS: 'quartimbra_lessons_v3',
   LESSONS_TS: 'quartimbra_lessons_updated_at_v4',
+  CLASSROOMS: 'quartimbra_classrooms_v2',
   VIDEO_NOTICES: 'quartimbra_video_notices_v1',
   VIDEO_NOTICES_TS: 'quartimbra_video_notices_ts_v1',
   LIBRARY_BOOKS: 'quartimbra_library_books_v1',
@@ -839,6 +847,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [classrooms, setClassrooms] = useState<ClassroomInfo[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CLASSROOMS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const map = new Map<string, ClassroomInfo>();
+          DEFAULT_CLASSROOMS.forEach((c) => map.set(c.key, c));
+          parsed.forEach((c: ClassroomInfo) => map.set(c.key, { ...map.get(c.key), ...c }));
+          return Array.from(map.values());
+        }
+      }
+    } catch {}
+    return DEFAULT_CLASSROOMS;
+  });
+
   const [subjectNotes, setSubjectNotes] = useState<SubjectDidacticNote[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.NOTES);
@@ -1016,6 +1040,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   lessonsRef.current = lessons;
   const lessonsUpdatedAtRef = useRef(lessonsUpdatedAt);
   lessonsUpdatedAtRef.current = lessonsUpdatedAt;
+  const classroomsRef = useRef<ClassroomInfo[]>(classrooms);
+  classroomsRef.current = classrooms;
   const videoNoticesRef = useRef<VideoNotice[]>(videoNotices);
   videoNoticesRef.current = videoNotices;
   const videoNoticesUpdatedAtRef = useRef(videoNoticesUpdatedAt);
@@ -1376,6 +1402,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       setAttendance(sanitized);
     }
+    if (Array.isArray(db.classrooms) && db.classrooms.length > 0) {
+      const map = new Map<string, ClassroomInfo>();
+      DEFAULT_CLASSROOMS.forEach((c) => map.set(c.key, c));
+      db.classrooms.forEach((c: ClassroomInfo) => map.set(c.key, { ...map.get(c.key), ...c }));
+      const merged = Array.from(map.values());
+      classroomsRef.current = merged;
+      setClassrooms(merged);
+      safeSetLocalStorage(STORAGE_KEYS.CLASSROOMS, JSON.stringify(merged));
+    }
+
     if (Array.isArray(db.subjectNotes)) setSubjectNotes(db.subjectNotes);
     if (db.visualHeadcounts) setVisualHeadcounts(db.visualHeadcounts);
     if (Array.isArray(db.liveFeed)) setLiveFeed(db.liveFeed);
@@ -1669,6 +1705,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             safeSetLocalStorage(STORAGE_KEYS.LESSONS, JSON.stringify(ev.data.lessons));
             safeSetLocalStorage(STORAGE_KEYS.LESSONS_TS, String(remoteTs));
           }
+        } else if (ev.data?.type === 'CLASSROOMS_SYNC' && Array.isArray(ev.data.classrooms)) {
+          classroomsRef.current = ev.data.classrooms;
+          setClassrooms(ev.data.classrooms);
+          safeSetLocalStorage(STORAGE_KEYS.CLASSROOMS, JSON.stringify(ev.data.classrooms));
         } else if (ev.data?.type === 'VIDEO_NOTICES_SYNC' && Array.isArray(ev.data.videoNotices)) {
           const remoteTs = Number(ev.data.videoNoticesUpdatedAt || 0);
           if (remoteTs > videoNoticesUpdatedAtRef.current) {
@@ -1779,6 +1819,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     safeSetLocalStorage(STORAGE_KEYS.LIBRARY_BOOKS_TS, String(libraryBooksUpdatedAt));
     saveLibraryBooksToIndexedDB(libraryBooks, libraryBooksUpdatedAt || Date.now());
     safeSetLocalStorage(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendance));
+    safeSetLocalStorage(STORAGE_KEYS.CLASSROOMS, JSON.stringify(classrooms));
     safeSetLocalStorage(STORAGE_KEYS.NOTES, JSON.stringify(subjectNotes));
     safeSetLocalStorage(STORAGE_KEYS.HEADCOUNTS, JSON.stringify(visualHeadcounts));
     safeSetLocalStorage(STORAGE_KEYS.LIVE_FEED, JSON.stringify(liveFeed));
@@ -1795,6 +1836,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cashUpdatedAt,
         lessons,
         lessonsUpdatedAt,
+        classrooms,
         videoNotices,
         videoNoticesUpdatedAt,
         libraryBooks,
@@ -1816,6 +1858,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     cashUpdatedAt,
     lessons,
     lessonsUpdatedAt,
+    classrooms,
     videoNotices,
     videoNoticesUpdatedAt,
     libraryBooks,
@@ -2673,6 +2716,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { count: prepared.length };
   };
 
+  // Gestione Aule Didattiche Dinamiche (Aggiunta, Modifica, Cancellazione)
+  const commitClassroomsUpdate = (nextRooms: ClassroomInfo[]) => {
+    classroomsRef.current = nextRooms;
+    setClassrooms(nextRooms);
+    safeSetLocalStorage(STORAGE_KEYS.CLASSROOMS, JSON.stringify(nextRooms));
+
+    try {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.postMessage({
+          type: 'CLASSROOMS_SYNC',
+          classrooms: nextRooms,
+        });
+      }
+    } catch {}
+
+    pushCloudSnapshot({
+      classrooms: nextRooms,
+    });
+  };
+
+  const addClassroom = (roomData: Omit<ClassroomInfo, 'key'> & { key?: string }): ClassroomInfo => {
+    const rawKey = (roomData.key || roomData.name)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]/g, '_')
+      .replace(/^_+|_+$/g, '') || `aula_${Date.now()}`;
+    let uniqueKey = rawKey;
+    let counter = 1;
+    while (classroomsRef.current.some((c) => c.key === uniqueKey)) {
+      uniqueKey = `${rawKey}_${counter++}`;
+    }
+
+    const newRoom: ClassroomInfo = {
+      key: uniqueKey,
+      name: roomData.name.trim(),
+      fullName: roomData.fullName?.trim() || `Aula ${roomData.name.trim()}`,
+      image: roomData.image || '/assets/aula-verde.png',
+      colorType: roomData.colorType || 'blue',
+      bgColor: roomData.bgColor || '#1e40af',
+      badgeColor: roomData.badgeColor || '#3b82f6',
+      sede: roomData.sede || 'Quartu',
+      capacity: Number(roomData.capacity) || 35,
+      locationNote: roomData.locationNote?.trim() || `${roomData.sede || 'Quartu'}`,
+      isCustom: true,
+    };
+
+    const next = [...classroomsRef.current, newRoom];
+    commitClassroomsUpdate(next);
+    return newRoom;
+  };
+
+  const updateClassroom = (key: string, data: Partial<ClassroomInfo>) => {
+    const next = classroomsRef.current.map((c) => (c.key === key ? { ...c, ...data } : c));
+    commitClassroomsUpdate(next);
+  };
+
+  const deleteClassroom = (key: string) => {
+    const next = classroomsRef.current.filter((c) => c.key !== key);
+    commitClassroomsUpdate(next);
+  };
+
+  const getClassroomLabel = (key: string): string => {
+    const found = classroomsRef.current.find((c) => c.key === key);
+    if (found) return found.fullName || found.name;
+    return CLASSROOM_LABELS[key as ClassroomKey] || key;
+  };
+
   // Video Notices (Avvisi Video per /monitor)
   const commitVideoNoticesUpdate = (nextVn: VideoNotice[], forceTs?: number) => {
     const nowTs = forceTs || Date.now();
@@ -2930,6 +3040,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateLesson,
         deleteLesson,
         importLessonsBatch,
+        classrooms,
+        addClassroom,
+        updateClassroom,
+        deleteClassroom,
+        getClassroomLabel,
         videoNotices,
         videoNoticesUpdatedAt,
         addVideoNotice,
