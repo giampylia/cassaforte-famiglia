@@ -202,7 +202,7 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-between overflow-y-auto bg-[#112825] text-white p-3.5 sm:p-5 select-none animate-fadeIn">
+    <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-between overflow-y-auto bg-[#112825] text-white p-3.5 sm:p-5 select-none animate-fadeIn">
       {/* SFONDO SPLASH CON LOGO STILIZZATO MODERNO (MONOGRAMMA ORO Q3) */}
       <div className="fixed inset-0 pointer-events-none flex items-center justify-center overflow-hidden z-0">
         <img
@@ -257,7 +257,6 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
                   type="button"
                   onClick={() => {
                     onSelectSection(item.key);
-                    if (onClose) onClose();
                   }}
                   className={`group relative aspect-square rounded-3xl transition-all duration-200 active:scale-95 flex flex-col items-center justify-center p-2 text-center cursor-pointer select-none shadow-xl ${
                     isActive

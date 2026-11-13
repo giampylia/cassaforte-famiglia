@@ -42,7 +42,7 @@ const MainRouter: React.FC = () => {
     signOut,
   } = useApp();
 
-  const CURRENT_APP_VERSION = 'v54';
+  const CURRENT_APP_VERSION = 'v55';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
@@ -63,7 +63,9 @@ const MainRouter: React.FC = () => {
       }
       localStorage.removeItem('quartimbra_active_section');
     } catch {}
-    window.location.reload();
+    const url = new URL(window.location.href);
+    url.searchParams.set('reload', String(Date.now()));
+    window.location.replace(url.toString());
   };
 
   // Permette di aprire direttamente lo schermo del Monitor Sala d'Attesa tramite /monitor, /sala o ?monitor=eliminacode senza login
@@ -320,9 +322,6 @@ const MainRouter: React.FC = () => {
           isOpen={activeSection === 'menu' || mobileDrawerOpen}
           onClose={() => {
             setMobileDrawerOpen(false);
-            if (activeSection === 'menu') {
-              setActiveSection('presenze');
-            }
           }}
           activeSection={activeSection}
           onSelectSection={(section) => {
