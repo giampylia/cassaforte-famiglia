@@ -204,6 +204,7 @@ export const AdminDashboard: React.FC = () => {
 
   // --- STATE GESTIONE AULE ---
   const [showClassroomsModal, setShowClassroomsModal] = useState(false);
+  const [editingClassroom, setEditingClassroom] = useState<ClassroomInfo | null>(null);
   const [newClassroomForm, setNewClassroomForm] = useState<{
     name: string;
     fullName: string;
@@ -220,6 +221,30 @@ export const AdminDashboard: React.FC = () => {
     colorType: 'blue',
   });
   const [classroomNotice, setClassroomNotice] = useState<string | null>(null);
+
+  // Controllo sovrapposizioni e conflitti: in una stessa aula non possono esserci 2 corsi nello stesso orario e giorno
+  const checkLessonConflict = (
+    candidate: { classroom: string; day_of_week: number; start_time: string; end_time: string },
+    excludeLessonId?: string
+  ): Lesson | null => {
+    const s1 = candidate.start_time.trim().slice(0, 5);
+    const e1 = candidate.end_time.trim().slice(0, 5);
+    if (!s1 || !e1 || s1 >= e1) return null;
+
+    return (
+      lessons.find((l) => {
+        if (excludeLessonId && l.id === excludeLessonId) return false;
+        if (l.classroom !== candidate.classroom) return false;
+        if (Number(l.day_of_week) !== Number(candidate.day_of_week)) return false;
+
+        const s2 = l.start_time.trim().slice(0, 5);
+        const e2 = l.end_time.trim().slice(0, 5);
+
+        // Sovrapposizione temporale su intervalli semiaperti [s1, e1) e [s2, e2): s1 < e2 && s2 < e1
+        return s1 < e2 && s2 < e1;
+      }) || null
+    );
+  };
 
   const handleStartEditLesson = (les: Lesson) => {
     setEditingLesson(les);
@@ -242,9 +267,37 @@ export const AdminDashboard: React.FC = () => {
       return;
     }
     if (!editingLessonForm.start_time || !editingLessonForm.end_time) {
-      alert('Inserisci sia l\'orario di inizio che di fine.');
+      alert("Inserisci sia l'orario di inizio che di fine.");
       return;
     }
+    if (editingLessonForm.start_time >= editingLessonForm.end_time) {
+      alert("L'orario di inizio deve essere precedente all'orario di fine.");
+      return;
+    }
+
+    // Verifica anti-sovrapposizione aula/orario/giorno
+    const conflict = checkLessonConflict(
+      {
+        classroom: editingLessonForm.classroom,
+        day_of_week: editingLessonForm.day_of_week,
+        start_time: editingLessonForm.start_time,
+        end_time: editingLessonForm.end_time,
+      },
+      editingLesson.id
+    );
+
+    if (conflict) {
+      const roomLabel = getClassroomLabel(editingLessonForm.classroom);
+      const dayLabel = DAYS_IT[editingLessonForm.day_of_week];
+      alert(
+        `⚠️ CONFLITTO DI PROGRAMMAZIONE NELL'AULA DIDATTICA!\n\n` +
+          `L'aula «${roomLabel}» è già occupata il ${dayLabel} dalle ore ${conflict.start_time.slice(0, 5)} alle ${conflict.end_time.slice(0, 5)} per il corso di:\n` +
+          `• «${conflict.subject}» (Docente: ${conflict.teacher})\n\n` +
+          `In una stessa aula non possono esserci 2 corsi nello stesso orario e giorno.\nModifica l'orario, il giorno o seleziona un'altra aula.`
+      );
+      return;
+    }
+
     updateLesson(editingLesson.id, {
       subject: editingLessonForm.subject.trim(),
       teacher: editingLessonForm.teacher.trim() || 'Docente non specificato',
@@ -256,8 +309,44 @@ export const AdminDashboard: React.FC = () => {
     });
     const subjName = editingLessonForm.subject.trim();
     setEditingLesson(null);
-    setScheduleNotice(`✓ Orario e dati della lezione «${subjName}» aggiornati con successo.`);
+    setScheduleNotice(`✓ Corso di «${subjName}» aggiornato con successo.`);
     setTimeout(() => setScheduleNotice(null), 5000);
+  };
+
+  const handleSaveEditClassroom = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingClassroom) return;
+    if (!editingClassroom.name.trim()) {
+      alert("Inserisci il nome dell'aula.");
+      return;
+    }
+    const colorMapBg: Record<string, string> = {
+      verde: '#15803d',
+      gialla: '#ca8a04',
+      rossa: '#b91c1c',
+      blue: '#1d4ed8',
+    };
+    const colorMapBadge: Record<string, string> = {
+      verde: '#16a34a',
+      gialla: '#eab308',
+      rossa: '#dc2626',
+      blue: '#2563eb',
+    };
+    const cType = editingClassroom.colorType || 'blue';
+    updateClassroom(editingClassroom.key, {
+      name: editingClassroom.name.trim(),
+      fullName: editingClassroom.fullName?.trim() || `Aula ${editingClassroom.name.trim()}`,
+      sede: editingClassroom.sede,
+      capacity: Number(editingClassroom.capacity) || 35,
+      locationNote: editingClassroom.locationNote?.trim() || '',
+      colorType: cType,
+      bgColor: colorMapBg[cType] || '#1d4ed8',
+      badgeColor: colorMapBadge[cType] || '#2563eb',
+    });
+    const savedName = editingClassroom.fullName?.trim() || editingClassroom.name;
+    setEditingClassroom(null);
+    setClassroomNotice(`✓ Parametri aula «${savedName}» salvati con successo!`);
+    setTimeout(() => setClassroomNotice(null), 4000);
   };
 
   const handleCreateClassroom = (e: React.FormEvent) => {
@@ -2110,13 +2199,36 @@ export const AdminDashboard: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      if (!newLesson.subject.trim()) return;
+                      if (!newLesson.subject.trim()) {
+                        alert('Inserisci la materia del corso.');
+                        return;
+                      }
+                      if (!newLesson.start_time || !newLesson.end_time) {
+                        alert("Inserisci sia l'orario di inizio che di fine.");
+                        return;
+                      }
+                      if (newLesson.start_time >= newLesson.end_time) {
+                        alert("L'orario di inizio deve essere precedente all'orario di fine.");
+                        return;
+                      }
+                      const conflict = checkLessonConflict(newLesson);
+                      if (conflict) {
+                        const roomLabel = getClassroomLabel(newLesson.classroom);
+                        const dayLabel = DAYS_IT[newLesson.day_of_week];
+                        alert(
+                          `⚠️ CONFLITTO DI PROGRAMMAZIONE NELL'AULA DIDATTICA!\n\n` +
+                            `L'aula «${roomLabel}» è già occupata il ${dayLabel} dalle ore ${conflict.start_time.slice(0, 5)} alle ${conflict.end_time.slice(0, 5)} per il corso di:\n` +
+                            `• «${conflict.subject}» (Docente: ${conflict.teacher})\n\n` +
+                            `In una stessa aula non possono esserci due corsi nello stesso orario e giorno.\nModifica l'orario, il giorno o seleziona un'altra aula.`
+                        );
+                        return;
+                      }
                       addLesson({
                         ...newLesson,
                         teacher: newLesson.teacher.trim() || 'Docente QU3',
                         category: getSubjectMeta(newLesson.subject).category,
                       });
-                      setScheduleNotice(`✓ Lezione di «${newLesson.subject}» inserita nel calendario.`);
+                      setScheduleNotice(`✓ Corso di «${newLesson.subject}» inserito nel calendario.`);
                       setTimeout(() => setScheduleNotice(null), 5000);
                       setNewLesson({ ...newLesson, subject: '', teacher: '' });
                     }}
@@ -2127,6 +2239,23 @@ export const AdminDashboard: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* Banner Sovrapposizione Orari in Tempo Reale */}
+              {(() => {
+                const liveConflict = checkLessonConflict(newLesson);
+                if (!liveConflict) return null;
+                return (
+                  <div className="mt-3 rounded-2xl border border-rose-300 bg-rose-50 p-3.5 text-xs text-rose-900 flex items-start gap-2.5 shadow-2xs">
+                    <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="block font-bold">Attenzione: Aula già occupata in questa fascia oraria!</strong>
+                      <span>
+                        L'aula <strong>{getClassroomLabel(newLesson.classroom)}</strong> è già occupata <strong>{DAYS_IT[newLesson.day_of_week]}</strong> dalle ore <strong>{liveConflict.start_time.slice(0, 5)}</strong> alle <strong>{liveConflict.end_time.slice(0, 5)}</strong> per il corso: <em>«{liveConflict.subject}»</em> (Docente: {liveConflict.teacher}). In una stessa aula non possono esserci due corsi nello stesso orario e giorno.
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Avviso di conferma immediata operazione sul calendario lezioni */}
@@ -2244,7 +2373,7 @@ export const AdminDashboard: React.FC = () => {
                                   title="Modifica orario, aula e dettagli di questa lezione"
                                 >
                                   <Edit3 className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                                  <span>Modifica Orario</span>
+                                  <span>Modifica Corso</span>
                                 </button>
                                 <button
                                   type="button"
@@ -2838,11 +2967,14 @@ export const AdminDashboard: React.FC = () => {
             <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
                 <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800 block">
-                  Modifica Programmazione Oraria
+                  Modifica Corso Didattico
                 </span>
                 <h3 className="text-xl font-bold text-slate-900">
-                  {editingLessonForm.subject || 'Lezione'}
+                  {editingLessonForm.subject || 'Corso'}
                 </h3>
+                <p className="text-xs text-slate-500">
+                  Modifica materia, docente, aula assegnata, giorno e fascia oraria.
+                </p>
               </div>
               <button
                 type="button"
@@ -2856,7 +2988,7 @@ export const AdminDashboard: React.FC = () => {
             <form onSubmit={handleSaveEditLesson} className="space-y-3.5">
               <div>
                 <label className="text-xs font-medium text-slate-700 block mb-1">
-                  Materia del Corso
+                  Materia del Corso *
                 </label>
                 <input
                   type="text"
@@ -2869,16 +3001,33 @@ export const AdminDashboard: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-medium text-slate-700 block mb-1">Docente</label>
-                <input
-                  type="text"
-                  value={editingLessonForm.teacher}
-                  onChange={(e) =>
-                    setEditingLessonForm({ ...editingLessonForm, teacher: e.target.value })
-                  }
-                  className={`w-full h-11 rounded-xl px-3 text-sm ${inputClass}`}
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-slate-700 block mb-1">Docente</label>
+                  <input
+                    type="text"
+                    value={editingLessonForm.teacher}
+                    onChange={(e) =>
+                      setEditingLessonForm({ ...editingLessonForm, teacher: e.target.value })
+                    }
+                    className={`w-full h-11 rounded-xl px-3 text-sm ${inputClass}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-slate-700 block mb-1">
+                    Area Didattica / Categoria
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Es. Umanistica, Scientifica, Artistica"
+                    value={editingLessonForm.category || ''}
+                    onChange={(e) =>
+                      setEditingLessonForm({ ...editingLessonForm, category: e.target.value })
+                    }
+                    className={`w-full h-11 rounded-xl px-3 text-sm ${inputClass}`}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2906,7 +3055,7 @@ export const AdminDashboard: React.FC = () => {
 
                 <div>
                   <label className="text-xs font-medium text-slate-700 block mb-1">
-                    Aula Didattica
+                    Aula Didattica Assegnata
                   </label>
                   <select
                     value={editingLessonForm.classroom}
@@ -2929,7 +3078,7 @@ export const AdminDashboard: React.FC = () => {
 
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 space-y-2">
                 <span className="text-xs font-bold text-emerald-900 block">
-                  ⏰ Modifica Orario di Inizio e Fine
+                  ⏰ Orario di Inizio e Fine
                 </span>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -2969,6 +3118,31 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
+              {/* Banner Sovrapposizione Orari in Tempo Reale nella Modale */}
+              {(() => {
+                const liveConflict = checkLessonConflict(
+                  {
+                    classroom: editingLessonForm.classroom,
+                    day_of_week: editingLessonForm.day_of_week,
+                    start_time: editingLessonForm.start_time,
+                    end_time: editingLessonForm.end_time,
+                  },
+                  editingLesson.id
+                );
+                if (!liveConflict) return null;
+                return (
+                  <div className="rounded-2xl border border-rose-300 bg-rose-50 p-3.5 text-xs text-rose-900 flex items-start gap-2.5 shadow-2xs">
+                    <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="block font-bold">Attenzione: Aula già occupata in questa fascia oraria!</strong>
+                      <span>
+                        L'aula <strong>{getClassroomLabel(editingLessonForm.classroom)}</strong> è già occupata <strong>{DAYS_IT[editingLessonForm.day_of_week]}</strong> dalle ore <strong>{liveConflict.start_time.slice(0, 5)}</strong> alle <strong>{liveConflict.end_time.slice(0, 5)}</strong> per il corso: <em>«{liveConflict.subject}»</em> (Docente: {liveConflict.teacher}). In una stessa aula non possono esserci due corsi nello stesso orario e giorno.
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
@@ -2982,7 +3156,7 @@ export const AdminDashboard: React.FC = () => {
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition active:scale-95"
                 >
                   <Check className="h-4 w-4" />
-                  <span>Salva Modifiche Orario</span>
+                  <span>Salva Modifiche Corso</span>
                 </button>
               </div>
             </form>
@@ -3053,30 +3227,37 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <span className="text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium">
                           {lessonCount} {lessonCount === 1 ? 'corso' : 'corsi'}
                         </span>
-                        {room.isCustom && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  `Vuoi davvero eliminare l'aula «${room.fullName}»?\n(Le lezioni associate rimarranno nel database ma l'aula non sarà più nell'elenco).`
-                                )
-                              ) {
-                                deleteClassroom(room.key);
-                                setClassroomNotice(`✓ Aula «${room.fullName}» rimossa.`);
-                                setTimeout(() => setClassroomNotice(null), 3000);
-                              }
-                            }}
-                            className="p-1.5 rounded-lg border border-rose-200 bg-white text-rose-600 hover:bg-rose-50"
-                            title="Elimina aula personalizzata"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => setEditingClassroom(room)}
+                          className="p-1.5 rounded-lg border border-sky-200 bg-white text-sky-700 hover:bg-sky-50 transition cursor-pointer"
+                          title="Modifica denominazione e parametri dell'aula"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const msg =
+                              lessonCount > 0
+                                ? `⚠️ ATTENZIONE: Ci sono ${lessonCount} corsi assegnati all'aula «${room.fullName}»!\n\nSe elimini quest'aula, i corsi rimarranno nel database ma risulteranno senza un'aula valida.\n\nVuoi davvero eliminare definitivamente quest'aula?`
+                                : `Vuoi davvero eliminare l'aula «${room.fullName}»?`;
+                            if (window.confirm(msg)) {
+                              deleteClassroom(room.key);
+                              if (editingClassroom?.key === room.key) setEditingClassroom(null);
+                              setClassroomNotice(`✓ Aula «${room.fullName}» eliminata.`);
+                              setTimeout(() => setClassroomNotice(null), 4000);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                          title="Elimina quest'aula"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
                   );
@@ -3084,154 +3265,319 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Form Inserimento Nuova Aula */}
-            <form
-              onSubmit={handleCreateClassroom}
-              className="rounded-2xl border border-sky-200 bg-sky-50/50 p-4 space-y-3"
-            >
-              <div className="flex items-center gap-2 text-sky-900 font-bold text-sm">
-                <Plus className="h-4 w-4 text-sky-700" />
-                <span>Aggiungi Nuova Aula Didattica</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-slate-700 block mb-1">
-                    Nome Aula *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Es. Aula Blu, Informatica, Musica"
-                    value={newClassroomForm.name}
-                    onChange={(e) =>
-                      setNewClassroomForm({ ...newClassroomForm, name: e.target.value })
-                    }
-                    className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-sky-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-slate-700 block mb-1">
-                    Nome Completo / Ufficiale (Opzionale)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Es. Aula Blu · 1° Piano Ala Ovest"
-                    value={newClassroomForm.fullName}
-                    onChange={(e) =>
-                      setNewClassroomForm({ ...newClassroomForm, fullName: e.target.value })
-                    }
-                    className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-sky-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-slate-700 block mb-1">
-                    Sede
-                  </label>
-                  <select
-                    value={newClassroomForm.sede}
-                    onChange={(e) =>
-                      setNewClassroomForm({
-                        ...newClassroomForm,
-                        sede: e.target.value as 'Quartu' | 'Soleminis',
-                      })
-                    }
-                    className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-sky-600"
+            {/* Form Modifica Aula Esistente */}
+            {editingClassroom ? (
+              <form
+                onSubmit={handleSaveEditClassroom}
+                className="rounded-2xl border-2 border-emerald-400 bg-emerald-50/70 p-4 space-y-3 shadow-xs"
+              >
+                <div className="flex items-center justify-between text-emerald-950 font-bold text-sm border-b border-emerald-200 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Edit3 className="h-4 w-4 text-emerald-700" />
+                    <span>Modifica Parametri Aula: «{editingClassroom.fullName || editingClassroom.name}»</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingClassroom(null)}
+                    className="text-xs text-slate-500 hover:text-slate-800 underline font-normal cursor-pointer"
                   >
-                    <option value="Quartu">Quartu Sant'Elena</option>
-                    <option value="Soleminis">Soleminis</option>
-                  </select>
+                    Annulla
+                  </button>
                 </div>
 
-                <div>
-                  <label className="text-xs font-medium text-slate-700 block mb-1">
-                    Capienza Massima Posti
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={200}
-                    value={newClassroomForm.capacity}
-                    onChange={(e) =>
-                      setNewClassroomForm({
-                        ...newClassroomForm,
-                        capacity: Number(e.target.value) || 35,
-                      })
-                    }
-                    className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-sky-600"
-                  />
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-slate-700 block mb-1">
+                      Nome Aula *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editingClassroom.name}
+                      onChange={(e) =>
+                        setEditingClassroom({ ...editingClassroom, name: e.target.value })
+                      }
+                      className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-emerald-600"
+                    />
+                  </div>
 
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-medium text-slate-700 block mb-1">
-                    Ubicazione / Piano / Note
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Es. Piano Terra · Ingresso Ala Sinistra"
-                    value={newClassroomForm.locationNote}
-                    onChange={(e) =>
-                      setNewClassroomForm({ ...newClassroomForm, locationNote: e.target.value })
-                    }
-                    className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-sky-600"
-                  />
-                </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-700 block mb-1">
+                      Denominazione Completa / Ufficiale
+                    </label>
+                    <input
+                      type="text"
+                      value={editingClassroom.fullName}
+                      onChange={(e) =>
+                        setEditingClassroom({ ...editingClassroom, fullName: e.target.value })
+                      }
+                      className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-emerald-600"
+                    />
+                  </div>
 
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-medium text-slate-700 block mb-1">
-                    Colore Tema Aula
-                  </label>
-                  <div className="flex items-center gap-3">
-                    {[
-                      { type: 'blue', label: 'Blu', bg: '#1d4ed8' },
-                      { type: 'verde', label: 'Verde', bg: '#15803d' },
-                      { type: 'gialla', label: 'Giallo', bg: '#ca8a04' },
-                      { type: 'rossa', label: 'Rosso', bg: '#b91c1c' },
-                    ].map((col) => (
-                      <label
-                        key={col.type}
-                        className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 cursor-pointer text-xs font-medium transition ${
-                          newClassroomForm.colorType === col.type
-                            ? 'border-sky-600 bg-white text-sky-950 ring-2 ring-sky-300'
-                            : 'border-slate-200 bg-white/60 text-slate-700'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="classroomColor"
-                          value={col.type}
-                          checked={newClassroomForm.colorType === col.type}
-                          onChange={() =>
-                            setNewClassroomForm({
-                              ...newClassroomForm,
-                              colorType: col.type as any,
-                            })
-                          }
-                          className="sr-only"
-                        />
-                        <span
-                          className="h-3 w-3 rounded-full"
-                          style={{ backgroundColor: col.bg }}
-                        />
-                        <span>{col.label}</span>
-                      </label>
-                    ))}
+                  <div>
+                    <label className="text-xs font-medium text-slate-700 block mb-1">
+                      Sede
+                    </label>
+                    <select
+                      value={editingClassroom.sede}
+                      onChange={(e) =>
+                        setEditingClassroom({
+                          ...editingClassroom,
+                          sede: e.target.value as 'Quartu' | 'Soleminis',
+                        })
+                      }
+                      className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-emerald-600"
+                    >
+                      <option value="Quartu">Quartu Sant'Elena</option>
+                      <option value="Soleminis">Soleminis</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-slate-700 block mb-1">
+                      Capienza Massima Posti
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={200}
+                      value={editingClassroom.capacity}
+                      onChange={(e) =>
+                        setEditingClassroom({
+                          ...editingClassroom,
+                          capacity: Number(e.target.value) || 35,
+                        })
+                      }
+                      className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-emerald-600"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-medium text-slate-700 block mb-1">
+                      Ubicazione / Piano / Note
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Es. Piano Terra · Ala Ovest"
+                      value={editingClassroom.locationNote || ''}
+                      onChange={(e) =>
+                        setEditingClassroom({ ...editingClassroom, locationNote: e.target.value })
+                      }
+                      className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-emerald-600"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-medium text-slate-700 block mb-1">
+                      Colore Tema Aula
+                    </label>
+                    <div className="flex items-center gap-3">
+                      {[
+                        { type: 'blue', label: 'Blu', bg: '#1d4ed8' },
+                        { type: 'verde', label: 'Verde', bg: '#15803d' },
+                        { type: 'gialla', label: 'Giallo', bg: '#ca8a04' },
+                        { type: 'rossa', label: 'Rosso', bg: '#b91c1c' },
+                      ].map((col) => (
+                        <label
+                          key={col.type}
+                          className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 cursor-pointer text-xs font-medium transition ${
+                            editingClassroom.colorType === col.type
+                              ? 'border-emerald-700 bg-white text-emerald-950 ring-2 ring-emerald-300 font-bold'
+                              : 'border-slate-200 bg-white/70 text-slate-700'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="editClassroomColor"
+                            value={col.type}
+                            checked={editingClassroom.colorType === col.type}
+                            onChange={() =>
+                              setEditingClassroom({
+                                ...editingClassroom,
+                                colorType: col.type as any,
+                              })
+                            }
+                            className="sr-only"
+                          />
+                          <span
+                            className="h-3 w-3 rounded-full shrink-0"
+                            style={{ backgroundColor: col.bg }}
+                          />
+                          <span>{col.label}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex justify-end pt-2">
-                <button
-                  type="submit"
-                  className="inline-flex items-center gap-2 rounded-xl bg-sky-700 hover:bg-sky-800 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition active:scale-95"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Crea Nuova Aula</span>
-                </button>
-              </div>
-            </form>
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-emerald-200">
+                  <button
+                    type="button"
+                    onClick={() => setEditingClassroom(null)}
+                    className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-4 py-2 text-xs sm:text-sm font-medium text-slate-700 transition"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 py-2 text-xs sm:text-sm font-medium text-white shadow-sm transition active:scale-95"
+                  >
+                    <Check className="h-4 w-4" />
+                    <span>Salva Modifiche Aula</span>
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* Form Inserimento Nuova Aula */
+              <form
+                onSubmit={handleCreateClassroom}
+                className="rounded-2xl border border-sky-200 bg-sky-50/50 p-4 space-y-3"
+              >
+                <div className="flex items-center gap-2 text-sky-900 font-bold text-sm">
+                  <Plus className="h-4 w-4 text-sky-700" />
+                  <span>Aggiungi Nuova Aula Didattica</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-slate-700 block mb-1">
+                      Nome Aula *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Es. Aula Blu, Informatica, Musica"
+                      value={newClassroomForm.name}
+                      onChange={(e) =>
+                        setNewClassroomForm({ ...newClassroomForm, name: e.target.value })
+                      }
+                      className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-sky-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-slate-700 block mb-1">
+                      Nome Completo / Ufficiale (Opzionale)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Es. Aula Blu · 1° Piano Ala Ovest"
+                      value={newClassroomForm.fullName}
+                      onChange={(e) =>
+                        setNewClassroomForm({ ...newClassroomForm, fullName: e.target.value })
+                      }
+                      className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-sky-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-slate-700 block mb-1">
+                      Sede
+                    </label>
+                    <select
+                      value={newClassroomForm.sede}
+                      onChange={(e) =>
+                        setNewClassroomForm({
+                          ...newClassroomForm,
+                          sede: e.target.value as 'Quartu' | 'Soleminis',
+                        })
+                      }
+                      className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-sky-600"
+                    >
+                      <option value="Quartu">Quartu Sant'Elena</option>
+                      <option value="Soleminis">Soleminis</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-slate-700 block mb-1">
+                      Capienza Massima Posti
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={200}
+                      value={newClassroomForm.capacity}
+                      onChange={(e) =>
+                        setNewClassroomForm({
+                          ...newClassroomForm,
+                          capacity: Number(e.target.value) || 35,
+                        })
+                      }
+                      className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-sky-600"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-medium text-slate-700 block mb-1">
+                      Ubicazione / Piano / Note
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Es. Piano Terra · Ingresso Ala Sinistra"
+                      value={newClassroomForm.locationNote}
+                      onChange={(e) =>
+                        setNewClassroomForm({ ...newClassroomForm, locationNote: e.target.value })
+                      }
+                      className="w-full h-10 rounded-xl px-3 text-sm bg-white border border-slate-300 focus:border-sky-600"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-medium text-slate-700 block mb-1">
+                      Colore Tema Aula
+                    </label>
+                    <div className="flex items-center gap-3">
+                      {[
+                        { type: 'blue', label: 'Blu', bg: '#1d4ed8' },
+                        { type: 'verde', label: 'Verde', bg: '#15803d' },
+                        { type: 'gialla', label: 'Giallo', bg: '#ca8a04' },
+                        { type: 'rossa', label: 'Rosso', bg: '#b91c1c' },
+                      ].map((col) => (
+                        <label
+                          key={col.type}
+                          className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 cursor-pointer text-xs font-medium transition ${
+                            newClassroomForm.colorType === col.type
+                              ? 'border-sky-600 bg-white text-sky-950 ring-2 ring-sky-300'
+                              : 'border-slate-200 bg-white/60 text-slate-700'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="classroomColor"
+                            value={col.type}
+                            checked={newClassroomForm.colorType === col.type}
+                            onChange={() =>
+                              setNewClassroomForm({
+                                ...newClassroomForm,
+                                colorType: col.type as any,
+                              })
+                            }
+                            className="sr-only"
+                          />
+                          <span
+                            className="h-3 w-3 rounded-full"
+                            style={{ backgroundColor: col.bg }}
+                          />
+                          <span>{col.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 rounded-xl bg-sky-700 hover:bg-sky-800 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition active:scale-95"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Crea Nuova Aula</span>
+                  </button>
+                </div>
+              </form>
+            )}
 
             <div className="flex justify-end pt-2 border-t border-slate-100">
               <button

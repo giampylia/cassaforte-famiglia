@@ -853,10 +853,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const map = new Map<string, ClassroomInfo>();
-          DEFAULT_CLASSROOMS.forEach((c) => map.set(c.key, c));
-          parsed.forEach((c: ClassroomInfo) => map.set(c.key, { ...map.get(c.key), ...c }));
-          return Array.from(map.values());
+          return parsed;
         }
       }
     } catch {}
@@ -1403,13 +1400,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setAttendance(sanitized);
     }
     if (Array.isArray(db.classrooms) && db.classrooms.length > 0) {
-      const map = new Map<string, ClassroomInfo>();
-      DEFAULT_CLASSROOMS.forEach((c) => map.set(c.key, c));
-      db.classrooms.forEach((c: ClassroomInfo) => map.set(c.key, { ...map.get(c.key), ...c }));
-      const merged = Array.from(map.values());
-      classroomsRef.current = merged;
-      setClassrooms(merged);
-      safeSetLocalStorage(STORAGE_KEYS.CLASSROOMS, JSON.stringify(merged));
+      classroomsRef.current = db.classrooms;
+      setClassrooms(db.classrooms);
+      safeSetLocalStorage(STORAGE_KEYS.CLASSROOMS, JSON.stringify(db.classrooms));
     }
 
     if (Array.isArray(db.subjectNotes)) setSubjectNotes(db.subjectNotes);
