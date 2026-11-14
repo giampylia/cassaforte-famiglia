@@ -153,26 +153,6 @@ const MainRouter: React.FC = () => {
       sublabel: 'Dashboard con Tasti Glass',
       icon: Home,
     },
-    ...(canSeePresenze
-      ? [
-          {
-            key: 'presenze' as const,
-            label: 'Timbratura e Corsi',
-            sublabel: 'Ingresso Aule e Orario Lezioni',
-            icon: Hand,
-          },
-        ]
-      : []),
-    ...(canSeeTimbratureAule
-      ? [
-          {
-            key: 'admin_dashboard' as const,
-            label: 'Gestione Timbrature Aule',
-            sublabel: 'Riscontri Aule Live, Orari e Registri',
-            icon: ClipboardCheck,
-          },
-        ]
-      : []),
     ...(canSeeAnagraficaSoci
       ? [
           {
@@ -183,13 +163,23 @@ const MainRouter: React.FC = () => {
           },
         ]
       : []),
-    ...(canSeePiccolaCassa
+    ...(canSeePresenze
       ? [
           {
-            key: 'piccola_cassa' as const,
-            label: 'Piccola Cassa',
-            sublabel: 'Rimborsi, Versamenti e Scontrini',
-            icon: Wallet,
+            key: 'presenze' as const,
+            label: 'Timbrature',
+            sublabel: 'Ingresso Aule e Orario Lezioni',
+            icon: Hand,
+          },
+        ]
+      : []),
+    ...(canSeeTimbratureAule
+      ? [
+          {
+            key: 'admin_dashboard' as const,
+            label: 'Gestione Aule',
+            sublabel: 'Riscontri Aule Live, Orari e Registri',
+            icon: ClipboardCheck,
           },
         ]
       : []),
@@ -200,6 +190,26 @@ const MainRouter: React.FC = () => {
             label: 'Biblioteca',
             sublabel: 'Catalogo Libri e Pubblicazioni',
             icon: BookOpen,
+          },
+        ]
+      : []),
+    ...(canSeeLezioniCampo
+      ? [
+          {
+            key: 'lezioni_campo' as const,
+            label: 'Lezioni sul Campo',
+            sublabel: 'Escursioni, Visite e Preventivi',
+            icon: Compass,
+          },
+        ]
+      : []),
+    ...(canSeePrenotazioneEventi
+      ? [
+          {
+            key: 'prenotazione_eventi' as const,
+            label: 'Prenotazioni',
+            sublabel: 'Cinema, Gite, Conferenze e Corsi',
+            icon: Ticket,
           },
         ]
       : []),
@@ -217,19 +227,19 @@ const MainRouter: React.FC = () => {
       ? [
           {
             key: 'eliminacode' as const,
-            label: 'Eliminacode',
+            label: 'Elimina Code',
             sublabel: 'Telecomando e Monitor Numeri PDF',
             icon: Monitor,
           },
         ]
       : []),
-    ...(canSeeLezioniCampo
+    ...(canSeePiccolaCassa
       ? [
           {
-            key: 'lezioni_campo' as const,
-            label: 'Lezioni sul Campo',
-            sublabel: 'Escursioni, Visite e Preventivi',
-            icon: Compass,
+            key: 'piccola_cassa' as const,
+            label: 'Piccola Cassa',
+            sublabel: 'Rimborsi, Versamenti e Scontrini',
+            icon: Wallet,
           },
         ]
       : []),
@@ -237,8 +247,8 @@ const MainRouter: React.FC = () => {
       ? [
           {
             key: 'bollette' as const,
-            label: 'Consumi Elettrici',
-            sublabel: 'Bollette & Ripartizione Alveas/Qu3',
+            label: 'Bollette',
+            sublabel: 'Consumi Elettrici & Ripartizione Alveas/Qu3',
             icon: Zap,
           },
         ]
@@ -247,9 +257,19 @@ const MainRouter: React.FC = () => {
       ? [
           {
             key: 'bilancio' as const,
-            label: 'Bilancio & Contabilità',
+            label: 'Bilancio',
             sublabel: 'Consuntivo ETS, Preventivo e Liquidità',
             icon: Scale,
+          },
+        ]
+      : []),
+    ...(canSeeReport
+      ? [
+          {
+            key: 'report' as const,
+            label: 'Report',
+            sublabel: 'Cassa, Docenti, Presenze e Bilanci ETS',
+            icon: FileSpreadsheet,
           },
         ]
       : []),
@@ -263,29 +283,9 @@ const MainRouter: React.FC = () => {
           },
         ]
       : []),
-    ...(canSeePrenotazioneEventi
-      ? [
-          {
-            key: 'prenotazione_eventi' as const,
-            label: 'Prenotazione Eventi',
-            sublabel: 'Cinema, Gite, Conferenze e Corsi',
-            icon: Ticket,
-          },
-        ]
-      : []),
-    ...(canSeeReport
-      ? [
-          {
-            key: 'report' as const,
-            label: 'Report & Statistiche',
-            sublabel: 'Cassa, Docenti, Presenze e Bilanci ETS',
-            icon: FileSpreadsheet,
-          },
-        ]
-      : []),
     {
       key: 'sito_qu3' as const,
-      label: 'Sito Qu3',
+      label: 'Sito Web',
       sublabel: 'www.univerquartu.it',
       icon: Globe,
       isExternal: true,

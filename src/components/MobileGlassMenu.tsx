@@ -129,28 +129,6 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
 
   // Configurazione dinamica dei tasti autorizzati per il ruolo
   const menuGridItems: MenuItemConfig[] = [
-    ...(canSeePresenze
-      ? [
-          {
-            key: 'presenze' as AppSection,
-            label: 'Timbratura e Corsi',
-            shortLabel: 'TIMBRATURA',
-            sublabel: 'Ingresso Aule e Corsi',
-            icon: Hand,
-          },
-        ]
-      : []),
-    ...(canSeeTimbratureAule
-      ? [
-          {
-            key: 'admin_dashboard' as AppSection,
-            label: 'Gestione Timbrature Aule',
-            shortLabel: 'GESTIONE AULE',
-            sublabel: 'Riscontri e Turni',
-            icon: ClipboardCheck,
-          },
-        ]
-      : []),
     ...(canSeeAnagraficaSoci
       ? [
           {
@@ -162,14 +140,25 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
           },
         ]
       : []),
-    ...(canSeePiccolaCassa
+    ...(canSeePresenze
       ? [
           {
-            key: 'piccola_cassa' as AppSection,
-            label: 'Piccola Cassa',
-            shortLabel: 'PICCOLA CASSA',
-            sublabel: 'Movimenti e Saldo',
-            icon: Wallet,
+            key: 'presenze' as AppSection,
+            label: 'Timbrature',
+            shortLabel: 'TIMBRATURE',
+            sublabel: 'Ingresso Aule e Corsi',
+            icon: Hand,
+          },
+        ]
+      : []),
+    ...(canSeeTimbratureAule
+      ? [
+          {
+            key: 'admin_dashboard' as AppSection,
+            label: 'Gestione Aule',
+            shortLabel: 'GESTIONE AULE',
+            sublabel: 'Riscontri e Turni',
+            icon: ClipboardCheck,
           },
         ]
       : []),
@@ -181,6 +170,28 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
             shortLabel: 'BIBLIOTECA',
             sublabel: 'Catalogo Libri',
             icon: BookOpen,
+          },
+        ]
+      : []),
+    ...(canSeeLezioniCampo
+      ? [
+          {
+            key: 'lezioni_campo' as AppSection,
+            label: 'Lezioni sul Campo',
+            shortLabel: 'LEZIONI SUL CAMPO',
+            sublabel: 'Escursioni e Spese',
+            icon: Compass,
+          },
+        ]
+      : []),
+    ...(canSeePrenotazioneEventi
+      ? [
+          {
+            key: 'prenotazione_eventi' as AppSection,
+            label: 'Prenotazioni',
+            shortLabel: 'PRENOTAZIONI',
+            sublabel: 'Cinema, Gite, Corsi',
+            icon: Ticket,
           },
         ]
       : []),
@@ -199,10 +210,54 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
       ? [
           {
             key: 'eliminacode' as AppSection,
-            label: 'Eliminacode',
-            shortLabel: 'ELIMINACODE',
+            label: 'Elimina Code',
+            shortLabel: 'ELIMINA CODE',
             sublabel: 'Chiamata Turni',
             icon: Monitor,
+          },
+        ]
+      : []),
+    ...(canSeePiccolaCassa
+      ? [
+          {
+            key: 'piccola_cassa' as AppSection,
+            label: 'Piccola Cassa',
+            shortLabel: 'PICCOLA CASSA',
+            sublabel: 'Movimenti e Saldo',
+            icon: Wallet,
+          },
+        ]
+      : []),
+    ...(canSeeBollette
+      ? [
+          {
+            key: 'bollette' as AppSection,
+            label: 'Bollette',
+            shortLabel: 'BOLLETTE',
+            sublabel: 'Consumi & Ripartizione',
+            icon: Zap,
+          },
+        ]
+      : []),
+    ...(canSeeBilancio
+      ? [
+          {
+            key: 'bilancio' as AppSection,
+            label: 'Bilancio',
+            shortLabel: 'BILANCIO',
+            sublabel: 'Consuntivo & Liquidità',
+            icon: Scale,
+          },
+        ]
+      : []),
+    ...(canSeeReport
+      ? [
+          {
+            key: 'report' as AppSection,
+            label: 'Report',
+            shortLabel: 'REPORT',
+            sublabel: 'Excel, PDF, Ministero',
+            icon: FileSpreadsheet,
           },
         ]
       : []),
@@ -217,65 +272,10 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
           },
         ]
       : []),
-    ...(canSeeLezioniCampo
-      ? [
-          {
-            key: 'lezioni_campo' as AppSection,
-            label: 'Lezioni sul Campo',
-            shortLabel: 'LEZIONI SUL CAMPO',
-            sublabel: 'Escursioni e Spese',
-            icon: Compass,
-          },
-        ]
-      : []),
-    ...(canSeeBollette
-      ? [
-          {
-            key: 'bollette' as AppSection,
-            label: 'Consumi Elettrici',
-            shortLabel: 'BOLLETTE',
-            sublabel: 'Ripartizione & Spese',
-            icon: Zap,
-          },
-        ]
-      : []),
-    ...(canSeeBilancio
-      ? [
-          {
-            key: 'bilancio' as AppSection,
-            label: 'Bilancio & Contabilità',
-            shortLabel: 'BILANCIO',
-            sublabel: 'Consuntivo & Liquidità',
-            icon: Scale,
-          },
-        ]
-      : []),
-    ...(canSeePrenotazioneEventi
-      ? [
-          {
-            key: 'prenotazione_eventi' as AppSection,
-            label: 'Prenotazione Eventi',
-            shortLabel: 'PRENOTAZIONI',
-            sublabel: 'Cinema, Gite, Corsi',
-            icon: Ticket,
-          },
-        ]
-      : []),
-    ...(canSeeReport
-      ? [
-          {
-            key: 'report' as AppSection,
-            label: 'Report & Statistiche',
-            shortLabel: 'REPORT',
-            sublabel: 'Excel, PDF, Ministero',
-            icon: FileSpreadsheet,
-          },
-        ]
-      : []),
     {
       key: 'sito_qu3',
-      label: 'Sito Qu3',
-      shortLabel: 'SITO QU3',
+      label: 'Sito Web',
+      shortLabel: 'SITO WEB',
       sublabel: 'www.univerquartu.it',
       icon: Globe,
       isExternal: true,
