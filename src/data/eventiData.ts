@@ -368,13 +368,13 @@ export function calcolaStatoLiveEvento(
     if (!isNaN(d)) chiusuraMs = d;
   }
 
-  const occupati = calcolaPostiOccupatiConfermati(evento.id, safePren);
+  const postiOccupati = calcolaPostiOccupatiConfermati(evento.id, safePren);
   const postiOnline = getEventoPostiOnline(evento);
-  const postiResidui = Math.max(0, postiOnline - occupati);
+  const postiResidui = Math.max(0, postiOnline - postiOccupati);
 
-  const attesaOccupati = calcolaPostiInAttesa(evento.id, safePren);
+  const postiAttesaOccupati = calcolaPostiInAttesa(evento.id, safePren);
   const maxAttesa = getEventoPostiAttesa(evento);
-  const attesaDisponibili = Math.max(0, maxAttesa - attesaOccupati);
+  const postiAttesaDisponibili = Math.max(0, maxAttesa - postiAttesaOccupati);
 
   const mancanoAllAperturaMs = aperturaMs - nowMs;
   const mancanoAllaChiusuraMs = chiusuraMs - nowMs;
@@ -403,7 +403,7 @@ export function calcolaStatoLiveEvento(
     stato = 'chiuso';
   } else if (postiResidui > 0) {
     stato = 'aperto';
-  } else if (attesaDisponibili > 0) {
+  } else if (postiAttesaDisponibili > 0) {
     stato = 'lista_attesa';
   } else {
     stato = 'sold_out';
