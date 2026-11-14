@@ -19,6 +19,7 @@ import {
   Zap,
   Scale,
   Ticket,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useApp, AppSection, FontScale } from '../context/AppContext';
 import { Profile } from '../data/initialData';
@@ -56,6 +57,7 @@ interface MobileGlassMenuProps {
   canSeeBollette?: boolean;
   canSeeBilancio?: boolean;
   canSeePrenotazioneEventi?: boolean;
+  canSeeReport?: boolean;
   showCloseButton?: boolean;
 }
 
@@ -82,6 +84,7 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
   canSeeBollette = true,
   canSeeBilancio = true,
   canSeePrenotazioneEventi = true,
+  canSeeReport = true,
   showCloseButton = false,
 }) => {
   const {
@@ -255,6 +258,17 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
             shortLabel: 'PRENOTAZIONI',
             sublabel: 'Cinema, Gite, Corsi',
             icon: Ticket,
+          },
+        ]
+      : []),
+    ...(canSeeReport
+      ? [
+          {
+            key: 'report' as AppSection,
+            label: 'Report & Statistiche',
+            shortLabel: 'REPORT',
+            sublabel: 'Excel, PDF, Ministero',
+            icon: FileSpreadsheet,
           },
         ]
       : []),

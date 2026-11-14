@@ -85,7 +85,8 @@ export type AppSection =
   | 'lezioni_campo'
   | 'bollette'
   | 'bilancio'
-  | 'prenotazione_eventi';
+  | 'prenotazione_eventi'
+  | 'report';
 
 export interface QueueItem {
   number: number;

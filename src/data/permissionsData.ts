@@ -76,6 +76,12 @@ export const MANAGED_MENU_SECTIONS: MenuSectionDef[] = [
     sublabel: 'Cinema, Gite, Conferenze e Lista Ospiti',
     iconName: 'Ticket',
   },
+  {
+    key: 'report',
+    label: 'Report e Statistiche',
+    sublabel: 'Cassa, Docenti, Presenze, Escursioni e Bilanci',
+    iconName: 'FileSpreadsheet',
+  },
 ];
 
 export const MANAGED_ROLES = [
@@ -227,6 +233,18 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsMap = {
     'Viaggi': 'edit',
     'Amministratore': 'edit',
     'Biblioteca': 'view',
+    'Presidenza': 'edit',
+    'LsC': 'view',
+  },
+  report: {
+    'Solo CD': 'edit',
+    'Socio': 'none',
+    'Segreteria': 'edit',
+    'Amministrativo': 'edit',
+    'Didattica': 'view',
+    'Viaggi': 'view',
+    'Amministratore': 'edit',
+    'Biblioteca': 'none',
     'Presidenza': 'edit',
     'LsC': 'view',
   },
