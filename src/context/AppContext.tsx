@@ -3524,33 +3524,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
 
       if (existingIndex >= 0) {
-        if (isSuper || isProtectedSuperAdmin(next[existingIndex])) {
+        const existing = next[existingIndex];
+        // PRESERVAZIONE DEI RUOLI: se il socio ha già dei ruoli (es. Didattica, Viaggi, Amministratore, CD, ecc.)
+        // e la nuova riga non specifica un ruolo particolare o specifica solo 'Socio', non resettare mai i ruoli esistenti!
+        const existingRoles = Array.isArray(existing.roles) && existing.roles.length > 0
+          ? existing.roles
+          : ['Socio'];
+
+        let mergedRoles = existingRoles;
+        if (rawRole && rawRole.toLowerCase() !== 'socio') {
+          // Ha specificato nuovi ruoli espliciti nel file
+          mergedRoles = Array.from(new Set([...existingRoles.filter((r) => r !== 'Socio'), ...finalRoles]));
+        }
+
+        const mergedIsCd = Boolean(existing.is_cd || isCd || mergedRoles.some((r) => r.toUpperCase() === 'CD'));
+        const mergedIsAdmin =
+          existing.role === 'admin' ||
+          isAdminRole ||
+          mergedRoles.some((r) => r.toLowerCase() === 'amministratore');
+
+        if (isSuper || isProtectedSuperAdmin(existing)) {
           next[existingIndex] = normalizeSuperAdminProfile({
-            ...next[existingIndex],
-            sede,
+            ...existing,
+            sede: row.sede ? sede : existing.sede,
             roles: Array.from(
-              new Set(['Amministratore', ...finalRoles.filter((r) => r !== 'Socio')])
+              new Set(['Amministratore', ...mergedRoles.filter((r) => r !== 'Socio')])
             ),
+            phone: row.phone?.trim() || existing.phone || '',
+            email: row.email?.trim() || existing.email || '',
           });
-        } else if (isProtectedSegreteriaMember(next[existingIndex])) {
-          next[existingIndex] = normalizeProtectedSegreteriaProfile(
-            cleanNum === '9998' ? '9998' : '9999',
-            next[existingIndex]
-          );
+        } else if (isProtectedSegreteriaMember(existing)) {
+          next[existingIndex] = {
+            ...normalizeProtectedSegreteriaProfile(
+              cleanNum === '9998' ? '9998' : '9999',
+              existing
+            ),
+            phone: row.phone?.trim() || existing.phone || '',
+            email: row.email?.trim() || existing.email || '',
+          };
         } else {
           next[existingIndex] = {
-            ...next[existingIndex],
+            ...existing,
             member_number: cleanNum,
-            first_name: firstName || next[existingIndex].first_name,
-            last_name: lastName || next[existingIndex].last_name,
-            full_name: fullName,
-            sede,
-            is_cd: isCd,
-            is_super_admin: false,
-            role: isAdminRole ? 'admin' : next[existingIndex].role,
-            roles: finalRoles,
-            phone: row.phone?.trim() || next[existingIndex].phone || '',
-            email: row.email?.trim() || next[existingIndex].email || '',
+            first_name: firstName || existing.first_name,
+            last_name: lastName || existing.last_name,
+            full_name: firstName && lastName ? `${firstName} ${lastName}` : fullName || existing.full_name,
+            sede: row.sede ? sede : existing.sede || 'Quartu',
+            is_cd: mergedIsCd,
+            is_super_admin: existing.is_super_admin || false,
+            role: mergedIsAdmin ? 'admin' : existing.role,
+            roles: mergedRoles,
+            phone: row.phone?.trim() || existing.phone || '',
+            email: row.email?.trim() || existing.email || '',
           };
         }
         updated++;

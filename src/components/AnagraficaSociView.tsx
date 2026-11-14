@@ -386,10 +386,45 @@ export const AnagraficaSociView: React.FC = () => {
       idxTessera = bestCol;
     }
 
-    // Controlla quali colonne contengono davvero nomi alfabetici (e NON codici numerici come 0801021400)
+    // Rileva automaticamente la colonna email se presente nei dati (celle contenenti @ e un dominio valido)
+    if (idxEmail === -1) {
+      let bestEmailCol = -1;
+      let maxEmailHits = 0;
+      for (let c = 0; c < maxCols; c++) {
+        if (c === idxTessera) continue;
+        const hits = sampleRows.filter((r) => {
+          const val = String(r[c] || '').trim();
+          return /@/.test(val) && /\.[a-z]{2,}/i.test(val);
+        }).length;
+        if (hits > maxEmailHits && hits >= Math.max(1, Math.floor(sampleRows.length * 0.15))) {
+          maxEmailHits = hits;
+          bestEmailCol = c;
+        }
+      }
+      if (bestEmailCol >= 0) {
+        idxEmail = bestEmailCol;
+      }
+    }
+
+    // Rileva automaticamente la colonna telefono se presente
+    if (idxPhone === -1) {
+      for (let c = 0; c < maxCols; c++) {
+        if (c === idxTessera || c === idxEmail) continue;
+        const hits = sampleRows.filter((r) => {
+          const val = String(r[c] || '').trim().replace(/[\s.-]/g, '');
+          return /^\+?\d{8,12}$/.test(val);
+        }).length;
+        if (hits >= Math.max(1, Math.floor(sampleRows.length * 0.25))) {
+          idxPhone = c;
+          break;
+        }
+      }
+    }
+
+    // Controlla quali colonne contengono davvero nomi alfabetici (escludendo tessera, sede, ruolo, email, phone)
     const colAlphaCounts: { col: number; count: number }[] = [];
     for (let c = 0; c < maxCols; c++) {
-      if (c === idxTessera || c === idxSede || c === idxRuolo) continue;
+      if (c === idxTessera || c === idxSede || c === idxRuolo || c === idxEmail || c === idxPhone) continue;
       const count = sampleRows.filter((r) => isAlphaNameCell(r[c] || '')).length;
       colAlphaCounts.push({ col, count });
     }
@@ -401,23 +436,26 @@ export const AnagraficaSociView: React.FC = () => {
     const nomeColIsValidAlpha =
       idxNome >= 0 &&
       idxNome !== idxTessera &&
+      idxNome !== idxEmail &&
       sampleRows.filter((r) => isAlphaNameCell(r[idxNome] || '')).length >=
         Math.max(1, Math.floor(sampleRows.length * 0.2));
     const cognomeColIsValidAlpha =
       idxCognome >= 0 &&
       idxCognome !== idxTessera &&
+      idxCognome !== idxEmail &&
       sampleRows.filter((r) => isAlphaNameCell(r[idxCognome] || '')).length >=
         Math.max(1, Math.floor(sampleRows.length * 0.2));
 
     if (!nomeColIsValidAlpha && !cognomeColIsValidAlpha && idxNominativo === -1) {
       if (validAlphaCols.length >= 2) {
-        idxNome = validAlphaCols[0];
-        idxCognome = validAlphaCols[1];
+        // Negli elenchi italiani senza intestazione l'ordine convenzionale è Tessera; Cognome; Nome
+        idxCognome = validAlphaCols[0];
+        idxNome = validAlphaCols[1];
       } else if (validAlphaCols.length === 1) {
         idxNominativo = validAlphaCols[0];
       } else {
-        idxNome = 1;
-        idxCognome = 2;
+        idxCognome = 1;
+        idxNome = 2;
       }
     } else if (!nomeColIsValidAlpha && cognomeColIsValidAlpha) {
       const otherAlpha = validAlphaCols.find((c) => c !== idxCognome);
@@ -435,8 +473,39 @@ export const AnagraficaSociView: React.FC = () => {
       }
     }
 
-    if (idxSede === -1) idxSede = 3;
-    if (idxRuolo === -1) idxRuolo = 4;
+    const usedCols = new Set(
+      [idxTessera, idxCognome, idxNome, idxNominativo, idxEmail, idxPhone].filter((x) => x >= 0)
+    );
+
+    if (idxSede === -1) {
+      for (let c = 0; c < maxCols; c++) {
+        if (!usedCols.has(c)) {
+          const hits = sampleRows.filter((r) => /^(quartu|soleminis)$/i.test(String(r[c] || '').trim())).length;
+          if (hits > 0) {
+            idxSede = c;
+            usedCols.add(c);
+            break;
+          }
+        }
+      }
+    }
+
+    if (idxRuolo === -1) {
+      for (let c = 0; c < maxCols; c++) {
+        if (!usedCols.has(c)) {
+          const hits = sampleRows.filter((r) =>
+            /^(socio|didattica|viaggi|amministratore|biblioteca|segreteria|lsc|cd|presidenza)$/i.test(
+              String(r[c] || '').trim()
+            )
+          ).length;
+          if (hits > 0) {
+            idxRuolo = c;
+            usedCols.add(c);
+            break;
+          }
+        }
+      }
+    }
 
     const cleanAlphaText = (s: string) =>
       s
@@ -493,7 +562,13 @@ export const AnagraficaSociView: React.FC = () => {
           ? rawRuoloCell
           : 'Socio';
 
-      const email = idxEmail >= 0 ? (r[idxEmail] || '').trim() : '';
+      let email = idxEmail >= 0 ? (r[idxEmail] || '').trim() : '';
+      if (email) {
+        const matches = email.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+        if (matches && matches.length > 0) {
+          email = Array.from(new Set(matches.map((e: string) => e.toLowerCase().trim()))).join(', ');
+        }
+      }
       const phone = idxPhone >= 0 ? (r[idxPhone] || '').trim() : '';
 
       result.push({
