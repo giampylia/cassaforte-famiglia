@@ -91,16 +91,22 @@ export const TIME_TYPE_LABELS: Record<string, string> = {
 };
 
 // I 77 docenti clonati da QUfficio3
-export const INITIAL_TEACHERS: Teacher[] = (TEACHERS_RAW as any[]) || [];
+const rawTeacherList = Array.isArray(TEACHERS_RAW)
+  ? TEACHERS_RAW
+  : (TEACHERS_RAW && Array.isArray((TEACHERS_RAW as any).default))
+  ? (TEACHERS_RAW as any).default
+  : [];
+export const INITIAL_TEACHERS: Teacher[] = rawTeacherList;
 
 // Generatore log didattici per mese
 export function generateTeachingLogsForMonth(
-  teachers: Teacher[],
+  teachers: Teacher[] = [],
   yearMonth: string // "YYYY-MM"
 ): { logs: TeachingLog[]; vouchers: FuelVoucher[] } {
-  const [yearStr, monthStr] = yearMonth.split('-');
-  const y = parseInt(yearStr, 10);
-  const m = parseInt(monthStr, 10);
+  const safeTeachers = Array.isArray(teachers) ? teachers : [];
+  const [yearStr, monthStr] = (yearMonth || '2026-11').split('-');
+  const y = parseInt(yearStr, 10) || 2026;
+  const m = parseInt(monthStr, 10) || 11;
   const daysInMonth = new Date(y, m, 0).getDate();
 
   const logs: TeachingLog[] = [];
@@ -113,8 +119,8 @@ export function generateTeachingLogsForMonth(
 
     const dateStr = `${yearStr}-${String(monthStr).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-    for (const t of teachers) {
-      if (!t.is_active) continue;
+    for (const t of safeTeachers) {
+      if (!t || !t.is_active) continue;
 
       let qHours = 0;
       let sHours = 0;
@@ -189,12 +195,49 @@ export function generateTeachingLogsForMonth(
 // ----------------------------------------------------------------------------
 // 1. REPORT REGISTRO CASSA
 // ----------------------------------------------------------------------------
+export function normalizeCassaRecord(r: any): {
+  id: string;
+  data_movimento: string;
+  numero_scontrino: string;
+  richiedente_nominativo: string;
+  tipo: 'entrata' | 'spesa';
+  causale: string;
+  importo: number;
+  importo_versato: number;
+  stato: string;
+  created_at: string;
+} {
+  const isEntrata = r?.tipo === 'entrata' || r?.entry_type === 'entrata';
+  const importo = Number(r?.importo != null ? r.importo : r?.amount_requested || 0);
+  const importo_versato = Number(
+    r?.importo_versato != null
+      ? r.importo_versato
+      : r?.amount_paid != null
+      ? r.amount_paid
+      : importo
+  );
+  const dateStr = r?.data_movimento || r?.receipt_date || r?.request_date || r?.created_at || '';
+  return {
+    id: r?.id || String(Math.random()),
+    data_movimento: dateStr,
+    numero_scontrino: r?.numero_scontrino || r?.receipt_number || '',
+    richiedente_nominativo: r?.richiedente_nominativo || r?.requester_name || 'Segreteria',
+    tipo: isEntrata ? 'entrata' : 'spesa',
+    causale: r?.causale || r?.category_name || '',
+    importo,
+    importo_versato,
+    stato: r?.stato || r?.status || 'approvato',
+    created_at: r?.created_at || dateStr,
+  };
+}
+
 export function filterCassaRecordsForReport(
-  records: CassaRecord[],
-  periodo: string, // "tutti" | "YYYY-MM"
-  stato: string // "tutti" | "approvato" | "in_attesa" | "rifiutato" | "bozza"
-): CassaRecord[] {
-  return records.filter((r) => {
+  records: any[] = [],
+  periodo: string = 'tutti', // "tutti" | "YYYY-MM"
+  stato: string = 'tutti' // "tutti" | "approvato" | "in_attesa" | "rifiutato" | "bozza"
+) {
+  const safeRecords = Array.isArray(records) ? records : [];
+  return safeRecords.map(normalizeCassaRecord).filter((r) => {
     if (periodo !== 'tutti') {
       const recMonth = (r.data_movimento || r.created_at || '').slice(0, 7);
       if (recMonth !== periodo) return false;
@@ -208,9 +251,9 @@ export function filterCassaRecordsForReport(
 }
 
 export async function exportRegistroCassaXls(
-  records: CassaRecord[],
-  periodo: string,
-  stato: string
+  records: any[] = [],
+  periodo: string = 'tutti',
+  stato: string = 'tutti'
 ) {
   const XLSX = await loadSheetJS();
   const filtered = filterCassaRecordsForReport(records, periodo, stato);
@@ -226,7 +269,7 @@ export async function exportRegistroCassaXls(
     Stato: (f.stato || 'Approvato').charAt(0).toUpperCase() + (f.stato || 'approvato').slice(1),
   }));
 
-  const ws = XLSX.utils.json_to_sheet(data);
+  const ws = XLSX.utils.json_to_sheet(data.length > 0 ? data : [{ Nota: 'Nessun movimento trovato per i filtri selezionati' }]);
   ws['!cols'] = [
     { wch: 14 },
     { wch: 14 },
@@ -244,16 +287,16 @@ export async function exportRegistroCassaXls(
 }
 
 export async function exportRegistroCassaPdf(
-  records: CassaRecord[],
-  periodo: string,
-  stato: string
+  records: any[] = [],
+  periodo: string = 'tutti',
+  stato: string = 'tutti'
 ) {
   const filtered = filterCassaRecordsForReport(records, periodo, stato);
   const totEntrate = filtered
     .filter((r) => r.tipo === 'entrata')
     .reduce((sum, r) => sum + (r.importo || 0), 0);
   const totSpese = filtered
-    .filter((r) => r.tipo === 'uscita')
+    .filter((r) => r.tipo === 'spesa')
     .reduce((sum, r) => sum + (r.importo || 0), 0);
   const saldo = totEntrate - totSpese;
 
@@ -280,22 +323,25 @@ export async function exportRegistroCassaPdf(
 // ----------------------------------------------------------------------------
 // 2. REPORT ANAGRAFICA DOCENTI
 // ----------------------------------------------------------------------------
-export async function exportAnagraficaDocentiXls(teachers: Teacher[]) {
+// 2. REPORT ANAGRAFICA DOCENTI
+// ----------------------------------------------------------------------------
+export async function exportAnagraficaDocentiXls(teachers: Teacher[] = []) {
   const XLSX = await loadSheetJS();
-  const data = teachers
-    .filter((t) => t.is_active)
-    .sort((a, b) => a.last_name.localeCompare(b.last_name))
+  const safeTeachers = Array.isArray(teachers) ? teachers : [];
+  const data = safeTeachers
+    .filter((t) => t && t.is_active)
+    .sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''))
     .map((t) => ({
-      Matricola: t.matricola,
-      'Cognome Nome': `${t.last_name} ${t.first_name}`,
-      Sede: LOCATION_LABELS[t.location] || t.location,
-      Contratto: CONTRACT_LABELS[t.contract] || t.contract,
-      Orario: TIME_TYPE_LABELS[t.time_type] || t.time_type,
+      Matricola: t.matricola || '',
+      'Cognome Nome': `${t.last_name || ''} ${t.first_name || ''}`.trim(),
+      Sede: LOCATION_LABELS[t.location] || t.location || '',
+      Contratto: CONTRACT_LABELS[t.contract] || t.contract || '',
+      Orario: TIME_TYPE_LABELS[t.time_type] || t.time_type || '',
       'Lordo (€/h)': t.hourly_rate || 0,
       'Netto (€/h)': t.net_rate || 0,
     }));
 
-  const ws = XLSX.utils.json_to_sheet(data);
+  const ws = XLSX.utils.json_to_sheet(data.length > 0 ? data : [{ Nota: 'Nessun docente attivo in archivio' }]);
   ws['!cols'] = [
     { wch: 12 },
     { wch: 26 },
@@ -311,21 +357,22 @@ export async function exportAnagraficaDocentiXls(teachers: Teacher[]) {
   XLSX.writeFile(wb, `anagrafica_docenti_${d}.xlsx`);
 }
 
-export async function exportAnagraficaDocentiPdf(teachers: Teacher[]) {
-  const sorted = teachers
-    .filter((t) => t.is_active)
-    .sort((a, b) => a.last_name.localeCompare(b.last_name));
+export async function exportAnagraficaDocentiPdf(teachers: Teacher[] = []) {
+  const safeTeachers = Array.isArray(teachers) ? teachers : [];
+  const sorted = safeTeachers
+    .filter((t) => t && t.is_active)
+    .sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
 
   await exportOfficialPdf({
     title: 'Anagrafica Ufficiale Docenti UTE',
     subtitle: `Totale Docenti Attivi: ${sorted.length}`,
     head: ['Matricola', 'Cognome e Nome', 'Sede', 'Contratto', 'Regime', 'Lordo (€/h)', 'Netto (€/h)'],
     body: sorted.map((t) => [
-      t.matricola,
-      `${t.last_name} ${t.first_name}`,
-      LOCATION_LABELS[t.location] || t.location,
-      CONTRACT_LABELS[t.contract] || t.contract,
-      TIME_TYPE_LABELS[t.time_type] || t.time_type,
+      t.matricola || '',
+      `${t.last_name || ''} ${t.first_name || ''}`.trim(),
+      LOCATION_LABELS[t.location] || t.location || '',
+      CONTRACT_LABELS[t.contract] || t.contract || '',
+      TIME_TYPE_LABELS[t.time_type] || t.time_type || '',
       `€ ${(t.hourly_rate || 0).toFixed(2)}`,
       `€ ${(t.net_rate || 0).toFixed(2)}`,
     ]),
@@ -338,27 +385,28 @@ export async function exportAnagraficaDocentiPdf(teachers: Teacher[]) {
 // 3. REPORT PRESENZE DOCENTI (MATRICE 1..31)
 // ----------------------------------------------------------------------------
 export async function exportPresenzeDocentiXls(
-  teachers: Teacher[],
-  yearMonth: string,
-  sede: string // "tutte" | "quartu" | "soleminis" | "plurisede"
+  teachers: Teacher[] = [],
+  yearMonth: string = '2026-11',
+  sede: string = 'tutte' // "tutte" | "quartu" | "soleminis" | "plurisede"
 ) {
   const XLSX = await loadSheetJS();
-  const { logs } = generateTeachingLogsForMonth(teachers, yearMonth);
-  const [yStr, mStr] = yearMonth.split('-');
-  const y = parseInt(yStr, 10);
-  const m = parseInt(mStr, 10);
+  const safeTeachers = Array.isArray(teachers) ? teachers : [];
+  const { logs } = generateTeachingLogsForMonth(safeTeachers, yearMonth);
+  const [yStr, mStr] = (yearMonth || '2026-11').split('-');
+  const y = parseInt(yStr, 10) || 2026;
+  const m = parseInt(mStr, 10) || 11;
   const daysInMonth = new Date(y, m, 0).getDate();
 
-  let targetTeachers = teachers.filter((t) => t.is_active);
+  let targetTeachers = safeTeachers.filter((t) => t && t.is_active);
   if (sede !== 'tutte') {
     targetTeachers = targetTeachers.filter((t) => t.location === sede || t.location === 'plurisede');
   }
-  targetTeachers.sort((a, b) => a.last_name.localeCompare(b.last_name));
+  targetTeachers.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
 
   const rows = targetTeachers.map((t) => {
     const row: Record<string, any> = {
-      Matricola: t.matricola,
-      'Cognome Nome': `${t.last_name} ${t.first_name}`,
+      Matricola: t.matricola || '',
+      'Cognome Nome': `${t.last_name || ''} ${t.first_name || ''}`.trim(),
     };
     let totHours = 0;
     for (let day = 1; day <= daysInMonth; day++) {
@@ -374,7 +422,7 @@ export async function exportPresenzeDocentiXls(
     return row;
   });
 
-  const ws = XLSX.utils.json_to_sheet(rows);
+  const ws = XLSX.utils.json_to_sheet(rows.length > 0 ? rows : [{ Nota: 'Nessuna presenza trovata' }]);
   const cols = [{ wch: 12 }, { wch: 25 }];
   for (let d = 1; d <= daysInMonth; d++) {
     cols.push({ wch: 4 });
@@ -388,16 +436,17 @@ export async function exportPresenzeDocentiXls(
 }
 
 export async function exportPresenzeDocentiPdf(
-  teachers: Teacher[],
-  yearMonth: string,
-  sede: string
+  teachers: Teacher[] = [],
+  yearMonth: string = '2026-11',
+  sede: string = 'tutte'
 ) {
-  const { logs } = generateTeachingLogsForMonth(teachers, yearMonth);
-  let targetTeachers = teachers.filter((t) => t.is_active);
+  const safeTeachers = Array.isArray(teachers) ? teachers : [];
+  const { logs } = generateTeachingLogsForMonth(safeTeachers, yearMonth);
+  let targetTeachers = safeTeachers.filter((t) => t && t.is_active);
   if (sede !== 'tutte') {
     targetTeachers = targetTeachers.filter((t) => t.location === sede || t.location === 'plurisede');
   }
-  targetTeachers.sort((a, b) => a.last_name.localeCompare(b.last_name));
+  targetTeachers.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
 
   const body = targetTeachers.map((t) => {
     const teacherLogs = logs.filter(
@@ -406,10 +455,10 @@ export async function exportPresenzeDocentiPdf(
     const totHours = teacherLogs.reduce((acc, l) => acc + l.hours_worked, 0);
     const numLezioni = teacherLogs.length;
     return [
-      t.matricola,
-      `${t.last_name} ${t.first_name}`,
-      LOCATION_LABELS[t.location] || t.location,
-      CONTRACT_LABELS[t.contract] || t.contract,
+      t.matricola || '',
+      `${t.last_name || ''} ${t.first_name || ''}`.trim(),
+      LOCATION_LABELS[t.location] || t.location || '',
+      CONTRACT_LABELS[t.contract] || t.contract || '',
       numLezioni,
       `${totHours} h`,
     ];
@@ -429,13 +478,14 @@ export async function exportPresenzeDocentiPdf(
 // 4. REPORT COMUNE DI SOLEMINIS
 // ----------------------------------------------------------------------------
 export function calculateSoleminisReportData(
-  teachers: Teacher[],
-  periodo: string // "tutti" | "YYYY-MM"
+  teachers: Teacher[] = [],
+  periodo: string = 'tutti' // "tutti" | "YYYY-MM"
 ) {
-  const targetTeachers = teachers.filter(
-    (t) => t.is_active && (t.location === 'soleminis' || t.location === 'plurisede')
+  const safeTeachers = Array.isArray(teachers) ? teachers : [];
+  const targetTeachers = safeTeachers.filter(
+    (t) => t && t.is_active && (t.location === 'soleminis' || t.location === 'plurisede')
   );
-  targetTeachers.sort((a, b) => a.last_name.localeCompare(b.last_name));
+  targetTeachers.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
 
   // Raccoglie log se mese specifico, oppure per tutti i periodi
   const monthsToCheck = periodo !== 'tutti' ? [periodo] : ['2026-10', '2026-11', '2026-12'];
@@ -454,9 +504,9 @@ export function calculateSoleminisReportData(
     const lordoOra = t.hourly_rate || 0;
     const totLordo = Math.round(hours * lordoOra * 100) / 100;
     return {
-      Matricola: t.matricola,
-      'Cognome Nome': `${t.last_name} ${t.first_name}`,
-      'Tipo Contratto': CONTRACT_LABELS[t.contract] || t.contract,
+      Matricola: t.matricola || '',
+      'Cognome Nome': `${t.last_name || ''} ${t.first_name || ''}`.trim(),
+      'Tipo Contratto': CONTRACT_LABELS[t.contract] || t.contract || '',
       'Ore Svolte': hours,
       'Lordo (€/h)': lordoOra,
       'Totale Lordo (€)': totLordo,
@@ -469,7 +519,7 @@ export function calculateSoleminisReportData(
   return { rows, totOre, totLordo };
 }
 
-export async function exportSoleminisXls(teachers: Teacher[], periodo: string) {
+export async function exportSoleminisXls(teachers: Teacher[] = [], periodo: string = 'tutti') {
   const XLSX = await loadSheetJS();
   const { rows, totOre, totLordo } = calculateSoleminisReportData(teachers, periodo);
 
@@ -498,7 +548,7 @@ export async function exportSoleminisXls(teachers: Teacher[], periodo: string) {
   XLSX.writeFile(wb, `comune_soleminis_${d}.xlsx`);
 }
 
-export async function exportSoleminisPdf(teachers: Teacher[], periodo: string) {
+export async function exportSoleminisPdf(teachers: Teacher[] = [], periodo: string = 'tutti') {
   const { rows, totOre, totLordo } = calculateSoleminisReportData(teachers, periodo);
 
   const body: (string | number)[][] = rows.map((r) => [
@@ -526,11 +576,13 @@ export async function exportSoleminisPdf(teachers: Teacher[], periodo: string) {
 // 5. REPORT LEZIONI SUL CAMPO & ESCURSIONI
 // ----------------------------------------------------------------------------
 export async function exportLezioniCampoReportXls(
-  excursions: Excursion[],
-  payments: ExcursionPayment[]
+  excursions: Excursion[] = [],
+  payments: ExcursionPayment[] = []
 ) {
   const XLSX = await loadSheetJS();
   const wb = XLSX.utils.book_new();
+  const safeExcursions = Array.isArray(excursions) ? excursions : [];
+  const safePayments = Array.isArray(payments) ? payments : [];
 
   const types = [
     { key: 'lezione_sul_campo', title: 'Lezioni sul campo' },
@@ -539,11 +591,11 @@ export async function exportLezioniCampoReportXls(
   ];
 
   for (const t of types) {
-    const list = excursions.filter((e) => e.excursion_type === t.key);
+    const list = safeExcursions.filter((e) => e && e.excursion_type === t.key);
     if (list.length === 0) continue;
 
     const data = list.map((y) => {
-      const pmts = payments.filter((p) => p.excursion_id === y.id);
+      const pmts = safePayments.filter((p) => p && p.excursion_id === y.id);
       const totCosti = pmts.reduce((sum, p) => sum + (p.importo_pagato || 0), 0);
       const ricaviOrd = (y.num_participants || 0) * (y.quota || 0);
       const ricaviAuto = (y.num_participants_mezzi_propri || 0) * (y.quota_mezzi_propri || 0);
@@ -558,7 +610,7 @@ export async function exportLezioniCampoReportXls(
       });
 
       return {
-        Nome: y.name,
+        Nome: y.name || '',
         Data: y.excursion_date ? new Date(y.excursion_date).toLocaleDateString('it-IT') : '',
         'Quota (€)': y.quota || 0,
         'N. Partecipanti': y.num_participants || 0,
@@ -583,16 +635,24 @@ export async function exportLezioniCampoReportXls(
     XLSX.utils.book_append_sheet(wb, ws, t.title);
   }
 
+  if (wb.SheetNames.length === 0) {
+    const wsEmpty = XLSX.utils.json_to_sheet([{ Nota: 'Nessuna escursione presente in archivio' }]);
+    XLSX.utils.book_append_sheet(wb, wsEmpty, 'Escursioni');
+  }
+
   const d = new Date().toISOString().split('T')[0];
   XLSX.writeFile(wb, `lezioni_sul_campo_${d}.xlsx`);
 }
 
 export async function exportLezioniCampoReportPdf(
-  excursions: Excursion[],
-  payments: ExcursionPayment[]
+  excursions: Excursion[] = [],
+  payments: ExcursionPayment[] = []
 ) {
-  const body: (string | number)[][] = excursions.map((y, idx) => {
-    const pmts = payments.filter((p) => p.excursion_id === y.id);
+  const safeExcursions = Array.isArray(excursions) ? excursions : [];
+  const safePayments = Array.isArray(payments) ? payments : [];
+
+  const body: (string | number)[][] = safeExcursions.map((y, idx) => {
+    const pmts = safePayments.filter((p) => p && p.excursion_id === y.id);
     const totCosti = pmts.reduce((sum, p) => sum + (p.importo_pagato || 0), 0);
     const ricaviOrd = (y.num_participants || 0) * (y.quota || 0);
     const ricaviAuto = (y.num_participants_mezzi_propri || 0) * (y.quota_mezzi_propri || 0);
@@ -601,7 +661,7 @@ export async function exportLezioniCampoReportPdf(
 
     return [
       idx + 1,
-      y.name,
+      y.name || '',
       y.excursion_date ? new Date(y.excursion_date).toLocaleDateString('it-IT') : '',
       y.docente || '-',
       (y.num_participants || 0) + (y.num_participants_mezzi_propri || 0),
@@ -611,21 +671,21 @@ export async function exportLezioniCampoReportPdf(
     ];
   });
 
-  const totRicaviAll = excursions.reduce(
+  const totRicaviAll = safeExcursions.reduce(
     (acc, y) =>
       acc +
       (y.num_participants || 0) * (y.quota || 0) +
       (y.num_participants_mezzi_propri || 0) * (y.quota_mezzi_propri || 0),
     0
   );
-  const totCostiAll = payments.reduce((acc, p) => acc + (p.importo_pagato || 0), 0);
+  const totCostiAll = safePayments.reduce((acc, p) => acc + (p.importo_pagato || 0), 0);
   const saldoAll = totRicaviAll - totCostiAll;
 
   body.push(['', 'TOTALE GENERALE', '', '', '', `€ ${totRicaviAll.toFixed(2)}`, `€ ${totCostiAll.toFixed(2)}`, `€ ${saldoAll.toFixed(2)}`]);
 
   await exportOfficialPdf({
     title: 'Riepilogo Economico Lezioni sul Campo ed Escursioni',
-    subtitle: `Totale Escursioni: ${excursions.length} · Ricavi Totali: € ${totRicaviAll.toFixed(2)} · Costi: € ${totCostiAll.toFixed(2)} · Saldo: € ${saldoAll.toFixed(2)}`,
+    subtitle: `Totale Escursioni: ${safeExcursions.length} · Ricavi Totali: € ${totRicaviAll.toFixed(2)} · Costi: € ${totCostiAll.toFixed(2)} · Saldo: € ${saldoAll.toFixed(2)}`,
     head: ['N°', 'Titolo Escursione', 'Data', 'Docente / Guida', 'Partecipanti', 'Ricavi Totali', 'Costi Totali', 'Saldo Netto'],
     body,
     fileName: `escursioni_report_${new Date().toISOString().split('T')[0]}.pdf`,
@@ -636,9 +696,10 @@ export async function exportLezioniCampoReportPdf(
 // ----------------------------------------------------------------------------
 // 6. REPORT BUONI BENZINA DOCENTI
 // ----------------------------------------------------------------------------
-export function calculateBuoniBenzinaData(teachers: Teacher[], yearMonth: string) {
-  const benzinaTeachers = teachers.filter((t) => t.is_active && t.contract === 'b_benzina');
-  benzinaTeachers.sort((a, b) => a.last_name.localeCompare(b.last_name));
+export function calculateBuoniBenzinaData(teachers: Teacher[] = [], yearMonth: string = '2026-11') {
+  const safeTeachers = Array.isArray(teachers) ? teachers : [];
+  const benzinaTeachers = safeTeachers.filter((t) => t && t.is_active && t.contract === 'b_benzina');
+  benzinaTeachers.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
 
   const { logs, vouchers } = generateTeachingLogsForMonth(benzinaTeachers, yearMonth);
 
@@ -651,9 +712,9 @@ export function calculateBuoniBenzinaData(teachers: Teacher[], yearMonth: string
     }).length;
 
     return {
-      Matricola: t.matricola,
-      'Cognome Nome': `${t.last_name} ${t.first_name}`,
-      Sede: LOCATION_LABELS[t.location] || t.location,
+      Matricola: t.matricola || '',
+      'Cognome Nome': `${t.last_name || ''} ${t.first_name || ''}`.trim(),
+      Sede: LOCATION_LABELS[t.location] || t.location || '',
       'Totale Buoni': totBuoni,
       Consegnati: deliveredCount,
       'Da Consegnare': totBuoni - deliveredCount,
@@ -666,10 +727,10 @@ export function calculateBuoniBenzinaData(teachers: Teacher[], yearMonth: string
     tLogs.forEach((l) => {
       const v = vouchers.find((vouch) => vouch.teaching_log_id === l.id);
       details.push({
-        Matricola: t.matricola,
-        'Cognome Nome': `${t.last_name} ${t.first_name}`,
+        Matricola: t.matricola || '',
+        'Cognome Nome': `${t.last_name || ''} ${t.first_name || ''}`.trim(),
         Data: l.log_date,
-        'Sede Lezione': LOCATION_LABELS[l.location] || l.location,
+        'Sede Lezione': LOCATION_LABELS[l.location] || l.location || '',
         Ore: l.hours_worked,
         Consegnato: v && v.delivered ? 'Sì' : 'No',
         'Data Consegna': v && v.delivery_date ? new Date(v.delivery_date).toLocaleDateString('it-IT') : '-',
@@ -680,7 +741,7 @@ export function calculateBuoniBenzinaData(teachers: Teacher[], yearMonth: string
   return { summary, details };
 }
 
-export async function exportBuoniBenzinaXls(teachers: Teacher[], yearMonth: string) {
+export async function exportBuoniBenzinaXls(teachers: Teacher[] = [], yearMonth: string = '2026-11') {
   const XLSX = await loadSheetJS();
   const { summary, details } = calculateBuoniBenzinaData(teachers, yearMonth);
 
@@ -697,10 +758,10 @@ export async function exportBuoniBenzinaXls(teachers: Teacher[], yearMonth: stri
     'Da Consegnare': totBuoni - totCons,
   });
 
-  const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+  const wsSummary = XLSX.utils.json_to_sheet(summaryRows.length > 0 ? summaryRows : [{ Nota: 'Nessun buono benzina' }]);
   wsSummary['!cols'] = [{ wch: 12 }, { wch: 25 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }];
 
-  const wsDetails = XLSX.utils.json_to_sheet(details);
+  const wsDetails = XLSX.utils.json_to_sheet(details.length > 0 ? details : [{ Nota: 'Nessun dettaglio buoni benzina' }]);
   wsDetails['!cols'] = [{ wch: 12 }, { wch: 25 }, { wch: 12 }, { wch: 14 }, { wch: 8 }, { wch: 12 }, { wch: 14 }];
 
   const wb = XLSX.utils.book_new();
@@ -710,7 +771,7 @@ export async function exportBuoniBenzinaXls(teachers: Teacher[], yearMonth: stri
   XLSX.writeFile(wb, `buoni_benzina_${yearMonth}.xlsx`);
 }
 
-export async function exportBuoniBenzinaPdf(teachers: Teacher[], yearMonth: string) {
+export async function exportBuoniBenzinaPdf(teachers: Teacher[] = [], yearMonth: string = '2026-11') {
   const { summary } = calculateBuoniBenzinaData(teachers, yearMonth);
 
   const totBuoni = summary.reduce((acc, r) => acc + r['Totale Buoni'], 0);
@@ -870,19 +931,21 @@ export function recalculateMinisterialTree(values: Record<string, number>): Reco
 }
 
 // Calcolo Modello A (Attivo e Passivo) e Modello B da conti analitici
-export function computeModelloAAttivo(conti: BilancioConto[]): MinisterialItem[] {
+export function computeModelloAAttivo(conti: BilancioConto[] = []): MinisterialItem[] {
+  const safeConti = Array.isArray(conti) ? conti.filter(Boolean) : [];
   const getSum = (keys: string[]) =>
-    conti
-      .filter((c) => keys.includes(c.numero_conto))
+    safeConti
+      .filter((c) => c && keys.includes(c.numero_conto))
       .reduce((acc, c) => acc + (c.totale_progressivo || 0), 0);
 
   const getAreaSum = (area: string, filterText?: string) =>
-    conti
+    safeConti
       .filter(
         (c) =>
+          c &&
           c.sezione === 'stato_patrimoniale' &&
           c.area === 'attivo' &&
-          (!filterText || (c.nome_conto + ' ' + (c.sotto_area || '')).toLowerCase().includes(filterText))
+          (!filterText || ((c.nome_conto || '') + ' ' + (c.sotto_area || '')).toLowerCase().includes(filterText))
       )
       .reduce((acc, c) => acc + (c.totale_progressivo || 0), 0);
 
@@ -924,27 +987,29 @@ export function computeModelloAAttivo(conti: BilancioConto[]): MinisterialItem[]
   ];
 }
 
-export function computeModelloAPassivo(conti: BilancioConto[]): MinisterialItem[] {
+export function computeModelloAPassivo(conti: BilancioConto[] = []): MinisterialItem[] {
+  const safeConti = Array.isArray(conti) ? conti.filter(Boolean) : [];
   const getSum = (keys: string[]) =>
-    conti
-      .filter((c) => keys.includes(c.numero_conto))
+    safeConti
+      .filter((c) => c && keys.includes(c.numero_conto))
       .reduce((acc, c) => acc + (c.totale_progressivo || 0), 0);
 
   const getAreaSum = (area: string, filterText?: string) =>
-    conti
+    safeConti
       .filter(
         (c) =>
+          c &&
           c.sezione === 'stato_patrimoniale' &&
           c.area === 'passivo' &&
-          (!filterText || (c.nome_conto + ' ' + (c.sotto_area || '')).toLowerCase().includes(filterText))
+          (!filterText || ((c.nome_conto || '') + ' ' + (c.sotto_area || '')).toLowerCase().includes(filterText))
       )
       .reduce((acc, c) => acc + (c.totale_progressivo || 0), 0);
 
-  const totRicavi = conti
-    .filter((c) => c.sezione === 'conto_economico' && c.area === 'ricavi')
+  const totRicavi = safeConti
+    .filter((c) => c && c.sezione === 'conto_economico' && c.area === 'ricavi')
     .reduce((acc, c) => acc + (c.totale_progressivo || 0), 0);
-  const totCosti = conti
-    .filter((c) => c.sezione === 'conto_economico' && c.area === 'costi')
+  const totCosti = safeConti
+    .filter((c) => c && c.sezione === 'conto_economico' && c.area === 'costi')
     .reduce((acc, c) => acc + (c.totale_progressivo || 0), 0);
   const avanzoEsercizio = totRicavi - totCosti;
 
@@ -982,24 +1047,27 @@ export function computeModelloAPassivo(conti: BilancioConto[]): MinisterialItem[
   ];
 }
 
-export function computeModelloBRendiconto(conti: BilancioConto[]): MinisterialItem[] {
+export function computeModelloBRendiconto(conti: BilancioConto[] = []): MinisterialItem[] {
+  const safeConti = Array.isArray(conti) ? conti.filter(Boolean) : [];
   const getCosti = (filterText: string) =>
-    conti
+    safeConti
       .filter(
         (c) =>
+          c &&
           c.sezione === 'conto_economico' &&
           c.area === 'costi' &&
-          (c.nome_conto + ' ' + (c.sotto_area || '')).toLowerCase().includes(filterText)
+          ((c.nome_conto || '') + ' ' + (c.sotto_area || '')).toLowerCase().includes(filterText)
       )
       .reduce((acc, c) => acc + (c.totale_progressivo || 0), 0);
 
   const getRicavi = (filterText: string) =>
-    conti
+    safeConti
       .filter(
         (c) =>
+          c &&
           c.sezione === 'conto_economico' &&
           c.area === 'ricavi' &&
-          (c.nome_conto + ' ' + (c.sotto_area || '')).toLowerCase().includes(filterText)
+          ((c.nome_conto || '') + ' ' + (c.sotto_area || '')).toLowerCase().includes(filterText)
       )
       .reduce((acc, c) => acc + (c.totale_progressivo || 0), 0);
 
@@ -1044,88 +1112,104 @@ export function computeModelloBRendiconto(conti: BilancioConto[]): MinisterialIt
 
 // Esportazione Excel dei Modelli Ministeriali
 export async function exportModelliMinisterialiXls(
-  bilancio: Bilancio,
-  attivo: MinisterialItem[],
-  passivo: MinisterialItem[],
-  rendiconto: MinisterialItem[],
-  prevYearValues: Record<string, number>
+  bilancio: any,
+  attivo: MinisterialItem[] = [],
+  passivo: MinisterialItem[] = [],
+  rendiconto: MinisterialItem[] = [],
+  prevYearValues: Record<string, number> = {}
 ) {
   const XLSX = await loadSheetJS();
   const wb = XLSX.utils.book_new();
+  const safeAttivo = Array.isArray(attivo) ? attivo : [];
+  const safePassivo = Array.isArray(passivo) ? passivo : [];
+  const safeRendiconto = Array.isArray(rendiconto) ? rendiconto : [];
+  const safePrev = prevYearValues || {};
 
   const formatList = (items: MinisterialItem[]) =>
     items.map((it) => ({
       Voce: it.label,
-      'Esercizio Corrente (€)': Math.round(it.value * 100) / 100,
-      'Esercizio Precedente (€)': Math.round((prevYearValues[it.key] || 0) * 100) / 100,
+      'Esercizio Corrente (€)': Math.round((it.value || 0) * 100) / 100,
+      'Esercizio Precedente (€)': Math.round((safePrev[it.key] || 0) * 100) / 100,
     }));
 
-  const wsA = XLSX.utils.json_to_sheet([...formatList(attivo), { Voce: '--- PASSIVO ---', 'Esercizio Corrente (€)': '', 'Esercizio Precedente (€)': '' }, ...formatList(passivo)]);
+  const wsA = XLSX.utils.json_to_sheet([...formatList(safeAttivo), { Voce: '--- PASSIVO ---', 'Esercizio Corrente (€)': '', 'Esercizio Precedente (€)': '' }, ...formatList(safePassivo)]);
   wsA['!cols'] = [{ wch: 55 }, { wch: 22 }, { wch: 22 }];
   XLSX.utils.book_append_sheet(wb, wsA, 'Modello A - Stato Patr.');
 
-  const wsB = XLSX.utils.json_to_sheet(formatList(rendiconto));
+  const wsB = XLSX.utils.json_to_sheet(formatList(safeRendiconto));
   wsB['!cols'] = [{ wch: 55 }, { wch: 22 }, { wch: 22 }];
   XLSX.utils.book_append_sheet(wb, wsB, 'Modello B - Rendiconto');
 
-  XLSX.writeFile(wb, `Modelli_Ministeriali_${bilancio.esercizio.replace('/', '-')}.xlsx`);
+  const esStr = String(bilancio?.esercizio || '2026-2027').replace('/', '-');
+  XLSX.writeFile(wb, `Modelli_Ministeriali_${esStr}.xlsx`);
 }
 
 // Esportazione PDF Modello A (Stato Patrimoniale)
 export async function exportModelloAPdf(
-  bilancio: Bilancio,
-  attivo: MinisterialItem[],
-  passivo: MinisterialItem[],
-  prevYearValues: Record<string, number>
+  bilancio: any,
+  attivo: MinisterialItem[] = [],
+  passivo: MinisterialItem[] = [],
+  prevYearValues: Record<string, number> = {}
 ) {
+  const safeAttivo = Array.isArray(attivo) ? attivo : [];
+  const safePassivo = Array.isArray(passivo) ? passivo : [];
+  const safePrev = prevYearValues || {};
   const body: (string | number)[][] = [];
 
   body.push(['--- SEZIONE ATTIVO ---', '', '']);
-  attivo.forEach((it) => {
+  safeAttivo.forEach((it) => {
     body.push([
       it.label,
-      `€ ${it.value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      `€ ${(prevYearValues[it.key] || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      `€ ${(it.value || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      `€ ${(safePrev[it.key] || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     ]);
   });
 
   body.push(['--- SEZIONE PASSIVO E PATRIMONIO NETTO ---', '', '']);
-  passivo.forEach((it) => {
+  safePassivo.forEach((it) => {
     body.push([
       it.label,
-      `€ ${it.value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      `€ ${(prevYearValues[it.key] || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      `€ ${(it.value || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      `€ ${(safePrev[it.key] || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     ]);
   });
 
+  const esStr = String(bilancio?.esercizio || '2026/2027');
+  const fineStr = String(bilancio?.anno_fine || '2027');
+
   await exportOfficialPdf({
     title: 'Modello A — Stato Patrimoniale Enti Terzo Settore',
-    subtitle: `Esercizio: ${bilancio.esercizio} (Chiusura: 30/06/${bilancio.anno_fine}) · Confronto con Esercizio Precedente`,
-    head: ['Descrizione Voce Ministeriale', `Esercizio ${bilancio.esercizio}`, `Esercizio Precedente`],
+    subtitle: `Esercizio: ${esStr} (Chiusura: 30/06/${fineStr}) · Confronto con Esercizio Precedente`,
+    head: ['Descrizione Voce Ministeriale', `Esercizio ${esStr}`, `Esercizio Precedente`],
     body,
-    fileName: `Modello_A_StatoPatrimoniale_${bilancio.esercizio.replace('/', '-')}.pdf`,
+    fileName: `Modello_A_StatoPatrimoniale_${esStr.replace('/', '-')}.pdf`,
     landscape: false,
   });
 }
 
 // Esportazione PDF Modello B (Rendiconto Gestionale)
 export async function exportModelloBPdf(
-  bilancio: Bilancio,
-  rendiconto: MinisterialItem[],
-  prevYearValues: Record<string, number>
+  bilancio: any,
+  rendiconto: MinisterialItem[] = [],
+  prevYearValues: Record<string, number> = {}
 ) {
-  const body: (string | number)[][] = rendiconto.map((it) => [
+  const safeRendiconto = Array.isArray(rendiconto) ? rendiconto : [];
+  const safePrev = prevYearValues || {};
+  const body: (string | number)[][] = safeRendiconto.map((it) => [
     it.label,
-    `€ ${it.value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    `€ ${(prevYearValues[it.key] || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    `€ ${(it.value || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    `€ ${(safePrev[it.key] || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
   ]);
+
+  const esStr = String(bilancio?.esercizio || '2026/2027');
+  const fineStr = String(bilancio?.anno_fine || '2027');
 
   await exportOfficialPdf({
     title: 'Modello B — Rendiconto Gestionale Enti Terzo Settore',
-    subtitle: `Esercizio: ${bilancio.esercizio} (Chiusura: 30/06/${bilancio.anno_fine}) · Confronto con Esercizio Precedente`,
-    head: ['Descrizione Voce Ministeriale', `Esercizio ${bilancio.esercizio}`, `Esercizio Precedente`],
+    subtitle: `Esercizio: ${esStr} (Chiusura: 30/06/${fineStr}) · Confronto con Esercizio Precedente`,
+    head: ['Descrizione Voce Ministeriale', `Esercizio ${esStr}`, `Esercizio Precedente`],
     body,
-    fileName: `Modello_B_RendicontoGestionale_${bilancio.esercizio.replace('/', '-')}.pdf`,
+    fileName: `Modello_B_RendicontoGestionale_${esStr.replace('/', '-')}.pdf`,
     landscape: false,
   });
 }

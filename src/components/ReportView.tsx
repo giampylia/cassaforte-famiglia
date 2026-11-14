@@ -45,14 +45,23 @@ import {
 
 export const ReportView: React.FC = () => {
   const {
-    cassaRecords,
-    lezioniCampo,
-    lezioniCampoPayments,
-    bilanci,
-    bilancioConti,
+    cashMovements = [],
+    excursions = [],
+    excursionPayments = [],
+    bilanci = [],
+    bilancioConti = [],
+    cassaRecords: legacyCassa,
+    lezioniCampo: legacyLezioni,
+    lezioniCampoPayments: legacyPayments,
   } = useApp();
 
-  const [teachers] = useState<Teacher[]>(INITIAL_TEACHERS);
+  const cassaRecords = Array.isArray(cashMovements) && cashMovements.length > 0 ? cashMovements : (Array.isArray(legacyCassa) ? legacyCassa : []);
+  const lezioniCampo = Array.isArray(excursions) && excursions.length > 0 ? excursions : (Array.isArray(legacyLezioni) ? legacyLezioni : []);
+  const lezioniCampoPayments = Array.isArray(excursionPayments) && excursionPayments.length > 0 ? excursionPayments : (Array.isArray(legacyPayments) ? legacyPayments : []);
+  const safeBilanci = Array.isArray(bilanci) ? bilanci : [];
+  const safeBilancioConti = Array.isArray(bilancioConti) ? bilancioConti : [];
+
+  const [teachers] = useState<Teacher[]>(() => (Array.isArray(INITIAL_TEACHERS) ? INITIAL_TEACHERS : []));
 
   // Stati di caricamento per i download
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
@@ -79,8 +88,8 @@ export const ReportView: React.FC = () => {
 
   // 5. Modelli Ministeriali Bilanci
   const availableBilanci = useMemo(() => {
-    return bilanci && bilanci.length > 0
-      ? bilanci
+    return safeBilanci.length > 0
+      ? safeBilanci
       : [
           {
             id: 'bil-2026-2027',
@@ -99,7 +108,7 @@ export const ReportView: React.FC = () => {
             descrizione: 'Esercizio Finanziario Consuntivato',
           },
         ];
-  }, [bilanci]);
+  }, [safeBilanci]);
 
   const [selectedBilancioId, setSelectedBilancioId] = useState<string>(
     availableBilanci[0]?.id || 'bil-2026-2027'
@@ -147,12 +156,12 @@ export const ReportView: React.FC = () => {
 
   // Conti per il bilancio selezionato
   const activeConti = useMemo(() => {
-    return bilancioConti.filter((c) => c.bilancio_id === selectedBilancioId);
-  }, [bilancioConti, selectedBilancioId]);
+    return safeBilancioConti.filter((c) => c && c.bilancio_id === selectedBilancioId);
+  }, [safeBilancioConti, selectedBilancioId]);
 
-  const attivoItems = useMemo(() => computeModelloAAttivo(activeConti), [activeConti]);
-  const passivoItems = useMemo(() => computeModelloAPassivo(activeConti), [activeConti]);
-  const rendicontoItems = useMemo(() => computeModelloBRendiconto(activeConti), [activeConti]);
+  const attivoItems = useMemo(() => computeModelloAAttivo(activeConti || []), [activeConti]);
+  const passivoItems = useMemo(() => computeModelloAPassivo(activeConti || []), [activeConti]);
+  const rendicontoItems = useMemo(() => computeModelloBRendiconto(activeConti || []), [activeConti]);
 
   const recalculatedPrevYear = useMemo(() => {
     return recalculateMinisterialTree(prevYearValues);
@@ -329,7 +338,7 @@ export const ReportView: React.FC = () => {
               <div className="rounded-2xl bg-slate-50 p-3 text-xs text-slate-600 space-y-1">
                 <div className="flex items-center justify-between">
                   <span>Totale Docenti Attivi:</span>
-                  <span className="font-bold text-slate-900">{teachers.filter((t) => t.is_active).length} docenti</span>
+                  <span className="font-bold text-slate-900">{(teachers || []).filter((t) => t && t.is_active).length} docenti</span>
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-slate-500">
                   <span>Sedi: Quartu, Soleminis, Plurisede</span>
@@ -502,7 +511,7 @@ export const ReportView: React.FC = () => {
               </p>
               <div className="rounded-2xl bg-slate-50 p-3 text-xs text-slate-600 flex items-center justify-between">
                 <span>Escursioni in Archivio:</span>
-                <span className="font-bold text-slate-900">{lezioniCampo.length} uscite</span>
+                <span className="font-bold text-slate-900">{(lezioniCampo || []).length} uscite</span>
               </div>
             </div>
 
@@ -608,7 +617,7 @@ export const ReportView: React.FC = () => {
                 onChange={(e) => setSelectedBilancioId(e.target.value)}
                 className="h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-800 focus:bg-white focus:outline-emerald-600"
               >
-                {availableBilanci.map((b) => (
+                {(availableBilanci || []).map((b) => (
                   <option key={b.id} value={b.id}>
                     Esercizio {b.esercizio}
                   </option>
@@ -751,7 +760,7 @@ export const ReportView: React.FC = () => {
                           SEZIONE I — ATTIVO
                         </td>
                       </tr>
-                      {attivoItems.map((it) => {
+                      {(attivoItems || []).map((it) => {
                         const isTotal = it.style === 'total';
                         const isSection = it.style === 'section';
                         const isSubsection = it.style === 'subsection';
@@ -831,7 +840,7 @@ export const ReportView: React.FC = () => {
                           SEZIONE II — PASSIVO E PATRIMONIO NETTO
                         </td>
                       </tr>
-                      {passivoItems.map((it) => {
+                      {(passivoItems || []).map((it) => {
                         const isTotal = it.style === 'total';
                         const isSection = it.style === 'section';
                         const isSubsection = it.style === 'subsection';
@@ -908,7 +917,7 @@ export const ReportView: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      {rendicontoItems.map((it) => {
+                      {(rendicontoItems || []).map((it) => {
                         const isTotal = it.style === 'total';
                         const isSection = it.style === 'section';
                         const isSubsection = it.style === 'subsection';

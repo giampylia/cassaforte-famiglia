@@ -27,6 +27,8 @@ import {
   VideoNotice,
   LibraryBook,
 } from '../data/initialData';
+
+export type CassaRecord = CashMovement;
 import { playSuccessSound } from '../utils/soundAndPdf';
 import {
   PermissionLevel,
@@ -274,6 +276,10 @@ interface AppContextType {
   saveExcursion: (excursion: Partial<Excursion>, payments: ExcursionPayment[]) => Promise<void>;
   deleteExcursion: (id: string) => Promise<void>;
   saveAdjustments: (adjustments: ExcursionAdjustment[]) => Promise<void>;
+  // Aliases retrocompatibilità e ReportView
+  cassaRecords: CashMovement[];
+  lezioniCampo: Excursion[];
+  lezioniCampoPayments: ExcursionPayment[];
   // Bollette & Consumi Elettrici
   electricBills: ElectricBill[];
   electricBillsUpdatedAt: number;
@@ -4834,6 +4840,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         saveExcursion,
         deleteExcursion,
         saveAdjustments,
+        cassaRecords: cashMovements,
+        lezioniCampo: excursions,
+        lezioniCampoPayments: excursionPayments,
         electricBills,
         electricBillsUpdatedAt,
         saveElectricBill,

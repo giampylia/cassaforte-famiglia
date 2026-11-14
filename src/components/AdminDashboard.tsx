@@ -1717,10 +1717,10 @@ export const AdminDashboard: React.FC = () => {
                   onChange={(e) => setMemberRoleFilter(e.target.value)}
                   className={`h-11 rounded-xl px-3 text-sm font-normal ${inputClass}`}
                 >
-                  <option value="ALL">Tutti i Ruoli ({profiles.length} soci)</option>
+                  <option value="ALL">Tutti i Ruoli ({(profiles || []).length} soci)</option>
                   <option value="ONLY_CD">
                     Solo Membri CD (Consiglio Direttivo:{' '}
-                    {profiles.filter((p) => p.is_cd || p.roles?.includes('CD')).length})
+                    {(profiles || []).filter((p) => p && (p.is_cd || p.roles?.includes('CD'))).length})
                   </option>
                   {availableRoles.map((r) => (
                     <option key={r} value={r}>
