@@ -210,14 +210,51 @@ const server = http.createServer((req, res) => {
     reqPath = '/manifest.webmanifest';
   }
 
+  // Risoluzione prioritaria per asset statici (JS, CSS, PNG, SVG, webmanifest)
+  let staticAssetPath = null;
+  if (reqPath.includes('/assets/')) {
+    const assetSub = reqPath.substring(reqPath.indexOf('/assets/'));
+    const candidate = path.join(PUBLIC_DIR, assetSub);
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+      staticAssetPath = candidate;
+    }
+  }
+
+  if (!staticAssetPath && (reqPath.endsWith('.js') || reqPath.endsWith('.css') || reqPath.endsWith('.png') || reqPath.endsWith('.svg') || reqPath.endsWith('.webmanifest'))) {
+    const baseName = path.basename(reqPath);
+    const candidateAsset = path.join(PUBLIC_DIR, 'assets', baseName);
+    const candidateRoot = path.join(PUBLIC_DIR, baseName);
+    if (fs.existsSync(candidateAsset) && fs.statSync(candidateAsset).isFile()) {
+      staticAssetPath = candidateAsset;
+    } else if (fs.existsSync(candidateRoot) && fs.statSync(candidateRoot).isFile()) {
+      staticAssetPath = candidateRoot;
+    }
+  }
+
+  if (staticAssetPath) {
+    const ext = path.extname(staticAssetPath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    return fs.readFile(staticAssetPath, (err, data) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        return res.end('Asset non trovato');
+      }
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=3600',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(data);
+    });
+  }
+
   // Rotte contabili -> servono public/contabilita.html
-  if (CONTABILITA_ROUTES.has(reqPath) || reqPath.startsWith('/contabilita/')) {
+  if (CONTABILITA_ROUTES.has(reqPath) || reqPath.startsWith('/contabilita/') || reqPath.startsWith('/avanzamento/')) {
     const contFilePath = path.join(PUBLIC_DIR, 'contabilita.html');
-    fs.readFile(contFilePath, (err, data) => {
+    return fs.readFile(contFilePath, (err, data) => {
       if (err) {
         res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end('Errore caricamento modulo contabilità');
-        return;
+        return res.end('Errore caricamento modulo contabilità');
       }
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=UTF-8',
@@ -227,7 +264,6 @@ const server = http.createServer((req, res) => {
       });
       res.end(data);
     });
-    return;
   }
 
   if (reqPath === '/') reqPath = '/index.html';
