@@ -39,7 +39,26 @@ function saveAuthStore(data) {
 function getVaultStore() {
   try {
     if (fs.existsSync(VAULT_FILE)) {
-      return JSON.parse(fs.readFileSync(VAULT_FILE, 'utf8'));
+      const parsed = JSON.parse(fs.readFileSync(VAULT_FILE, 'utf8'));
+      if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+        return parsed;
+      }
+    }
+    const dataVaultFile = path.join(__dirname, 'data', 'vault_store.json');
+    if (fs.existsSync(dataVaultFile)) {
+      const parsed = JSON.parse(fs.readFileSync(dataVaultFile, 'utf8'));
+      if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+        saveVaultStore(parsed);
+        return parsed;
+      }
+    }
+    const seedFile = path.join(PUBLIC_DIR, 'vault-seed.json');
+    if (fs.existsSync(seedFile)) {
+      const parsed = JSON.parse(fs.readFileSync(seedFile, 'utf8'));
+      if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+        saveVaultStore(parsed);
+        return parsed;
+      }
     }
   } catch (e) {
     console.error('Error reading vault store:', e);
@@ -49,7 +68,24 @@ function getVaultStore() {
 
 function saveVaultStore(data) {
   try {
+    if (!data || !Array.isArray(data.items)) return;
+    // Se esistevano già degli item, fai sempre backup
+    const backupDir = path.join(__dirname, 'data', 'backups');
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    if (fs.existsSync(VAULT_FILE)) {
+      try {
+        const cur = JSON.parse(fs.readFileSync(VAULT_FILE, 'utf8'));
+        if (cur && Array.isArray(cur.items) && cur.items.length > 0) {
+          fs.writeFileSync(path.join(backupDir, `vault_backup_${Date.now()}.json`), JSON.stringify(cur, null, 2), 'utf8');
+        }
+      } catch (be) {}
+    }
     fs.writeFileSync(VAULT_FILE, JSON.stringify(data, null, 2), 'utf8');
+    const dataVaultFile = path.join(__dirname, 'data', 'vault_store.json');
+    fs.writeFileSync(dataVaultFile, JSON.stringify(data, null, 2), 'utf8');
+    try {
+      fs.writeFileSync(path.join(PUBLIC_DIR, 'vault-seed.json'), JSON.stringify(data, null, 2), 'utf8');
+    } catch (_) {}
   } catch (e) {
     console.error('Error saving vault store:', e);
   }

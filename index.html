@@ -785,17 +785,10 @@
       // 3. CASSAFORTE CRITTOGRAFATA & SBLOCCO TOTALE IN BLOCCO
       // ==============================================================
       async function getVaultKey() {
-        let seed = localStorage.getItem('gpp_vault_master_seed');
-        if (!seed) {
-          const arr = new Uint8Array(32);
-          window.crypto.getRandomValues(arr);
-          seed = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
-          localStorage.setItem('gpp_vault_master_seed', seed);
-        }
         const enc = new TextEncoder();
         const baseKey = await window.crypto.subtle.importKey(
           'raw',
-          enc.encode(seed),
+          enc.encode('Famylia-Secret-Key-Giampy-Ty-Miki-2026!::GPP_PERMANENT_VAULT_KEY'),
           { name: 'PBKDF2' },
           false,
           ['deriveKey']
@@ -848,24 +841,50 @@
       }
 
       async function loadVaultItems() {
+        let serverItems = null;
         try {
           const res = await fetch('/api/vault/list');
           const data = await res.json();
-          if (data && Array.isArray(data.items)) {
-            vaultItems = data.items;
-            localStorage.setItem('gpp_vault_cached', JSON.stringify(vaultItems));
-            return;
+          if (data && Array.isArray(data.items) && data.items.length > 0) {
+            serverItems = data.items;
           }
         } catch (e) {}
 
-        const cached = localStorage.getItem('gpp_vault_cached');
-        if (cached) {
-          try { vaultItems = JSON.parse(cached); } catch (e) {}
+        if (!serverItems) {
+          try {
+            const resSeed = await fetch('/vault-seed.json');
+            const dataSeed = await resSeed.json();
+            if (dataSeed && Array.isArray(dataSeed.items) && dataSeed.items.length > 0) {
+              serverItems = dataSeed.items;
+            }
+          } catch (e) {}
+        }
+
+        let localItems = [];
+        try {
+          const cached = localStorage.getItem('gpp_vault_cached') || localStorage.getItem('gpp_vault_safe_backup');
+          if (cached) localItems = JSON.parse(cached) || [];
+        } catch (e) {}
+
+        const mergedMap = new Map();
+        (serverItems || []).forEach(it => { if (it && it.id) mergedMap.set(it.id, it); });
+        localItems.forEach(it => { if (it && it.id) mergedMap.set(it.id, it); });
+
+        vaultItems = Array.from(mergedMap.values());
+        if (vaultItems.length > 0) {
+          localStorage.setItem('gpp_vault_cached', JSON.stringify(vaultItems));
+          localStorage.setItem('gpp_vault_safe_backup', JSON.stringify(vaultItems));
+        }
+
+        if (localItems.length > (serverItems || []).length) {
+          persistVaultItems();
         }
       }
 
       async function persistVaultItems() {
+        if (!vaultItems || vaultItems.length === 0) return;
         localStorage.setItem('gpp_vault_cached', JSON.stringify(vaultItems));
+        localStorage.setItem('gpp_vault_safe_backup', JSON.stringify(vaultItems));
         try {
           await fetch('/api/vault/save', {
             method: 'POST',
