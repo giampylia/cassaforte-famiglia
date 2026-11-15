@@ -522,7 +522,7 @@
           <div class="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
             <div class="flex items-center gap-2">
               <span class="text-xl">🔐</span>
-              <h3 class="text-base font-bold text-amber-200">Nuovo Account Criptato</h3>
+              <h3 id="modal-vault-title-text" class="text-base font-bold text-amber-200">Nuovo Account Criptato</h3>
             </div>
             <button onclick="closeAddPasswordModal()" class="p-1 rounded-full text-slate-400 hover:bg-white/10 cursor-pointer">
               <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -532,6 +532,7 @@
           </div>
 
           <form onsubmit="handleSaveVaultPassword(event)" class="space-y-3">
+            <input type="hidden" id="vault-edit-id" value="" />
             <!-- 1. Titolo -->
             <div class="space-y-1">
               <label class="text-[11px] font-semibold text-slate-300 uppercase">Titolo / Servizio *</label>
@@ -621,6 +622,7 @@
 
             <button
               type="submit"
+              id="btn-save-vault"
               class="w-full h-11 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 font-bold text-navy-950 text-xs shadow-lg transition active:scale-95 cursor-pointer mt-1 uppercase tracking-wider"
             >
               Crittografa e Salva
@@ -1063,11 +1065,18 @@
                     <button onclick="copyToClipboard('${escapeJs(item.username)}', this)" class="text-[10px] text-amber-300 hover:text-amber-200 px-1 py-0.5 rounded bg-white/10" title="Copia username">Copia</button>
                   </div>
                 </div>
-                <button onclick="deleteVaultItem('${item.id}')" class="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg transition" title="Elimina account">
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                <div class="flex items-center gap-1">
+                  <button type="button" onclick="openEditPasswordModal('${item.id}')" class="text-slate-400 hover:text-amber-300 p-1.5 rounded-lg transition active:scale-90" title="Modifica account">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button type="button" onclick="deleteVaultItem('${item.id}')" class="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg transition active:scale-90" title="Elimina account">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <!-- Riquadro Password -->
@@ -1145,6 +1154,9 @@
 
       // Modal Aggiunta Account
       function openAddPasswordModal() {
+        document.getElementById('vault-edit-id').value = '';
+        document.getElementById('modal-vault-title-text').textContent = 'Nuovo Account Criptato';
+        document.getElementById('btn-save-vault').textContent = 'Crittografa e Salva';
         document.getElementById('vault-title').value = '';
         document.getElementById('vault-username').value = '';
         document.getElementById('vault-password').value = '';
@@ -1155,12 +1167,48 @@
         document.getElementById('add-vault-modal').classList.remove('hidden');
       }
 
+      // Modal Modifica Account
+      async function openEditPasswordModal(id) {
+        const item = vaultItems.find(v => v.id === id);
+        if (!item) return;
+
+        let dec = decryptedCache[id];
+        if (!dec) {
+          try {
+            dec = {
+              password: await decryptVaultText(item.encryptedPassword),
+              pin: item.encryptedPin ? await decryptVaultText(item.encryptedPin) : '',
+              bmt: item.encryptedBmt ? await decryptVaultText(item.encryptedBmt) : '',
+              shopnl: item.encryptedShopnl ? await decryptVaultText(item.encryptedShopnl) : '',
+              notes: item.encryptedNotes ? await decryptVaultText(item.encryptedNotes) : ''
+            };
+            decryptedCache[id] = dec;
+          } catch (e) {
+            alert("Sblocca prima la cassaforte con il codice promozionale o impronta per modificare i dati.");
+            return;
+          }
+        }
+
+        document.getElementById('vault-edit-id').value = id;
+        document.getElementById('modal-vault-title-text').textContent = 'Modifica Account';
+        document.getElementById('btn-save-vault').textContent = 'Salva Modifiche';
+        document.getElementById('vault-title').value = item.title || '';
+        document.getElementById('vault-username').value = item.username || '';
+        document.getElementById('vault-password').value = dec.password || '';
+        document.getElementById('vault-pin').value = dec.pin || '';
+        document.getElementById('vault-bmt').value = dec.bmt || '';
+        document.getElementById('vault-shopnl').value = dec.shopnl || '';
+        document.getElementById('vault-notes').value = dec.notes || '';
+        document.getElementById('add-vault-modal').classList.remove('hidden');
+      }
+
       function closeAddPasswordModal() {
         document.getElementById('add-vault-modal').classList.add('hidden');
       }
 
       async function handleSaveVaultPassword(e) {
         if (e) e.preventDefault();
+        const editId = document.getElementById('vault-edit-id').value;
         const title = document.getElementById('vault-title').value.trim();
         const username = document.getElementById('vault-username').value.trim();
         const plainPw = document.getElementById('vault-password').value.trim();
@@ -1177,33 +1225,56 @@
         const encShopnl = shopnl ? await encryptVaultText(shopnl) : null;
         const encNotes = notes ? await encryptVaultText(notes) : null;
 
-        const newItem = {
-          id: 'v_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-          title: title,
-          username: username,
-          encryptedPassword: encPw,
-          encryptedPin: encPin,
-          encryptedBmt: encBmt,
-          encryptedShopnl: encShopnl,
-          encryptedNotes: encNotes,
-          createdAt: new Date().toLocaleDateString('it-IT')
-        };
-
-        vaultItems.unshift(newItem);
-        await persistVaultItems();
-        closeAddPasswordModal();
-
-        // Se eravamo in stato di sblocco in chiaro, aggiorna anche la cache temporanea
-        if (areVaultCredentialsRevealed) {
-          decryptedCache[newItem.id] = {
+        if (editId) {
+          // MODIFICA DI UN ACCOUNT ESISTENTE
+          const idx = vaultItems.findIndex(v => v.id === editId);
+          if (idx !== -1) {
+            vaultItems[idx] = {
+              ...vaultItems[idx],
+              title: title,
+              username: username,
+              encryptedPassword: encPw,
+              encryptedPin: encPin,
+              encryptedBmt: encBmt,
+              encryptedShopnl: encShopnl,
+              encryptedNotes: encNotes,
+              updatedAt: new Date().toLocaleDateString('it-IT')
+            };
+          }
+          decryptedCache[editId] = {
             password: plainPw,
             pin: pin,
             bmt: bmt,
             shopnl: shopnl,
             notes: notes
           };
+        } else {
+          // NUOVO ACCOUNT
+          const newItem = {
+            id: 'v_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+            title: title,
+            username: username,
+            encryptedPassword: encPw,
+            encryptedPin: encPin,
+            encryptedBmt: encBmt,
+            encryptedShopnl: encShopnl,
+            encryptedNotes: encNotes,
+            createdAt: new Date().toLocaleDateString('it-IT')
+          };
+          vaultItems.unshift(newItem);
+          if (areVaultCredentialsRevealed) {
+            decryptedCache[newItem.id] = {
+              password: plainPw,
+              pin: pin,
+              bmt: bmt,
+              shopnl: shopnl,
+              notes: notes
+            };
+          }
         }
 
+        await persistVaultItems();
+        closeAddPasswordModal();
         renderVaultItems();
       }
 
