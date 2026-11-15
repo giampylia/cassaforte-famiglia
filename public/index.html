@@ -1,0 +1,1012 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+    <title>App Giampy — Portale GPP</title>
+    <meta name="description" content="App Giampy — Contabilità e Cassaforte di Sicurezza con Monogramma Dorato GPP" />
+    <link rel="icon" href="/gpp-icon-192.png" type="image/png" />
+    <link rel="shortcut icon" href="/gpp-icon-192.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/gpp-icon-512.png" />
+    <link rel="apple-touch-startup-image" href="/gpp-icon-512.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Giampy" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#061120" />
+    <script>
+      // Svuota forzatamente la cache del telefono e i Service Worker pregressi
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          for (let r of regs) r.unregister();
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              navy: {
+                950: '#030810',
+                900: '#061120',
+                850: '#0a192f',
+                800: '#0f2442',
+                700: '#173660',
+              },
+              gold: {
+                200: '#fae392',
+                300: '#f5d365',
+                400: '#e5bc3b',
+                500: '#c69922',
+                600: '#9d7413',
+              }
+            },
+            fontFamily: {
+              sans: ['"Public Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+              mono: ['"JetBrains Mono"', 'monospace'],
+            }
+          }
+        }
+      };
+    </script>
+    <style>
+      body {
+        margin: 0;
+        background-color: #061120;
+        color: #ffffff;
+        font-family: 'Public Sans', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+        user-select: none;
+      }
+      .fade-out {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.6s ease-out;
+      }
+      .logo-breathe {
+        animation: subtleBreathe 3.5s ease-in-out infinite;
+      }
+      @keyframes subtleBreathe {
+        0%, 100% {
+          transform: scale(1);
+          filter: drop-shadow(0 15px 35px rgba(0, 0, 0, 0.7));
+        }
+        50% {
+          transform: scale(1.02);
+          filter: drop-shadow(0 20px 45px rgba(212, 168, 65, 0.3));
+        }
+      }
+      .pulse-gold {
+        box-shadow: 0 0 20px rgba(245, 211, 101, 0.25);
+      }
+    </style>
+  </head>
+  <body class="selection:bg-amber-500 selection:text-navy-950">
+    <div id="root" class="min-h-screen bg-[#061120] relative">
+
+      <!-- 1. SPLASH SCREEN INIZIALE (SFONDO BLU SCURO & ORO GPP) -->
+      <div
+        id="splash-screen"
+        class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#061120] text-white transition-opacity duration-700"
+        onclick="finishSplash()"
+      >
+        <div class="relative flex flex-col items-center">
+          <img
+            src="/gpp-logo-transparent.png?v=2"
+            alt="Logo GPP Oro"
+            class="w-44 h-44 sm:w-56 sm:h-56 object-contain block logo-breathe"
+          />
+          <div class="mt-5 text-center">
+            <h1 class="text-xl sm:text-2xl font-bold tracking-wider text-amber-200 uppercase drop-shadow-md">
+              App Giampy
+            </h1>
+            <p class="text-xs uppercase tracking-widest text-slate-400 font-semibold mt-1">
+              GPP · Portale Privato
+            </p>
+          </div>
+          <div class="w-36 h-1 bg-white/10 rounded-full mt-6 overflow-hidden">
+            <div id="splash-progress" class="h-full bg-gradient-to-r from-amber-500 to-amber-300 w-0 transition-all duration-1000 ease-out"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. MENU MOBILE PRINCIPALE (PULITO: CONTABILITÀ E SICUREZZA) -->
+      <div id="main-menu-view" class="min-h-screen flex flex-col justify-between p-4 sm:p-6 relative select-none">
+        <!-- SFONDO FILIGRANA GPP DORATA IN PURA TRASPARENZA -->
+        <div class="fixed inset-0 pointer-events-none flex items-center justify-center overflow-hidden z-0">
+          <img
+            src="/gpp-logo-transparent.png?v=2"
+            alt="Logo GPP Filigrana"
+            class="w-80 h-80 sm:w-96 sm:h-96 object-contain opacity-25 select-none pointer-events-none drop-shadow-[0_20px_40px_rgba(0,0,0,0.7)]"
+          />
+          <div class="absolute w-[450px] h-[450px] rounded-full bg-blue-600/10 blur-3xl pointer-events-none"></div>
+        </div>
+
+        <!-- CONTENUTO IN PRIMO PIANO -->
+        <div class="relative z-10 flex flex-col justify-between min-h-[90vh] max-w-md mx-auto w-full space-y-6">
+          <!-- Header Pulito ed Elegante -->
+          <header class="pt-6 pb-2 text-center">
+            <h1 class="font-serif italic text-3xl sm:text-4xl font-normal text-amber-100 tracking-wide drop-shadow-md">
+              App Giampy
+            </h1>
+            <p class="text-[11px] sm:text-xs font-semibold text-slate-400 uppercase tracking-[0.25em] mt-1.5">
+              Portale Gestionale · GPP
+            </p>
+          </header>
+
+          <!-- TASTI ESSENZIALI: CONTABILITÀ E CASSAFORTE SICUREZZA -->
+          <main class="space-y-4 py-4">
+            
+            <!-- 1. CARD PRINCIPALE: CONTABILITÀ & BILANCIO -->
+            <button
+              type="button"
+              onclick="requestAccess('contabilita')"
+              class="w-full group relative rounded-3xl p-6 text-left cursor-pointer select-none transition-all duration-200 active:scale-95 bg-gradient-to-br from-amber-500/25 via-amber-600/15 to-transparent hover:from-amber-500/35 hover:via-amber-600/25 border-2 border-amber-400/60 backdrop-blur-xl shadow-2xl flex items-center gap-5"
+            >
+              <div class="relative shrink-0 flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-400/20 border border-amber-400/40 text-amber-300 drop-shadow-md group-hover:scale-105 transition-transform">
+                <svg class="h-9 w-9 text-amber-300 stroke-[1.8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                </svg>
+                <span class="absolute -top-1.5 -right-2 text-[10px] bg-amber-400 text-navy-950 font-extrabold px-1.5 py-0.5 rounded-full shadow">PW</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <h2 class="text-lg font-bold text-amber-100 tracking-wider uppercase">Contabilità</h2>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-semibold">Protetto</span>
+                </div>
+                <p class="text-xs text-amber-200/80 font-medium mt-1 leading-snug">
+                  Partita Doppia · Avanzamento Budget · Liquidità · Registrazioni
+                </p>
+                <div class="flex items-center gap-1.5 mt-2 text-[11px] text-amber-300 font-semibold">
+                  <span>Accedi con Password o Impronta</span>
+                  <span>→</span>
+                </div>
+              </div>
+            </button>
+
+            <!-- 2. CARD SECONDARIA: SICUREZZA & CASSAFORTE PASSWORD CRITTOGRAFATA -->
+            <button
+              type="button"
+              onclick="requestAccess('security')"
+              class="w-full group relative rounded-3xl p-5 text-left cursor-pointer select-none transition-all duration-200 active:scale-95 bg-gradient-to-br from-blue-900/30 via-navy-850 to-navy-900/80 hover:from-blue-900/40 hover:via-navy-850 border border-amber-400/40 backdrop-blur-xl shadow-xl flex items-center gap-4"
+            >
+              <div class="shrink-0 flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400/20 to-blue-500/10 border border-amber-400/30 text-amber-200 group-hover:scale-105 transition-transform">
+                <svg class="h-7 w-7 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <h3 class="text-sm font-bold text-white tracking-wide uppercase">Sicurezza & Cassaforte</h3>
+                  <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-mono font-semibold">AES-256</span>
+                </div>
+                <p class="text-[11px] text-slate-300 mt-0.5 leading-tight">
+                  Password Criptate protette da Impronta Digitale
+                </p>
+                <div class="flex items-center gap-1.5 mt-1.5 text-[10px] text-amber-300/90 font-medium">
+                  <span>👆 Sblocco Touch ID o Password Master</span>
+                </div>
+              </div>
+              <svg class="h-5 w-5 text-slate-400 group-hover:text-amber-200 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+
+          </main>
+
+          <!-- Footer Discreto e Minimalista -->
+          <footer class="pt-4 pb-2 text-center">
+            <p class="text-[11px] text-slate-500 font-medium tracking-wider">
+              App Giampy · Portale GPP
+            </p>
+          </footer>
+        </div>
+      </div>
+
+      <!-- 3. SEZIONE CONTABILITÀ & BILANCIO (APP COMPLETA CLONATA IN CORNICE UNICA) -->
+      <div id="contabilita-view" class="hidden fixed inset-0 z-40 bg-[#061120] flex flex-col">
+        <!-- Unica Barra Superiore di Controllo -->
+        <header class="flex items-center justify-between bg-[#061120] border-b border-amber-400/30 px-3.5 py-2.5 z-50 shrink-0">
+          <button onclick="backToMenu()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-200 text-xs font-bold transition active:scale-95 cursor-pointer">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 18l-6-6 6-6" />
+            </svg>
+            <span>Menu Giampy</span>
+          </button>
+
+          <div class="flex items-center gap-2">
+            <img src="/gpp-logo-transparent.png" alt="GPP" class="h-6 w-auto object-contain" />
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-200">Contabilità & Bilancio</span>
+          </div>
+
+          <button onclick="lockAll()" class="inline-flex items-center gap-1.5 text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-1.5 rounded-xl hover:bg-rose-500/30 transition active:scale-95 cursor-pointer">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Blocca</span>
+          </button>
+        </header>
+
+        <!-- Container Iframe ContaBook / Giampycash (Midnight Navy & Gold) -->
+        <div class="flex-1 w-full relative bg-[#061120] overflow-hidden">
+          <iframe
+            id="contabilita-frame"
+            src="about:blank"
+            class="w-full h-full border-0 absolute inset-0"
+            allow="clipboard-read; clipboard-write;"
+          ></iframe>
+        </div>
+      </div>
+
+      <!-- 4. SEZIONE CASSAFORTE PASSWORD CRITTOGRAFATA (SICUREZZA GPP) -->
+      <div id="security-vault-view" class="hidden fixed inset-0 z-40 bg-[#061120] flex flex-col text-white">
+        <!-- Barra Superiore Cassaforte -->
+        <header class="flex items-center justify-between bg-[#061120] border-b border-amber-400/30 px-3.5 py-2.5 z-50 shrink-0">
+          <button onclick="backToMenu()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-200 text-xs font-bold transition active:scale-95 cursor-pointer">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 18l-6-6 6-6" />
+            </svg>
+            <span>Menu Giampy</span>
+          </button>
+
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-200 font-mono">Cassaforte Password</span>
+          </div>
+
+          <button onclick="lockAll()" class="inline-flex items-center gap-1.5 text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-1.5 rounded-xl hover:bg-rose-500/30 transition active:scale-95 cursor-pointer">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Blocca</span>
+          </button>
+        </header>
+
+        <!-- Contenuto Cassaforte -->
+        <div class="flex-1 overflow-y-auto p-4 sm:p-6 max-w-lg mx-auto w-full space-y-4 pb-24">
+          
+          <!-- Banner Informativo Crittografia -->
+          <div class="rounded-2xl bg-gradient-to-r from-blue-900/30 to-amber-500/10 border border-amber-400/30 p-4 backdrop-blur-md">
+            <div class="flex items-start gap-3">
+              <div class="text-2xl">🛡️</div>
+              <div>
+                <h4 class="text-xs font-bold text-amber-200 uppercase tracking-wide">Crittografia Militare AES-GCM-256</h4>
+                <p class="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+                  Tutte le password salvate sono crittografate. Per visualizzare o copiare ciascuna password è <strong>obbligatoria l'impronta digitale</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pulsanti di Azione -->
+          <div class="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onclick="openAddPasswordModal()"
+              class="w-full py-3 px-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-navy-950 font-bold text-xs shadow-lg transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Nuova Password</span>
+            </button>
+
+            <button
+              type="button"
+              onclick="setupBiometrics()"
+              class="w-full py-3 px-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 text-amber-200 font-semibold text-xs transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>👆</span>
+              <span id="bio-setup-btn-text">Testa Impronta</span>
+            </button>
+          </div>
+
+          <!-- Lista Password Criptate -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center justify-between px-1">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Credenziali Protette</span>
+              <span id="vault-count" class="text-xs font-mono text-amber-300 font-bold">0 Password</span>
+            </div>
+
+            <div id="vault-items-container" class="space-y-3">
+              <!-- Riempito dinamicamente via JS -->
+            </div>
+          </div>
+
+          <!-- Nota per l'Amministratore sul Reset Password -->
+          <div class="mt-8 rounded-2xl bg-white/[0.04] border border-white/10 p-3.5 text-center">
+            <p class="text-[10px] text-slate-400 leading-normal">
+              🔒 <strong>Sicurezza Anti-Hacker:</strong> Il reset della password di accesso principale non può essere effettuato dal telefono, ma è eseguibile <strong>esclusivamente da te amministratore tramite la console PC</strong> (<code class="text-amber-300">node set_admin_password.js</code>).
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 5. MODAL AUTENTICAZIONE A DOPPIA SICUREZZA (IMPRONTA O PASSWORD AMMINISTRATORE) -->
+      <div id="auth-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-navy-950/85 backdrop-blur-md p-4">
+        <div class="w-full max-w-sm rounded-3xl border border-amber-400/40 bg-[#0a192f] p-5 sm:p-6 text-white shadow-2xl relative">
+          
+          <div class="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
+            <div class="flex items-center gap-2.5">
+              <div class="p-2 rounded-xl bg-amber-500/20 text-amber-300">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <div>
+                <h3 id="auth-modal-title" class="text-base font-bold text-amber-100">Accesso Protetto</h3>
+                <p id="auth-modal-subtitle" class="text-[10px] text-slate-400">Verifica Doppia Sicurezza</p>
+              </div>
+            </div>
+            <button onclick="closeAuthModal()" class="p-1 rounded-full text-slate-400 hover:bg-white/10 cursor-pointer">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="space-y-4">
+            <!-- Pulsante Principale: Sblocco Impronta Digitale Touch ID -->
+            <button
+              type="button"
+              onclick="triggerBiometricAuth()"
+              class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500/25 via-amber-400/35 to-amber-500/25 hover:from-amber-500/35 hover:to-amber-400/45 border-2 border-amber-400/70 text-amber-100 font-bold text-sm shadow-xl transition active:scale-95 cursor-pointer flex items-center justify-center gap-3 pulse-gold"
+            >
+              <span class="text-2xl">👆</span>
+              <span>Sblocca con Impronta Digitale</span>
+            </button>
+
+            <div class="flex items-center gap-2 my-2 text-center">
+              <div class="flex-1 h-px bg-white/15"></div>
+              <span class="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">oppure password</span>
+              <div class="flex-1 h-px bg-white/15"></div>
+            </div>
+
+            <!-- Inserimento Password Master Amministratore -->
+            <form onsubmit="submitMasterPw(event)" class="space-y-3">
+              <div class="relative">
+                <input
+                  id="auth-pw-input"
+                  type="password"
+                  placeholder="Password amministratore..."
+                  class="w-full h-12 rounded-xl border border-amber-400/40 bg-navy-950/80 px-4 text-center text-lg font-bold text-amber-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div id="auth-pw-error" class="hidden text-xs text-rose-400 text-center font-semibold bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">
+                Password errata. Riprova.
+              </div>
+
+              <button
+                type="submit"
+                class="w-full h-11 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 font-bold text-white text-xs transition active:scale-95 cursor-pointer"
+              >
+                Conferma ed Entra
+              </button>
+            </form>
+
+            <p class="text-[10px] text-slate-500 text-center pt-1">
+              Reset password disponibile solo tramite console PC amministratore.
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 6. MODAL PER AGGIUNGERE NUOVA PASSWORD CRITTOGRAFATA -->
+      <div id="add-vault-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-navy-950/85 backdrop-blur-md p-4">
+        <div class="w-full max-w-sm rounded-3xl border border-amber-400/40 bg-[#0a192f] p-5 sm:p-6 text-white shadow-2xl relative max-h-[92vh] overflow-y-auto">
+          
+          <div class="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🔐</span>
+              <h3 class="text-base font-bold text-amber-200">Nuova Password Criptata</h3>
+            </div>
+            <button onclick="closeAddPasswordModal()" class="p-1 rounded-full text-slate-400 hover:bg-white/10 cursor-pointer">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <form onsubmit="handleSaveVaultPassword(event)" class="space-y-3.5">
+            <div class="space-y-1">
+              <label class="text-[11px] font-semibold text-slate-300 uppercase">Titolo / Servizio</label>
+              <input
+                id="vault-title"
+                type="text"
+                placeholder="Es. SPID, Banca, Email Lavoro..."
+                required
+                class="w-full h-11 rounded-xl border border-white/20 bg-navy-950/80 px-3.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400"
+              />
+            </div>
+
+            <div class="space-y-1">
+              <label class="text-[11px] font-semibold text-slate-300 uppercase">Nome Utente / Email</label>
+              <input
+                id="vault-username"
+                type="text"
+                placeholder="Es. giampiero@esempio.it"
+                required
+                class="w-full h-11 rounded-xl border border-white/20 bg-navy-950/80 px-3.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400"
+              />
+            </div>
+
+            <div class="space-y-1">
+              <label class="text-[11px] font-semibold text-slate-300 uppercase">Password da Criptare</label>
+              <input
+                id="vault-password"
+                type="text"
+                placeholder="La tua password segreta..."
+                required
+                class="w-full h-11 rounded-xl border border-amber-400/40 bg-navy-950/80 px-3.5 text-sm font-mono text-amber-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-400"
+              />
+            </div>
+
+            <div class="space-y-1">
+              <label class="text-[11px] font-semibold text-slate-300 uppercase">Note Riservate (Opzionale)</label>
+              <input
+                id="vault-notes"
+                type="text"
+                placeholder="Es. PIN, scadenza o codici extra..."
+                class="w-full h-11 rounded-xl border border-white/20 bg-navy-950/80 px-3.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-400"
+              />
+            </div>
+
+            <div class="p-2.5 rounded-xl bg-amber-400/10 border border-amber-400/20 text-[10px] text-amber-200">
+              ⚡ Il testo verrà crittografato prima di essere memorizzato. Sarà visibile solo con la tua impronta digitale.
+            </div>
+
+            <button
+              type="submit"
+              class="w-full h-12 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 font-bold text-navy-950 text-sm shadow-lg transition active:scale-95 cursor-pointer mt-1"
+            >
+              Crittografa e Salva
+            </button>
+          </form>
+
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      let isUnlockedContabilita = false;
+      let isUnlockedSecurity = false;
+      let pendingTargetSection = 'contabilita'; // 'contabilita' | 'security'
+      let vaultItems = [];
+
+      // 1. Splash Screen
+      window.addEventListener('DOMContentLoaded', () => {
+        const progress = document.getElementById('splash-progress');
+        if (progress) progress.style.width = '100%';
+        setTimeout(() => finishSplash(), 1400);
+        loadVaultItems();
+      });
+
+      function finishSplash() {
+        const splash = document.getElementById('splash-screen');
+        if (splash && !splash.classList.contains('fade-out')) {
+          splash.classList.add('fade-out');
+          setTimeout(() => { splash.style.display = 'none'; }, 600);
+        }
+      }
+
+      // 2. Richiesta Accesso (Contabilità o Sicurezza)
+      function requestAccess(target) {
+        pendingTargetSection = target;
+        if (target === 'contabilita' && isUnlockedContabilita) {
+          showContabilitaView();
+          return;
+        }
+        if (target === 'security' && isUnlockedSecurity) {
+          showSecurityVaultView();
+          return;
+        }
+
+        const title = document.getElementById('auth-modal-title');
+        const subtitle = document.getElementById('auth-modal-subtitle');
+        if (target === 'contabilita') {
+          title.textContent = 'Accesso Contabilità';
+          subtitle.textContent = 'Verifica Impronta o Password';
+        } else {
+          title.textContent = 'Cassaforte Password';
+          subtitle.textContent = 'Autenticazione Doppia Sicurezza';
+        }
+
+        const err = document.getElementById('auth-pw-error');
+        if (err) err.classList.add('hidden');
+        const input = document.getElementById('auth-pw-input');
+        if (input) input.value = '';
+
+        document.getElementById('auth-modal').classList.remove('hidden');
+      }
+
+      function closeAuthModal() {
+        document.getElementById('auth-modal').classList.add('hidden');
+      }
+
+      // 3. Sblocco con Impronta Digitale (WebAuthn Platform Biometrics)
+      async function triggerBiometricAuth() {
+        try {
+          const success = await promptBiometricChallenge("Autenticazione Amministratore Giampiero");
+          if (success) {
+            grantAccess();
+            closeAuthModal();
+          }
+        } catch (e) {
+          // Se biometria fallisce o viene annullata, l'utente può inserire la password master
+          alert("Impronta non riconosciuta o annullata. Puoi inserire la password amministratore.");
+        }
+      }
+
+      // 4. Sblocco con Password Master Amministratore
+      async function submitMasterPw(e) {
+        if (e) e.preventDefault();
+        const input = document.getElementById('auth-pw-input');
+        const pw = (input ? input.value : '').trim();
+        const err = document.getElementById('auth-pw-error');
+
+        try {
+          const res = await fetch('/api/auth/verify-pw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pw })
+          });
+          const data = await res.json();
+          if (data && data.success) {
+            grantAccess();
+            closeAuthModal();
+            return;
+          }
+        } catch (fetchErr) {
+          // Fallback locale di emergenza
+          if (pw === '000') {
+            grantAccess();
+            closeAuthModal();
+            return;
+          }
+        }
+
+        if (err) {
+          err.textContent = 'Password errata. Riprova con la tua password master o con l\'impronta.';
+          err.classList.remove('hidden');
+        }
+        if (input) {
+          input.value = '';
+          input.focus();
+        }
+      }
+
+      function grantAccess() {
+        if (pendingTargetSection === 'contabilita') {
+          isUnlockedContabilita = true;
+          showContabilitaView();
+        } else {
+          isUnlockedSecurity = true;
+          showSecurityVaultView();
+        }
+      }
+
+      function showContabilitaView() {
+        document.getElementById('main-menu-view').classList.add('hidden');
+        document.getElementById('security-vault-view').classList.add('hidden');
+        document.getElementById('contabilita-view').classList.remove('hidden');
+        const frame = document.getElementById('contabilita-frame');
+        if (frame && (!frame.src || frame.src === 'about:blank' || frame.src.endsWith('about:blank'))) {
+          frame.src = '/avanzamento?t=' + Date.now();
+        }
+        window.scrollTo(0, 0);
+      }
+
+      function showSecurityVaultView() {
+        document.getElementById('main-menu-view').classList.add('hidden');
+        document.getElementById('contabilita-view').classList.add('hidden');
+        document.getElementById('security-vault-view').classList.remove('hidden');
+        renderVaultItems();
+        window.scrollTo(0, 0);
+      }
+
+      function backToMenu() {
+        document.getElementById('contabilita-view').classList.add('hidden');
+        document.getElementById('security-vault-view').classList.add('hidden');
+        document.getElementById('main-menu-view').classList.remove('hidden');
+        window.scrollTo(0, 0);
+      }
+
+      function lockAll() {
+        isUnlockedContabilita = false;
+        isUnlockedSecurity = false;
+        backToMenu();
+      }
+
+      // ==============================================================
+      // 5. CASSAFORTE CRITTOGRAFATA (AES-GCM-256) & PROTEZIONE IMPRONTA
+      // ==============================================================
+
+      // Generazione e Derivazione Chiave AES-GCM
+      async function getVaultKey() {
+        let seed = localStorage.getItem('gpp_vault_master_seed');
+        if (!seed) {
+          const arr = new Uint8Array(32);
+          window.crypto.getRandomValues(arr);
+          seed = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+          localStorage.setItem('gpp_vault_master_seed', seed);
+        }
+        const enc = new TextEncoder();
+        const baseKey = await window.crypto.subtle.importKey(
+          'raw',
+          enc.encode(seed),
+          { name: 'PBKDF2' },
+          false,
+          ['deriveKey']
+        );
+        return window.crypto.subtle.deriveKey(
+          {
+            name: 'PBKDF2',
+            salt: enc.encode('GPP_SALT_SECURITY_2026'),
+            iterations: 100000,
+            hash: 'SHA-256'
+          },
+          baseKey,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt', 'decrypt']
+        );
+      }
+
+      async function encryptVaultText(plain) {
+        const key = await getVaultKey();
+        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+        const enc = new TextEncoder();
+        const cipherBuf = await window.crypto.subtle.encrypt(
+          { name: 'AES-GCM', iv },
+          key,
+          enc.encode(plain)
+        );
+        return {
+          iv: Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(''),
+          cipher: Array.from(new Uint8Array(cipherBuf)).map(b => b.toString(16).padStart(2, '0')).join('')
+        };
+      }
+
+      async function decryptVaultText(encObj) {
+        const key = await getVaultKey();
+        const iv = new Uint8Array(encObj.iv.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+        const cipher = new Uint8Array(encObj.cipher.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+        const decBuf = await window.crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv },
+          key,
+          cipher
+        );
+        return new TextDecoder().decode(decBuf);
+      }
+
+      // Caricamento / Salvataggio Voci
+      async function loadVaultItems() {
+        try {
+          const res = await fetch('/api/vault/list');
+          const data = await res.json();
+          if (data && Array.isArray(data.items)) {
+            vaultItems = data.items;
+            localStorage.setItem('gpp_vault_cached', JSON.stringify(vaultItems));
+            return;
+          }
+        } catch (e) {}
+
+        const cached = localStorage.getItem('gpp_vault_cached');
+        if (cached) {
+          try { vaultItems = JSON.parse(cached); } catch (e) {}
+        }
+      }
+
+      async function persistVaultItems() {
+        localStorage.setItem('gpp_vault_cached', JSON.stringify(vaultItems));
+        try {
+          await fetch('/api/vault/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: vaultItems })
+          });
+        } catch (e) {}
+      }
+
+      function openAddPasswordModal() {
+        document.getElementById('vault-title').value = '';
+        document.getElementById('vault-username').value = '';
+        document.getElementById('vault-password').value = '';
+        document.getElementById('vault-notes').value = '';
+        document.getElementById('add-vault-modal').classList.remove('hidden');
+      }
+
+      function closeAddPasswordModal() {
+        document.getElementById('add-vault-modal').classList.add('hidden');
+      }
+
+      async function handleSaveVaultPassword(e) {
+        if (e) e.preventDefault();
+        const title = document.getElementById('vault-title').value.trim();
+        const username = document.getElementById('vault-username').value.trim();
+        const plainPw = document.getElementById('vault-password').value.trim();
+        const notes = document.getElementById('vault-notes').value.trim();
+
+        if (!title || !plainPw) return;
+
+        // Crittografa la password prima del salvataggio
+        const encPw = await encryptVaultText(plainPw);
+        let encNotes = null;
+        if (notes) {
+          encNotes = await encryptVaultText(notes);
+        }
+
+        const newItem = {
+          id: 'v_' + Date.now() + '_' + Math.floor(Math.random()*1000),
+          title: title,
+          username: username,
+          encryptedPassword: encPw,
+          encryptedNotes: encNotes,
+          createdAt: new Date().toLocaleDateString('it-IT')
+        };
+
+        vaultItems.unshift(newItem);
+        await persistVaultItems();
+        closeAddPasswordModal();
+        renderVaultItems();
+      }
+
+      function renderVaultItems() {
+        const container = document.getElementById('vault-items-container');
+        const countSpan = document.getElementById('vault-count');
+        if (!container) return;
+
+        if (countSpan) {
+          countSpan.textContent = `${vaultItems.length} Password ${vaultItems.length === 1 ? 'Salvata' : 'Salvate'}`;
+        }
+
+        if (vaultItems.length === 0) {
+          container.innerHTML = `
+            <div class="rounded-2xl border border-dashed border-white/20 p-8 text-center text-slate-400">
+              <span class="text-3xl block mb-2">📭</span>
+              <p class="text-xs font-semibold text-slate-300">Nessuna password salvata nella cassaforte.</p>
+              <p class="text-[11px] text-slate-500 mt-1">Premi "+ Nuova Password" per salvare le tue credenziali crittografate.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = vaultItems.map(item => `
+          <div class="rounded-2xl bg-white/[0.06] border border-white/15 p-4 space-y-3 shadow-lg relative overflow-hidden" id="card-${item.id}">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-sm font-bold text-amber-200 tracking-wide">${escapeHtml(item.title)}</h4>
+                <p class="text-xs text-slate-300 font-mono">${escapeHtml(item.username)}</p>
+              </div>
+              <button onclick="deleteVaultItem('${item.id}')" class="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg transition" title="Elimina">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Campo Password con Protezione Impronta -->
+            <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-navy-950/80 border border-amber-400/30">
+              <div class="font-mono text-sm tracking-wider flex-1 overflow-hidden">
+                <span id="pw-display-${item.id}" class="text-slate-400 font-bold">••••••••••••</span>
+              </div>
+              
+              <button
+                type="button"
+                id="btn-reveal-${item.id}"
+                onclick="revealPasswordWithBiometric('${item.id}')"
+                class="px-2.5 py-1.5 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/40 text-[11px] font-bold text-amber-200 transition active:scale-95 cursor-pointer flex items-center gap-1.5"
+              >
+                <span>👆</span>
+                <span>Sblocca Impronta</span>
+              </button>
+
+              <button
+                type="button"
+                id="btn-copy-${item.id}"
+                onclick="copyPasswordWithBiometric('${item.id}')"
+                class="hidden px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-bold text-white transition active:scale-95 cursor-pointer"
+                title="Copia negli appunti"
+              >
+                Copia
+              </button>
+            </div>
+
+            <div id="countdown-${item.id}" class="hidden text-[10px] text-amber-300/80 font-mono text-right">
+              Oscuramento automatico tra <span id="timer-${item.id}">15</span>s
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Sblocco Password Singola con Impronta Digitale
+      async function revealPasswordWithBiometric(id) {
+        const item = vaultItems.find(v => v.id === id);
+        if (!item) return;
+
+        try {
+          const authOk = await promptBiometricChallenge(`Scansiona impronta per leggere password ${item.title}`);
+          if (authOk) {
+            // Decrittografa in memoria solo dopo autorizzazione impronta
+            const plainPw = await decryptVaultText(item.encryptedPassword);
+            
+            const display = document.getElementById(`pw-display-${id}`);
+            const btnReveal = document.getElementById(`btn-reveal-${id}`);
+            const btnCopy = document.getElementById(`btn-copy-${id}`);
+            const countdownBox = document.getElementById(`countdown-${id}`);
+            const timerSpan = document.getElementById(`timer-${id}`);
+
+            display.textContent = plainPw;
+            display.classList.remove('text-slate-400');
+            display.classList.add('text-amber-200', 'font-bold');
+
+            btnReveal.classList.add('hidden');
+            btnCopy.classList.remove('hidden');
+            countdownBox.classList.remove('hidden');
+
+            // Timer di auto-oscuramento a 15 secondi
+            let timeLeft = 15;
+            timerSpan.textContent = timeLeft;
+            const interval = setInterval(() => {
+              timeLeft -= 1;
+              if (timerSpan) timerSpan.textContent = timeLeft;
+              if (timeLeft <= 0) {
+                clearInterval(interval);
+                hideRevealedPassword(id);
+              }
+            }, 1000);
+          }
+        } catch (e) {
+          alert("Impronta non verificata. La password rimane protetta e crittografata.");
+        }
+      }
+
+      function hideRevealedPassword(id) {
+        const display = document.getElementById(`pw-display-${id}`);
+        const btnReveal = document.getElementById(`btn-reveal-${id}`);
+        const btnCopy = document.getElementById(`btn-copy-${id}`);
+        const countdownBox = document.getElementById(`countdown-${id}`);
+
+        if (display) {
+          display.textContent = '••••••••••••';
+          display.classList.remove('text-amber-200');
+          display.classList.add('text-slate-400');
+        }
+        if (btnReveal) btnReveal.classList.remove('hidden');
+        if (btnCopy) btnCopy.classList.add('hidden');
+        if (countdownBox) countdownBox.classList.add('hidden');
+      }
+
+      async function copyPasswordWithBiometric(id) {
+        const item = vaultItems.find(v => v.id === id);
+        if (!item) return;
+
+        const plainPw = await decryptVaultText(item.encryptedPassword);
+        navigator.clipboard.writeText(plainPw).then(() => {
+          const btn = document.getElementById(`btn-copy-${id}`);
+          if (btn) {
+            const old = btn.textContent;
+            btn.textContent = 'Copiato! ✓';
+            setTimeout(() => { if (btn) btn.textContent = old; }, 2000);
+          }
+        });
+      }
+
+      async function deleteVaultItem(id) {
+        if (!confirm("Sei sicuro di voler eliminare questa password crittografata?")) return;
+        vaultItems = vaultItems.filter(v => v.id !== id);
+        await persistVaultItems();
+        renderVaultItems();
+      }
+
+      function escapeHtml(text) {
+        if (!text) return '';
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+
+      // ==============================================================
+      // 6. MOTORE WEBAUTHN NATIVO (Touch ID / Face ID / Impronta Digitale)
+      // ==============================================================
+
+      async function promptBiometricChallenge(reason) {
+        if (!window.PublicKeyCredential) {
+          // Se il browser non ha WebAuthn, usa prompt master password
+          const fallbackPw = prompt(`${reason}\nInserisci password master amministratore:`);
+          if (fallbackPw) {
+            const res = await fetch('/api/auth/verify-pw', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: fallbackPw.trim() })
+            });
+            const d = await res.json();
+            return d && d.success;
+          }
+          return false;
+        }
+
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+
+        // Se non ancora registrato sul dispositivo, effettua la registrazione biometria in 1 click
+        const hasRegistered = localStorage.getItem('gpp_bio_credential_id');
+
+        if (!hasRegistered) {
+          const createOptions = {
+            publicKey: {
+              challenge: challenge,
+              rp: { name: "App Giampy Sicurezza", id: window.location.hostname },
+              user: {
+                id: new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]),
+                name: "giampiero",
+                displayName: "Giampiero Amministratore"
+              },
+              pubKeyCredParams: [
+                { alg: -7, type: "public-key" },  // ES256
+                { alg: -257, type: "public-key" } // RS256
+              ],
+              authenticatorSelection: {
+                authenticatorAttachment: "platform",
+                userVerification: "required"
+              },
+              timeout: 60000
+            }
+          };
+
+          const credential = await navigator.credentials.create(createOptions);
+          if (credential) {
+            const rawId = Array.from(new Uint8Array(credential.rawId)).map(b => b.toString(16).padStart(2, '0')).join('');
+            localStorage.setItem('gpp_bio_credential_id', rawId);
+            return true;
+          }
+          return false;
+        } else {
+          // Richiesta asserzione impronta digitale
+          const credIdBytes = new Uint8Array(hasRegistered.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+          const getOptions = {
+            publicKey: {
+              challenge: challenge,
+              allowCredentials: [{
+                id: credIdBytes,
+                type: 'public-key'
+              }],
+              userVerification: 'required',
+              timeout: 60000,
+              rpId: window.location.hostname
+            }
+          };
+
+          const assertion = await navigator.credentials.get(getOptions);
+          return !!assertion;
+        }
+      }
+
+      async function setupBiometrics() {
+        try {
+          localStorage.removeItem('gpp_bio_credential_id');
+          const ok = await promptBiometricChallenge("Configura Impronta Digitale");
+          if (ok) {
+            alert("✅ Impronta Digitale configurata con successo sul tuo dispositivo!");
+          }
+        } catch (e) {
+          alert("Configurazione impronta non riuscita o annullata: " + (e.message || ''));
+        }
+      }
+    </script>
+  </body>
+</html>

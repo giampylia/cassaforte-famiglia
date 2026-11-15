@@ -1,0 +1,9 @@
+{
+  "name": "giampy-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App Giampy con monogramma GPP dorato e splash screen blu notte",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

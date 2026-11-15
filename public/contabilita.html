@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#061120" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="App Giampy Contabilità" />
+    <title>App Giampy — Contabilità & Bilancio</title>
+
+    <link rel="icon" href="/gpp-icon-192.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/gpp-icon-512.png" />
+    
+    <script>
+      // Svuota immediatamente la cache del browser
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          for (let r of regs) r.unregister();
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+      }
+    </script>
+
+    <link rel="stylesheet" crossorigin href="/assets/index-Cp_dnjcW.css?v=20261114_5">
+    
+    <style>
+      /* Palette Midnight Navy & Satin Gold (Nessun Verde) */
+      :root {
+        --primary: 216 45% 18% !important;
+        --primary-foreground: 45 90% 95% !important;
+        --ring: 45 80% 55% !important;
+        --sidebar-background: 220 50% 10% !important;
+        --sidebar-accent: 216 35% 18% !important;
+        --sidebar-border: 216 30% 22% !important;
+        --accent: 45 85% 55% !important;
+      }
+
+      body {
+        margin: 0;
+        background-color: #061120 !important;
+        color: #ffffff;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* Navbar dell'app contabile in Blu Notte Imperiale & Oro */
+      header.bg-primary,
+      .bg-primary {
+        background: linear-gradient(180deg, #122540 0%, #0a182c 100%) !important;
+        border-bottom: 1px solid rgba(245, 211, 101, 0.3) !important;
+      }
+
+      /* Quando caricato dentro l'App Giampy (iframe), NON mostrare la barra duplicata */
+      #giampy-standalone-bar {
+        display: none;
+      }
+    </style>
+    <script>
+      // Mostra la barra solo se aperto all'esterno dell'app
+      if (window.self === window.top) {
+        document.addEventListener('DOMContentLoaded', () => {
+          const bar = document.getElementById('giampy-standalone-bar');
+          if (bar) bar.style.display = 'flex';
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <!-- Barra presente solo se aperta come pagina standalone esterna -->
+    <div id="giampy-standalone-bar" style="position:sticky; top:0; z-index:9999; display:none; align-items:center; justify-content:space-between; background:#061120; border-bottom:1px solid rgba(212,168,65,0.35); padding:8px 14px; color:#fff; font-family:system-ui, sans-serif;">
+      <a href="/" style="display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.2); color:#fae392; padding:6px 12px; border-radius:12px; font-size:13px; font-weight:600; text-decoration:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+        <span>Menu Giampy</span>
+      </a>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <img src="/gpp-logo-transparent.png" alt="GPP" style="height:22px; width:auto;" />
+        <span style="font-size:12px; font-weight:700; letter-spacing:0.06em; color:#fae392; text-transform:uppercase;">Contabilità</span>
+      </div>
+      <a href="/" style="display:inline-flex; align-items:center; gap:4px; color:#fca5a5; border:1px solid rgba(248,113,113,0.3); background:rgba(248,113,113,0.1); padding:6px 10px; border-radius:12px; font-size:13px; text-decoration:none;">
+        <span>Esci</span>
+      </a>
+    </div>
+
+    <!-- Container Radice React dell'App Contabile -->
+    <div id="root"></div>
+
+    <script>
+      // Assicura che la rotta iniziale sia /avanzamento se aperta genericamente
+      if (window.location.pathname === '/' || window.location.pathname === '/contabilita' || window.location.pathname === '/contabilita/') {
+        window.history.replaceState(null, '', '/avanzamento');
+      }
+    </script>
+
+    <!-- Bundle Logico App Contabile -->
+    <script type="module" crossorigin src="/assets/index-DjHMptbn.js?v=20261114_5"></script>
+  </body>
+</html>
