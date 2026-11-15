@@ -738,9 +738,8 @@
       function lockApp() {
         isAppAuthenticated = false;
         sessionStorage.removeItem('gpp_app_unlocked');
-        areVaultCredentialsRevealed = false;
-        decryptedCache = {};
-        if (vaultBulkCountdownInterval) clearInterval(vaultBulkCountdownInterval);
+        hideAllBulkCredentials();
+        closeBulkAuthModal();
 
         // Reset viste
         document.getElementById('contabilita-view').classList.add('hidden');
@@ -899,6 +898,8 @@
         }
       }
 
+      let pendingEditVaultId = null;
+
       function openBulkAuthModal() {
         const input = document.getElementById('bulk-pw-input');
         const err = document.getElementById('bulk-pw-error');
@@ -908,6 +909,7 @@
       }
 
       function closeBulkAuthModal() {
+        pendingEditVaultId = null;
         document.getElementById('bulk-auth-modal').classList.add('hidden');
       }
 
@@ -915,8 +917,10 @@
         try {
           const ok = await promptBiometricChallenge("Verifica Codice Promozionale");
           if (ok) {
+            const editTarget = pendingEditVaultId;
             closeBulkAuthModal();
             await revealAllBulkCredentials();
+            if (editTarget) openEditPasswordModal(editTarget);
           }
         } catch (e) {
           alert("Impronta non verificata. Inserisci il codice promozionale.");
@@ -937,14 +941,18 @@
           });
           const data = await res.json();
           if (data && data.success) {
+            const editTarget = pendingEditVaultId;
             closeBulkAuthModal();
             await revealAllBulkCredentials();
+            if (editTarget) openEditPasswordModal(editTarget);
             return;
           }
         } catch (fetchErr) {
           if (pw === '240696') {
+            const editTarget = pendingEditVaultId;
             closeBulkAuthModal();
             await revealAllBulkCredentials();
+            if (editTarget) openEditPasswordModal(editTarget);
             return;
           }
         }
@@ -995,9 +1003,11 @@
       function hideAllBulkCredentials() {
         areVaultCredentialsRevealed = false;
         decryptedCache = {};
+        pendingEditVaultId = null;
         if (vaultBulkCountdownInterval) clearInterval(vaultBulkCountdownInterval);
         const countdownSpan = document.getElementById('vault-bulk-countdown');
         if (countdownSpan) countdownSpan.classList.add('hidden');
+        closeAddPasswordModal();
         updateBulkUI();
         renderVaultItems();
       }
@@ -1049,6 +1059,7 @@
           const dec = decryptedCache[item.id] || null;
           const isRevealed = areVaultCredentialsRevealed && dec;
 
+          const userVal = isRevealed ? escapeHtml(item.username) : '••••••••';
           const pwVal = isRevealed ? escapeHtml(dec.password) : '••••••••••••';
           const pinVal = isRevealed ? (dec.pin ? escapeHtml(dec.pin) : '') : (item.encryptedPin ? '••••' : '');
           const bmtVal = isRevealed ? (dec.bmt ? escapeHtml(dec.bmt) : '') : (item.encryptedBmt ? '••••••••' : '');
@@ -1061,8 +1072,10 @@
                 <div>
                   <h4 class="text-sm font-bold text-amber-200 tracking-wide">${escapeHtml(item.title)}</h4>
                   <div class="flex items-center gap-2 mt-0.5">
-                    <span class="text-xs text-slate-300 font-mono select-text">${escapeHtml(item.username)}</span>
-                    <button onclick="copyToClipboard('${escapeJs(item.username)}', this)" class="text-[10px] text-amber-300 hover:text-amber-200 px-1 py-0.5 rounded bg-white/10" title="Copia username">Copia</button>
+                    <span class="text-xs ${isRevealed ? 'text-slate-300 select-text' : 'text-slate-500'} font-mono">${userVal}</span>
+                    ${isRevealed ? `
+                      <button onclick="copyToClipboard('${escapeJs(item.username)}', this)" class="text-[10px] text-amber-300 hover:text-amber-200 px-1 py-0.5 rounded bg-white/10" title="Copia username">Copia</button>
+                    ` : ''}
                   </div>
                 </div>
                 <div class="flex items-center gap-1">
@@ -1167,27 +1180,18 @@
         document.getElementById('add-vault-modal').classList.remove('hidden');
       }
 
-      // Modal Modifica Account
+      // Modal Modifica Account (SOLO SE SBLOCCATO CON PASSWORD/IMPRONTA)
       async function openEditPasswordModal(id) {
+        if (!areVaultCredentialsRevealed || !decryptedCache[id]) {
+          pendingEditVaultId = id;
+          openBulkAuthModal();
+          return;
+        }
+
         const item = vaultItems.find(v => v.id === id);
         if (!item) return;
 
-        let dec = decryptedCache[id];
-        if (!dec) {
-          try {
-            dec = {
-              password: await decryptVaultText(item.encryptedPassword),
-              pin: item.encryptedPin ? await decryptVaultText(item.encryptedPin) : '',
-              bmt: item.encryptedBmt ? await decryptVaultText(item.encryptedBmt) : '',
-              shopnl: item.encryptedShopnl ? await decryptVaultText(item.encryptedShopnl) : '',
-              notes: item.encryptedNotes ? await decryptVaultText(item.encryptedNotes) : ''
-            };
-            decryptedCache[id] = dec;
-          } catch (e) {
-            alert("Sblocca prima la cassaforte con il codice promozionale o impronta per modificare i dati.");
-            return;
-          }
-        }
+        const dec = decryptedCache[id];
 
         document.getElementById('vault-edit-id').value = id;
         document.getElementById('modal-vault-title-text').textContent = 'Modifica Account';
@@ -1203,6 +1207,14 @@
       }
 
       function closeAddPasswordModal() {
+        document.getElementById('vault-edit-id').value = '';
+        document.getElementById('vault-title').value = '';
+        document.getElementById('vault-username').value = '';
+        document.getElementById('vault-password').value = '';
+        document.getElementById('vault-pin').value = '';
+        document.getElementById('vault-bmt').value = '';
+        document.getElementById('vault-shopnl').value = '';
+        document.getElementById('vault-notes').value = '';
         document.getElementById('add-vault-modal').classList.add('hidden');
       }
 
@@ -1226,6 +1238,11 @@
         const encNotes = notes ? await encryptVaultText(notes) : null;
 
         if (editId) {
+          if (!areVaultCredentialsRevealed) {
+            closeAddPasswordModal();
+            openBulkAuthModal();
+            return;
+          }
           // MODIFICA DI UN ACCOUNT ESISTENTE
           const idx = vaultItems.findIndex(v => v.id === editId);
           if (idx !== -1) {
@@ -1279,6 +1296,10 @@
       }
 
       async function deleteVaultItem(id) {
+        if (!areVaultCredentialsRevealed) {
+          openBulkAuthModal();
+          return;
+        }
         if (!confirm("Sei sicuro di voler eliminare questo account dalla cassaforte?")) return;
         vaultItems = vaultItems.filter(v => v.id !== id);
         delete decryptedCache[id];
