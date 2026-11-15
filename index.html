@@ -288,6 +288,22 @@
                   SICUREZZA
                 </span>
               </button>
+
+              <!-- Tasto 3: ACQUISTI -->
+              <button
+                type="button"
+                onclick="showAcquistiView()"
+                class="group relative aspect-square rounded-3xl transition-all duration-200 active:scale-95 flex flex-col items-center justify-center p-3 text-center cursor-pointer select-none shadow-xl bg-white/[0.10] hover:bg-white/[0.18] active:bg-white/[0.24] backdrop-blur-md border border-white/20 hover:border-white/35 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]"
+              >
+                <div class="relative flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-200">
+                  <svg class="h-10 w-10 text-white stroke-[1.6] drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <span class="text-xs sm:text-sm font-bold text-white tracking-wider uppercase leading-tight line-clamp-2 px-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                  ACQUISTI
+                </span>
+              </button>
             </div>
           </main>
 
@@ -632,6 +648,263 @@
         </div>
       </div>
 
+      <!-- 7. SEZIONE ACQUISTI -->
+      <div id="acquisti-view" class="hidden fixed inset-0 z-40 bg-[#061120] flex flex-col text-white">
+        <!-- Barra Superiore Acquisti -->
+        <header class="flex items-center justify-between bg-[#061120] border-b border-amber-400/30 px-3.5 py-2.5 z-50 shrink-0">
+          <button onclick="backToMenu()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-200 text-xs font-bold transition active:scale-95 cursor-pointer">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 18l-6-6 6-6" />
+            </svg>
+            <span>Menu Giampy</span>
+          </button>
+
+          <div class="flex items-center gap-2">
+            <img src="/gpp-logo-transparent.png?v=2" alt="GPP" class="h-6 w-auto object-contain" />
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-200">Acquisti</span>
+          </div>
+
+          <button onclick="lockApp()" class="inline-flex items-center gap-1.5 text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-1.5 rounded-xl hover:bg-rose-500/30 transition active:scale-95 cursor-pointer font-semibold">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Blocca</span>
+          </button>
+        </header>
+
+        <!-- Contenuto Acquisti -->
+        <div class="flex-1 overflow-y-auto p-4 sm:p-6 max-w-lg mx-auto w-full space-y-4 pb-24">
+          <!-- Pulsante Nuovo Acquisto -->
+          <button
+            type="button"
+            onclick="openAddAcquistoModal()"
+            class="w-full py-3 px-4 rounded-2xl bg-white/10 hover:bg-white/15 border border-amber-400/40 text-amber-200 font-bold text-xs shadow-md transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Nuovo Acquisto</span>
+          </button>
+
+          <!-- Legenda / Filtro rapido Case con pallini colorati -->
+          <div class="rounded-2xl bg-white/[0.04] border border-white/10 p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Destinazione Casa (Filtro)</span>
+              <span id="acquisti-count" class="text-xs font-mono text-amber-300 font-bold">0 Acquisti</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5" id="acquisti-house-filters">
+              <button type="button" onclick="setAcquistiHouseFilter('ALL')" id="filter-house-ALL" class="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-amber-400/20 border border-amber-400/50 text-amber-200 cursor-pointer transition">Tutte</button>
+              <button type="button" onclick="setAcquistiHouseFilter('C')" id="filter-house-C" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-white/5 border border-white/10 text-slate-300 flex items-center gap-1.5 cursor-pointer transition"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#a855f7;"></span>C Cavaro</button>
+              <button type="button" onclick="setAcquistiHouseFilter('M')" id="filter-house-M" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-white/5 border border-white/10 text-slate-300 flex items-center gap-1.5 cursor-pointer transition"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#ef4444;"></span>M Mennenne</button>
+              <button type="button" onclick="setAcquistiHouseFilter('T')" id="filter-house-T" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-white/5 border border-white/10 text-slate-300 flex items-center gap-1.5 cursor-pointer transition"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#22c55e;"></span>T Tisiddu</button>
+              <button type="button" onclick="setAcquistiHouseFilter('P')" id="filter-house-P" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-white/5 border border-white/10 text-slate-300 flex items-center gap-1.5 cursor-pointer transition"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#f97316;"></span>P Principe</button>
+              <button type="button" onclick="setAcquistiHouseFilter('G')" id="filter-house-G" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-white/5 border border-white/10 text-slate-300 flex items-center gap-1.5 cursor-pointer transition"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#3b82f6;"></span>G Gatta</button>
+              <button type="button" onclick="setAcquistiHouseFilter('A')" id="filter-house-A" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-white/5 border border-white/10 text-slate-300 flex items-center gap-1.5 cursor-pointer transition"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#facc15;"></span>A Assago</button>
+            </div>
+          </div>
+
+          <!-- Lista Acquisti (ordinati per Priorità; solo nome visibile, clic per espandere) -->
+          <div id="acquisti-items-container" class="space-y-2.5">
+            <!-- Riempito dinamicamente via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. MODAL AGGIUNGI / MODIFICA ACQUISTO -->
+      <div id="add-acquisto-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-navy-950/85 backdrop-blur-md p-4">
+        <div class="w-full max-w-md rounded-3xl border border-amber-400/40 bg-[#0a192f] p-5 sm:p-6 text-white shadow-2xl relative max-h-[92vh] overflow-y-auto">
+          <div class="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🛒</span>
+              <h3 id="modal-acquisto-title-text" class="text-base font-bold text-amber-200">Nuovo Acquisto</h3>
+            </div>
+            <button type="button" onclick="closeAddAcquistoModal()" class="p-1 rounded-full text-slate-400 hover:bg-white/10 cursor-pointer">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <form onsubmit="handleSaveAcquisto(event)" class="space-y-3">
+            <input type="hidden" id="acquisto-edit-id" value="" />
+
+            <!-- Nome Acquisto e Priorità -->
+            <div class="grid grid-cols-3 gap-2.5">
+              <div class="col-span-2 space-y-1">
+                <label class="text-[11px] font-semibold text-amber-200 uppercase">Nome Acquisto *</label>
+                <input
+                  id="acquisto-title"
+                  type="text"
+                  placeholder="Es. Lavatrice, Divano..."
+                  required
+                  class="w-full h-10 rounded-xl border border-white/20 bg-navy-950/80 px-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400"
+                />
+              </div>
+              <div class="space-y-1">
+                <label class="text-[11px] font-semibold text-amber-200 uppercase">Priorità *</label>
+                <input
+                  id="acquisto-priority"
+                  type="number"
+                  step="1"
+                  min="1"
+                  value="1"
+                  required
+                  class="w-full h-10 rounded-xl border border-amber-400/40 bg-navy-950/80 px-3 text-center font-mono text-xs font-bold text-amber-200 focus:outline-none focus:border-amber-400"
+                />
+              </div>
+            </div>
+
+            <!-- Casa per la quale è destinato l'acquisto -->
+            <div class="space-y-1.5">
+              <label class="text-[11px] font-semibold text-slate-300 uppercase">Casa Destinazione *</label>
+              <input type="hidden" id="acquisto-house" value="C" />
+              <div class="grid grid-cols-3 gap-1.5" id="acquisto-house-selector">
+                <button type="button" onclick="selectAcquistoHouse('C')" data-house="C" class="house-opt-btn flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-amber-400 bg-amber-400/20 text-xs font-bold text-white cursor-pointer transition">
+                  <span class="w-3 h-3 rounded-full shrink-0" style="background:#a855f7;"></span>
+                  <span class="truncate">C · Cavaro</span>
+                </button>
+                <button type="button" onclick="selectAcquistoHouse('M')" data-house="M" class="house-opt-btn flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-white/15 bg-navy-950/80 text-xs font-medium text-slate-300 cursor-pointer transition">
+                  <span class="w-3 h-3 rounded-full shrink-0" style="background:#ef4444;"></span>
+                  <span class="truncate">M · Mennenne</span>
+                </button>
+                <button type="button" onclick="selectAcquistoHouse('T')" data-house="T" class="house-opt-btn flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-white/15 bg-navy-950/80 text-xs font-medium text-slate-300 cursor-pointer transition">
+                  <span class="w-3 h-3 rounded-full shrink-0" style="background:#22c55e;"></span>
+                  <span class="truncate">T · Tisiddu</span>
+                </button>
+                <button type="button" onclick="selectAcquistoHouse('P')" data-house="P" class="house-opt-btn flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-white/15 bg-navy-950/80 text-xs font-medium text-slate-300 cursor-pointer transition">
+                  <span class="w-3 h-3 rounded-full shrink-0" style="background:#f97316;"></span>
+                  <span class="truncate">P · Principe</span>
+                </button>
+                <button type="button" onclick="selectAcquistoHouse('G')" data-house="G" class="house-opt-btn flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-white/15 bg-navy-950/80 text-xs font-medium text-slate-300 cursor-pointer transition">
+                  <span class="w-3 h-3 rounded-full shrink-0" style="background:#3b82f6;"></span>
+                  <span class="truncate">G · Gatta</span>
+                </button>
+                <button type="button" onclick="selectAcquistoHouse('A')" data-house="A" class="house-opt-btn flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-white/15 bg-navy-950/80 text-xs font-medium text-slate-300 cursor-pointer transition">
+                  <span class="w-3 h-3 rounded-full shrink-0" style="background:#facc15;"></span>
+                  <span class="truncate">A · Assago</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Descrizione -->
+            <div class="space-y-1">
+              <label class="text-[11px] font-semibold text-slate-300 uppercase">Descrizione</label>
+              <textarea
+                id="acquisto-description"
+                rows="2"
+                placeholder="Dettagli, misure, modello, note..."
+                class="w-full rounded-xl border border-white/20 bg-navy-950/80 p-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400"
+              ></textarea>
+            </div>
+
+            <!-- Prezzo (Stimato o Certo) e Copertura -->
+            <div class="grid grid-cols-2 gap-2.5">
+              <div class="space-y-1">
+                <label class="text-[11px] font-semibold text-slate-300 uppercase">Tipo Prezzo</label>
+                <select
+                  id="acquisto-price-type"
+                  class="w-full h-10 rounded-xl border border-white/20 bg-navy-950/80 px-2.5 text-xs text-amber-200 font-semibold focus:outline-none focus:border-amber-400"
+                >
+                  <option value="stimato">Prezzo Stimato</option>
+                  <option value="certo">Prezzo Certo</option>
+                </select>
+              </div>
+              <div class="space-y-1">
+                <label class="text-[11px] font-semibold text-amber-200 uppercase">Importo (€)</label>
+                <input
+                  id="acquisto-price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  class="w-full h-10 rounded-xl border border-white/20 bg-navy-950/80 px-3 text-right font-mono text-xs text-amber-200 placeholder:text-slate-500 focus:outline-none focus:border-amber-400"
+                />
+              </div>
+            </div>
+
+            <!-- Copertura -->
+            <div class="space-y-1">
+              <label class="text-[11px] font-semibold text-slate-300 uppercase">Copertura</label>
+              <input
+                id="acquisto-coverage"
+                type="text"
+                placeholder="Es. Coperto, Da coprire, ING, Cassa..."
+                class="w-full h-10 rounded-xl border border-white/20 bg-navy-950/80 px-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400"
+              />
+            </div>
+
+            <!-- Data Inserimento e Data Acquisto -->
+            <div class="grid grid-cols-2 gap-2.5">
+              <div class="space-y-1">
+                <label class="text-[11px] font-semibold text-slate-300 uppercase">Data Inserimento</label>
+                <input
+                  id="acquisto-inserted-date"
+                  type="date"
+                  class="w-full h-10 rounded-xl border border-white/20 bg-navy-950/80 px-2.5 font-mono text-xs text-white focus:outline-none focus:border-amber-400"
+                />
+              </div>
+              <div class="space-y-1">
+                <label class="text-[11px] font-semibold text-slate-300 uppercase">Data Acquisto</label>
+                <input
+                  id="acquisto-purchase-date"
+                  type="date"
+                  class="w-full h-10 rounded-xl border border-white/20 bg-navy-950/80 px-2.5 font-mono text-xs text-white focus:outline-none focus:border-amber-400"
+                />
+              </div>
+            </div>
+
+            <!-- Link Prodotto (anche più di 1) -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <label class="text-[11px] font-semibold text-slate-300 uppercase">Link Prodotto</label>
+                <button
+                  type="button"
+                  onclick="addAcquistoLinkInput('')"
+                  class="text-[11px] font-bold text-amber-300 hover:text-amber-200 cursor-pointer"
+                >
+                  + Aggiungi altro link
+                </button>
+              </div>
+              <div id="acquisto-links-list" class="space-y-1.5">
+                <!-- Campi link generati via JS -->
+              </div>
+            </div>
+
+            <!-- Eventuale Foto -->
+            <div class="space-y-1.5">
+              <label class="text-[11px] font-semibold text-slate-300 uppercase">Eventuale Foto</label>
+              <input
+                id="acquisto-photo-input"
+                type="file"
+                accept="image/*"
+                onchange="handleAcquistoPhotoChange(event)"
+                class="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-amber-200 hover:file:bg-white/20 cursor-pointer"
+              />
+              <div id="acquisto-photo-preview-wrap" class="hidden relative mt-2 rounded-xl overflow-hidden border border-white/15 bg-navy-950/80 p-2 flex items-center justify-between">
+                <img id="acquisto-photo-preview" src="" alt="Anteprima" class="h-16 w-auto rounded-lg object-cover" />
+                <button type="button" onclick="clearAcquistoPhoto()" class="text-xs text-rose-400 hover:text-rose-300 font-semibold px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 cursor-pointer">
+                  Rimuovi foto
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              id="btn-save-acquisto"
+              class="w-full h-11 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 font-bold text-navy-950 text-xs shadow-lg transition active:scale-95 cursor-pointer mt-2 uppercase tracking-wider"
+            >
+              Salva Acquisto
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 9. MODAL INGRANDIMENTO FOTO ACQUISTO -->
+      <div id="acquisto-photo-modal" onclick="closeAcquistoPhotoModal()" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 cursor-pointer">
+        <img id="acquisto-photo-full" src="" alt="Foto Acquisto" class="max-w-full max-h-[88vh] rounded-2xl shadow-2xl object-contain" />
+      </div>
+
     </div>
 
     <script>
@@ -640,6 +913,10 @@
       let vaultBulkCountdownInterval = null;
       let decryptedCache = {}; // Cache in memoria temporanea delle credenziali decrittate
       let vaultItems = [];
+      let acquistiItems = [];
+      let expandedAcquistiIds = {};
+      let currentAcquistiHouseFilter = 'ALL';
+      let currentAcquistoPhotoData = null;
 
       // ==============================================================
       // 1. SPLASH SCREEN & BLOCCO GENERALE ALL'AVVIO DELL'APP
@@ -649,6 +926,7 @@
         if (progress) progress.style.width = '100%';
         setTimeout(() => finishSplash(), 1300);
         loadVaultItems();
+        loadAcquistiItems();
       });
 
       function finishSplash() {
@@ -740,10 +1018,12 @@
         sessionStorage.removeItem('gpp_app_unlocked');
         hideAllBulkCredentials();
         closeBulkAuthModal();
+        closeAddAcquistoModal();
 
         // Reset viste
         document.getElementById('contabilita-view').classList.add('hidden');
         document.getElementById('security-vault-view').classList.add('hidden');
+        document.getElementById('acquisti-view').classList.add('hidden');
         document.getElementById('main-menu-view').classList.add('hidden');
 
         const frame = document.getElementById('contabilita-frame');
@@ -758,11 +1038,12 @@
       }
 
       // ==============================================================
-      // 2. NAVIGAZIONE: CONTABILITÀ (NESSUNA PW!) E MENU
+      // 2. NAVIGAZIONE: CONTABILITÀ, SICUREZZA, ACQUISTI E MENU
       // ==============================================================
       function showContabilitaView() {
         document.getElementById('main-menu-view').classList.add('hidden');
         document.getElementById('security-vault-view').classList.add('hidden');
+        document.getElementById('acquisti-view').classList.add('hidden');
         document.getElementById('contabilita-view').classList.remove('hidden');
         const frame = document.getElementById('contabilita-frame');
         if (frame && (!frame.src || frame.src === 'about:blank' || frame.src.endsWith('about:blank') || frame.src.endsWith('/'))) {
@@ -774,14 +1055,25 @@
       function showSecurityVaultView() {
         document.getElementById('main-menu-view').classList.add('hidden');
         document.getElementById('contabilita-view').classList.add('hidden');
+        document.getElementById('acquisti-view').classList.add('hidden');
         document.getElementById('security-vault-view').classList.remove('hidden');
         renderVaultItems();
+        window.scrollTo(0, 0);
+      }
+
+      function showAcquistiView() {
+        document.getElementById('main-menu-view').classList.add('hidden');
+        document.getElementById('contabilita-view').classList.add('hidden');
+        document.getElementById('security-vault-view').classList.add('hidden');
+        document.getElementById('acquisti-view').classList.remove('hidden');
+        renderAcquistiItems();
         window.scrollTo(0, 0);
       }
 
       function backToMenu() {
         document.getElementById('contabilita-view').classList.add('hidden');
         document.getElementById('security-vault-view').classList.add('hidden');
+        document.getElementById('acquisti-view').classList.add('hidden');
         document.getElementById('main-menu-view').classList.remove('hidden');
         window.scrollTo(0, 0);
       }
@@ -1420,6 +1712,475 @@
         } catch (e) {
           alert("Configurazione impronta non riuscita o annullata: " + (e.message || ''));
         }
+      }
+
+      // ==============================================================
+      // 5. SEZIONE ACQUISTI (PRIORITÀ, CASE CON PALLINO COLORATO, LINK MULTIPLI, FOTO)
+      // ==============================================================
+      const HOUSE_MAP = {
+        C: { code: 'C', name: 'Cavaro', color: '#a855f7' },   // Pallino viola
+        M: { code: 'M', name: 'Mennenne', color: '#ef4444' }, // Pallino rosso
+        T: { code: 'T', name: 'Tisiddu', color: '#22c55e' },  // Pallino verde
+        P: { code: 'P', name: 'Principe', color: '#f97316' }, // Pallino arancione
+        G: { code: 'G', name: 'Gatta', color: '#3b82f6' },    // Pallino blu
+        A: { code: 'A', name: 'Assago', color: '#facc15' }    // Pallino giallo
+      };
+
+      async function loadAcquistiItems() {
+        let serverItems = null;
+        try {
+          const res = await fetch('/api/acquisti/list');
+          const data = await res.json();
+          if (data && Array.isArray(data.items)) {
+            serverItems = data.items;
+          }
+        } catch (e) {}
+
+        let localItems = [];
+        try {
+          const cached = localStorage.getItem('gpp_acquisti_cached');
+          if (cached) localItems = JSON.parse(cached) || [];
+        } catch (e) {}
+
+        if (serverItems && serverItems.length >= localItems.length) {
+          acquistiItems = serverItems;
+        } else {
+          const merged = new Map();
+          (serverItems || []).forEach(it => { if (it && it.id) merged.set(it.id, it); });
+          localItems.forEach(it => { if (it && it.id) merged.set(it.id, it); });
+          acquistiItems = Array.from(merged.values());
+          if (acquistiItems.length > (serverItems || []).length) {
+            persistAcquistiItems();
+          }
+        }
+        try {
+          localStorage.setItem('gpp_acquisti_cached', JSON.stringify(acquistiItems));
+        } catch (e) {}
+      }
+
+      async function persistAcquistiItems() {
+        try {
+          localStorage.setItem('gpp_acquisti_cached', JSON.stringify(acquistiItems));
+        } catch (e) {}
+        try {
+          await fetch('/api/acquisti/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: acquistiItems })
+          });
+        } catch (e) {}
+      }
+
+      function setAcquistiHouseFilter(code) {
+        currentAcquistiHouseFilter = code;
+        ['ALL', 'C', 'M', 'T', 'P', 'G', 'A'].forEach(k => {
+          const btn = document.getElementById('filter-house-' + k);
+          if (!btn) return;
+          if (k === code) {
+            btn.className = 'px-2.5 py-1 rounded-xl text-[11px] font-bold bg-amber-400/20 border border-amber-400/50 text-amber-200 flex items-center gap-1.5 cursor-pointer transition';
+          } else {
+            btn.className = 'px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-white/5 border border-white/10 text-slate-300 flex items-center gap-1.5 cursor-pointer transition';
+          }
+        });
+        renderAcquistiItems();
+      }
+
+      function toggleAcquistoExpand(id) {
+        expandedAcquistiIds[id] = !expandedAcquistiIds[id];
+        renderAcquistiItems();
+      }
+
+      function formatItDate(iso) {
+        if (!iso) return '—';
+        const parts = String(iso).split('-');
+        if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+        return iso;
+      }
+
+      function formatEuroPrice(val) {
+        const num = Number(val);
+        if (isNaN(num) || val === '' || val === null || val === undefined) return '—';
+        return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(num);
+      }
+
+      function renderAcquistiItems() {
+        const container = document.getElementById('acquisti-items-container');
+        const countSpan = document.getElementById('acquisti-count');
+        if (!container) return;
+
+        const sorted = [...acquistiItems].sort((a, b) => {
+          const pa = Number(a.priority ?? 9999);
+          const pb = Number(b.priority ?? 9999);
+          if (pa !== pb) return pa - pb;
+          return String(a.insertedDate || '').localeCompare(String(b.insertedDate || ''));
+        });
+
+        const filtered = currentAcquistiHouseFilter === 'ALL'
+          ? sorted
+          : sorted.filter(it => it.house === currentAcquistiHouseFilter);
+
+        if (countSpan) {
+          countSpan.textContent = filtered.length + ' ' + (filtered.length === 1 ? 'Acquisto' : 'Acquisti');
+        }
+
+        if (filtered.length === 0) {
+          container.innerHTML = `
+            <div class="rounded-2xl border border-dashed border-white/20 p-8 text-center text-slate-400">
+              <span class="text-3xl block mb-2">🛒</span>
+              <p class="text-xs font-semibold text-slate-300">Nessun acquisto in lista.</p>
+              <p class="text-[11px] text-slate-500 mt-1">Premi "+ Nuovo Acquisto" per inserire un elemento ordinato per priorità.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = filtered.map(item => {
+          const h = HOUSE_MAP[item.house] || HOUSE_MAP.C;
+          const isExpanded = !!expandedAcquistiIds[item.id];
+          const links = Array.isArray(item.links) ? item.links.filter(l => l && l.trim()) : [];
+          const priceLabel = item.priceType === 'certo' ? 'Prezzo Certo' : 'Prezzo Stimato';
+          const priceBadgeClass = item.priceType === 'certo'
+            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+            : 'bg-amber-500/20 text-amber-200 border-amber-500/30';
+
+          return `
+            <div class="rounded-2xl bg-white/[0.06] border border-white/15 shadow-lg overflow-hidden transition">
+              <!-- RIGA PRINCIPALE: SOLO PALLINO CASA + NOME DELL'ACQUISTO -->
+              <button
+                type="button"
+                onclick="toggleAcquistoExpand('${item.id}')"
+                class="w-full px-4 py-3.5 flex items-center justify-between gap-3 text-left hover:bg-white/[0.04] active:bg-white/[0.08] transition cursor-pointer"
+              >
+                <div class="flex items-center gap-3 min-w-0">
+                  <span
+                    class="w-3.5 h-3.5 rounded-full shrink-0 shadow-[0_0_8px_rgba(255,255,255,0.25)]"
+                    style="background:${h.color};"
+                    title="${h.code} = ${h.name}"
+                  ></span>
+                  <span class="text-sm font-bold text-white truncate">${escapeHtml(item.title)}</span>
+                </div>
+                <svg class="h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-amber-300' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              <!-- DETTAGLIO ESPANDIBILE AL CLIC CON TUTTI GLI ALTRI DATI -->
+              ${isExpanded ? `
+                <div class="px-4 pb-4 pt-2 border-t border-white/10 bg-navy-950/60 space-y-3 text-xs">
+                  <div class="grid grid-cols-2 gap-2">
+                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Priorità</span>
+                      <span class="font-mono font-bold text-amber-300 text-sm">#${escapeHtml(String(item.priority ?? 1))}</span>
+                    </div>
+                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Casa Destinazione</span>
+                      <div class="flex items-center gap-1.5 mt-0.5 font-bold text-white">
+                        <span class="w-2.5 h-2.5 rounded-full inline-block shrink-0" style="background:${h.color};"></span>
+                        <span>${h.code} · ${h.name}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2">
+                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+                      <div class="flex items-center justify-between gap-1">
+                        <span class="text-[10px] uppercase font-bold text-slate-400">Prezzo</span>
+                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded border ${priceBadgeClass}">${priceLabel}</span>
+                      </div>
+                      <span class="font-mono font-bold text-amber-200 text-sm block mt-1">${formatEuroPrice(item.price)}</span>
+                    </div>
+                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Copertura</span>
+                      <span class="font-semibold text-slate-200 block mt-1 truncate">${item.coverage ? escapeHtml(item.coverage) : '—'}</span>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2">
+                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Data Inserimento</span>
+                      <span class="font-mono text-slate-200 block mt-0.5">${formatItDate(item.insertedDate)}</span>
+                    </div>
+                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Data Acquisto</span>
+                      <span class="font-mono text-slate-200 block mt-0.5">${formatItDate(item.purchaseDate)}</span>
+                    </div>
+                  </div>
+
+                  ${item.description ? `
+                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+                      <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Descrizione</span>
+                      <p class="text-slate-200 whitespace-pre-wrap leading-relaxed select-text">${escapeHtml(item.description)}</p>
+                    </div>
+                  ` : ''}
+
+                  ${links.length > 0 ? `
+                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10 space-y-1.5">
+                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Link Prodotto (${links.length})</span>
+                      <div class="space-y-1">
+                        ${links.map((lnk, idx) => {
+                          const href = /^https?:\/\//i.test(lnk) ? lnk : 'https://' + lnk;
+                          return `
+                            <a
+                              href="${escapeHtml(href)}"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/25 text-amber-200 font-medium truncate transition"
+                            >
+                              <span class="truncate">🔗 Link ${idx + 1}: ${escapeHtml(lnk)}</span>
+                              <span class="text-[10px] font-bold shrink-0">Apri ↗</span>
+                            </a>
+                          `;
+                        }).join('')}
+                      </div>
+                    </div>
+                  ` : ''}
+
+                  ${item.photo ? `
+                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+                      <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1.5">Foto</span>
+                      <img
+                        src="${item.photo}"
+                        alt="${escapeHtml(item.title)}"
+                        onclick="openAcquistoPhotoModal('${item.id}')"
+                        class="max-h-48 w-auto rounded-xl border border-white/15 object-cover cursor-pointer hover:opacity-90 transition"
+                      />
+                    </div>
+                  ` : ''}
+
+                  <div class="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onclick="openEditAcquistoModal('${item.id}')"
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/30 text-amber-200 font-bold text-xs transition cursor-pointer"
+                    >
+                      <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      <span>Modifica</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick="deleteAcquistoItem('${item.id}')"
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs transition cursor-pointer"
+                    >
+                      <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span>Elimina</span>
+                    </button>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+      }
+
+      function selectAcquistoHouse(code) {
+        document.getElementById('acquisto-house').value = code;
+        const buttons = document.querySelectorAll('#acquisto-house-selector .house-opt-btn');
+        buttons.forEach(btn => {
+          if (btn.getAttribute('data-house') === code) {
+            btn.className = 'house-opt-btn flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-amber-400 bg-amber-400/20 text-xs font-bold text-white cursor-pointer transition';
+          } else {
+            btn.className = 'house-opt-btn flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-white/15 bg-navy-950/80 text-xs font-medium text-slate-300 cursor-pointer transition';
+          }
+        });
+      }
+
+      function addAcquistoLinkInput(val) {
+        const list = document.getElementById('acquisto-links-list');
+        if (!list) return;
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-1.5';
+        row.innerHTML = `
+          <input
+            type="text"
+            placeholder="https://..."
+            value="${escapeHtml(val || '')}"
+            class="acquisto-link-field flex-1 h-9 rounded-xl border border-white/20 bg-navy-950/80 px-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400"
+          />
+          <button
+            type="button"
+            onclick="this.parentElement.remove()"
+            class="h-9 px-2.5 rounded-xl bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-white/10 text-xs cursor-pointer"
+            title="Rimuovi link"
+          >✕</button>
+        `;
+        list.appendChild(row);
+      }
+
+      function handleAcquistoPhotoChange(e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          const img = new Image();
+          img.onload = function() {
+            const maxDim = 900;
+            let w = img.width;
+            let h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+              } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            currentAcquistoPhotoData = canvas.toDataURL('image/jpeg', 0.78);
+            const prev = document.getElementById('acquisto-photo-preview');
+            const wrap = document.getElementById('acquisto-photo-preview-wrap');
+            if (prev) prev.src = currentAcquistoPhotoData;
+            if (wrap) wrap.classList.remove('hidden');
+          };
+          img.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function clearAcquistoPhoto() {
+        currentAcquistoPhotoData = null;
+        const inp = document.getElementById('acquisto-photo-input');
+        const prev = document.getElementById('acquisto-photo-preview');
+        const wrap = document.getElementById('acquisto-photo-preview-wrap');
+        if (inp) inp.value = '';
+        if (prev) prev.src = '';
+        if (wrap) wrap.classList.add('hidden');
+      }
+
+      function openAddAcquistoModal() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('acquisto-edit-id').value = '';
+        document.getElementById('modal-acquisto-title-text').textContent = 'Nuovo Acquisto';
+        document.getElementById('btn-save-acquisto').textContent = 'Salva Acquisto';
+        document.getElementById('acquisto-title').value = '';
+        document.getElementById('acquisto-priority').value = String(acquistiItems.length + 1);
+        selectAcquistoHouse('C');
+        document.getElementById('acquisto-description').value = '';
+        document.getElementById('acquisto-price-type').value = 'stimato';
+        document.getElementById('acquisto-price').value = '';
+        document.getElementById('acquisto-coverage').value = '';
+        document.getElementById('acquisto-inserted-date').value = today;
+        document.getElementById('acquisto-purchase-date').value = '';
+        const linksList = document.getElementById('acquisto-links-list');
+        if (linksList) linksList.innerHTML = '';
+        addAcquistoLinkInput('');
+        clearAcquistoPhoto();
+        document.getElementById('add-acquisto-modal').classList.remove('hidden');
+      }
+
+      function openEditAcquistoModal(id) {
+        const item = acquistiItems.find(x => x.id === id);
+        if (!item) return;
+        document.getElementById('acquisto-edit-id').value = item.id;
+        document.getElementById('modal-acquisto-title-text').textContent = 'Modifica Acquisto';
+        document.getElementById('btn-save-acquisto').textContent = 'Salva Modifiche';
+        document.getElementById('acquisto-title').value = item.title || '';
+        document.getElementById('acquisto-priority').value = String(item.priority ?? 1);
+        selectAcquistoHouse(item.house || 'C');
+        document.getElementById('acquisto-description').value = item.description || '';
+        document.getElementById('acquisto-price-type').value = item.priceType || 'stimato';
+        document.getElementById('acquisto-price').value = item.price !== undefined && item.price !== null ? item.price : '';
+        document.getElementById('acquisto-coverage').value = item.coverage || '';
+        document.getElementById('acquisto-inserted-date').value = item.insertedDate || '';
+        document.getElementById('acquisto-purchase-date').value = item.purchaseDate || '';
+
+        const linksList = document.getElementById('acquisto-links-list');
+        if (linksList) linksList.innerHTML = '';
+        const links = Array.isArray(item.links) && item.links.length > 0 ? item.links : [''];
+        links.forEach(l => addAcquistoLinkInput(l));
+
+        clearAcquistoPhoto();
+        if (item.photo) {
+          currentAcquistoPhotoData = item.photo;
+          const prev = document.getElementById('acquisto-photo-preview');
+          const wrap = document.getElementById('acquisto-photo-preview-wrap');
+          if (prev) prev.src = currentAcquistoPhotoData;
+          if (wrap) wrap.classList.remove('hidden');
+        }
+
+        document.getElementById('add-acquisto-modal').classList.remove('hidden');
+      }
+
+      function closeAddAcquistoModal() {
+        const modal = document.getElementById('add-acquisto-modal');
+        if (modal) modal.classList.add('hidden');
+      }
+
+      async function handleSaveAcquisto(e) {
+        if (e) e.preventDefault();
+        const editId = document.getElementById('acquisto-edit-id').value;
+        const title = document.getElementById('acquisto-title').value.trim();
+        const priority = Number(document.getElementById('acquisto-priority').value || 1);
+        const house = document.getElementById('acquisto-house').value || 'C';
+        const description = document.getElementById('acquisto-description').value.trim();
+        const priceType = document.getElementById('acquisto-price-type').value || 'stimato';
+        const priceRaw = document.getElementById('acquisto-price').value;
+        const price = priceRaw !== '' ? Number(priceRaw) : '';
+        const coverage = document.getElementById('acquisto-coverage').value.trim();
+        const insertedDate = document.getElementById('acquisto-inserted-date').value;
+        const purchaseDate = document.getElementById('acquisto-purchase-date').value;
+
+        const linkInputs = document.querySelectorAll('#acquisto-links-list .acquisto-link-field');
+        const links = Array.from(linkInputs).map(inp => inp.value.trim()).filter(Boolean);
+
+        if (!title) return;
+
+        const record = {
+          id: editId || ('acq_' + Date.now() + '_' + Math.floor(Math.random() * 1000)),
+          title,
+          priority,
+          house,
+          description,
+          priceType,
+          price,
+          coverage,
+          insertedDate,
+          purchaseDate,
+          links,
+          photo: currentAcquistoPhotoData || null,
+          updatedAt: new Date().toISOString()
+        };
+
+        if (editId) {
+          const idx = acquistiItems.findIndex(x => x.id === editId);
+          if (idx !== -1) acquistiItems[idx] = record;
+        } else {
+          acquistiItems.push(record);
+        }
+
+        await persistAcquistiItems();
+        closeAddAcquistoModal();
+        renderAcquistiItems();
+      }
+
+      async function deleteAcquistoItem(id) {
+        if (!confirm("Sei sicuro di voler eliminare questo acquisto?")) return;
+        acquistiItems = acquistiItems.filter(x => x.id !== id);
+        delete expandedAcquistiIds[id];
+        await persistAcquistiItems();
+        renderAcquistiItems();
+      }
+
+      function openAcquistoPhotoModal(id) {
+        const item = acquistiItems.find(x => x.id === id);
+        if (!item || !item.photo) return;
+        const img = document.getElementById('acquisto-photo-full');
+        const modal = document.getElementById('acquisto-photo-modal');
+        if (img) img.src = item.photo;
+        if (modal) modal.classList.remove('hidden');
+      }
+
+      function closeAcquistoPhotoModal() {
+        const modal = document.getElementById('acquisto-photo-modal');
+        if (modal) modal.classList.add('hidden');
       }
     </script>
   </body>

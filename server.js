@@ -78,6 +78,42 @@ function saveVaultStore(data) {
   }
 }
 
+const ACQUISTI_FILE = path.join(__dirname, 'acquisti_store.json');
+
+function getAcquistiStore() {
+  try {
+    if (fs.existsSync(ACQUISTI_FILE)) {
+      const parsed = JSON.parse(fs.readFileSync(ACQUISTI_FILE, 'utf8'));
+      if (parsed && Array.isArray(parsed.items)) {
+        return parsed;
+      }
+    }
+    const dataAcquistiFile = path.join(__dirname, 'data', 'acquisti_store.json');
+    if (fs.existsSync(dataAcquistiFile)) {
+      const parsed = JSON.parse(fs.readFileSync(dataAcquistiFile, 'utf8'));
+      if (parsed && Array.isArray(parsed.items)) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Error reading acquisti store:', e);
+  }
+  return { items: [] };
+}
+
+function saveAcquistiStore(data) {
+  try {
+    if (!data || !Array.isArray(data.items)) return;
+    const backupDir = path.join(__dirname, 'data', 'backups');
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    fs.writeFileSync(ACQUISTI_FILE, JSON.stringify(data, null, 2), 'utf8');
+    const dataAcquistiFile = path.join(__dirname, 'data', 'acquisti_store.json');
+    fs.writeFileSync(dataAcquistiFile, JSON.stringify(data, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error saving acquisti store:', e);
+  }
+}
+
 const DATA_DIR = path.join(__dirname, 'data');
 const CONTABILITA_FILE = path.join(DATA_DIR, 'contabilita.json');
 let inMemoryContabilita = null;
@@ -268,6 +304,46 @@ const server = http.createServer((req, res) => {
       }
 
       sendJson(404, { error: 'Endpoint vault non trovato' });
+    });
+    return;
+  }
+
+  // 2b. API Acquisti (Lista e salvataggio record acquisti con foto e link)
+  if (reqPath.startsWith('/api/acquisti/')) {
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
+      res.end();
+      return;
+    }
+
+    if (reqPath === '/api/acquisti/list' && req.method === 'GET') {
+      const a = getAcquistiStore();
+      return sendJson(200, { items: a.items || [] });
+    }
+
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      let data = {};
+      try { if (body) data = JSON.parse(body); } catch (e) {}
+
+      if (reqPath === '/api/acquisti/save' && req.method === 'POST') {
+        if (!Array.isArray(data.items)) {
+          return sendJson(400, { success: false, message: 'Formato lista acquisti non valido' });
+        }
+        saveAcquistiStore({
+          items: data.items,
+          updatedAt: new Date().toISOString()
+        });
+        console.log(`[ACQUISTI GPP] Salvati ${data.items.length} acquisti`);
+        return sendJson(200, { success: true, count: data.items.length });
+      }
+
+      sendJson(404, { error: 'Endpoint acquisti non trovato' });
     });
     return;
   }
