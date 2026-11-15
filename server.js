@@ -40,23 +40,14 @@ function getVaultStore() {
   try {
     if (fs.existsSync(VAULT_FILE)) {
       const parsed = JSON.parse(fs.readFileSync(VAULT_FILE, 'utf8'));
-      if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+      if (parsed && Array.isArray(parsed.items)) {
         return parsed;
       }
     }
     const dataVaultFile = path.join(__dirname, 'data', 'vault_store.json');
     if (fs.existsSync(dataVaultFile)) {
       const parsed = JSON.parse(fs.readFileSync(dataVaultFile, 'utf8'));
-      if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
-        saveVaultStore(parsed);
-        return parsed;
-      }
-    }
-    const seedFile = path.join(PUBLIC_DIR, 'vault-seed.json');
-    if (fs.existsSync(seedFile)) {
-      const parsed = JSON.parse(fs.readFileSync(seedFile, 'utf8'));
-      if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
-        saveVaultStore(parsed);
+      if (parsed && Array.isArray(parsed.items)) {
         return parsed;
       }
     }
@@ -69,7 +60,6 @@ function getVaultStore() {
 function saveVaultStore(data) {
   try {
     if (!data || !Array.isArray(data.items)) return;
-    // Se esistevano già degli item, fai sempre backup
     const backupDir = path.join(__dirname, 'data', 'backups');
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
     if (fs.existsSync(VAULT_FILE)) {
@@ -83,9 +73,6 @@ function saveVaultStore(data) {
     fs.writeFileSync(VAULT_FILE, JSON.stringify(data, null, 2), 'utf8');
     const dataVaultFile = path.join(__dirname, 'data', 'vault_store.json');
     fs.writeFileSync(dataVaultFile, JSON.stringify(data, null, 2), 'utf8');
-    try {
-      fs.writeFileSync(path.join(PUBLIC_DIR, 'vault-seed.json'), JSON.stringify(data, null, 2), 'utf8');
-    } catch (_) {}
   } catch (e) {
     console.error('Error saving vault store:', e);
   }

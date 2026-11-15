@@ -845,20 +845,10 @@
         try {
           const res = await fetch('/api/vault/list');
           const data = await res.json();
-          if (data && Array.isArray(data.items) && data.items.length > 0) {
+          if (data && Array.isArray(data.items)) {
             serverItems = data.items;
           }
         } catch (e) {}
-
-        if (!serverItems) {
-          try {
-            const resSeed = await fetch('/vault-seed.json');
-            const dataSeed = await resSeed.json();
-            if (dataSeed && Array.isArray(dataSeed.items) && dataSeed.items.length > 0) {
-              serverItems = dataSeed.items;
-            }
-          } catch (e) {}
-        }
 
         let localItems = [];
         try {
