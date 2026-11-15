@@ -90,9 +90,9 @@
     <div id="root"></div>
 
     <script>
-      // Assicura che la rotta iniziale sia /avanzamento se aperta genericamente
-      if (window.location.pathname === '/' || window.location.pathname === '/contabilita' || window.location.pathname === '/contabilita/') {
-        window.history.replaceState(null, '', '/avanzamento');
+      // Assicura che la rotta iniziale sia / (Registrazioni) se aperta genericamente
+      if (window.location.pathname === '/contabilita' || window.location.pathname === '/contabilita/') {
+        window.history.replaceState(null, '', '/');
       }
 
       function renderRecoveryUI(detail) {
