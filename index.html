@@ -18,6 +18,10 @@
     <meta name="background-color" content="#061120" />
     <meta name="msapplication-navbutton-color" content="#061120" />
     <script>
+      // Anti-frame-loop: se index.html viene aperto dentro un iframe, reindirizza a /registrazioni
+      if (window.self !== window.top) {
+        window.location.replace('/registrazioni');
+      }
       // Svuota forzatamente la cache del telefono e i Service Worker pregressi
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(regs => {
@@ -760,8 +764,8 @@
         document.getElementById('security-vault-view').classList.add('hidden');
         document.getElementById('contabilita-view').classList.remove('hidden');
         const frame = document.getElementById('contabilita-frame');
-        if (frame && (!frame.src || frame.src === 'about:blank' || frame.src.endsWith('about:blank'))) {
-          frame.src = '/?t=' + Date.now();
+        if (frame && (!frame.src || frame.src === 'about:blank' || frame.src.endsWith('about:blank') || frame.src.endsWith('/'))) {
+          frame.src = '/registrazioni';
         }
         window.scrollTo(0, 0);
       }

@@ -354,8 +354,13 @@ const server = http.createServer((req, res) => {
     });
   }
 
+  // Salvaguardia: se un iframe richiede la radice, servi sempre contabilita.html (mai index.html ricorsivo!)
+  if (req.headers['sec-fetch-dest'] === 'iframe' && (reqPath === '/' || reqPath === '/index.html')) {
+    reqPath = '/registrazioni';
+  }
+
   // Rotte contabili -> servono public/contabilita.html
-  if (CONTABILITA_ROUTES.has(reqPath) || reqPath.startsWith('/contabilita/') || reqPath.startsWith('/avanzamento/')) {
+  if (CONTABILITA_ROUTES.has(reqPath) || reqPath.startsWith('/contabilita/') || reqPath.startsWith('/avanzamento/') || reqPath.startsWith('/registrazioni/')) {
     const contFilePath = path.join(PUBLIC_DIR, 'contabilita.html');
     return fs.readFile(contFilePath, (err, data) => {
       if (err) {
