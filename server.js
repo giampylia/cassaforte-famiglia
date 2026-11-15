@@ -55,6 +55,54 @@ function saveVaultStore(data) {
   }
 }
 
+const DATA_DIR = path.join(__dirname, 'data');
+const CONTABILITA_FILE = path.join(DATA_DIR, 'contabilita.json');
+let inMemoryContabilita = null;
+
+function loadContabilita() {
+  if (inMemoryContabilita) return inMemoryContabilita;
+  try {
+    if (fs.existsSync(CONTABILITA_FILE)) {
+      const data = fs.readFileSync(CONTABILITA_FILE, 'utf8');
+      const parsed = JSON.parse(data || '{}');
+      if (parsed && Array.isArray(parsed.accounts) && parsed.accounts.length > 0) {
+        inMemoryContabilita = parsed;
+        return parsed;
+      }
+    }
+    const staticSeedPath = path.join(PUBLIC_DIR, 'contabilita-data.json');
+    if (fs.existsSync(staticSeedPath)) {
+      const data = fs.readFileSync(staticSeedPath, 'utf8');
+      const parsed = JSON.parse(data || '{}');
+      inMemoryContabilita = parsed;
+      try {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+        fs.writeFileSync(CONTABILITA_FILE, JSON.stringify(parsed, null, 2), 'utf8');
+      } catch (e) {}
+      return parsed;
+    }
+  } catch (err) {
+    console.error('[Contabilità] Errore caricamento:', err.message);
+  }
+  return { accounts: [], journalEntries: [], budgetEntries: [] };
+}
+
+function saveContabilita(payload) {
+  try {
+    if (!payload || typeof payload !== 'object') return false;
+    inMemoryContabilita = payload;
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(CONTABILITA_FILE, JSON.stringify(payload, null, 2), 'utf8');
+    try {
+      fs.writeFileSync(path.join(PUBLIC_DIR, 'contabilita-data.json'), JSON.stringify(payload, null, 2), 'utf8');
+    } catch (e) {}
+    return true;
+  } catch (err) {
+    console.error('[Contabilità] Errore salvataggio:', err.message);
+    return false;
+  }
+}
+
 const MIME_TYPES = {
   '.html': 'text/html; charset=UTF-8',
   '.css': 'text/css; charset=UTF-8',
@@ -199,6 +247,39 @@ const server = http.createServer((req, res) => {
       sendJson(404, { error: 'Endpoint vault non trovato' });
     });
     return;
+  }
+
+  // 3. API Contabilità & Bilancio (Persistenza reale registrazioni e conti)
+  if (reqPath.startsWith('/api/contabilita')) {
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
+      res.end();
+      return;
+    }
+
+    if (req.method === 'GET') {
+      const data = loadContabilita();
+      return sendJson(200, { success: true, data });
+    }
+
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const ok = saveContabilita(payload);
+          return sendJson(200, { success: ok });
+        } catch (err) {
+          return sendJson(400, { success: false, error: err.message });
+        }
+      });
+      return;
+    }
   }
 
   // Alias icone e manifest standard

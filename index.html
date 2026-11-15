@@ -250,63 +250,41 @@
             </button>
           </header>
 
-          <!-- TASTI ESSENZIALI: CONTABILITÀ (NESSUNA PW!) E CASSAFORTE SICUREZZA -->
-          <main class="space-y-4 py-4">
-            
-            <!-- 1. CARD PRINCIPALE: CONTABILITÀ & BILANCIO (ACCESSO DIRETTO ISTANTANEO) -->
-            <button
-              type="button"
-              onclick="showContabilitaView()"
-              class="w-full group relative rounded-3xl p-6 text-left cursor-pointer select-none transition-all duration-200 active:scale-95 bg-gradient-to-br from-amber-500/25 via-amber-600/15 to-transparent hover:from-amber-500/35 hover:via-amber-600/25 border-2 border-amber-400/60 backdrop-blur-xl shadow-2xl flex items-center gap-5"
-            >
-              <div class="relative shrink-0 flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-400/20 border border-amber-400/40 text-amber-300 drop-shadow-md group-hover:scale-105 transition-transform">
-                <svg class="h-9 w-9 text-amber-300 stroke-[1.8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-                </svg>
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <h2 class="text-lg font-bold text-amber-100 tracking-wider uppercase">Contabilità</h2>
-                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold">Accesso Diretto</span>
+          <!-- TASTI ESSENZIALI COME QU3: QUADRATI, BIANCHI SEMITRASPARENTI, SENZA SOTTOTITOLI -->
+          <main class="py-6">
+            <div class="grid grid-cols-2 gap-4 max-w-xs mx-auto w-full">
+              <!-- Tasto 1: CONTABILITÀ -->
+              <button
+                type="button"
+                onclick="showContabilitaView()"
+                class="group relative aspect-square rounded-3xl transition-all duration-200 active:scale-95 flex flex-col items-center justify-center p-3 text-center cursor-pointer select-none shadow-xl bg-white/[0.10] hover:bg-white/[0.18] active:bg-white/[0.24] backdrop-blur-md border border-white/20 hover:border-white/35 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]"
+              >
+                <div class="relative flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-200">
+                  <svg class="h-10 w-10 text-white stroke-[1.6] drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                  </svg>
                 </div>
-                <p class="text-xs text-amber-200/80 font-medium mt-1 leading-snug">
-                  Partita Doppia · Avanzamento Budget · Liquidità · Registrazioni
-                </p>
-                <div class="flex items-center gap-1.5 mt-2 text-[11px] text-amber-300 font-semibold">
-                  <span>Apri Avanzamento Budget</span>
-                  <span>→</span>
-                </div>
-              </div>
-            </button>
+                <span class="text-xs sm:text-sm font-bold text-white tracking-wider uppercase leading-tight line-clamp-2 px-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                  CONTABILITÀ
+                </span>
+              </button>
 
-            <!-- 2. CARD SECONDARIA: CASSAFORTE PASSWORD CRITTOGRAFATA -->
-            <button
-              type="button"
-              onclick="showSecurityVaultView()"
-              class="w-full group relative rounded-3xl p-5 text-left cursor-pointer select-none transition-all duration-200 active:scale-95 bg-gradient-to-br from-blue-900/30 via-navy-850 to-navy-900/80 hover:from-blue-900/40 hover:via-navy-850 border border-amber-400/40 backdrop-blur-xl shadow-xl flex items-center gap-4"
-            >
-              <div class="shrink-0 flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400/20 to-blue-500/10 border border-amber-400/30 text-amber-200 group-hover:scale-105 transition-transform">
-                <svg class="h-7 w-7 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <h3 class="text-sm font-bold text-white tracking-wide uppercase">Sicurezza & Cassaforte</h3>
-                  <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-mono font-semibold">AES-256</span>
+              <!-- Tasto 2: SICUREZZA -->
+              <button
+                type="button"
+                onclick="showSecurityVaultView()"
+                class="group relative aspect-square rounded-3xl transition-all duration-200 active:scale-95 flex flex-col items-center justify-center p-3 text-center cursor-pointer select-none shadow-xl bg-white/[0.10] hover:bg-white/[0.18] active:bg-white/[0.24] backdrop-blur-md border border-white/20 hover:border-white/35 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]"
+              >
+                <div class="relative flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-200">
+                  <svg class="h-10 w-10 text-white stroke-[1.6] drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
                 </div>
-                <p class="text-[11px] text-slate-300 mt-0.5 leading-tight">
-                  Password, PIN, BMT e SHOPNL crittografati
-                </p>
-                <div class="flex items-center gap-1.5 mt-1.5 text-[10px] text-amber-300/90 font-medium">
-                  <span>Sblocco unico con Impronta o Password Master</span>
-                </div>
-              </div>
-              <svg class="h-5 w-5 text-slate-400 group-hover:text-amber-200 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-
+                <span class="text-xs sm:text-sm font-bold text-white tracking-wider uppercase leading-tight line-clamp-2 px-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                  SICUREZZA
+                </span>
+              </button>
+            </div>
           </main>
 
           <!-- Footer Discreto e Minimalista -->
