@@ -767,7 +767,7 @@
         document.getElementById('contabilita-view').classList.remove('hidden');
         const frame = document.getElementById('contabilita-frame');
         if (frame && (!frame.src || frame.src === 'about:blank' || frame.src.endsWith('about:blank') || frame.src.endsWith('/'))) {
-          frame.src = '/registrazioni';
+          frame.src = '/registrazioni?v=' + Date.now();
         }
         window.scrollTo(0, 0);
       }
