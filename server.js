@@ -557,7 +557,10 @@ const server = http.createServer((req, res) => {
           if (reqPath === '/api/contabilita/add-entry') {
             const current = loadContabilita();
             const entry = {
-              id: payload.id || ('je-spesa-' + Date.now() + '-' + Math.floor(Math.random() * 1000)),
+              id: payload.id || ('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+              })),
               date: payload.date || new Date().toISOString().split('T')[0],
               description: String(payload.description || 'SPESA').trim().toUpperCase(),
               debitAccountCode: String(payload.debitAccountCode || '6110'),
@@ -568,6 +571,16 @@ const server = http.createServer((req, res) => {
             const ok = saveContabilita(current);
             console.log(`[CONTABILITÀ GPP] Registrata spesa automatica: Dare ${entry.debitAccountCode} / Avere ${entry.creditAccountCode} €${entry.amount} (${entry.description})`);
             return sendJson(200, { success: ok, entry, data: current });
+          }
+          if (reqPath === '/api/contabilita/delete-entry') {
+            const current = loadContabilita();
+            const idToDelete = payload.id;
+            if (idToDelete) {
+              current.journalEntries = (current.journalEntries || []).filter(e => e.id !== idToDelete);
+              saveContabilita(current);
+              console.log(`[CONTABILITÀ GPP] Eliminata registrazione con ID: ${idToDelete}`);
+            }
+            return sendJson(200, { success: true, data: current });
           }
           const ok = saveContabilita(payload);
           return sendJson(200, { success: ok });
