@@ -661,8 +661,20 @@ const server = http.createServer((req, res) => {
   });
 });
 
+const https = require('https');
+
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server App Giampy attivo su porta ${PORT}:`);
   console.log(`- Locale:    http://localhost:${PORT}`);
   console.log(`- Contabilità: http://localhost:${PORT}/avanzamento`);
+
+  // Keep-Alive automatico ogni 10 minuti per evitare lo spegnimento (spin-down) su Render Free
+  const RENDER_URL = process.env.RENDER_EXTERNAL_URL || 'https://giampylia.onrender.com';
+  setInterval(() => {
+    try {
+      https.get(`${RENDER_URL}/api/auth/status`, (res) => {
+        res.resume();
+      }).on('error', () => {});
+    } catch (e) {}
+  }, 10 * 60 * 1000);
 });
