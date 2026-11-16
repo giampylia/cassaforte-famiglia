@@ -54,7 +54,7 @@ const MainRouter: React.FC = () => {
     signOut,
   } = useApp();
 
-  const CURRENT_APP_VERSION = 'v67';
+  const CURRENT_APP_VERSION = 'v68';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
@@ -505,7 +505,7 @@ class ErrorBoundary extends React.Component<
       return (
         <div className="min-h-screen flex items-center justify-center bg-slate-900 p-6 text-white text-center font-sans">
           <div className="max-w-md w-full bg-slate-800 border-2 border-emerald-500 rounded-3xl p-6 shadow-2xl space-y-4">
-            <img src="/q3-icon-192.png?v=8" alt="Q3" className="w-16 h-16 mx-auto rounded-2xl bg-white p-1" />
+            <img src="/q3-icon-192.png?v=9" alt="Q3" className="w-16 h-16 mx-auto rounded-2xl bg-white p-1" />
             <h2 className="text-xl font-bold text-white">Ripristino Applicazione Q3</h2>
             <p className="text-xs text-slate-300 leading-relaxed">
               È stato rilevato un problema temporaneo di caricamento. Clicca il pulsante in basso per ripristinare e accedere al Portale.

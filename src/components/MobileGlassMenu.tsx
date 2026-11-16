@@ -288,7 +288,7 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
       {/* SFONDO CON LOGO STILIZZATO IN TOTALE TRASPARENZA (AMPIO, NITIDO E BEN DEFINITO) */}
       <div className="fixed inset-0 pointer-events-none flex items-center justify-center overflow-hidden z-0">
         <img
-          src="/q3-logo-transparent.png?v=2"
+          src="/q3-logo-transparent.png?v=3"
           alt="Logo Stilizzato Q3"
           className="w-[360px] h-[360px] sm:w-[440px] sm:h-[440px] max-w-[92vw] max-h-[92vw] object-contain opacity-65 contrast-115 select-none pointer-events-none drop-shadow-[0_15px_35px_rgba(0,0,0,0.6)]"
         />

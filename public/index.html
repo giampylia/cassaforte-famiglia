@@ -5,17 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <title>Q3 — Università della Terza Età di Quartu Sant'Elena</title>
     <meta name="description" content="Q3 — Registrazione Presenze Soci e Monitoraggio Didattica Università della Terza Età di Quartu Sant'Elena" />
-    <link rel="icon" href="/q3-icon-192.png?v=8" type="image/png" />
-    <link rel="shortcut icon" href="/q3-icon-192.png?v=8" type="image/png" />
-    <link rel="apple-touch-icon" href="/q3-icon-512.png?v=8" />
-    <link rel="apple-touch-startup-image" href="/q3-icon-512.png?v=8" />
+    <link rel="icon" href="/q3-icon-192.png?v=9" type="image/png" />
+    <link rel="shortcut icon" href="/q3-icon-192.png?v=9" type="image/png" />
+    <link rel="apple-touch-icon" href="/q3-icon-512.png?v=9" />
+    <link rel="apple-touch-startup-image" href="/q3-icon-512.png?v=9" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Q3" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#112825" />
-    <link rel="manifest" href="/q3.webmanifest?v=8" />
-    <link rel="preload" href="/app.bundle.js?v=67" as="script" />
+    <link rel="manifest" href="/q3.webmanifest?v=9" />
+    <link rel="preload" href="/app.bundle.js?v=68" as="script" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -36,7 +36,7 @@
         }
       };
     </script>
-    <link rel="stylesheet" href="/app.bundle.css?v=67" />
+    <link rel="stylesheet" href="/app.bundle.css?v=68" />
     <script>
       window.addEventListener('error', function(e) {
         console.error('App load error:', e.error || e.message);
@@ -55,7 +55,7 @@
     <div id="root">
       <!-- Splash istantaneo su sfondo unico verde #112825 senza riquadri -->
       <div style="min-height: 100vh; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #112825; color: #fff; font-family: sans-serif;">
-        <img src="/q3-icon-512.png?v=8" alt="Q3" style="width: 180px; height: 180px; object-fit: contain; display: block;" />
+        <img src="/q3-icon-512.png?v=9" alt="Q3" style="width: 180px; height: 180px; object-fit: contain; display: block;" />
         <div id="splash-emergency-btn" style="display: none; margin-top: 28px;">
           <button
             type="button"
@@ -74,11 +74,11 @@
         if (btn) btn.style.display = 'block';
       }, 2500);
     </script>
-    <script type="module" src="/app.bundle.js?v=67"></script>
+    <script type="module" src="/app.bundle.js?v=68"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js?v=67').catch(() => {});
+          navigator.serviceWorker.register('/sw.js?v=68').catch(() => {});
         });
       }
     </script>

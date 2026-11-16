@@ -91,7 +91,7 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
               </button>
             ) : (
               <img
-                src="/q3-icon-512.png?v=8"
+                src="/q3-icon-512.png?v=9"
                 alt="Q3"
                 className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl object-cover border border-slate-200 shrink-0"
               />
@@ -100,7 +100,7 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
             {/* Su desktop mostra anche il logo Q3 accanto al nome */}
             {showMenuButton && (
               <img
-                src="/q3-icon-512.png?v=8"
+                src="/q3-icon-512.png?v=9"
                 alt="Q3"
                 className="hidden lg:block h-9 w-9 rounded-xl object-cover border border-slate-200 shrink-0"
               />
@@ -192,7 +192,7 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex items-center gap-3">
                 <img
-                  src="/q3-icon-512.png?v=8"
+                  src="/q3-icon-512.png?v=9"
                   alt="Q3"
                   className="h-14 w-14 rounded-2xl border border-slate-200 shadow-sm"
                 />
