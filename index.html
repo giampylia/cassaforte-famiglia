@@ -1190,155 +1190,198 @@
         </div>
       </div>
 
-      <!-- 12. SEZIONE SPESA (PUNTI VENDITA, PRODOTTI, TOTALE E REGISTRAZIONE CONTABILE 6110 -> 4010/4043) -->
+      <!-- 12. SEZIONE SPESA (PRIMA SELEZIONE PUNTO VENDITA, POI LISTA CON SPUNTA E REGISTRAZIONE 6110 -> 4010/4043) -->
       <div id="spesa-view" class="hidden fixed inset-0 z-40 bg-[#061120] flex flex-col text-white">
-        <!-- Barra Superiore Spesa -->
-        <header class="flex items-center justify-between bg-[#061120] border-b border-amber-400/30 px-3.5 py-2.5 z-50 shrink-0">
-          <button onclick="backToMenu()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-200 text-xs font-bold transition active:scale-95 cursor-pointer">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 18l-6-6 6-6" />
-            </svg>
-            <span>Menu Giampy</span>
-          </button>
+        
+        <!-- VISTA 1: ELENCO PUNTI VENDITA ("Lista della spesa") -->
+        <div id="spesa-stores-screen" class="flex-1 flex flex-col h-full overflow-hidden">
+          <header class="flex items-center justify-between bg-[#061120] border-b border-amber-400/30 px-3.5 py-2.5 z-50 shrink-0">
+            <button onclick="backToMenu()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-200 text-xs font-bold transition active:scale-95 cursor-pointer">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 18l-6-6 6-6" />
+              </svg>
+              <span>Menu Giampy</span>
+            </button>
 
-          <div class="flex items-center gap-2">
-            <img src="/gpp-logo-transparent.png?v=2" alt="GPP" class="h-6 w-auto object-contain" />
-            <span class="text-xs font-bold uppercase tracking-wider text-amber-200">Spesa</span>
+            <div class="flex items-center gap-2">
+              <img src="/gpp-logo-transparent.png?v=2" alt="GPP" class="h-6 w-auto object-contain" />
+              <span class="text-xs font-bold uppercase tracking-wider text-amber-200">Lista della Spesa</span>
+            </div>
+
+            <button onclick="lockApp()" class="inline-flex items-center gap-1.5 text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-1.5 rounded-xl hover:bg-rose-500/30 transition active:scale-95 cursor-pointer font-semibold">
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <span>Blocca</span>
+            </button>
+          </header>
+
+          <div class="flex-1 overflow-y-auto p-4 sm:p-6 max-w-lg mx-auto w-full space-y-3 pb-28">
+            <p class="text-xs text-slate-400 px-1">Seleziona il punto vendita per vedere o spuntare i prodotti:</p>
+            <div id="spesa-stores-cards-container" class="space-y-3">
+              <!-- Schede Punti Vendita generate via JS -->
+            </div>
           </div>
 
-          <button onclick="lockApp()" class="inline-flex items-center gap-1.5 text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-1.5 rounded-xl hover:bg-rose-500/30 transition active:scale-95 cursor-pointer font-semibold">
-            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            <span>Blocca</span>
-          </button>
-        </header>
-
-        <!-- Contenuto Spesa -->
-        <div class="flex-1 overflow-y-auto p-4 sm:p-6 max-w-lg mx-auto w-full space-y-4 pb-28">
-          <!-- Pulsante Aggiungi Prodotto Spesa -->
+          <!-- Pulsante Flottante + in basso a destra per aggiungere un nuovo Punto Vendita -->
           <button
             type="button"
-            onclick="openAddSpesaModal()"
-            class="w-full py-3 px-4 rounded-2xl bg-white/10 hover:bg-white/15 border border-amber-400/40 text-amber-200 font-bold text-xs shadow-md transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+            onclick="promptNewSpesaStore()"
+            title="Aggiungi Punto Vendita"
+            class="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-navy-950 shadow-[0_8px_25px_rgba(245,158,11,0.5)] flex items-center justify-center text-3xl font-bold active:scale-90 transition cursor-pointer"
           >
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Aggiungi Prodotto</span>
+            +
           </button>
+        </div>
 
-          <!-- Suddivisione per Punto Vendita (aggiornabile: Eurospin, Lidl, Maurys + nuovi) -->
-          <div class="rounded-2xl bg-white/[0.04] border border-white/10 p-3 space-y-2.5">
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Punto Vendita</span>
+        <!-- VISTA 2: DENTRO IL PUNTO VENDITA SELEZIONATO (LISTA PRODOTTI DA SPUNTARE + DIGITA QUI + REGISTRA) -->
+        <div id="spesa-inside-store-screen" class="hidden flex-1 flex flex-col h-full overflow-hidden">
+          <header class="flex items-center justify-between bg-[#061120] border-b border-amber-400/30 px-3.5 py-2.5 z-50 shrink-0">
+            <button onclick="backToSpesaStores()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-200 text-xs font-bold transition active:scale-95 cursor-pointer">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 18l-6-6 6-6" />
+              </svg>
+              <span>Punti Vendita</span>
+            </button>
+
+            <div class="flex items-center gap-2 min-w-0">
+              <span id="spesa-active-store-title" class="text-sm sm:text-base font-bold tracking-wide text-amber-200 truncate">Eurospin</span>
+            </div>
+
+            <div class="flex items-center gap-1.5">
               <button
                 type="button"
-                onclick="promptNewSpesaStore()"
-                class="text-[11px] font-bold text-amber-300 hover:text-amber-200 px-2 py-0.5 rounded-lg bg-amber-400/10 border border-amber-400/30 cursor-pointer transition"
+                onclick="clearCheckedSpesaItems()"
+                title="Rimuovi prodotti spuntati"
+                class="p-2 rounded-xl bg-white/10 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 transition cursor-pointer"
               >
-                + Punto vendita
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onclick="openAddSpesaModal()"
+                title="Aggiungi con prezzo e quantità"
+                class="px-2.5 py-1.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/40 text-amber-200 text-xs font-bold transition cursor-pointer"
+              >
+                + Dettagli
               </button>
             </div>
-            <div class="flex flex-wrap gap-1.5" id="spesa-store-filters">
+          </header>
+
+          <!-- Contenuto scorrevole del Punto Vendita -->
+          <div class="flex-1 overflow-y-auto p-3.5 sm:p-5 max-w-lg mx-auto w-full space-y-4 pb-36">
+            
+            <!-- Lista Prodotti con Checkbox (In alto da acquistare, sotto spuntati e barrati) -->
+            <div id="spesa-items-container" class="space-y-1.5">
               <!-- Riempito dinamicamente via JS -->
+            </div>
+
+            <!-- RIEPILOGO TOTALE SPESA & TASTO REGISTRA IN CONTABILITÀ (6110 -> 4010 / 4043) -->
+            <div class="rounded-3xl bg-gradient-to-b from-white/[0.08] to-white/[0.04] border border-amber-400/40 p-4 space-y-3 shadow-xl mt-6">
+              <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+                <div>
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-amber-200">Registra Spesa in Contabilità</h4>
+                  <p class="text-[10px] text-slate-400">Dare <strong class="text-amber-200 font-mono">6110</strong> · Descrizione <strong class="text-amber-200 font-mono">SPESA</strong></p>
+                </div>
+                <div class="text-right">
+                  <span class="text-[10px] uppercase text-slate-400 block">Totale Prodotti</span>
+                  <span id="spesa-calculated-total-badge" class="text-base font-mono font-bold text-amber-300">0,00 €</span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2.5">
+                <div class="space-y-1">
+                  <label class="text-[10px] font-bold uppercase text-slate-300">Totale Spesa (€)</label>
+                  <input
+                    id="spesa-reg-amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    class="w-full h-10 rounded-xl border border-amber-400/40 bg-navy-950/90 px-3 text-right font-mono text-sm font-bold text-amber-200 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <div class="space-y-1">
+                  <label class="text-[10px] font-bold uppercase text-slate-300">Data Spesa</label>
+                  <input
+                    id="spesa-reg-date"
+                    type="date"
+                    class="w-full h-10 rounded-xl border border-white/20 bg-navy-950/90 px-2.5 font-mono text-xs text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
+              <!-- Scelta Conto Avere: Cassa 4010 o Banca 4043 -->
+              <div class="space-y-1.5">
+                <label class="text-[10px] font-bold uppercase text-slate-300">Conto Avere (Pagamento)</label>
+                <input type="hidden" id="spesa-reg-credit" value="4043" />
+                <div class="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    id="btn-spesa-credit-4010"
+                    onclick="selectSpesaCreditAccount('4010')"
+                    class="py-2.5 px-3 rounded-xl border border-white/15 bg-navy-950/80 text-xs font-bold text-slate-300 cursor-pointer transition flex items-center justify-center gap-1.5"
+                  >
+                    <span>💵</span>
+                    <span>Cassa 4010</span>
+                  </button>
+                  <button
+                    type="button"
+                    id="btn-spesa-credit-4043"
+                    onclick="selectSpesaCreditAccount('4043')"
+                    class="py-2.5 px-3 rounded-xl border border-amber-400 bg-amber-400/20 text-xs font-bold text-amber-200 cursor-pointer transition flex items-center justify-center gap-1.5"
+                  >
+                    <span>🏦</span>
+                    <span>Banca 4043</span>
+                  </button>
+                </div>
+              </div>
+
+              <div id="spesa-reg-feedback" class="hidden rounded-xl bg-emerald-500/20 border border-emerald-500/40 p-2.5 text-center text-xs font-bold text-emerald-200"></div>
+
+              <button
+                type="button"
+                id="btn-registra-spesa-contabilita"
+                onclick="registerSpesaToContabilita()"
+                class="w-full h-11 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 font-bold text-navy-950 text-xs shadow-lg transition active:scale-95 cursor-pointer uppercase tracking-wider flex items-center justify-center gap-2"
+              >
+                <span>✓ Registra in Contabilità (Dare 6110)</span>
+              </button>
             </div>
           </div>
 
-          <!-- Lista Prodotti Spesa -->
-          <div class="space-y-2">
-            <div class="flex items-center justify-between px-1">
-              <span class="text-xs font-bold uppercase tracking-wider text-slate-400" id="spesa-list-header-title">Lista Prodotti</span>
-              <span id="spesa-count" class="text-xs font-mono text-amber-300 font-bold">0 Prodotti</span>
-            </div>
-            <div id="spesa-items-container" class="space-y-2.5">
-              <!-- Riempito dinamicamente via JS -->
-            </div>
-          </div>
-
-          <!-- RIEPILOGO TOTALE SPESA & TASTO REGISTRA IN CONTABILITÀ (6110 -> 4010 / 4043) -->
-          <div class="rounded-3xl bg-gradient-to-b from-white/[0.08] to-white/[0.04] border border-amber-400/40 p-4 space-y-3 shadow-xl">
-            <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
-              <div>
-                <h4 class="text-xs font-bold uppercase tracking-wider text-amber-200">Registra in Contabilità</h4>
-                <p class="text-[10px] text-slate-400">Dare <strong class="text-amber-200 font-mono">6110</strong> · Descrizione <strong class="text-amber-200 font-mono">SPESA</strong></p>
-              </div>
-              <div class="text-right">
-                <span class="text-[10px] uppercase text-slate-400 block">Totale Calcolato</span>
-                <span id="spesa-calculated-total-badge" class="text-base font-mono font-bold text-amber-300">0,00 €</span>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2.5">
-              <div class="space-y-1">
-                <label class="text-[10px] font-bold uppercase text-slate-300">Totale Spesa (€)</label>
-                <input
-                  id="spesa-reg-amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  class="w-full h-10 rounded-xl border border-amber-400/40 bg-navy-950/90 px-3 text-right font-mono text-sm font-bold text-amber-200 focus:outline-none focus:border-amber-400"
-                />
-              </div>
-              <div class="space-y-1">
-                <label class="text-[10px] font-bold uppercase text-slate-300">Data Spesa</label>
-                <input
-                  id="spesa-reg-date"
-                  type="date"
-                  class="w-full h-10 rounded-xl border border-white/20 bg-navy-950/90 px-2.5 font-mono text-xs text-white focus:outline-none focus:border-amber-400"
-                />
-              </div>
-            </div>
-
-            <!-- Scelta Conto Avere: Cassa 4010 o Banca 4043 -->
-            <div class="space-y-1.5">
-              <label class="text-[10px] font-bold uppercase text-slate-300">Conto Avere (Pagamento)</label>
-              <input type="hidden" id="spesa-reg-credit" value="4043" />
-              <div class="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  id="btn-spesa-credit-4010"
-                  onclick="selectSpesaCreditAccount('4010')"
-                  class="py-2.5 px-3 rounded-xl border border-white/15 bg-navy-950/80 text-xs font-bold text-slate-300 cursor-pointer transition flex items-center justify-center gap-1.5"
-                >
-                  <span>💵</span>
-                  <span>Cassa 4010</span>
-                </button>
-                <button
-                  type="button"
-                  id="btn-spesa-credit-4043"
-                  onclick="selectSpesaCreditAccount('4043')"
-                  class="py-2.5 px-3 rounded-xl border border-amber-400 bg-amber-400/20 text-xs font-bold text-amber-200 cursor-pointer transition flex items-center justify-center gap-1.5"
-                >
-                  <span>🏦</span>
-                  <span>Banca 4043</span>
-                </button>
-              </div>
-            </div>
-
-            <div id="spesa-reg-feedback" class="hidden rounded-xl bg-emerald-500/20 border border-emerald-500/40 p-2.5 text-center text-xs font-bold text-emerald-200"></div>
-
+          <!-- BARRA FISSA IN BASSO STILE "DIGITA QUI" (INSERIMENTO RAPIDO PRODOTTO O SCELTA DA MENU A TENDINA) -->
+          <form onsubmit="handleQuickAddSpesaProduct(event)" class="sticky bottom-0 left-0 right-0 z-50 bg-[#fff59d] border-t border-amber-300 px-3.5 py-2.5 flex items-center gap-2 shadow-[0_-4px_16px_rgba(0,0,0,0.25)]">
+            <datalist id="spesa-products-datalist"></datalist>
+            <input
+              id="spesa-quick-input"
+              type="text"
+              list="spesa-products-datalist"
+              placeholder="Digita qui"
+              autocomplete="off"
+              class="flex-1 h-11 bg-transparent text-slate-900 placeholder:text-slate-600 font-medium text-base px-2 focus:outline-none"
+            />
             <button
-              type="button"
-              id="btn-registra-spesa-contabilita"
-              onclick="registerSpesaToContabilita()"
-              class="w-full h-11 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 font-bold text-navy-950 text-xs shadow-lg transition active:scale-95 cursor-pointer uppercase tracking-wider flex items-center justify-center gap-2"
+              type="submit"
+              title="Aggiungi alla lista"
+              class="w-11 h-11 rounded-full bg-[#f89e6e] hover:bg-[#ea8f56] text-white font-bold text-2xl flex items-center justify-center shadow active:scale-90 transition cursor-pointer shrink-0"
             >
-              <span>✓ Registra in Contabilità (Dare 6110)</span>
+              +
             </button>
-          </div>
+          </form>
         </div>
       </div>
 
-      <!-- 13. MODAL AGGIUNGI / MODIFICA PRODOTTO SPESA -->
+      <!-- 13. MODAL AGGIUNGI / MODIFICA PRODOTTO SPESA (CON PREZZO, QUANTITÀ, DATA E MENU A TENDINA) -->
       <div id="add-spesa-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-navy-950/85 backdrop-blur-md p-4">
         <div class="w-full max-w-md rounded-3xl border border-amber-400/40 bg-[#0a192f] p-5 sm:p-6 text-white shadow-2xl relative max-h-[92vh] overflow-y-auto">
           <div class="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
             <div class="flex items-center gap-2">
               <span class="text-xl">🛍️</span>
-              <h3 id="modal-spesa-title-text" class="text-base font-bold text-amber-200">Aggiungi Prodotto Spesa</h3>
+              <h3 id="modal-spesa-title-text" class="text-base font-bold text-amber-200">Dettagli Prodotto Spesa</h3>
             </div>
             <button type="button" onclick="closeAddSpesaModal()" class="p-1 rounded-full text-slate-400 hover:bg-white/10 cursor-pointer">
               <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1451,14 +1494,16 @@
       let currentLavoriHouseFilter = 'ALL';
       let currentLavoroPhotoData = null;
       let spesaItems = [];
-      let spesaStores = ['Eurospin', 'Lidl', 'Maurys'];
+      let spesaStores = ['Eurospin', 'Lidl', 'Maurys', 'Garden 50%', 'Tecnomat'];
       let spesaProducts = [
-        'Pane', 'Latte', 'Uova', 'Acqua', 'Pasta', 'Olio EVO', 'Caffè', 'Zucchero',
-        'Frutta', 'Verdura', 'Carne', 'Pesce', 'Formaggio', 'Affettati', 'Yogurt',
-        'Detersivo lavatrice', 'Detersivo piatti', 'Carta igienica', 'Scottex', 'Sapone'
+        'Ammorbidente', 'Acqua', 'Affettati', 'Caffè', 'Carne', 'Carta igienica',
+        'Chanteclair', 'Coca cola', 'Deodorante', 'Detersivo lavatrice', 'Detersivo piatti',
+        'Formaggio', 'Frutta', 'Latte', 'Legumi', 'Olio', 'Pane', 'Pasta', 'Pesce',
+        'Profiteroles', 'Sapone', 'Scottex', 'Uova', 'Vegano', 'Verdura', 'Wafer',
+        'Yogurt', 'Zucchero'
       ];
       let expandedSpesaIds = {};
-      let currentSpesaStoreFilter = 'ALL';
+      let currentSpesaStoreFilter = 'Eurospin';
 
       // ==============================================================
       // 1. SPLASH SCREEN & BLOCCO GENERALE ALL'AVVIO DELL'APP
@@ -1642,12 +1687,7 @@
         document.getElementById('acquisti-view').classList.add('hidden');
         document.getElementById('lavori-view').classList.add('hidden');
         document.getElementById('spesa-view').classList.remove('hidden');
-        const dateInp = document.getElementById('spesa-reg-date');
-        if (dateInp && !dateInp.value) {
-          dateInp.value = new Date().toISOString().split('T')[0];
-        }
-        renderSpesaStoreFilters();
-        renderSpesaItems();
+        backToSpesaStores();
         window.scrollTo(0, 0);
       }
 
@@ -2392,8 +2432,8 @@
         if (!container) return;
 
         const sorted = [...acquistiItems].sort((a, b) => {
-          const pa = Number(a.priority ?? 9999);
-          const pb = Number(b.priority ?? 9999);
+          const pa = Number((a.priority !== undefined && a.priority !== null && a.priority !== '') ? a.priority : 9999);
+          const pb = Number((b.priority !== undefined && b.priority !== null && b.priority !== '') ? b.priority : 9999);
           if (pa !== pb) return pa - pb;
           return String(a.insertedDate || '').localeCompare(String(b.insertedDate || ''));
         });
@@ -2453,7 +2493,7 @@
                   <div class="grid grid-cols-2 gap-2">
                     <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
                       <span class="text-[10px] uppercase font-bold text-slate-400 block">Priorità</span>
-                      <span class="font-mono font-bold text-amber-300 text-sm">#${escapeHtml(String(item.priority ?? 1))}</span>
+                      <span class="font-mono font-bold text-amber-300 text-sm">#${escapeHtml(String(item.priority !== undefined && item.priority !== null ? item.priority : 1))}</span>
                     </div>
                     <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
                       <span class="text-[10px] uppercase font-bold text-slate-400 block">Casa Destinazione</span>
@@ -2666,7 +2706,7 @@
         document.getElementById('modal-acquisto-title-text').textContent = 'Modifica Acquisto';
         document.getElementById('btn-save-acquisto').textContent = 'Salva Modifiche';
         document.getElementById('acquisto-title').value = item.title || '';
-        document.getElementById('acquisto-priority').value = String(item.priority ?? 1);
+        document.getElementById('acquisto-priority').value = String(item.priority !== undefined && item.priority !== null ? item.priority : 1);
         selectAcquistoHouse(item.house || 'C');
         document.getElementById('acquisto-description').value = item.description || '';
         document.getElementById('acquisto-price-type').value = item.priceType || 'stimato';
@@ -2839,8 +2879,8 @@
         if (!container) return;
 
         const sorted = [...lavoriItems].sort((a, b) => {
-          const pa = Number(a.priority ?? 9999);
-          const pb = Number(b.priority ?? 9999);
+          const pa = Number((a.priority !== undefined && a.priority !== null && a.priority !== '') ? a.priority : 9999);
+          const pb = Number((b.priority !== undefined && b.priority !== null && b.priority !== '') ? b.priority : 9999);
           if (pa !== pb) return pa - pb;
           return String(a.insertedDate || '').localeCompare(String(b.insertedDate || ''));
         });
@@ -2900,7 +2940,7 @@
                   <div class="grid grid-cols-2 gap-2">
                     <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
                       <span class="text-[10px] uppercase font-bold text-slate-400 block">Priorità</span>
-                      <span class="font-mono font-bold text-amber-300 text-sm">#${escapeHtml(String(item.priority ?? 1))}</span>
+                      <span class="font-mono font-bold text-amber-300 text-sm">#${escapeHtml(String(item.priority !== undefined && item.priority !== null ? item.priority : 1))}</span>
                     </div>
                     <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
                       <span class="text-[10px] uppercase font-bold text-slate-400 block">Casa Destinazione</span>
@@ -3113,7 +3153,7 @@
         document.getElementById('modal-lavoro-title-text').textContent = 'Modifica Lavoro';
         document.getElementById('btn-save-lavoro').textContent = 'Salva Modifiche';
         document.getElementById('lavoro-title').value = item.title || '';
-        document.getElementById('lavoro-priority').value = String(item.priority ?? 1);
+        document.getElementById('lavoro-priority').value = String(item.priority !== undefined && item.priority !== null ? item.priority : 1);
         selectLavoroHouse(item.house || 'C');
         document.getElementById('lavoro-description').value = item.description || '';
         document.getElementById('lavoro-price-type').value = item.priceType || 'stimato';
@@ -3279,33 +3319,227 @@
         } catch (e) {}
       }
 
-      function renderSpesaStoreFilters() {
-        const wrap = document.getElementById('spesa-store-filters');
-        if (!wrap) return;
-        const allBtn = `
-          <button
-            type="button"
-            onclick="setSpesaStoreFilter('ALL')"
-            class="px-2.5 py-1 rounded-xl text-[11px] ${currentSpesaStoreFilter === 'ALL' ? 'font-bold bg-amber-400/20 border border-amber-400/50 text-amber-200' : 'font-semibold bg-white/5 border border-white/10 text-slate-300'} cursor-pointer transition"
-          >Tutti</button>
-        `;
-        const storeBtns = spesaStores.map(st => {
-          const active = currentSpesaStoreFilter === st;
-          return `
-            <button
-              type="button"
-              onclick="setSpesaStoreFilter('${escapeJs(st)}')"
-              class="px-2.5 py-1 rounded-xl text-[11px] ${active ? 'font-bold bg-amber-400/20 border border-amber-400/50 text-amber-200' : 'font-semibold bg-white/5 border border-white/10 text-slate-300'} cursor-pointer transition"
-            >${escapeHtml(st)}</button>
-          `;
-        }).join('');
-        wrap.innerHTML = allBtn + storeBtns;
+      function backToSpesaStores() {
+        const storesScreen = document.getElementById('spesa-stores-screen');
+        const insideScreen = document.getElementById('spesa-inside-store-screen');
+        if (storesScreen) storesScreen.classList.remove('hidden');
+        if (insideScreen) insideScreen.classList.add('hidden');
+        renderSpesaStoresCards();
       }
 
-      function setSpesaStoreFilter(store) {
-        currentSpesaStoreFilter = store;
-        renderSpesaStoreFilters();
-        renderSpesaItems();
+      function renderSpesaStoresCards() {
+        const container = document.getElementById('spesa-stores-cards-container');
+        if (!container) return;
+
+        if (!spesaStores || spesaStores.length === 0) {
+          container.innerHTML = `
+            <div class="rounded-2xl border border-dashed border-white/20 p-8 text-center text-slate-400">
+              <span class="text-3xl block mb-2">🏪</span>
+              <p class="text-xs font-semibold text-slate-300">Nessun punto vendita configurato.</p>
+              <p class="text-[11px] text-slate-500 mt-1">Premi il pulsante + in basso per aggiungere un negozio.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = spesaStores.map(st => {
+          const storeItems = spesaItems.filter(it => it.store === st);
+          const toBuy = storeItems.filter(it => !it.checked).length;
+          const checked = storeItems.filter(it => it.checked).length;
+          return `
+            <div class="relative group">
+              <div
+                onclick="openSpesaStore('${escapeJs(st)}')"
+                class="w-full bg-[#fef08a] hover:bg-[#fde047] active:scale-[0.98] transition rounded-2xl px-5 py-4 shadow-md flex items-center justify-between cursor-pointer border border-amber-300"
+              >
+                <div class="flex items-center gap-3 min-w-0">
+                  <span class="text-base sm:text-lg font-bold text-slate-900 tracking-wide truncate">${escapeHtml(st)}</span>
+                  ${toBuy > 0 ? `<span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-950 border border-amber-500/30 shrink-0">${toBuy} da acquistare</span>` : (storeItems.length > 0 ? `<span class="text-[11px] font-semibold text-emerald-800 shrink-0">✓ Tutti presi (${checked})</span>` : '')}
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span class="text-xl font-bold select-none text-slate-600">＝</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onclick="event.stopPropagation(); deleteSpesaStore('${escapeJs(st)}');"
+                title="Elimina punto vendita"
+                class="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-slate-800/80 hover:bg-rose-600 text-slate-300 hover:text-white text-xs flex items-center justify-center opacity-70 sm:opacity-0 group-hover:opacity-100 transition shadow"
+              >×</button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function openSpesaStore(storeName) {
+        currentSpesaStoreFilter = storeName;
+        const storesScreen = document.getElementById('spesa-stores-screen');
+        const insideScreen = document.getElementById('spesa-inside-store-screen');
+        if (storesScreen) storesScreen.classList.add('hidden');
+        if (insideScreen) insideScreen.classList.remove('hidden');
+
+        const titleEl = document.getElementById('spesa-active-store-title');
+        if (titleEl) titleEl.textContent = storeName;
+
+        const dateInp = document.getElementById('spesa-reg-date');
+        if (dateInp && !dateInp.value) {
+          dateInp.value = new Date().toISOString().split('T')[0];
+        }
+
+        const dl = document.getElementById('spesa-products-datalist');
+        if (dl) {
+          dl.innerHTML = spesaProducts.map(p => `<option value="${escapeHtml(p)}"></option>`).join('');
+        }
+
+        const quickInp = document.getElementById('spesa-quick-input');
+        if (quickInp) quickInp.value = '';
+
+        renderSpesaChecklist(storeName);
+        window.scrollTo(0, 0);
+      }
+
+      function renderSpesaChecklist(storeName) {
+        const container = document.getElementById('spesa-items-container');
+        const calcBadge = document.getElementById('spesa-calculated-total-badge');
+        const regAmountInp = document.getElementById('spesa-reg-amount');
+        if (!container) return;
+
+        const items = spesaItems.filter(it => it.store === storeName);
+        const unchecked = items.filter(it => !it.checked);
+        const checked = items.filter(it => it.checked);
+        const ordered = [...unchecked, ...checked];
+
+        const totalCalculated = items.reduce((sum, it) => {
+          const p = (it.price !== '' && it.price !== null && it.price !== undefined) ? Number(it.price) : 0;
+          const q = (it.quantity !== '' && it.quantity !== null && it.quantity !== undefined) ? Number(it.quantity) : 1;
+          return sum + ((isNaN(p) ? 0 : p) * (isNaN(q) ? 1 : q));
+        }, 0);
+
+        if (calcBadge) {
+          calcBadge.textContent = formatEuroPrice(totalCalculated);
+        }
+        if (regAmountInp) {
+          regAmountInp.value = totalCalculated > 0 ? totalCalculated.toFixed(2) : '';
+        }
+
+        if (ordered.length === 0) {
+          container.innerHTML = `
+            <div class="rounded-2xl border border-dashed border-white/20 p-8 text-center text-slate-400">
+              <span class="text-3xl block mb-2">🛍️</span>
+              <p class="text-xs font-semibold text-slate-300">Nessun prodotto in lista per ${escapeHtml(storeName)}.</p>
+              <p class="text-[11px] text-slate-500 mt-1">Usa la barra gialla in basso "Digita qui" per aggiungere prodotti!</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = ordered.map(item => {
+          const isChecked = !!item.checked;
+          const hasPrice = item.price !== '' && item.price !== null && item.price !== undefined && !isNaN(Number(item.price)) && Number(item.price) > 0;
+          const q = Number(item.quantity || 1);
+          const p = hasPrice ? Number(item.price) : 0;
+          const lineTotal = q * p;
+
+          return `
+            <div class="rounded-xl px-3.5 py-3 flex items-center justify-between gap-3 shadow transition ${isChecked ? 'bg-white/80 border border-slate-200 opacity-60' : 'bg-white border border-slate-200 text-slate-900'}">
+              <button
+                type="button"
+                onclick="toggleSpesaItemCheck('${item.id}')"
+                class="flex-1 flex items-center gap-3 text-left cursor-pointer min-w-0"
+              >
+                <div class="w-6 h-6 rounded flex items-center justify-center shrink-0 ${isChecked ? 'bg-slate-500 text-white' : 'border-2 border-slate-400 bg-white hover:border-slate-600'}">
+                  ${isChecked ? `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>` : ''}
+                </div>
+                <div class="flex items-center gap-2 truncate">
+                  <span class="text-base font-medium truncate ${isChecked ? 'line-through text-slate-500' : 'text-slate-900'}">${escapeHtml(item.product)}</span>
+                  ${q > 1 ? `<span class="text-xs px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold shrink-0">x${q}</span>` : ''}
+                  ${hasPrice ? `<span class="text-xs font-mono font-bold ${isChecked ? 'text-slate-400 line-through' : 'text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded'} shrink-0">${formatEuroPrice(lineTotal)}</span>` : ''}
+                </div>
+              </button>
+
+              <div class="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onclick="openEditSpesaModal('${item.id}')"
+                  title="Modifica dettagli (prezzo, quantità)"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                >
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onclick="deleteSpesaItem('${item.id}')"
+                  title="Elimina prodotto"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+                <span class="text-slate-400 text-base font-bold select-none px-1">＝</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      async function toggleSpesaItemCheck(id) {
+        const item = spesaItems.find(x => x.id === id);
+        if (!item) return;
+        item.checked = !item.checked;
+        await persistSpesaData();
+        renderSpesaChecklist(currentSpesaStoreFilter);
+      }
+
+      async function clearCheckedSpesaItems() {
+        const checkedCount = spesaItems.filter(it => it.store === currentSpesaStoreFilter && it.checked).length;
+        if (checkedCount === 0) {
+          alert("Nessun prodotto spuntato da rimuovere in " + currentSpesaStoreFilter + ".");
+          return;
+        }
+        if (!confirm(`Vuoi rimuovere i ${checkedCount} prodotti spuntati da ${currentSpesaStoreFilter}?`)) return;
+        spesaItems = spesaItems.filter(it => !(it.store === currentSpesaStoreFilter && it.checked));
+        await persistSpesaData();
+        renderSpesaChecklist(currentSpesaStoreFilter);
+      }
+
+      async function handleQuickAddSpesaProduct(e) {
+        if (e) e.preventDefault();
+        const inp = document.getElementById('spesa-quick-input');
+        if (!inp) return;
+        const val = inp.value.trim();
+        if (!val) return;
+
+        const existsInCat = spesaProducts.some(p => p.toLowerCase() === val.toLowerCase());
+        if (!existsInCat) {
+          spesaProducts.push(val);
+          spesaProducts.sort((a, b) => a.localeCompare(b, 'it'));
+        }
+
+        const newItem = {
+          id: 'sp_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+          store: currentSpesaStoreFilter || spesaStores[0] || 'Eurospin',
+          product: val,
+          price: '',
+          quantity: 1,
+          total: 0,
+          date: new Date().toISOString().split('T')[0],
+          checked: false,
+          updatedAt: new Date().toISOString()
+        };
+
+        spesaItems.unshift(newItem);
+        inp.value = '';
+        await persistSpesaData();
+
+        const dl = document.getElementById('spesa-products-datalist');
+        if (dl) {
+          dl.innerHTML = spesaProducts.map(p => `<option value="${escapeHtml(p)}"></option>`).join('');
+        }
+        renderSpesaChecklist(currentSpesaStoreFilter);
+        inp.focus();
       }
 
       async function promptNewSpesaStore() {
@@ -3316,14 +3550,20 @@
           spesaStores.push(clean);
           await persistSpesaData();
         }
-        currentSpesaStoreFilter = clean;
-        renderSpesaStoreFilters();
-        populateSpesaDropdowns(clean, null);
-        renderSpesaItems();
+        renderSpesaStoresCards();
+        openSpesaStore(clean);
+      }
+
+      async function deleteSpesaStore(storeName) {
+        if (!confirm(`Eliminare il punto vendita "${storeName}" e tutti i suoi prodotti?`)) return;
+        spesaStores = spesaStores.filter(s => s !== storeName);
+        spesaItems = spesaItems.filter(it => it.store !== storeName);
+        await persistSpesaData();
+        renderSpesaStoresCards();
       }
 
       async function promptNewSpesaProduct() {
-        const name = prompt("Inserisci il nome del nuovo Prodotto da aggiungere al menu a tendina:");
+        const name = prompt("Inserisci il nome del nuovo Prodotto da aggiungere al catalogo:");
         if (!name || !name.trim()) return;
         const clean = name.trim();
         if (!spesaProducts.includes(clean)) {
@@ -3342,7 +3582,7 @@
           storeSel.innerHTML = spesaStores.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
           if (selectedStore && spesaStores.includes(selectedStore)) {
             storeSel.value = selectedStore;
-          } else if (currentSpesaStoreFilter !== 'ALL' && spesaStores.includes(currentSpesaStoreFilter)) {
+          } else if (currentSpesaStoreFilter && spesaStores.includes(currentSpesaStoreFilter)) {
             storeSel.value = currentSpesaStoreFilter;
           }
         }
@@ -3366,142 +3606,12 @@
         }
       }
 
-      function toggleSpesaExpand(id) {
-        expandedSpesaIds[id] = !expandedSpesaIds[id];
-        renderSpesaItems();
-      }
-
-      function renderSpesaItems() {
-        const container = document.getElementById('spesa-items-container');
-        const countSpan = document.getElementById('spesa-count');
-        const titleSpan = document.getElementById('spesa-list-header-title');
-        const calcBadge = document.getElementById('spesa-calculated-total-badge');
-        const regAmountInp = document.getElementById('spesa-reg-amount');
-        if (!container) return;
-
-        if (titleSpan) {
-          titleSpan.textContent = currentSpesaStoreFilter === 'ALL'
-            ? 'Lista Prodotti (Tutti i Punti Vendita)'
-            : 'Lista Prodotti · ' + currentSpesaStoreFilter;
-        }
-
-        const filtered = currentSpesaStoreFilter === 'ALL'
-          ? spesaItems
-          : spesaItems.filter(it => it.store === currentSpesaStoreFilter);
-
-        if (countSpan) {
-          countSpan.textContent = filtered.length + ' ' + (filtered.length === 1 ? 'Prodotto' : 'Prodotti');
-        }
-
-        const totalCalculated = filtered.reduce((sum, it) => {
-          const p = (it.price !== '' && it.price !== null && it.price !== undefined) ? Number(it.price) : 0;
-          const q = (it.quantity !== '' && it.quantity !== null && it.quantity !== undefined) ? Number(it.quantity) : 1;
-          return sum + ((isNaN(p) ? 0 : p) * (isNaN(q) ? 1 : q));
-        }, 0);
-
-        if (calcBadge) {
-          calcBadge.textContent = formatEuroPrice(totalCalculated);
-        }
-        if (regAmountInp) {
-          regAmountInp.value = totalCalculated > 0 ? totalCalculated.toFixed(2) : '';
-        }
-
-        if (filtered.length === 0) {
-          container.innerHTML = `
-            <div class="rounded-2xl border border-dashed border-white/20 p-8 text-center text-slate-400">
-              <span class="text-3xl block mb-2">🛍️</span>
-              <p class="text-xs font-semibold text-slate-300">Nessun prodotto in lista spesa.</p>
-              <p class="text-[11px] text-slate-500 mt-1">Premi "+ Aggiungi Prodotto" per inserire i prodotti da acquistare.</p>
-            </div>
-          `;
-          return;
-        }
-
-        container.innerHTML = filtered.map(item => {
-          const isExpanded = !!expandedSpesaIds[item.id];
-          const hasPrice = item.price !== '' && item.price !== null && item.price !== undefined && !isNaN(Number(item.price));
-          const q = Number(item.quantity || 1);
-          const p = hasPrice ? Number(item.price) : 0;
-          const lineTotal = q * p;
-
-          return `
-            <div class="rounded-2xl bg-white/[0.06] border border-white/15 shadow-lg overflow-hidden transition">
-              <!-- RIGA PRINCIPALE: NOME PRODOTTO (CLIC PER VEDERE TUTTI I DATI) -->
-              <button
-                type="button"
-                onclick="toggleSpesaExpand('${item.id}')"
-                class="w-full px-4 py-3.5 flex items-center justify-between gap-3 text-left hover:bg-white/[0.04] active:bg-white/[0.08] transition cursor-pointer"
-              >
-                <div class="flex items-center gap-2.5 min-w-0">
-                  <span class="px-2 py-0.5 rounded-lg bg-amber-400/15 border border-amber-400/30 text-[10px] font-bold text-amber-200 shrink-0">${escapeHtml(item.store || 'Eurospin')}</span>
-                  <span class="text-sm font-bold text-white truncate">${escapeHtml(item.product)}</span>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                  <span class="text-xs font-mono font-bold ${hasPrice ? 'text-amber-300' : 'text-slate-400'}">${hasPrice ? formatEuroPrice(lineTotal) : ('x' + q)}</span>
-                  <svg class="h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-amber-300' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </button>
-
-              <!-- DETTAGLIO ESPANDIBILE AL CLIC -->
-              ${isExpanded ? `
-                <div class="px-4 pb-4 pt-2 border-t border-white/10 bg-navy-950/60 space-y-3 text-xs">
-                  <div class="grid grid-cols-3 gap-2">
-                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
-                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Prezzo Unit.</span>
-                      <span class="font-mono font-bold text-amber-200 text-sm block mt-0.5">${hasPrice ? formatEuroPrice(p) : 'Non inserito'}</span>
-                    </div>
-                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
-                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Quantità</span>
-                      <span class="font-mono font-bold text-white text-sm block mt-0.5">${q}</span>
-                    </div>
-                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
-                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Totale Spesa</span>
-                      <span class="font-mono font-bold text-amber-300 text-sm block mt-0.5">${hasPrice ? formatEuroPrice(lineTotal) : '—'}</span>
-                    </div>
-                  </div>
-
-                  <div class="grid grid-cols-2 gap-2">
-                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
-                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Punto Vendita</span>
-                      <span class="font-bold text-white block mt-0.5">${escapeHtml(item.store || 'Eurospin')}</span>
-                    </div>
-                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
-                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Data</span>
-                      <span class="font-mono text-slate-200 block mt-0.5">${formatItDate(item.date)}</span>
-                    </div>
-                  </div>
-
-                  <div class="flex items-center justify-end gap-2 pt-1">
-                    <button
-                      type="button"
-                      onclick="openEditSpesaModal('${item.id}')"
-                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/30 text-amber-200 font-bold text-xs transition cursor-pointer"
-                    >
-                      <span>✏️ Modifica</span>
-                    </button>
-                    <button
-                      type="button"
-                      onclick="deleteSpesaItem('${item.id}')"
-                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs transition cursor-pointer"
-                    >
-                      <span>🗑️ Elimina</span>
-                    </button>
-                  </div>
-                </div>
-              ` : ''}
-            </div>
-          `;
-        }).join('');
-      }
-
       function openAddSpesaModal() {
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('spesa-edit-id').value = '';
-        document.getElementById('modal-spesa-title-text').textContent = 'Aggiungi Prodotto Spesa';
+        document.getElementById('modal-spesa-title-text').textContent = 'Dettagli Prodotto Spesa';
         document.getElementById('btn-save-spesa').textContent = 'Salva in Lista Spesa';
-        populateSpesaDropdowns(currentSpesaStoreFilter !== 'ALL' ? currentSpesaStoreFilter : spesaStores[0], spesaProducts[0]);
+        populateSpesaDropdowns(currentSpesaStoreFilter || spesaStores[0], spesaProducts[0]);
         document.getElementById('spesa-price').value = '';
         document.getElementById('spesa-quantity').value = '1';
         document.getElementById('spesa-line-total').value = '0,00 €';
@@ -3533,7 +3643,7 @@
       async function handleSaveSpesaItem(e) {
         if (e) e.preventDefault();
         const editId = document.getElementById('spesa-edit-id').value;
-        const store = document.getElementById('spesa-store-select').value || 'Eurospin';
+        const store = document.getElementById('spesa-store-select').value || currentSpesaStoreFilter || 'Eurospin';
         const product = document.getElementById('spesa-product-select').value || '';
         const priceRaw = document.getElementById('spesa-price').value;
         const price = priceRaw !== '' ? Number(priceRaw) : '';
@@ -3543,6 +3653,8 @@
 
         if (!product) return;
 
+        const existingItem = editId ? spesaItems.find(x => x.id === editId) : null;
+
         const record = {
           id: editId || ('sp_' + Date.now() + '_' + Math.floor(Math.random() * 1000)),
           store,
@@ -3551,6 +3663,7 @@
           quantity,
           total: (price !== '' ? price : 0) * quantity,
           date,
+          checked: existingItem ? !!existingItem.checked : false,
           updatedAt: new Date().toISOString()
         };
 
@@ -3563,7 +3676,7 @@
 
         await persistSpesaData();
         closeAddSpesaModal();
-        renderSpesaItems();
+        renderSpesaChecklist(currentSpesaStoreFilter);
       }
 
       async function deleteSpesaItem(id) {
@@ -3571,7 +3684,7 @@
         spesaItems = spesaItems.filter(x => x.id !== id);
         delete expandedSpesaIds[id];
         await persistSpesaData();
-        renderSpesaItems();
+        renderSpesaChecklist(currentSpesaStoreFilter);
       }
 
       function selectSpesaCreditAccount(code) {

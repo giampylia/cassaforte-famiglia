@@ -151,11 +151,27 @@ function saveLavoriStore(data) {
 }
 
 const SPESA_FILE = path.join(__dirname, 'spesa_store.json');
-const DEFAULT_SPESA_STORES = ['Eurospin', 'Lidl', 'Maurys'];
+const DEFAULT_SPESA_STORES = ['Eurospin', 'Lidl', 'Maurys', 'Garden 50%', 'Tecnomat'];
 const DEFAULT_SPESA_PRODUCTS = [
-  'Pane', 'Latte', 'Uova', 'Acqua', 'Pasta', 'Olio EVO', 'Caffè', 'Zucchero',
-  'Frutta', 'Verdura', 'Carne', 'Pesce', 'Formaggio', 'Affettati', 'Yogurt',
-  'Detersivo lavatrice', 'Detersivo piatti', 'Carta igienica', 'Scottex', 'Sapone'
+  'Ammorbidente', 'Acqua', 'Affettati', 'Caffè', 'Carne', 'Carta igienica',
+  'Chanteclair', 'Coca cola', 'Deodorante', 'Detersivo lavatrice', 'Detersivo piatti',
+  'Formaggio', 'Frutta', 'Latte', 'Legumi', 'Olio', 'Pane', 'Pasta', 'Pesce',
+  'Profiteroles', 'Sapone', 'Scottex', 'Uova', 'Vegano', 'Verdura', 'Wafer',
+  'Yogurt', 'Zucchero'
+];
+const DEFAULT_SPESA_ITEMS = [
+  { id: 'sp_init_1', store: 'Eurospin', product: 'chanteclair', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false },
+  { id: 'sp_init_2', store: 'Eurospin', product: 'ammorbidente', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false },
+  { id: 'sp_init_3', store: 'Eurospin', product: 'deodorante', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false },
+  { id: 'sp_init_4', store: 'Eurospin', product: 'legumi', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
+  { id: 'sp_init_5', store: 'Eurospin', product: 'olio', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
+  { id: 'sp_init_6', store: 'Eurospin', product: 'profiteroles', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
+  { id: 'sp_init_7', store: 'Eurospin', product: 'coca cola', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
+  { id: 'sp_init_8', store: 'Eurospin', product: 'pane', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
+  { id: 'sp_init_9', store: 'Eurospin', product: 'frutta', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
+  { id: 'sp_init_10', store: 'Eurospin', product: 'vegano', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
+  { id: 'sp_init_11', store: 'Eurospin', product: 'uova', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
+  { id: 'sp_init_12', store: 'Eurospin', product: 'wafer', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true }
 ];
 
 function getSpesaStore() {
@@ -164,7 +180,7 @@ function getSpesaStore() {
       const parsed = JSON.parse(fs.readFileSync(SPESA_FILE, 'utf8'));
       if (parsed && typeof parsed === 'object') {
         return {
-          items: Array.isArray(parsed.items) ? parsed.items : [],
+          items: Array.isArray(parsed.items) ? parsed.items : DEFAULT_SPESA_ITEMS,
           stores: Array.isArray(parsed.stores) && parsed.stores.length > 0 ? parsed.stores : DEFAULT_SPESA_STORES,
           products: Array.isArray(parsed.products) && parsed.products.length > 0 ? parsed.products : DEFAULT_SPESA_PRODUCTS
         };
@@ -175,7 +191,7 @@ function getSpesaStore() {
       const parsed = JSON.parse(fs.readFileSync(dataSpesaFile, 'utf8'));
       if (parsed && typeof parsed === 'object') {
         return {
-          items: Array.isArray(parsed.items) ? parsed.items : [],
+          items: Array.isArray(parsed.items) ? parsed.items : DEFAULT_SPESA_ITEMS,
           stores: Array.isArray(parsed.stores) && parsed.stores.length > 0 ? parsed.stores : DEFAULT_SPESA_STORES,
           products: Array.isArray(parsed.products) && parsed.products.length > 0 ? parsed.products : DEFAULT_SPESA_PRODUCTS
         };
@@ -184,7 +200,7 @@ function getSpesaStore() {
   } catch (e) {
     console.error('Error reading spesa store:', e);
   }
-  return { items: [], stores: DEFAULT_SPESA_STORES, products: DEFAULT_SPESA_PRODUCTS };
+  return { items: DEFAULT_SPESA_ITEMS, stores: DEFAULT_SPESA_STORES, products: DEFAULT_SPESA_PRODUCTS };
 }
 
 function saveSpesaStore(data) {
