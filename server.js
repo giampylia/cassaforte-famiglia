@@ -1,4 +1,6 @@
 const http = require('http');
+const https = require('https');
+const url = require('url');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -216,6 +218,112 @@ function saveSpesaStore(data) {
   } catch (e) {
     console.error('Error saving spesa store:', e);
   }
+}
+
+const PARKING_FILE = path.join(__dirname, 'parking.json');
+let inMemoryParking = null;
+
+function loadParking() {
+  if (inMemoryParking) return inMemoryParking;
+  try {
+    const dataParkingFile = path.join(__dirname, 'data', 'parking.json');
+    if (fs.existsSync(dataParkingFile)) {
+      const parsed = JSON.parse(fs.readFileSync(dataParkingFile, 'utf8'));
+      if (parsed && typeof parsed === 'object') {
+        inMemoryParking = parsed;
+        return parsed;
+      }
+    }
+    if (fs.existsSync(PARKING_FILE)) {
+      const parsed = JSON.parse(fs.readFileSync(PARKING_FILE, 'utf8'));
+      if (parsed && typeof parsed === 'object') {
+        inMemoryParking = parsed;
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Error reading parking store:', e);
+  }
+  inMemoryParking = {
+    Giampy: { active: null, history: [] },
+    Ty: { active: null, history: [] },
+    Miki: { active: null, history: [] }
+  };
+  return inMemoryParking;
+}
+
+function saveParking(data) {
+  try {
+    if (!data || typeof data !== 'object') return;
+    inMemoryParking = data;
+    const backupDir = path.join(__dirname, 'data', 'backups');
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    fs.writeFileSync(PARKING_FILE, JSON.stringify(data, null, 2), 'utf8');
+    const dataParkingFile = path.join(__dirname, 'data', 'parking.json');
+    fs.writeFileSync(dataParkingFile, JSON.stringify(data, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error saving parking store:', e);
+  }
+}
+
+function reverseGeocodeServer(lat, lng) {
+  return new Promise((resolve) => {
+    const latNum = parseFloat(lat);
+    const lngNum = parseFloat(lng);
+    const fallback = {
+      address: `Coordinate GPS (${latNum.toFixed(5)}, ${lngNum.toFixed(5)})`,
+      addressShort: `GPS (${latNum.toFixed(4)}, ${lngNum.toFixed(4)})`
+    };
+
+    if (isNaN(latNum) || isNaN(lngNum) || (latNum === 0 && lngNum === 0)) {
+      return resolve({ address: 'Posizione non specificata', addressShort: 'Posizione GPS' });
+    }
+
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latNum}&lon=${lngNum}`;
+    const req = https.get(url, {
+      headers: {
+        'User-Agent': 'GPPApp/1.0 (contact: giampylia@gmail.com)',
+        'Accept': 'application/json'
+      },
+      timeout: 4000
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (json && json.address) {
+            const a = json.address;
+            const road = a.road || a.pedestrian || a.street || '';
+            const house = a.house_number ? ' ' + a.house_number : '';
+            const city = a.city || a.town || a.village || a.municipality || a.suburb || '';
+            if (road) {
+              const streetWithHouse = (road + house).trim();
+              return resolve({
+                addressShort: city ? `${streetWithHouse}, ${city}` : streetWithHouse,
+                address: `${streetWithHouse}${city ? ', ' + city : ''}`
+              });
+            } else if (json.display_name) {
+              const parts = json.display_name.split(',');
+              const mainLoc = parts[0] ? parts[0].trim() : 'Posizione';
+              const locCity = city || (parts[1] ? parts[1].trim() : '');
+              return resolve({
+                addressShort: locCity && !mainLoc.includes(locCity) ? `${mainLoc}, ${locCity}` : mainLoc,
+                address: parts.slice(0, 3).join(', ')
+              });
+            }
+          }
+        } catch (e) {}
+        resolve(fallback);
+      });
+    });
+
+    req.on('error', () => resolve(fallback));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(fallback);
+    });
+  });
 }
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -533,7 +641,212 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 3. API Contabilità & Bilancio (Persistenza reale registrazioni e conti)
+  // 3. API PARKING & AUTO-PARK (Compatibilità totale MacroDroid, Comandi Rapidi iOS, Webhook e App)
+  if (reqPath === '/api/auto-park' || reqPath === '/api/parking/auto-park' || reqPath.startsWith('/api/parking')) {
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
+      res.end();
+      return;
+    }
+
+    const parsedUrl = url.parse(req.url, true);
+    const query = parsedUrl.query || {};
+
+    // 1. GET /api/parking (Restituisce parcheggio attivo e storico dell'utente)
+    if (reqPath === '/api/parking' && req.method === 'GET') {
+      const user = query.user || 'Giampy';
+      const store = loadParking();
+      const userData = store[user] || { active: null, history: [] };
+      return sendJson(200, {
+        user: user,
+        active: userData.active || null,
+        history: userData.history || []
+      });
+    }
+
+    // 2. GET o POST /api/auto-park (Compatibile al 100% con MacroDroid, Scorciatoie iOS, Webhook)
+    if ((reqPath === '/api/auto-park' || reqPath === '/api/parking/auto-park') && (req.method === 'GET' || req.method === 'POST')) {
+      const handleAutoPark = async (body) => {
+        try {
+          const user = query.user || body.user || 'Giampy';
+          let lat = parseFloat(String(query.lat || query.latitude || body.lat || body.latitude || '').replace(',', '.'));
+          let lng = parseFloat(String(query.lng || query.lon || query.longitude || body.lng || body.longitude || '').replace(',', '.'));
+          const accuracy = Math.round(parseFloat(String(query.accuracy || body.accuracy || 5).replace(',', '.')) || 5);
+          const trigger = query.trigger || body.trigger || 'bluetooth_auto';
+          const notes = (query.notes || body.notes || '').trim();
+
+          const parkingStore = loadParking();
+          if (!parkingStore[user]) parkingStore[user] = { active: null, history: [] };
+          if (!Array.isArray(parkingStore[user].history)) parkingStore[user].history = [];
+
+          let geo;
+          if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) {
+            const lastKnown = parkingStore[user].active || (parkingStore[user].history.length > 0 ? parkingStore[user].history[0] : null);
+            if (lastKnown && lastKnown.lat && lastKnown.lng) {
+              lat = lastKnown.lat;
+              lng = lastKnown.lng;
+              geo = {
+                addressShort: lastKnown.addressShort || 'Ultima posizione nota',
+                address: lastKnown.address || 'Posizione precedente'
+              };
+            } else {
+              lat = 0;
+              lng = 0;
+              geo = {
+                addressShort: 'Parcheggio registrato',
+                address: 'Motore spento rilevato - Attiva il GPS per la via esatta'
+              };
+            }
+          } else {
+            geo = await reverseGeocodeServer(lat, lng);
+          }
+
+          if (parkingStore[user].active) {
+            parkingStore[user].history.unshift(parkingStore[user].active);
+            if (parkingStore[user].history.length > 500) {
+              parkingStore[user].history = parkingStore[user].history.slice(0, 500);
+            }
+          }
+
+          const newParking = {
+            id: 'park-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+            section: 'parking',
+            user: user,
+            owner: user,
+            lat: lat,
+            lng: lng,
+            accuracy: accuracy,
+            address: geo.address,
+            addressShort: geo.addressShort,
+            timestamp: new Date().toISOString(),
+            trigger: trigger,
+            notes: notes
+          };
+
+          parkingStore[user].active = newParking;
+          saveParking(parkingStore);
+          console.log(`[PARKING GPP] Auto parcheggiata salvata per ${user}: ${geo.addressShort} (trigger: ${trigger})`);
+
+          if (query.format === 'html') {
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            return res.end(`
+              <!DOCTYPE html>
+              <html lang="it">
+              <head><meta charset="utf-8"><title>Auto Parcheggiata</title><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+              <body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif; background:#061120; color:#fff; text-align:center; padding:40px 20px;">
+                <div style="font-size:3.5rem; margin-bottom:12px;">🚗</div>
+                <h2 style="color:#fbbf24; margin:0 0 10px 0; font-size:1.4rem;">Posizione Auto Salvata!</h2>
+                <div style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:16px; padding:20px; max-width:360px; margin:0 auto 24px auto;">
+                  <div style="font-weight:700; font-size:1.15rem; color:#f8fafc; margin-bottom:6px;">${geo.addressShort}</div>
+                  <div style="font-size:0.85rem; color:#94a3b8; line-height:1.4;">${geo.address}</div>
+                  <div style="margin-top:12px; font-size:0.8rem; color:#38bdf8; font-weight:600;">Auto di ${user}</div>
+                </div>
+                <a href="/" style="display:inline-block; background:#fbbf24; color:#061120; font-weight:700; padding:12px 28px; border-radius:12px; text-decoration:none;">Apri App Giampy</a>
+              </body>
+              </html>
+            `);
+          }
+
+          return sendJson(200, { success: true, user, active: newParking });
+        } catch (err) {
+          console.error('[PARKING GPP] Errore auto-park:', err);
+          return sendJson(500, { error: err.message });
+        }
+      };
+
+      if (req.method === 'POST') {
+        let rawBody = '';
+        req.on('data', chunk => { rawBody += chunk; });
+        req.on('end', () => {
+          let bodyData = {};
+          try { if (rawBody) bodyData = JSON.parse(rawBody); } catch (e) {}
+          handleAutoPark(bodyData);
+        });
+        return;
+      } else {
+        return handleAutoPark({});
+      }
+    }
+
+    // 3. POST endpoints per azioni dal client: manual, release, note, delete-item, clear-history, restore
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      let data = {};
+      try { if (body) data = JSON.parse(body); } catch (e) {}
+      const user = data.user || query.user || 'Giampy';
+      const parkingStore = loadParking();
+      if (!parkingStore[user]) parkingStore[user] = { active: null, history: [] };
+
+      if (reqPath === '/api/parking/manual' && req.method === 'POST') {
+        const entry = data.entry || data;
+        if (parkingStore[user].active) {
+          parkingStore[user].history.unshift(parkingStore[user].active);
+        }
+        parkingStore[user].active = entry;
+        saveParking(parkingStore);
+        return sendJson(200, { success: true, active: entry });
+      }
+
+      if (reqPath === '/api/parking/release' && req.method === 'POST') {
+        if (parkingStore[user].active) {
+          parkingStore[user].active.releasedAt = new Date().toISOString();
+          parkingStore[user].history.unshift(parkingStore[user].active);
+          if (parkingStore[user].history.length > 500) {
+            parkingStore[user].history = parkingStore[user].history.slice(0, 500);
+          }
+          parkingStore[user].active = null;
+          saveParking(parkingStore);
+        }
+        return sendJson(200, { success: true });
+      }
+
+      if (reqPath === '/api/parking/note' && req.method === 'POST') {
+        if (parkingStore[user].active) {
+          parkingStore[user].active.notes = (data.note || '').trim();
+          saveParking(parkingStore);
+        }
+        return sendJson(200, { success: true });
+      }
+
+      if (reqPath === '/api/parking/delete-item' && req.method === 'POST') {
+        const idToDelete = data.id;
+        parkingStore[user].history = parkingStore[user].history.filter(h => h.id !== idToDelete);
+        if (parkingStore[user].active && parkingStore[user].active.id === idToDelete) {
+          parkingStore[user].active = null;
+        }
+        saveParking(parkingStore);
+        return sendJson(200, { success: true });
+      }
+
+      if (reqPath === '/api/parking/clear-history' && req.method === 'POST') {
+        parkingStore[user].history = [];
+        saveParking(parkingStore);
+        return sendJson(200, { success: true });
+      }
+
+      if (reqPath === '/api/parking/restore' && req.method === 'POST') {
+        if (data.parking) {
+          const clientTime = new Date(data.parking.timestamp || 0).getTime();
+          const serverTime = parkingStore[user].active ? new Date(parkingStore[user].active.timestamp || 0).getTime() : 0;
+          if (!parkingStore[user].active || clientTime >= serverTime) {
+            parkingStore[user].active = data.parking;
+            saveParking(parkingStore);
+          }
+        }
+        return sendJson(200, { success: true, active: parkingStore[user].active });
+      }
+
+      return sendJson(404, { error: 'Endpoint parcheggio non trovato' });
+    });
+    return;
+  }
+
+  // 4. API Contabilità & Bilancio (Persistenza reale registrazioni e conti)
   if (reqPath.startsWith('/api/contabilita')) {
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
@@ -691,8 +1004,6 @@ const server = http.createServer((req, res) => {
     res.end(data);
   });
 });
-
-const https = require('https');
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server App Giampy attivo su porta ${PORT}:`);

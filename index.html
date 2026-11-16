@@ -337,6 +337,25 @@
                   SPESA
                 </span>
               </button>
+
+              <!-- Tasto 6: PARCHEGGIO -->
+              <button
+                type="button"
+                onclick="showParkingView()"
+                class="group relative aspect-square rounded-3xl transition-all duration-200 active:scale-95 flex flex-col items-center justify-center p-3 text-center cursor-pointer select-none shadow-xl bg-white/[0.10] hover:bg-white/[0.18] active:bg-white/[0.24] backdrop-blur-md border border-white/20 hover:border-white/35 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]"
+              >
+                <div class="relative flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-200">
+                  <svg class="h-10 w-10 text-white stroke-[1.6] drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M8 17a2 2 0 100 4 2 2 0 000-4zm8 0a2 2 0 100 4 2 2 0 000-4zM3 9l2.5-5h13L21 9m-18 0h18m-18 0v8a1 1 0 001 1h1m16-9v8a1 1 0 01-1 1h-1m-14 0h12" />
+                  </svg>
+                </div>
+                <span class="text-xs sm:text-sm font-bold text-white tracking-wider uppercase leading-tight line-clamp-2 px-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                  PARCHEGGIO
+                </span>
+                <span id="menu-parking-badge" class="mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-400/20 border border-sky-400/40 text-sky-200">
+                  Auto Giampy
+                </span>
+              </button>
             </div>
           </main>
 
@@ -1429,6 +1448,253 @@
         </div>
       </div>
 
+      <!-- ============================================================== -->
+      <!-- 8. SEZIONE PARCHEGGIO AUTO (GPS, BLUETOOTH ZERO-CLICK, STORICO & PDF) -->
+      <!-- ============================================================== -->
+      <div id="parking-view" class="hidden fixed inset-0 z-40 bg-[#061120] flex flex-col text-white">
+        <!-- Barra Superiore di Controllo -->
+        <header class="flex items-center justify-between bg-[#061120] border-b border-amber-400/30 px-3.5 py-2.5 z-50 shrink-0">
+          <button onclick="backToMenu()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-200 text-xs font-bold transition active:scale-95 cursor-pointer">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 18l-6-6 6-6" />
+            </svg>
+            <span>Menu Giampy</span>
+          </button>
+
+          <div class="flex items-center gap-2">
+            <img src="/gpp-logo-transparent.png?v=3" alt="GP" class="h-6 w-auto" />
+            <h2 class="text-sm font-bold tracking-wider text-amber-100 uppercase">
+              Parcheggio Auto
+            </h2>
+          </div>
+
+          <!-- Selettore Utente (Giampy / Ty / Miki) -->
+          <div class="flex items-center gap-1">
+            <select
+              id="parking-user-select"
+              onchange="changeParkingUser(this.value)"
+              class="bg-white/10 border border-white/20 rounded-xl px-2 py-1 text-xs font-bold text-amber-200 outline-none cursor-pointer"
+            >
+              <option value="Giampy" selected>👨 Giampy</option>
+              <option value="Ty">👩 Ty</option>
+              <option value="Miki">👧 Miki</option>
+            </select>
+          </div>
+        </header>
+
+        <!-- Area Scorrevole Parcheggio -->
+        <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 max-w-xl mx-auto w-full pb-20">
+
+          <!-- 1. SCHEDA PRINCIPALE HERO: POSIZIONE AUTO ATTUALE -->
+          <div id="parking-hero-card" class="rounded-3xl p-5 border border-white/20 bg-white/[0.08] backdrop-blur-md shadow-2xl relative overflow-hidden">
+            <!-- Render dinamico da renderParkingScreen() -->
+          </div>
+
+          <!-- 2. SCHEDA AUTOMAZIONE ZERO-CLICK (SENZA MANI VIA BLUETOOTH) -->
+          <div class="rounded-3xl p-5 border border-sky-400/30 bg-sky-950/30 backdrop-blur-md shadow-xl space-y-3">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">⚡</span>
+              <div>
+                <h3 class="text-sm font-bold text-white tracking-wide">Rilevamento 100% Senza Mani (Zero-Click)</h3>
+                <p class="text-[11px] text-sky-300">Non devi mai aprire l'app quando sali in macchina</p>
+              </div>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Il tuo smartphone si collega al vivavoce Bluetooth da solo. Quando spegni il motore e scendi, lo smartphone memorizza la posizione a schermo spento in tasca o in borsa.
+            </p>
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onclick="showParkingAutomationModal('android')"
+                class="py-2.5 px-3 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 text-xs font-bold transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <span>🤖 Guida Android</span>
+              </button>
+              <button
+                type="button"
+                onclick="showParkingAutomationModal('ios')"
+                class="py-2.5 px-3 rounded-2xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/40 text-sky-200 text-xs font-bold transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <span>🍏 Guida iPhone</span>
+              </button>
+            </div>
+
+            <!-- Link Webhook Personale -->
+            <div class="mt-2 p-3 rounded-2xl bg-black/40 border border-white/10 space-y-1">
+              <span class="text-[10px] text-slate-400 block font-semibold">Tuo link webhook personale (MacroDroid / Comandi Rapidi):</span>
+              <div class="flex items-center justify-between gap-2">
+                <span id="parking-webhook-display" class="text-[11px] font-mono text-sky-300 truncate select-all"></span>
+                <button
+                  type="button"
+                  onclick="copyParkingWebhookUrl()"
+                  class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-bold text-amber-300 shrink-0 cursor-pointer"
+                >
+                  Copia
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. STORICO PARCHEGGI MESE CORRENTE & EXPORT PDF -->
+          <div class="rounded-3xl p-5 border border-white/15 bg-white/[0.05] backdrop-blur-md shadow-xl space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-base">📜</span>
+                <h3 id="parking-current-month-heading" class="text-xs sm:text-sm font-bold text-white tracking-wide">
+                  Parcheggi Mese Corrente
+                </h3>
+              </div>
+              <button
+                type="button"
+                onclick="clearParkingHistory()"
+                class="text-[11px] text-rose-400 hover:text-rose-300 hover:underline cursor-pointer"
+              >
+                Svuota storico
+              </button>
+            </div>
+
+            <!-- Barra Export PDF & Stampa -->
+            <div class="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onclick="downloadParkingMonthPDF()"
+                class="flex-1 py-2 px-3 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/40 text-amber-200 text-xs font-bold transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>Scarica PDF Mese</span>
+              </button>
+              <button
+                type="button"
+                onclick="printParkingMonthReport()"
+                class="py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-slate-200 text-xs font-bold transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <span>🖨️ Stampa A4</span>
+              </button>
+            </div>
+
+            <!-- Lista items mese corrente -->
+            <div id="parking-current-items-container" class="space-y-2 pt-1">
+              <!-- Render dinamico -->
+            </div>
+
+            <!-- 4. ARCHIVIO MESI PRECEDENTI -->
+            <div class="pt-4 border-t border-white/10 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <span>📁</span>
+                  <span>Archivio Mesi Precedenti</span>
+                </span>
+                <span id="parking-archived-count" class="text-[10px] text-sky-300 font-semibold"></span>
+              </div>
+              <div id="parking-archives-container" class="space-y-2 pt-1">
+                <!-- Render dinamico degli archivi -->
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- MODALE GUIDA AUTOMAZIONE PARCHEGGIO (ANDROID & IPHONE) -->
+      <div id="parking-automation-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+        <div class="bg-[#0b1b33] border border-sky-400/40 rounded-3xl p-5 sm:p-6 w-full max-w-lg shadow-[0_25px_60px_rgba(0,0,0,0.8)] text-white space-y-4 max-h-[90vh] overflow-y-auto">
+          <div class="flex items-center justify-between border-b border-white/10 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">🚗⚡</span>
+              <h3 class="text-base font-bold text-amber-200">Parcheggio 100% Senza Mani</h3>
+            </div>
+            <button
+              type="button"
+              onclick="closeParkingAutomationModal()"
+              class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer"
+            >✕</button>
+          </div>
+
+          <!-- Switch Tab Android / iOS -->
+          <div class="grid grid-cols-2 gap-2 bg-white/5 p-1 rounded-2xl border border-white/10">
+            <button
+              type="button"
+              id="tab-btn-android"
+              onclick="switchParkingModalTab('android')"
+              class="py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-emerald-500/30 text-emerald-200 border border-emerald-400/50"
+            >
+              🤖 Android (Giampy)
+            </button>
+            <button
+              type="button"
+              id="tab-btn-ios"
+              onclick="switchParkingModalTab('ios')"
+              class="py-2 rounded-xl text-xs font-bold transition cursor-pointer text-slate-400 hover:text-white"
+            >
+              🍏 iPhone (Ty & Miki)
+            </button>
+          </div>
+
+          <!-- TAB ANDROID -->
+          <div id="parking-tab-android" class="space-y-3">
+            <div class="p-3 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-300 leading-relaxed">
+              <strong class="text-sky-300 block mb-1">❓ Perché quando si DISCONNETTE e non quando è connesso?</strong>
+              • <strong>Quando è connesso</strong>: hai appena acceso l'auto e stai <em>partendo</em> per il viaggio (non sei parcheggiato!).<br>
+              • <strong>Quando si disconnette</strong>: hai finito il viaggio, hai <em>spento il motore</em> e la radio dell'auto si è spenta: è esattamente lì che l'auto resta ferma e va registrata la posizione!
+            </div>
+
+            <div class="space-y-2 text-xs">
+              <div class="p-3 rounded-2xl bg-emerald-950/30 border border-emerald-400/30">
+                <strong class="text-emerald-300 block font-bold mb-1">Opzione 1: Google Maps (Già installato di serie)</strong>
+                <p class="text-slate-300 text-[11px] leading-relaxed">
+                  1. Apri Google Maps ➔ Impostazioni ➔ Notifiche ➔ attiva <strong>"Posizione parcheggio"</strong>.<br>
+                  2. Impostazioni del telefono: App ➔ Maps ➔ Posizione ➔ <em>"Consenti sempre"</em>.<br>
+                  Quando spegni l'auto, Google Maps memorizza automaticamente la via!
+                </p>
+              </div>
+
+              <div class="p-3 rounded-2xl bg-sky-950/30 border border-sky-400/30">
+                <strong class="text-sky-300 block font-bold mb-1">Opzione 2: Automazione con MacroDroid</strong>
+                <p class="text-slate-300 text-[11px] leading-relaxed mb-2">
+                  1. Installa <strong>MacroDroid</strong> dal Google Play Store.<br>
+                  2. Crea una Macro: <em>Trigger</em>: <strong>Bluetooth ➔ Disconnessione dispositivo</strong> (Vivavoce Auto).<br>
+                  3. <em>Azione</em>: <strong>Apri Sito Web / Richiesta HTTP GET</strong> con il tuo link:
+                </p>
+                <div class="p-2 rounded-xl bg-black/50 border border-white/10 flex items-center justify-between gap-2">
+                  <span id="android-webhook-modal-link" class="text-[10px] font-mono text-emerald-300 truncate select-all"></span>
+                  <button type="button" onclick="copyAndroidModalWebhook()" class="px-2 py-0.5 rounded bg-white/10 text-[10px] font-bold text-amber-300">Copia</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB IPHONE -->
+          <div id="parking-tab-ios" class="hidden space-y-3">
+            <div class="p-3 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-300 leading-relaxed">
+              Su iPhone non serve aprire l'app: l'app di sistema <strong>Comandi Rapidi</strong> lavora in background a schermo spento ogni volta che spegni il motore.
+            </div>
+
+            <div class="space-y-2 text-xs">
+              <div class="p-3 rounded-2xl bg-sky-950/30 border border-sky-400/30 space-y-1.5">
+                <strong class="text-sky-300 block font-bold">Procedura Automazione iPhone:</strong>
+                <p class="text-[11px] text-slate-300">
+                  1. Apri <strong>Comandi Rapidi</strong> su iPhone ➔ tocca in basso <strong>Automazione</strong> ➔ tocca <strong>"+"</strong>.<br>
+                  2. Scegli <strong>Bluetooth</strong>: seleziona il vivavoce dell'auto, spunta <strong>"Si disconnette"</strong> ed <strong>"Esegui immediatamente"</strong>.<br>
+                  3. Tocca <strong>Avanti</strong> ➔ Nuova automazione ➔ Aggiungi: <em>"Ottieni posizione attuale"</em> e poi <em>"Ottieni contenuti dell'URL"</em> con questo link:
+                </p>
+                <div class="p-2 rounded-xl bg-black/50 border border-white/10 flex items-center justify-between gap-2 mt-2">
+                  <span id="ios-webhook-modal-link" class="text-[10px] font-mono text-sky-300 truncate select-all"></span>
+                  <button type="button" onclick="copyIosModalWebhook()" class="px-2 py-0.5 rounded bg-white/10 text-[10px] font-bold text-amber-300">Copia</button>
+                </div>
+              </div>
+
+              <div class="p-3 rounded-2xl bg-amber-500/10 border border-amber-400/30 text-[11px] text-amber-200 leading-relaxed">
+                💡 <strong>Alternativa nativa Apple Maps</strong>: Vai in <em>Impostazioni iPhone ➔ Mappe ➔ attiva "Mostra posizione parcheggio"</em>. iOS memorizza l'auto da solo nell'app Mappe ogni volta che spegni il Bluetooth!
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
     </div>
 
     <script>
@@ -1473,6 +1739,21 @@
       } catch (e) {}
 
       // ==============================================================
+      // STATO E RIPRISTINO SINCRONO PARCHEGGIO AUTO (GIAMPY / TY / MIKI)
+      // ==============================================================
+      let currentParkingUser = 'Giampy';
+      let parkingActive = null;
+      let parkingHistory = [];
+      let expandedParkingMonths = {};
+
+      try {
+        const cachedParkActive = localStorage.getItem('gpp_parking_active_Giampy');
+        if (cachedParkActive) parkingActive = JSON.parse(cachedParkActive);
+        const cachedParkHist = localStorage.getItem('gpp_parking_history_Giampy');
+        if (cachedParkHist) parkingHistory = JSON.parse(cachedParkHist) || [];
+      } catch (e) {}
+
+      // ==============================================================
       // 1. SPLASH SCREEN & BLOCCO GENERALE ALL'AVVIO DELL'APP
       // ==============================================================
       window.addEventListener('DOMContentLoaded', () => {
@@ -1483,6 +1764,7 @@
         loadAcquistiItems();
         loadLavoriItems();
         loadSpesaData();
+        loadParkingData();
       });
 
       function finishSplash() {
@@ -1577,6 +1859,7 @@
         closeAddAcquistoModal();
         closeAddLavoroModal();
         closeAddSpesaModal();
+        closeParkingAutomationModal();
 
         // Reset viste
         document.getElementById('contabilita-view').classList.add('hidden');
@@ -1584,6 +1867,7 @@
         document.getElementById('acquisti-view').classList.add('hidden');
         document.getElementById('lavori-view').classList.add('hidden');
         document.getElementById('spesa-view').classList.add('hidden');
+        document.getElementById('parking-view').classList.add('hidden');
         document.getElementById('main-menu-view').classList.add('hidden');
 
         const frame = document.getElementById('contabilita-frame');
@@ -1598,7 +1882,7 @@
       }
 
       // ==============================================================
-      // 2. NAVIGAZIONE: CONTABILITÀ, SICUREZZA, ACQUISTI, LAVORI, SPESA E MENU
+      // 2. NAVIGAZIONE: CONTABILITÀ, SICUREZZA, ACQUISTI, LAVORI, SPESA, PARCHEGGIO E MENU
       // ==============================================================
       function showContabilitaView() {
         document.getElementById('main-menu-view').classList.add('hidden');
@@ -1606,6 +1890,7 @@
         document.getElementById('acquisti-view').classList.add('hidden');
         document.getElementById('lavori-view').classList.add('hidden');
         document.getElementById('spesa-view').classList.add('hidden');
+        document.getElementById('parking-view').classList.add('hidden');
         document.getElementById('contabilita-view').classList.remove('hidden');
         const frame = document.getElementById('contabilita-frame');
         if (frame && (!frame.src || frame.src === 'about:blank' || frame.src.endsWith('about:blank') || frame.src.endsWith('/'))) {
@@ -1620,6 +1905,7 @@
         document.getElementById('acquisti-view').classList.add('hidden');
         document.getElementById('lavori-view').classList.add('hidden');
         document.getElementById('spesa-view').classList.add('hidden');
+        document.getElementById('parking-view').classList.add('hidden');
         document.getElementById('security-vault-view').classList.remove('hidden');
         renderVaultItems();
         window.scrollTo(0, 0);
@@ -1631,6 +1917,7 @@
         document.getElementById('security-vault-view').classList.add('hidden');
         document.getElementById('lavori-view').classList.add('hidden');
         document.getElementById('spesa-view').classList.add('hidden');
+        document.getElementById('parking-view').classList.add('hidden');
         document.getElementById('acquisti-view').classList.remove('hidden');
         renderAcquistiItems();
         window.scrollTo(0, 0);
@@ -1642,6 +1929,7 @@
         document.getElementById('security-vault-view').classList.add('hidden');
         document.getElementById('acquisti-view').classList.add('hidden');
         document.getElementById('spesa-view').classList.add('hidden');
+        document.getElementById('parking-view').classList.add('hidden');
         document.getElementById('lavori-view').classList.remove('hidden');
         renderLavoriItems();
         window.scrollTo(0, 0);
@@ -1653,9 +1941,23 @@
         document.getElementById('security-vault-view').classList.add('hidden');
         document.getElementById('acquisti-view').classList.add('hidden');
         document.getElementById('lavori-view').classList.add('hidden');
+        document.getElementById('parking-view').classList.add('hidden');
         document.getElementById('spesa-view').classList.remove('hidden');
         backToSpesaStores();
         loadSpesaData();
+        window.scrollTo(0, 0);
+      }
+
+      function showParkingView() {
+        document.getElementById('main-menu-view').classList.add('hidden');
+        document.getElementById('contabilita-view').classList.add('hidden');
+        document.getElementById('security-vault-view').classList.add('hidden');
+        document.getElementById('acquisti-view').classList.add('hidden');
+        document.getElementById('lavori-view').classList.add('hidden');
+        document.getElementById('spesa-view').classList.add('hidden');
+        document.getElementById('parking-view').classList.remove('hidden');
+        renderParkingScreen();
+        loadParkingData();
         window.scrollTo(0, 0);
       }
 
@@ -1665,6 +1967,7 @@
         document.getElementById('acquisti-view').classList.add('hidden');
         document.getElementById('lavori-view').classList.add('hidden');
         document.getElementById('spesa-view').classList.add('hidden');
+        document.getElementById('parking-view').classList.add('hidden');
         document.getElementById('main-menu-view').classList.remove('hidden');
         window.scrollTo(0, 0);
       }
@@ -4074,6 +4377,1023 @@
         delete expandedSpesaIds[id];
         await persistSpesaData();
         renderSpesaChecklist(currentSpesaStoreFilter);
+      }
+
+      // ==============================================================
+      // 8. LOGICA COMPLETA PARCHEGGIO AUTO, GPS, BLUETOOTH & PDF
+      // ==============================================================
+
+      const MONTH_NAMES_IT = [
+        'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+        'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'
+      ];
+
+      function changeParkingUser(user) {
+        currentParkingUser = user || 'Giampy';
+        const sel = document.getElementById('parking-user-select');
+        if (sel) sel.value = currentParkingUser;
+
+        // Ripristino sincrono della cache per l'utente selezionato
+        try {
+          const cachedActive = localStorage.getItem(`gpp_parking_active_${currentParkingUser}`);
+          parkingActive = cachedActive ? JSON.parse(cachedActive) : null;
+          const cachedHist = localStorage.getItem(`gpp_parking_history_${currentParkingUser}`);
+          parkingHistory = cachedHist ? JSON.parse(cachedHist) || [] : [];
+        } catch (e) {
+          parkingActive = null;
+          parkingHistory = [];
+        }
+
+        renderParkingScreen();
+        loadParkingData();
+      }
+
+      async function loadParkingData() {
+        const user = currentParkingUser || 'Giampy';
+        let serverData = null;
+        try {
+          const res = await fetch(`/api/parking?user=${encodeURIComponent(user)}`);
+          if (res.ok) {
+            serverData = await res.json();
+          }
+        } catch (e) {}
+
+        if (serverData) {
+          // Merge Smart Parcheggio Attivo
+          if (serverData.active) {
+            const srvTime = new Date(serverData.active.timestamp || 0).getTime();
+            const locTime = parkingActive ? new Date(parkingActive.timestamp || 0).getTime() : 0;
+            if (!parkingActive || srvTime >= locTime) {
+              parkingActive = serverData.active;
+            }
+          }
+
+          // Merge Storico senza duplicati per ID
+          const seen = new Set();
+          const mergedHist = [];
+          [...(serverData.history || []), ...(parkingHistory || [])].forEach(it => {
+            if (it && it.id && !seen.has(it.id)) {
+              seen.add(it.id);
+              mergedHist.push(it);
+            }
+          });
+          mergedHist.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+          parkingHistory = mergedHist;
+        }
+
+        // Salva localmente
+        try {
+          if (parkingActive) {
+            localStorage.setItem(`gpp_parking_active_${user}`, JSON.stringify(parkingActive));
+          } else {
+            localStorage.removeItem(`gpp_parking_active_${user}`);
+          }
+          localStorage.setItem(`gpp_parking_history_${user}`, JSON.stringify(parkingHistory));
+        } catch (e) {}
+
+        // Aggiorna badge nel menu principale
+        updateParkingMenuBadge();
+
+        // Se la schermata parcheggio è aperta, aggiorna la UI
+        const view = document.getElementById('parking-view');
+        if (view && !view.classList.contains('hidden')) {
+          renderParkingScreen();
+        }
+      }
+
+      function updateParkingMenuBadge() {
+        const badge = document.getElementById('menu-parking-badge');
+        if (!badge) return;
+        if (parkingActive) {
+          badge.className = "mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/25 border border-emerald-400/50 text-emerald-200 tracking-wide";
+          badge.innerHTML = "📍 Parcheggiata";
+        } else {
+          badge.className = "mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-400/20 border border-sky-400/40 text-sky-200";
+          badge.innerHTML = `Auto ${currentParkingUser}`;
+        }
+      }
+
+      function renderParkingScreen() {
+        const user = currentParkingUser || 'Giampy';
+        const heroEl = document.getElementById('parking-hero-card');
+        const webhookDisplay = document.getElementById('parking-webhook-display');
+        const androidModalLink = document.getElementById('android-webhook-modal-link');
+        const iosModalLink = document.getElementById('ios-webhook-modal-link');
+        const curItemsContainer = document.getElementById('parking-current-items-container');
+        const archContainer = document.getElementById('parking-archives-container');
+        const archCountEl = document.getElementById('parking-archived-count');
+        const curMonthHeading = document.getElementById('parking-current-month-heading');
+
+        const origin = window.location.origin;
+        const webhookUrl = `${origin}/api/auto-park?user=${encodeURIComponent(user)}`;
+
+        if (webhookDisplay) webhookDisplay.textContent = webhookUrl;
+        if (androidModalLink) androidModalLink.textContent = webhookUrl;
+        if (iosModalLink) iosModalLink.textContent = webhookUrl;
+
+        // 1. RENDER HERO CARD
+        if (heroEl) {
+          if (parkingActive) {
+            const displayAddr = formatParkingDisplayAddress(parkingActive);
+            const timeAgoStr = formatTimeAgo(parkingActive.timestamp);
+            const dateTimeStr = formatTimeAndDate(parkingActive.timestamp);
+            const accuracyStr = parkingActive.accuracy ? `±${parkingActive.accuracy}m` : '±5m';
+            const triggerStr = parkingActive.trigger === 'bluetooth_auto'
+              ? 'Spegnimento Motore (Bluetooth Auto)'
+              : (parkingActive.trigger === 'ios_shortcut' ? 'Automazione iPhone' : 'Salvataggio manuale');
+
+            heroEl.innerHTML = `
+              <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+                <div class="flex items-center gap-2.5">
+                  <span class="text-3xl">🚗</span>
+                  <div>
+                    <h3 class="text-sm font-bold text-white tracking-wide">Auto di ${escapeHtml(user)}</h3>
+                    <span class="text-[11px] text-emerald-300 font-semibold flex items-center gap-1">
+                      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      Posizione attiva memorizzata
+                    </span>
+                  </div>
+                </div>
+                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/25 border border-emerald-400/50 text-emerald-200">
+                  📍 Parcheggiata
+                </span>
+              </div>
+
+              <!-- Box Indirizzo in Evidenza -->
+              <div class="p-3.5 rounded-2xl bg-black/40 border border-white/15 space-y-2 mb-3.5">
+                <div class="text-base sm:text-lg font-bold text-white tracking-wide leading-tight">
+                  ${escapeHtml(displayAddr)}
+                </div>
+                <div class="text-xs text-slate-300 leading-relaxed">
+                  ${escapeHtml(parkingActive.address || '')}
+                </div>
+                <div class="flex flex-wrap gap-x-3 gap-y-1 pt-1 text-[11px] text-slate-400 border-t border-white/10">
+                  <span>🕒 ${escapeHtml(timeAgoStr)} (${escapeHtml(dateTimeStr)})</span>
+                  <span>🎯 Precisione: ${escapeHtml(accuracyStr)}</span>
+                  <span>⚡ ${escapeHtml(triggerStr)}</span>
+                </div>
+                ${parkingActive.notes ? `
+                  <div class="mt-2 p-2.5 rounded-xl bg-amber-400/10 border border-amber-400/30 text-xs text-amber-200">
+                    📝 <strong>Nota:</strong> ${escapeHtml(parkingActive.notes)}
+                  </div>
+                ` : ''}
+              </div>
+
+              <!-- Azioni Primarie -->
+              <div class="space-y-2">
+                <button
+                  type="button"
+                  onclick="openMapsNavigation(${parkingActive.lat}, ${parkingActive.lng})"
+                  class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                >
+                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                  </svg>
+                  <span>🧭 Portami all'Auto (Navigatore a Piedi)</span>
+                </button>
+
+                <div class="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onclick="addNoteToActiveParking()"
+                    class="py-2.5 px-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-slate-200 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>✏️ Nota / Piano</span>
+                  </button>
+                  <button
+                    type="button"
+                    onclick="releaseCurrentParking()"
+                    class="py-2.5 px-3 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-xs font-bold text-rose-200 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>✅ Ho ripreso l'auto</span>
+                  </button>
+                </div>
+              </div>
+            `;
+          } else {
+            heroEl.innerHTML = `
+              <div class="text-center py-5 space-y-2">
+                <span class="text-4xl block mb-2">🚗</span>
+                <h3 class="text-sm font-bold text-white tracking-wide">Nessuna posizione salvata per ${escapeHtml(user)}</h3>
+                <p class="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                  Quando spegni il motore e scendi dall'auto, la posizione viene registrata qui in automatico via Bluetooth.
+                </p>
+                <div class="pt-3">
+                  <button
+                    type="button"
+                    id="btn-save-parking-now"
+                    onclick="saveManualParking()"
+                    class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-xl flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                  >
+                    <span>📍 Salva Posizione ORA (Backup 1-Click)</span>
+                  </button>
+                </div>
+              </div>
+            `;
+          }
+        }
+
+        // 2. RAGGRUPPAMENTO PER MESE
+        const grouped = groupParkingByMonth(parkingHistory, parkingActive);
+        const curGroup = grouped.current;
+        const archGroups = grouped.archived;
+
+        if (curMonthHeading) {
+          curMonthHeading.innerHTML = `Parcheggi Mese Corrente (${escapeHtml(curGroup.monthNameCap)} ${curGroup.year}) <span class="text-sky-300 font-normal">(${curGroup.items.length})</span>`;
+        }
+
+        // 3. RENDER ITEMS MESE CORRENTE
+        if (curItemsContainer) {
+          if (curGroup.items.length === 0) {
+            curItemsContainer.innerHTML = `
+              <p class="text-xs text-slate-400 text-center py-4">Nessun parcheggio registrato in questo mese per ${escapeHtml(user)}.</p>
+            `;
+          } else {
+            curItemsContainer.innerHTML = curGroup.items.map(p => {
+              const displayAddr = formatParkingDisplayAddress(p);
+              const dateTimeStr = formatTimeAndDate(p.timestamp);
+              return `
+                <div class="rounded-2xl p-3 bg-white/5 border border-white/10 flex items-center justify-between gap-3 text-left">
+                  <div class="min-w-0 flex-1">
+                    <div class="text-xs font-bold text-white truncate">${escapeHtml(displayAddr)}</div>
+                    <div class="text-[11px] text-slate-400 mt-0.5">${escapeHtml(dateTimeStr)}</div>
+                    ${p.notes ? `<div class="text-[11px] text-amber-200 mt-0.5 truncate">📝 ${escapeHtml(p.notes)}</div>` : ''}
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onclick="openMapsNavigation(${p.lat}, ${p.lng})"
+                      title="Apri navigatore"
+                      class="px-2.5 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-xs font-bold transition active:scale-95 cursor-pointer"
+                    >🧭 Mappa</button>
+                    <button
+                      type="button"
+                      onclick="deleteParkingHistoryItem('${escapeJs(p.id)}')"
+                      title="Elimina voce"
+                      class="w-7 h-7 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
+                    >✕</button>
+                  </div>
+                </div>
+              `;
+            }).join('');
+          }
+        }
+
+        // 4. RENDER ARCHIVIO MESI PRECEDENTI
+        if (archCountEl) {
+          archCountEl.textContent = `(${archGroups.length} archiviati)`;
+        }
+        if (archContainer) {
+          if (archGroups.length === 0) {
+            archContainer.innerHTML = `
+              <p class="text-[11px] text-slate-400 p-2.5 rounded-xl bg-white/[0.02] border border-dashed border-white/10">
+                📅 I parcheggi dei mesi precedenti vengono archiviati qui automaticamente all'inizio di ogni mese in formato PDF stampabile.
+              </p>
+            `;
+          } else {
+            archContainer.innerHTML = archGroups.map(arc => {
+              const isExp = !!expandedParkingMonths[arc.key];
+              return `
+                <div class="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden">
+                  <div class="p-3 flex items-center justify-between cursor-pointer" onclick="toggleParkingArchiveMonth('${arc.key}')">
+                    <div class="flex items-center gap-2">
+                      <span class="text-base">📁</span>
+                      <div>
+                        <div class="text-xs font-bold text-white">${escapeHtml(arc.title)}</div>
+                        <div class="text-[10px] text-slate-400">${arc.items.length} registrazioni</div>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+                      <button
+                        type="button"
+                        onclick="downloadParkingMonthPDF('${arc.key}')"
+                        class="px-2 py-1 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 text-[10px] font-bold"
+                      >📄 PDF</button>
+                      <button
+                        type="button"
+                        onclick="printParkingMonthReport('${arc.key}')"
+                        class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 text-[10px] font-bold"
+                      >🖨️ Stampa</button>
+                      <button
+                        type="button"
+                        onclick="toggleParkingArchiveMonth('${arc.key}')"
+                        class="text-xs text-slate-400 px-1"
+                      >${isExp ? '▲' : '▼'}</button>
+                    </div>
+                  </div>
+                  ${isExp ? `
+                    <div class="p-3 border-t border-white/10 space-y-2 bg-black/20">
+                      ${arc.items.map(p => `
+                        <div class="rounded-xl p-2.5 bg-white/5 border border-white/5 flex items-center justify-between gap-2">
+                          <div class="min-w-0 flex-1">
+                            <div class="text-xs font-medium text-white truncate">${escapeHtml(formatParkingDisplayAddress(p))}</div>
+                            <div class="text-[10px] text-slate-400">${escapeHtml(formatTimeAndDate(p.timestamp))}</div>
+                            ${p.notes ? `<div class="text-[10px] text-amber-200">📝 ${escapeHtml(p.notes)}</div>` : ''}
+                          </div>
+                          <div class="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onclick="openMapsNavigation(${p.lat}, ${p.lng})"
+                              class="px-2 py-1 rounded-lg bg-sky-500/20 text-sky-300 text-[11px] font-bold"
+                            >🧭 Mappa</button>
+                            <button
+                              type="button"
+                              onclick="deleteParkingHistoryItem('${escapeJs(p.id)}')"
+                              class="w-6 h-6 rounded-lg bg-rose-500/20 text-rose-300 text-[11px] flex items-center justify-center"
+                            >✕</button>
+                          </div>
+                        </div>
+                      `).join('')}
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('');
+          }
+        }
+      }
+
+      function toggleParkingArchiveMonth(monthKey) {
+        expandedParkingMonths[monthKey] = !expandedParkingMonths[monthKey];
+        renderParkingScreen();
+      }
+
+      async function saveManualParking() {
+        if (!('geolocation' in navigator)) {
+          alert("La geolocalizzazione GPS non è supportata da questo dispositivo.");
+          return;
+        }
+
+        const btn = document.getElementById('btn-save-parking-now');
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = `<span>📡 Rilevamento GPS in corso...</span>`;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            try {
+              const lat = pos.coords.latitude;
+              const lng = pos.coords.longitude;
+              const accuracy = Math.round(pos.coords.accuracy || 5);
+
+              let address = `Coordinate GPS (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+              let addressShort = `GPS (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+
+              try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
+                  headers: { 'Accept': 'application/json' }
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data && data.address) {
+                    const a = data.address;
+                    const road = a.road || a.pedestrian || a.street || '';
+                    const house = a.house_number ? ' ' + a.house_number : '';
+                    const city = a.city || a.town || a.village || a.municipality || a.suburb || '';
+                    if (road) {
+                      const streetWithHouse = (road + house).trim();
+                      addressShort = city ? `${streetWithHouse}, ${city}` : streetWithHouse;
+                      address = `${streetWithHouse}${city ? ', ' + city : ''}`;
+                    } else if (data.display_name) {
+                      const parts = data.display_name.split(',');
+                      const mainLoc = parts[0] ? parts[0].trim() : 'Posizione';
+                      const locCity = city || (parts[1] ? parts[1].trim() : '');
+                      addressShort = locCity && !mainLoc.includes(locCity) ? `${mainLoc}, ${locCity}` : mainLoc;
+                      address = parts.slice(0, 3).join(', ');
+                    }
+                  }
+                }
+              } catch (geoErr) {}
+
+              const user = currentParkingUser || 'Giampy';
+              const newEntry = {
+                id: `park-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                section: 'parking',
+                user: user,
+                owner: user,
+                lat: lat,
+                lng: lng,
+                accuracy: accuracy,
+                address: address,
+                addressShort: addressShort,
+                timestamp: new Date().toISOString(),
+                trigger: 'manuale',
+                notes: ''
+              };
+
+              if (parkingActive) {
+                parkingHistory.unshift(parkingActive);
+              }
+              parkingActive = newEntry;
+
+              try {
+                localStorage.setItem(`gpp_parking_active_${user}`, JSON.stringify(parkingActive));
+                localStorage.setItem(`gpp_parking_history_${user}`, JSON.stringify(parkingHistory));
+              } catch (e) {}
+
+              renderParkingScreen();
+              updateParkingMenuBadge();
+
+              // Invio al server
+              try {
+                await fetch('/api/parking/manual', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ user, entry: newEntry })
+                });
+              } catch (e) {}
+
+              alert(`🚗 Auto parcheggiata salvata!\n📍 ${addressShort}`);
+            } catch (err) {
+              alert("Errore salvataggio: " + err.message);
+            } finally {
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<span>📍 Salva Posizione ORA (Backup 1-Click)</span>`;
+              }
+            }
+          },
+          (err) => {
+            if (btn) {
+              btn.disabled = false;
+              btn.innerHTML = `<span>📍 Salva Posizione ORA (Backup 1-Click)</span>`;
+            }
+            let msg = "Impossibile rilevare la posizione.";
+            if (err.code === 1) msg = "Accesso GPS negato. Autorizza la posizione nelle impostazioni del browser/telefono.";
+            else if (err.code === 2) msg = "Posizione non disponibile (segnale GPS assente).";
+            else if (err.code === 3) msg = "Timeout richiesta GPS. Riprova.";
+            alert("⚠️ " + msg);
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+      }
+
+      function openMapsNavigation(lat, lng) {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        if (isIOS) {
+          window.open(`https://maps.apple.com/?daddr=${lat},${lng}&dirflg=w`, '_blank');
+        } else {
+          window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`, '_blank');
+        }
+      }
+
+      async function addNoteToActiveParking() {
+        if (!parkingActive) return;
+        const currentNote = parkingActive.notes || '';
+        const note = prompt("Aggiungi nota al parcheggio (es. Piano -2, Posto 45, Scadenza ticket ore 18:30):", currentNote);
+        if (note !== null) {
+          const trimmed = note.trim();
+          parkingActive.notes = trimmed;
+          const user = currentParkingUser || 'Giampy';
+          try {
+            localStorage.setItem(`gpp_parking_active_${user}`, JSON.stringify(parkingActive));
+          } catch (e) {}
+          renderParkingScreen();
+          try {
+            await fetch('/api/parking/note', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ user, note: trimmed })
+            });
+          } catch (e) {}
+        }
+      }
+
+      async function releaseCurrentParking() {
+        if (!confirm("Hai ripreso l'auto? Rimuovere la posizione dal parcheggio attivo?")) return;
+        const user = currentParkingUser || 'Giampy';
+        if (parkingActive) {
+          parkingActive.releasedAt = new Date().toISOString();
+          parkingHistory.unshift(parkingActive);
+          parkingActive = null;
+        }
+        try {
+          localStorage.removeItem(`gpp_parking_active_${user}`);
+          localStorage.setItem(`gpp_parking_history_${user}`, JSON.stringify(parkingHistory));
+        } catch (e) {}
+        renderParkingScreen();
+        updateParkingMenuBadge();
+        try {
+          await fetch('/api/parking/release', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user })
+          });
+        } catch (e) {}
+      }
+
+      async function deleteParkingHistoryItem(id) {
+        if (!confirm("Eliminare questo parcheggio dallo storico?")) return;
+        const user = currentParkingUser || 'Giampy';
+        parkingHistory = parkingHistory.filter(h => h.id !== id);
+        if (parkingActive && parkingActive.id === id) {
+          parkingActive = null;
+          try { localStorage.removeItem(`gpp_parking_active_${user}`); } catch (e) {}
+        }
+        try {
+          localStorage.setItem(`gpp_parking_history_${user}`, JSON.stringify(parkingHistory));
+        } catch (e) {}
+        renderParkingScreen();
+        updateParkingMenuBadge();
+        try {
+          await fetch('/api/parking/delete-item', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user, id })
+          });
+        } catch (e) {}
+      }
+
+      async function clearParkingHistory() {
+        if (!confirm("Vuoi cancellare tutto lo storico dei parcheggi precedenti?")) return;
+        const user = currentParkingUser || 'Giampy';
+        parkingHistory = [];
+        try {
+          localStorage.setItem(`gpp_parking_history_${user}`, JSON.stringify([]));
+        } catch (e) {}
+        renderParkingScreen();
+        try {
+          await fetch('/api/parking/clear-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user })
+          });
+        } catch (e) {}
+      }
+
+      function formatParkingDisplayAddress(p) {
+        if (!p) return 'Posizione salvata';
+        let short = (p.addressShort || '').trim();
+        let full = (p.address || '').trim();
+        if (!short && !full) return 'Posizione GPS';
+        if (!short) return full;
+        if (!full) return short;
+        if (short.includes(',') || (short.includes('(') && short.includes(')'))) return short;
+
+        const parts = full.split(',').map(s => s.trim()).filter(Boolean);
+        if (parts.length > 1) {
+          for (let i = 1; i < parts.length; i++) {
+            let candidate = parts[i];
+            if (/^\d+$/.test(candidate) || candidate.toLowerCase() === 'italia' || candidate.toLowerCase() === 'italy') continue;
+            candidate = candidate.replace(/^\d{5}\s+/, '').trim();
+            candidate = candidate.replace(/\s+[A-Z]{2}$/, '').trim();
+            if (candidate && !short.toLowerCase().includes(candidate.toLowerCase())) {
+              return `${short}, ${candidate}`;
+            }
+          }
+        }
+        return short;
+      }
+
+      function formatTimeAgo(isoString) {
+        if (!isoString) return '';
+        const d = new Date(isoString);
+        if (isNaN(d.getTime())) return '';
+        const now = new Date();
+        const diffMs = now.getTime() - d.getTime();
+        const diffSec = Math.floor(diffMs / 1000);
+        if (diffSec < 60) return 'Adesso';
+        const diffMin = Math.floor(diffSec / 60);
+        if (diffMin < 60) return `${diffMin} min fa`;
+        const diffHours = Math.floor(diffMin / 60);
+        if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'ora' : 'ore'} fa`;
+        const diffDays = Math.floor(diffHours / 24);
+        return `${diffDays} ${diffDays === 1 ? 'giorno' : 'giorni'} fa`;
+      }
+
+      function formatTimeAndDate(isoString) {
+        if (!isoString) return '';
+        const d = new Date(isoString);
+        if (isNaN(d.getTime())) return '';
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        const hours = String(d.getHours()).padStart(2, '0');
+        const mins = String(d.getMinutes()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${mins}`;
+      }
+
+      function groupParkingByMonth(items, activeParking) {
+        const all = [...(items || [])];
+        if (activeParking && activeParking.id && !all.some(i => i.id === activeParking.id)) {
+          all.unshift(activeParking);
+        }
+
+        const now = new Date();
+        const curYear = now.getFullYear();
+        const curMonthIdx = now.getMonth();
+        const curMonthKey = `${curYear}-${String(curMonthIdx + 1).padStart(2, '0')}`;
+
+        const groups = {};
+
+        all.forEach(p => {
+          if (!p || !p.timestamp) return;
+          const d = new Date(p.timestamp);
+          if (isNaN(d.getTime())) return;
+          const y = d.getFullYear();
+          const m = d.getMonth();
+          const key = `${y}-${String(m + 1).padStart(2, '0')}`;
+          if (!groups[key]) {
+            const mName = MONTH_NAMES_IT[m] || `mese ${m + 1}`;
+            const mCap = mName.charAt(0).toUpperCase() + mName.slice(1);
+            groups[key] = {
+              key: key,
+              year: y,
+              monthIndex: m,
+              monthName: mName,
+              monthNameCap: mCap,
+              label: `parcheggi mese ${mName}/${y}`,
+              title: `Parcheggi Mese ${mCap}/${y}`,
+              isCurrentMonth: (key === curMonthKey),
+              items: []
+            };
+          }
+          groups[key].items.push(p);
+        });
+
+        if (!groups[curMonthKey]) {
+          const curName = MONTH_NAMES_IT[curMonthIdx];
+          const curCap = curName.charAt(0).toUpperCase() + curName.slice(1);
+          groups[curMonthKey] = {
+            key: curMonthKey,
+            year: curYear,
+            monthIndex: curMonthIdx,
+            monthName: curName,
+            monthNameCap: curCap,
+            label: `parcheggi mese ${curName}/${curYear}`,
+            title: `Parcheggi Mese ${curCap}/${curYear}`,
+            isCurrentMonth: true,
+            items: []
+          };
+        }
+
+        Object.values(groups).forEach(g => {
+          g.items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        });
+
+        const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+        const currentGroup = groups[curMonthKey];
+        const archivedGroups = sortedKeys
+          .filter(k => k !== curMonthKey)
+          .map(k => groups[k])
+          .filter(g => g.items.length > 0);
+
+        return {
+          current: currentGroup,
+          archived: archivedGroups,
+          allGroups: groups
+        };
+      }
+
+      function sanitizePdfText(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/[àá]/g, 'a')
+          .replace(/[èé]/g, 'e')
+          .replace(/[ìí]/g, 'i')
+          .replace(/[òó]/g, 'o')
+          .replace(/[ùú]/g, 'u')
+          .replace(/[ÀÁ]/g, 'A')
+          .replace(/[ÈÉ]/g, 'E')
+          .replace(/[ÌÍ]/g, 'I')
+          .replace(/[ÒÓ]/g, 'O')
+          .replace(/[ÙÚ]/g, 'U')
+          .replace(/[°]/g, ' deg')
+          .replace(/[\(\)]/g, ' ')
+          .replace(/\\/g, '/')
+          .replace(/[^\x20-\x7E]/g, ' ');
+      }
+
+      function generateParkingPdfBlob(opts) {
+        const title = opts.title || 'Parcheggi Mese';
+        const subtitle = opts.subtitle || 'Registro Ufficiale Parcheggi';
+        const user = opts.user || 'Giampy';
+        const items = opts.items || [];
+
+        const pageWidth = 595.28;
+        const pageHeight = 841.89;
+        const margin = 40;
+        const contentWidth = pageWidth - (margin * 2);
+
+        const itemsPerPage = 7;
+        const pagesData = [];
+        for (let i = 0; i < Math.max(1, items.length); i += itemsPerPage) {
+          pagesData.push(items.slice(i, i + itemsPerPage));
+        }
+        const totalPages = pagesData.length;
+        const pageStreams = [];
+
+        pagesData.forEach((pageItems, pageIdx) => {
+          let stream = '';
+          let y = pageHeight - 50;
+
+          // Barra superiore con colore oro satinato #f59e0b
+          stream += `0.96 0.62 0.04 rg\n`;
+          stream += `${margin} ${y - 4} ${contentWidth} 3 re f\n`;
+
+          // Titolo
+          stream += `0.06 0.09 0.16 rg\n`;
+          stream += `BT /F2 16 Tf ${margin} ${y} Td (${sanitizePdfText(title)}) Tj ET\n`;
+          y -= 18;
+
+          // Sottotitolo
+          stream += `0.39 0.45 0.55 rg\n`;
+          stream += `BT /F1 9 Tf ${margin} ${y} Td (${sanitizePdfText(subtitle)} - Auto di: ${sanitizePdfText(user)} - Totale: ${items.length} registrazioni) Tj ET\n`;
+          y -= 25;
+
+          // Intestazione Tabella
+          stream += `0.94 0.96 0.98 rg\n`;
+          stream += `${margin} ${y - 6} ${contentWidth} 20 re f\n`;
+          stream += `0.80 0.84 0.88 RG 1 w\n`;
+          stream += `${margin} ${y - 6} ${contentWidth} 20 re S\n`;
+
+          stream += `0.20 0.25 0.33 rg\n`;
+          stream += `BT /F2 9 Tf ${margin + 8} ${y} Td (DATA / ORA) Tj ET\n`;
+          stream += `BT /F2 9 Tf ${margin + 115} ${y} Td (INDIRIZZO / POSIZIONE) Tj ET\n`;
+          stream += `BT /F2 9 Tf ${margin + 360} ${y} Td (GPS / PREC.) Tj ET\n`;
+          stream += `BT /F2 9 Tf ${margin + 440} ${y} Td (MODALITA') Tj ET\n`;
+          y -= 22;
+
+          if (pageItems.length === 0) {
+            stream += `0.5 0.5 0.5 rg\n`;
+            stream += `BT /F1 10 Tf ${margin + 10} ${y - 15} Td (Nessun parcheggio registrato per questo periodo.) Tj ET\n`;
+          } else {
+            pageItems.forEach((p, idx) => {
+              const itemHeight = p.notes ? 42 : 32;
+
+              if (idx % 2 === 1) {
+                stream += `0.98 0.98 0.99 rg\n`;
+                stream += `${margin} ${y - itemHeight + 10} ${contentWidth} ${itemHeight} re f\n`;
+              }
+
+              stream += `0.88 0.91 0.94 RG 0.5 w\n`;
+              stream += `${margin} ${y - itemHeight + 10} m ${margin + contentWidth} ${y - itemHeight + 10} l S\n`;
+
+              const d = new Date(p.timestamp || 0);
+              const dateStr = !isNaN(d.getTime())
+                ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+                : 'Data n/d';
+
+              stream += `0.06 0.09 0.16 rg\n`;
+              stream += `BT /F2 8.5 Tf ${margin + 8} ${y} Td (${sanitizePdfText(dateStr)}) Tj ET\n`;
+
+              const addr = sanitizePdfText(formatParkingDisplayAddress(p));
+              const addrLine1 = addr.substring(0, 48);
+              const addrLine2 = addr.length > 48 ? addr.substring(48, 96) : '';
+
+              stream += `BT /F1 8.5 Tf ${margin + 115} ${y} Td (${addrLine1}) Tj ET\n`;
+              if (addrLine2) {
+                stream += `0.45 0.50 0.55 rg\n`;
+                stream += `BT /F1 7.5 Tf ${margin + 115} ${y - 10} Td (${addrLine2}) Tj ET\n`;
+              }
+
+              const gpsStr = (p.lat && p.lng) ? `${Number(p.lat).toFixed(4)}, ${Number(p.lng).toFixed(4)}` : '';
+              const accStr = p.accuracy ? `+/-${p.accuracy}m` : '';
+              stream += `0.2 0.4 0.6 rg\n`;
+              stream += `BT /F1 7.5 Tf ${margin + 360} ${y} Td (${sanitizePdfText(gpsStr)}) Tj ET\n`;
+              if (accStr) {
+                stream += `0.5 0.5 0.5 rg\n`;
+                stream += `BT /F1 7 Tf ${margin + 360} ${y - 9} Td (${sanitizePdfText(accStr)}) Tj ET\n`;
+              }
+
+              const trigStr = p.trigger === 'bluetooth_auto' ? 'Bluetooth Auto' : (p.trigger === 'ios_shortcut' ? 'iPhone Auto' : 'Manuale');
+              stream += `0.1 0.6 0.4 rg\n`;
+              stream += `BT /F1 7.5 Tf ${margin + 440} ${y} Td (${sanitizePdfText(trigStr)}) Tj ET\n`;
+
+              if (p.notes) {
+                stream += `0.35 0.35 0.35 rg\n`;
+                stream += `BT /F1 7.5 Tf ${margin + 115} ${y - (addrLine2 ? 19 : 11)} Td (Nota: ${sanitizePdfText(p.notes)}) Tj ET\n`;
+              }
+
+              y -= itemHeight;
+            });
+          }
+
+          const footerY = 30;
+          stream += `0.55 0.60 0.65 rg\n`;
+          stream += `BT /F1 8 Tf ${margin} ${footerY} Td (Generato automaticamente da App Giampy - GPP) Tj ET\n`;
+          stream += `BT /F1 8 Tf ${pageWidth - margin - 80} ${footerY} Td (Pagina ${pageIdx + 1} di ${totalPages}) Tj ET\n`;
+
+          pageStreams.push(stream);
+        });
+
+        let out = '%PDF-1.4\n%\xFF\xFF\xFF\xFF\n';
+        const offsets = [];
+
+        offsets.push(out.length);
+        out += `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`;
+
+        const pageObjNums = [];
+        for (let i = 0; i < totalPages; i++) {
+          pageObjNums.push(5 + (i * 2));
+        }
+
+        offsets.push(out.length);
+        out += `2 0 obj\n<< /Type /Pages /Kids [${pageObjNums.map(n => `${n} 0 R`).join(' ')}] /Count ${totalPages} >>\nendobj\n`;
+
+        offsets.push(out.length);
+        out += `3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n`;
+
+        offsets.push(out.length);
+        out += `4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>\nendobj\n`;
+
+        pageStreams.forEach((streamContent, idx) => {
+          const pageNum = 5 + (idx * 2);
+          const streamNum = pageNum + 1;
+
+          offsets.push(out.length);
+          out += `${pageNum} 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Contents ${streamNum} 0 R >>\nendobj\n`;
+
+          offsets.push(out.length);
+          out += `${streamNum} 0 obj\n<< /Length ${streamContent.length} >>\nstream\n${streamContent}\nendstream\nendobj\n`;
+        });
+
+        const xrefOffset = out.length;
+        const totalObjects = 5 + (totalPages * 2);
+        out += `xref\n0 ${totalObjects}\n0000000000 65535 f \n`;
+        offsets.forEach(off => {
+          out += `${String(off).padStart(10, '0')} 00000 n \n`;
+        });
+
+        out += `trailer\n<< /Size ${totalObjects} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+        return new Blob([out], { type: 'application/pdf' });
+      }
+
+      function downloadParkingMonthPDF(monthKey) {
+        const user = currentParkingUser || 'Giampy';
+        const grouped = groupParkingByMonth(parkingHistory, parkingActive);
+        const targetGroup = (monthKey && grouped.allGroups[monthKey]) ? grouped.allGroups[monthKey] : grouped.current;
+
+        if (!targetGroup || targetGroup.items.length === 0) {
+          alert("Nessun parcheggio registrato da esportare per questo mese.");
+          return;
+        }
+
+        const blob = generateParkingPdfBlob({
+          title: targetGroup.title,
+          subtitle: `Archivio Ufficiale Mensile (${targetGroup.label})`,
+          user: user,
+          items: targetGroup.items
+        });
+
+        const fileName = `parcheggi_mese_${targetGroup.monthName}_${targetGroup.year}.pdf`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 1000);
+      }
+
+      function printParkingMonthReport(monthKey) {
+        const user = currentParkingUser || 'Giampy';
+        const grouped = groupParkingByMonth(parkingHistory, parkingActive);
+        const targetGroup = (monthKey && grouped.allGroups[monthKey]) ? grouped.allGroups[monthKey] : grouped.current;
+
+        if (!targetGroup) {
+          alert("Nessun parcheggio da stampare.");
+          return;
+        }
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+          window.print();
+          return;
+        }
+
+        const rowsHtml = targetGroup.items.length === 0
+          ? `<tr><td colspan="4" style="text-align: center; padding: 20px; color: #64748b;">Nessun parcheggio registrato in questo mese.</td></tr>`
+          : targetGroup.items.map(p => {
+              const d = new Date(p.timestamp || 0);
+              const dateStr = !isNaN(d.getTime())
+                ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+                : 'Data n/d';
+              const trigStr = p.trigger === 'bluetooth_auto' ? 'Spegnimento Motore (Bluetooth)' : (p.trigger === 'ios_shortcut' ? 'iPhone Auto' : 'Manuale');
+              const gpsStr = (p.lat && p.lng) ? `${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}` : '';
+              const accStr = p.accuracy ? `±${p.accuracy}m` : '';
+
+              return `
+                <tr>
+                  <td style="font-weight: 700; white-space: nowrap;">${escapeHtml(dateStr)}</td>
+                  <td>
+                    <div style="font-weight: 600; color: #0f172a;">${escapeHtml(formatParkingDisplayAddress(p))}</div>
+                    <div style="font-size: 10px; color: #64748b; margin-top: 2px;">${escapeHtml(p.address || '')}</div>
+                    ${p.notes ? `<div style="font-size: 10px; color: #b45309; margin-top: 3px; font-weight: 600;">📝 Nota: ${escapeHtml(p.notes)}</div>` : ''}
+                  </td>
+                  <td style="white-space: nowrap; font-family: monospace; font-size: 10px;">
+                    ${gpsStr ? `<div>${gpsStr}</div>` : ''}
+                    ${accStr ? `<div style="color: #64748b;">${accStr}</div>` : ''}
+                  </td>
+                  <td style="font-size: 10px;">${escapeHtml(trigStr)}</td>
+                </tr>
+              `;
+            }).join('');
+
+        printWindow.document.write(`<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(targetGroup.label)}</title>
+  <style>
+    @page { size: A4 portrait; margin: 12mm 15mm; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0f172a; margin: 0; padding: 15px; }
+    .header { border-bottom: 2px solid #f59e0b; padding-bottom: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .title { font-size: 18px; font-weight: 800; color: #0f172a; }
+    .sub { font-size: 12px; color: #64748b; margin-top: 3px; }
+    .meta { text-align: right; font-size: 11px; color: #64748b; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+    th { background: #f8fafc; text-align: left; padding: 8px 10px; border-bottom: 2px solid #cbd5e1; font-weight: 700; color: #334155; }
+    td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+    tr:nth-child(even) { background: #f8fafc; }
+    .footer { margin-top: 25px; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="title">🚗 ${escapeHtml(targetGroup.title)}</div>
+      <div class="sub">Registro Ufficiale Soste e Parcheggi Auto (${escapeHtml(targetGroup.label)}) - Auto di: <strong>${escapeHtml(user)}</strong></div>
+    </div>
+    <div class="meta">
+      <div>Data stampa: ${new Date().toLocaleDateString('it-IT')}</div>
+      <div>Totale: <strong>${targetGroup.items.length}</strong> registrazioni</div>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 120px;">Data / Ora</th>
+        <th>Indirizzo / Luogo</th>
+        <th style="width: 140px;">Coordinate GPS</th>
+        <th style="width: 100px;">Modalità</th>
+      </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <div class="footer">
+    <div>App Giampy - Portale GPP</div>
+    <div>Report ad uso personale e amministrativo</div>
+  </div>
+  <script>window.onload = function() { window.print(); };<\/script>
+</body>
+</html>`);
+        printWindow.document.close();
+      }
+
+      function showParkingAutomationModal(tab) {
+        const modal = document.getElementById('parking-automation-modal');
+        if (!modal) return;
+        switchParkingModalTab(tab || 'android');
+        modal.classList.remove('hidden');
+      }
+
+      function closeParkingAutomationModal() {
+        const modal = document.getElementById('parking-automation-modal');
+        if (modal) modal.classList.add('hidden');
+      }
+
+      function switchParkingModalTab(tab) {
+        const tabAndroid = document.getElementById('parking-tab-android');
+        const tabIos = document.getElementById('parking-tab-ios');
+        const btnAndroid = document.getElementById('tab-btn-android');
+        const btnIos = document.getElementById('tab-btn-ios');
+
+        if (tab === 'ios') {
+          if (tabAndroid) tabAndroid.classList.add('hidden');
+          if (tabIos) tabIos.classList.remove('hidden');
+          if (btnAndroid) btnAndroid.className = "py-2 rounded-xl text-xs font-bold transition cursor-pointer text-slate-400 hover:text-white";
+          if (btnIos) btnIos.className = "py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-sky-500/30 text-sky-200 border border-sky-400/50";
+        } else {
+          if (tabAndroid) tabAndroid.classList.remove('hidden');
+          if (tabIos) tabIos.classList.add('hidden');
+          if (btnAndroid) btnAndroid.className = "py-2 rounded-xl text-xs font-bold transition cursor-pointer bg-emerald-500/30 text-emerald-200 border border-emerald-400/50";
+          if (btnIos) btnIos.className = "py-2 rounded-xl text-xs font-bold transition cursor-pointer text-slate-400 hover:text-white";
+        }
+      }
+
+      function copyParkingWebhookUrl() {
+        const user = currentParkingUser || 'Giampy';
+        const url = `${window.location.origin}/api/auto-park?user=${encodeURIComponent(user)}`;
+        navigator.clipboard.writeText(url).then(() => {
+          alert("Link webhook copiato negli appunti:\n" + url);
+        }).catch(() => {
+          prompt("Copia questo link:", url);
+        });
+      }
+
+      function copyAndroidModalWebhook() {
+        copyParkingWebhookUrl();
+      }
+
+      function copyIosModalWebhook() {
+        copyParkingWebhookUrl();
       }
     </script>
   </body>
