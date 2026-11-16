@@ -1356,25 +1356,37 @@
             </div>
           </div>
 
-          <!-- BARRA FISSA IN BASSO STILE "DIGITA QUI" (INSERIMENTO RAPIDO PRODOTTO O SCELTA DA MENU A TENDINA) -->
-          <form onsubmit="handleQuickAddSpesaProduct(event)" class="sticky bottom-0 left-0 right-0 z-50 bg-[#fff59d] border-t border-amber-300 px-3.5 py-2.5 flex items-center gap-2 shadow-[0_-4px_16px_rgba(0,0,0,0.25)]">
-            <datalist id="spesa-products-datalist"></datalist>
-            <input
-              id="spesa-quick-input"
-              type="text"
-              list="spesa-products-datalist"
-              placeholder="Digita qui"
-              autocomplete="off"
-              class="flex-1 h-11 bg-transparent text-slate-900 placeholder:text-slate-600 font-medium text-base px-2 focus:outline-none"
-            />
-            <button
-              type="submit"
-              title="Aggiungi alla lista"
-              class="w-11 h-11 rounded-full bg-[#f89e6e] hover:bg-[#ea8f56] text-white font-bold text-2xl flex items-center justify-center shadow active:scale-90 transition cursor-pointer shrink-0"
-            >
-              +
-            </button>
-          </form>
+          <!-- BARRA FISSA IN BASSO CON CASELLA BIANCA E SUGGERIMENTI T9 DINAMICI -->
+          <div class="sticky bottom-0 left-0 right-0 z-50 bg-[#061120]/95 backdrop-blur-md border-t border-amber-400/30 px-3 py-2.5 shadow-[0_-8px_25px_rgba(0,0,0,0.5)]">
+            <div class="relative max-w-lg mx-auto">
+              <!-- Popup suggerimenti T9 (posizionato sopra la casella bianca) -->
+              <div id="spesa-t9-suggestions" class="hidden absolute bottom-full left-0 right-0 mb-2 bg-[#0d2242] border border-amber-400/60 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.8)] p-2.5 z-50 text-white backdrop-blur-md space-y-2 max-h-56 overflow-y-auto">
+              </div>
+
+              <!-- Casella bianca richiesta dall'utente -->
+              <form onsubmit="handleQuickAddSpesaProduct(event)" class="flex items-center gap-2 bg-white rounded-2xl border-2 border-amber-400 p-1.5 shadow-md">
+                <input
+                  id="spesa-quick-input"
+                  type="text"
+                  placeholder="Scrivi qui il prodotto (es. acq...)"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  oninput="onSpesaQuickInput(this.value)"
+                  onkeydown="onSpesaQuickKeydown(event)"
+                  class="flex-1 h-11 bg-white text-slate-900 placeholder:text-slate-400 font-semibold text-base px-3 rounded-xl focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  title="Aggiungi alla lista"
+                  class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-bold text-2xl flex items-center justify-center shadow active:scale-90 transition cursor-pointer shrink-0"
+                >
+                  +
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1408,18 +1420,22 @@
               ></select>
             </div>
 
-            <!-- Prodotto da acquistare (campo di testo libero con suggerimenti da catalogo) -->
-            <div class="space-y-1">
+            <!-- Prodotto da acquistare (casella bianca con autocompletamento T9) -->
+            <div class="space-y-1 relative">
               <label class="text-[11px] font-semibold text-amber-200 uppercase">Prodotto da acquistare *</label>
-              <datalist id="spesa-modal-products-datalist"></datalist>
+              <!-- Popup suggerimenti T9 per modale -->
+              <div id="spesa-modal-t9-suggestions" class="hidden absolute bottom-full left-0 right-0 mb-1 bg-[#0d2242] border border-amber-400/60 rounded-xl shadow-2xl p-2 z-50 text-white space-y-1.5 max-h-40 overflow-y-auto"></div>
               <input
                 id="spesa-product-input"
                 type="text"
-                list="spesa-modal-products-datalist"
                 required
-                placeholder="Scrivi o seleziona prodotto (es. Latte, Pane...)"
+                placeholder="Scrivi qui il prodotto (es. acq...)"
                 autocomplete="off"
-                class="w-full h-10 rounded-xl border border-amber-400/40 bg-navy-950/80 px-3 text-xs text-white font-semibold focus:outline-none focus:border-amber-400 placeholder:text-slate-500"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+                oninput="onSpesaModalInput(this.value)"
+                class="w-full h-11 bg-white text-slate-900 placeholder:text-slate-400 font-semibold text-sm px-3 rounded-xl border-2 border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
 
@@ -3495,6 +3511,140 @@
         renderSpesaChecklist(currentSpesaStoreFilter);
       }
 
+      let spesaTopT9Match = null;
+
+      function onSpesaQuickInput(val) {
+        const popup = document.getElementById('spesa-t9-suggestions');
+        if (!popup) return;
+        const q = (val || '').trim().toLowerCase();
+        if (!q) {
+          popup.classList.add('hidden');
+          popup.innerHTML = '';
+          spesaTopT9Match = null;
+          return;
+        }
+
+        const starts = spesaProducts.filter(p => p.toLowerCase().startsWith(q));
+        const contains = spesaProducts.filter(p => !p.toLowerCase().startsWith(q) && p.toLowerCase().includes(q));
+        const matches = [...starts, ...contains];
+
+        if (matches.length > 0) {
+          spesaTopT9Match = matches[0];
+          const hasExactMatch = spesaProducts.some(p => p.toLowerCase() === q);
+          popup.innerHTML = `
+            <div class="flex items-center justify-between border-b border-white/10 pb-1 text-[11px]">
+              <span class="text-amber-300 font-bold flex items-center gap-1">
+                <span>💡 T9 Suggerimenti</span>
+                <span class="text-[10px] text-slate-300 font-normal">(${matches.length} trovati)</span>
+              </span>
+              <span class="text-[10px] text-slate-400">Tocca per inserire</span>
+            </div>
+            <!-- Completamento primario in evidenza -->
+            <button
+              type="button"
+              onclick="selectAndAddSpesaProduct('${escapeJs(matches[0])}')"
+              class="w-full py-2 px-3 rounded-xl bg-amber-400/25 hover:bg-amber-400/40 border border-amber-400/60 text-left flex items-center justify-between transition cursor-pointer"
+            >
+              <div class="flex items-center gap-2">
+                <span class="text-amber-300 text-sm">⚡</span>
+                <span class="text-white font-bold text-sm tracking-wide">${escapeHtml(matches[0])}</span>
+              </div>
+              <span class="text-[10px] uppercase font-bold text-amber-200 bg-amber-500/25 px-2 py-0.5 rounded-md">Aggiungi</span>
+            </button>
+            ${matches.length > 1 ? `
+              <div class="flex flex-wrap gap-1.5 pt-0.5">
+                ${matches.slice(1, 8).map(m => `
+                  <button
+                    type="button"
+                    onclick="selectAndAddSpesaProduct('${escapeJs(m)}')"
+                    class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-semibold text-slate-200 transition cursor-pointer"
+                  >
+                    ${escapeHtml(m)}
+                  </button>
+                `).join('')}
+              </div>
+            ` : ''}
+            ${!hasExactMatch ? `
+              <div class="pt-1 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-300">
+                <span>Vuoi inserire proprio "<strong>${escapeHtml(val)}</strong>"?</span>
+                <button
+                  type="button"
+                  onclick="selectAndAddSpesaProduct('${escapeJs(val)}')"
+                  class="text-amber-300 hover:underline font-bold cursor-pointer"
+                >+ Aggiungi nuovo</button>
+              </div>
+            ` : ''}
+          `;
+          popup.classList.remove('hidden');
+        } else {
+          spesaTopT9Match = null;
+          popup.innerHTML = `
+            <div class="p-1 text-xs text-left">
+              <div class="flex items-center gap-2 text-amber-300 font-bold">
+                <span>✨</span>
+                <span>Nuovo prodotto: "${escapeHtml(val)}"</span>
+              </div>
+              <p class="text-[11px] text-slate-300 mt-1">Premi <strong>+</strong> o Invio: verrà inserito nella lista e memorizzato nel database per il futuro!</p>
+            </div>
+          `;
+          popup.classList.remove('hidden');
+        }
+      }
+
+      function onSpesaQuickKeydown(e) {
+        if (e.key === 'Tab') {
+          if (spesaTopT9Match) {
+            e.preventDefault();
+            const inp = document.getElementById('spesa-quick-input');
+            if (inp) {
+              inp.value = spesaTopT9Match;
+              onSpesaQuickInput(spesaTopT9Match);
+            }
+          }
+        }
+      }
+
+      async function selectAndAddSpesaProduct(productName) {
+        const popup = document.getElementById('spesa-t9-suggestions');
+        if (popup) {
+          popup.classList.add('hidden');
+          popup.innerHTML = '';
+        }
+        spesaTopT9Match = null;
+        const clean = (productName || '').trim();
+        if (!clean) return;
+
+        const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
+
+        const exists = spesaProducts.some(p => p.toLowerCase() === formatted.toLowerCase());
+        if (!exists) {
+          spesaProducts.push(formatted);
+          spesaProducts.sort((a, b) => a.localeCompare(b, 'it'));
+        }
+
+        const newItem = {
+          id: 'sp_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+          store: currentSpesaStoreFilter || spesaStores[0] || 'Eurospin',
+          product: formatted,
+          price: '',
+          quantity: 1,
+          total: 0,
+          date: new Date().toISOString().split('T')[0],
+          checked: false,
+          updatedAt: new Date().toISOString()
+        };
+
+        spesaItems.unshift(newItem);
+        await persistSpesaData();
+
+        const inp = document.getElementById('spesa-quick-input');
+        if (inp) {
+          inp.value = '';
+          inp.focus();
+        }
+        renderSpesaChecklist(currentSpesaStoreFilter);
+      }
+
       async function handleQuickAddSpesaProduct(e) {
         if (e) e.preventDefault();
         const inp = document.getElementById('spesa-quick-input');
@@ -3505,34 +3655,61 @@
           return;
         }
 
-        const existsInCat = spesaProducts.some(p => p.toLowerCase() === val.toLowerCase());
-        if (!existsInCat) {
-          spesaProducts.push(val);
-          spesaProducts.sort((a, b) => a.localeCompare(b, 'it'));
+        let productToAdd = val;
+        if (spesaTopT9Match && spesaTopT9Match.toLowerCase().startsWith(val.toLowerCase()) && val.length >= 2 && val.length < spesaTopT9Match.length) {
+          productToAdd = spesaTopT9Match;
         }
 
-        const newItem = {
-          id: 'sp_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-          store: currentSpesaStoreFilter || spesaStores[0] || 'Eurospin',
-          product: val,
-          price: '',
-          quantity: 1,
-          total: 0,
-          date: new Date().toISOString().split('T')[0],
-          checked: false,
-          updatedAt: new Date().toISOString()
-        };
+        await selectAndAddSpesaProduct(productToAdd);
+      }
 
-        spesaItems.unshift(newItem);
-        inp.value = '';
-        await persistSpesaData();
-
-        const dl = document.getElementById('spesa-products-datalist');
-        if (dl) {
-          dl.innerHTML = spesaProducts.map(p => `<option value="${escapeHtml(p)}"></option>`).join('');
+      function onSpesaModalInput(val) {
+        const popup = document.getElementById('spesa-modal-t9-suggestions');
+        if (!popup) return;
+        const q = (val || '').trim().toLowerCase();
+        if (!q) {
+          popup.classList.add('hidden');
+          popup.innerHTML = '';
+          return;
         }
-        renderSpesaChecklist(currentSpesaStoreFilter);
-        inp.focus();
+        const starts = spesaProducts.filter(p => p.toLowerCase().startsWith(q));
+        const contains = spesaProducts.filter(p => !p.toLowerCase().startsWith(q) && p.toLowerCase().includes(q));
+        const matches = [...starts, ...contains];
+
+        if (matches.length > 0) {
+          popup.innerHTML = `
+            <div class="text-[10px] text-amber-300 font-bold uppercase tracking-wider mb-1">Suggerimenti da banca dati:</div>
+            <div class="flex flex-wrap gap-1.5">
+              ${matches.slice(0, 6).map(m => `
+                <button
+                  type="button"
+                  onclick="selectSpesaModalProduct('${escapeJs(m)}')"
+                  class="px-2.5 py-1 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/40 text-xs font-bold text-amber-200 transition cursor-pointer"
+                >
+                  ${escapeHtml(m)}
+                </button>
+              `).join('')}
+            </div>
+          `;
+          popup.classList.remove('hidden');
+        } else {
+          popup.innerHTML = `
+            <div class="text-[11px] text-slate-300 p-1">
+              Nuovo prodotto <strong>"${escapeHtml(val)}"</strong>: verrà memorizzato nel database!
+            </div>
+          `;
+          popup.classList.remove('hidden');
+        }
+      }
+
+      function selectSpesaModalProduct(name) {
+        const inp = document.getElementById('spesa-product-input');
+        if (inp) inp.value = name;
+        const popup = document.getElementById('spesa-modal-t9-suggestions');
+        if (popup) {
+          popup.classList.add('hidden');
+          popup.innerHTML = '';
+        }
       }
 
       async function promptNewSpesaStore() {
@@ -3559,19 +3736,19 @@
         const name = prompt("Inserisci il nome del nuovo Prodotto da aggiungere al catalogo:");
         if (!name || !name.trim()) return;
         const clean = name.trim();
-        if (!spesaProducts.includes(clean)) {
-          spesaProducts.push(clean);
+        const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
+        if (!spesaProducts.includes(formatted)) {
+          spesaProducts.push(formatted);
           spesaProducts.sort((a, b) => a.localeCompare(b, 'it'));
           await persistSpesaData();
         }
         const curStore = document.getElementById('spesa-store-select') ? document.getElementById('spesa-store-select').value : null;
-        populateSpesaDropdowns(curStore, clean);
+        populateSpesaDropdowns(curStore, formatted);
       }
 
       function populateSpesaDropdowns(selectedStore, selectedProduct) {
         const storeSel = document.getElementById('spesa-store-select');
         const prodInp = document.getElementById('spesa-product-input');
-        const modalDl = document.getElementById('spesa-modal-products-datalist');
         if (storeSel) {
           storeSel.innerHTML = spesaStores.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
           if (selectedStore && spesaStores.includes(selectedStore)) {
@@ -3579,9 +3756,6 @@
           } else if (currentSpesaStoreFilter && spesaStores.includes(currentSpesaStoreFilter)) {
             storeSel.value = currentSpesaStoreFilter;
           }
-        }
-        if (modalDl) {
-          modalDl.innerHTML = spesaProducts.map(p => `<option value="${escapeHtml(p)}"></option>`).join('');
         }
         if (prodInp) {
           prodInp.value = selectedProduct || '';
@@ -3610,6 +3784,8 @@
         document.getElementById('spesa-quantity').value = '1';
         document.getElementById('spesa-line-total').value = '0,00 €';
         document.getElementById('spesa-date').value = today;
+        const p1 = document.getElementById('spesa-t9-suggestions'); if (p1) p1.classList.add('hidden');
+        const p2 = document.getElementById('spesa-modal-t9-suggestions'); if (p2) p2.classList.add('hidden');
         document.getElementById('add-spesa-modal').classList.remove('hidden');
         setTimeout(() => {
           const inp = document.getElementById('spesa-product-input');
@@ -3630,12 +3806,16 @@
         document.getElementById('spesa-quantity').value = item.quantity !== undefined && item.quantity !== null ? item.quantity : '1';
         document.getElementById('spesa-date').value = item.date || new Date().toISOString().split('T')[0];
         updateSpesaModalTotal();
+        const p1 = document.getElementById('spesa-t9-suggestions'); if (p1) p1.classList.add('hidden');
+        const p2 = document.getElementById('spesa-modal-t9-suggestions'); if (p2) p2.classList.add('hidden');
         document.getElementById('add-spesa-modal').classList.remove('hidden');
       }
 
       function closeAddSpesaModal() {
         const modal = document.getElementById('add-spesa-modal');
         if (modal) modal.classList.add('hidden');
+        const p2 = document.getElementById('spesa-modal-t9-suggestions');
+        if (p2) p2.classList.add('hidden');
       }
 
       async function handleSaveSpesaItem(e) {
