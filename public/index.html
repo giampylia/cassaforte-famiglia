@@ -3474,10 +3474,25 @@
 
         if (!title) return;
 
+        // Slittamento priorità a cascata: se esiste già un lavoro con la stessa priorità,
+        // il nuovo lavoro la occupa e tutti i successivi con priorità >= priority slittano di +1
+        const targetPriority = priority;
+        const hasCollision = lavoriItems.some(it => it.id !== editId && Number(it.priority) === targetPriority);
+        if (hasCollision) {
+          lavoriItems.forEach(it => {
+            if (it.id !== editId) {
+              const p = Number(it.priority);
+              if (!isNaN(p) && p >= targetPriority) {
+                it.priority = p + 1;
+              }
+            }
+          });
+        }
+
         const record = {
           id: editId || ('lav_' + Date.now() + '_' + Math.floor(Math.random() * 1000)),
           title,
-          priority,
+          priority: targetPriority,
           house,
           description,
           priceType,
