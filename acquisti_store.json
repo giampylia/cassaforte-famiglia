@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": "acq_1794786005964_337",
+      "title": "Pianta grassa",
+      "priority": 1,
+      "house": "C",
+      "description": "pianta per terrario",
+      "priceType": "stimato",
+      "price": 10,
+      "coverage": "varie",
+      "insertedDate": "2026-11-15",
+      "purchaseDate": "",
+      "links": [],
+      "photo": null,
+      "updatedAt": "2026-11-15T23:40:05.972Z"
+    }
+  ]
+}

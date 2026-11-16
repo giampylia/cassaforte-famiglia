@@ -1447,15 +1447,30 @@
       let currentLavoroPhotoData = null;
       let spesaItems = [];
       let spesaStores = ['Eurospin', 'Lidl', 'Maurys', 'Garden 50%', 'Tecnomat'];
-      let spesaProducts = [
-        'Ammorbidente', 'Acqua', 'Affettati', 'Caffè', 'Carne', 'Carta igienica',
+      const DEFAULT_SPESA_PRODUCTS = [
+        'Acqua', 'Affettati', 'Ammorbidente', 'Baguettes', 'Banane', 'Caffè', 'Carne', 'Carta igienica',
         'Chanteclair', 'Coca cola', 'Deodorante', 'Detersivo lavatrice', 'Detersivo piatti',
         'Formaggio', 'Frutta', 'Latte', 'Legumi', 'Olio', 'Pane', 'Pasta', 'Pesce',
-        'Profiteroles', 'Sapone', 'Scottex', 'Uova', 'Vegano', 'Verdura', 'Wafer',
+        'Pizzette', 'Profiteroles', 'Sapone', 'Scottex', 'Uova', 'Vegano', 'Verdura', 'Wafer',
         'Yogurt', 'Zucchero'
       ];
+      let spesaProducts = [...DEFAULT_SPESA_PRODUCTS];
       let expandedSpesaIds = {};
       let currentSpesaStoreFilter = 'Eurospin';
+
+      // Ripristino sincrono immediato all'avvio da cache locale/backup per visualizzare e preservare sempre i prodotti
+      try {
+        const cachedSpesa = localStorage.getItem('gpp_spesa_cached') || localStorage.getItem('gpp_spesa_backup');
+        if (cachedSpesa) {
+          const parsed = JSON.parse(cachedSpesa);
+          if (Array.isArray(parsed.items) && parsed.items.length > 0) spesaItems = parsed.items;
+          if (Array.isArray(parsed.stores) && parsed.stores.length > 0) spesaStores = parsed.stores;
+          if (Array.isArray(parsed.products) && parsed.products.length > 0) {
+            const set = new Set([...spesaProducts, ...parsed.products]);
+            spesaProducts = Array.from(set).sort((a, b) => a.localeCompare(b, 'it'));
+          }
+        }
+      } catch (e) {}
 
       // ==============================================================
       // 1. SPLASH SCREEN & BLOCCO GENERALE ALL'AVVIO DELL'APP
@@ -1640,6 +1655,7 @@
         document.getElementById('lavori-view').classList.add('hidden');
         document.getElementById('spesa-view').classList.remove('hidden');
         backToSpesaStores();
+        loadSpesaData();
         window.scrollTo(0, 0);
       }
 
@@ -3204,36 +3220,141 @@
       // 7. SEZIONE SPESA (PUNTI VENDITA, PRODOTTI, QUANTITÀxPREZZO E REGISTRA 6110 -> 4010/4043)
       // ==============================================================
       async function loadSpesaData() {
-        let serverData = null;
-        try {
-          const res = await fetch('/api/spesa/list');
-          const d = await res.json();
-          if (d && typeof d === 'object') serverData = d;
-        } catch (e) {}
-
+        // 1. Lettura immediata da localStorage e backup locale
         let localData = null;
         try {
-          const cached = localStorage.getItem('gpp_spesa_cached');
+          const cached = localStorage.getItem('gpp_spesa_cached') || localStorage.getItem('gpp_spesa_backup');
           if (cached) localData = JSON.parse(cached);
         } catch (e) {}
 
-        if (serverData && Array.isArray(serverData.stores) && serverData.stores.length > 0) {
-          spesaStores = serverData.stores;
-          if (Array.isArray(serverData.products) && serverData.products.length > 0) spesaProducts = serverData.products;
-          if (Array.isArray(serverData.items)) spesaItems = serverData.items;
-        } else if (localData) {
-          if (Array.isArray(localData.stores)) spesaStores = localData.stores;
-          if (Array.isArray(localData.products)) spesaProducts = localData.products;
-          if (Array.isArray(localData.items)) spesaItems = localData.items;
+        if (localData) {
+          if (Array.isArray(localData.stores) && localData.stores.length > 0) spesaStores = localData.stores;
+          if (Array.isArray(localData.products) && localData.products.length > 0) {
+            const set = new Set([...spesaProducts, ...localData.products]);
+            spesaProducts = Array.from(set).sort((a, b) => a.localeCompare(b, 'it'));
+          }
+          if (Array.isArray(localData.items) && localData.items.length > 0) spesaItems = localData.items;
         }
 
+        // 2. Fetch dal server
+        let serverData = null;
         try {
-          localStorage.setItem('gpp_spesa_cached', JSON.stringify({
+          const res = await fetch('/api/spesa/list');
+          if (res.ok) {
+            const d = await res.json();
+            if (d && typeof d === 'object') serverData = d;
+          }
+        } catch (e) {}
+
+        let needsSyncToServer = false;
+
+        // 3. Smart Merge tra serverData e dati locali
+        if (serverData) {
+          // Merge Negozi
+          if (Array.isArray(serverData.stores) && serverData.stores.length > 0) {
+            const allStores = [...serverData.stores];
+            if (localData && Array.isArray(localData.stores)) {
+              localData.stores.forEach(st => {
+                if (st && !allStores.some(x => x.toLowerCase() === st.toLowerCase())) {
+                  allStores.push(st);
+                  needsSyncToServer = true;
+                }
+              });
+            }
+            spesaStores = allStores;
+          }
+
+          // Merge Prodotti (tutti i default + server + locali digitati)
+          const productMap = new Map();
+          const addProd = (p) => {
+            if (!p || typeof p !== 'string') return;
+            const trimmed = p.trim();
+            if (!trimmed) return;
+            const key = trimmed.toLowerCase();
+            if (!productMap.has(key)) {
+              const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+              productMap.set(key, formatted);
+            }
+          };
+
+          DEFAULT_SPESA_PRODUCTS.forEach(addProd);
+          if (Array.isArray(serverData.products)) serverData.products.forEach(addProd);
+          if (localData && Array.isArray(localData.products)) {
+            localData.products.forEach(p => {
+              const k = (p || '').trim().toLowerCase();
+              if (k && !productMap.has(k)) {
+                addProd(p);
+                needsSyncToServer = true;
+              }
+            });
+          }
+          spesaProducts = Array.from(productMap.values()).sort((a, b) => a.localeCompare(b, 'it'));
+
+          // Merge Articoli Spesa (con tutela contro cancellazioni involontarie)
+          let deletedIds = [];
+          try {
+            const delCached = localStorage.getItem('gpp_spesa_deleted_ids');
+            if (delCached) deletedIds = JSON.parse(delCached);
+          } catch (e) {}
+          const deletedSet = new Set(Array.isArray(deletedIds) ? deletedIds : []);
+
+          const itemMap = new Map();
+
+          // Aggiunge prima gli elementi del server che non sono stati eliminati
+          if (Array.isArray(serverData.items)) {
+            serverData.items.forEach(it => {
+              if (it && it.id && !deletedSet.has(it.id)) {
+                itemMap.set(it.id, it);
+              }
+            });
+          }
+
+          // Unisce gli elementi locali (preservando tutti i prodotti digitati dall'utente)
+          if (localData && Array.isArray(localData.items)) {
+            localData.items.forEach(localIt => {
+              if (!localIt || !localIt.id || deletedSet.has(localIt.id)) return;
+              if (!itemMap.has(localIt.id)) {
+                itemMap.set(localIt.id, localIt);
+                needsSyncToServer = true;
+              } else {
+                const srvIt = itemMap.get(localIt.id);
+                const srvTime = srvIt.updatedAt ? new Date(srvIt.updatedAt).getTime() : 0;
+                const locTime = localIt.updatedAt ? new Date(localIt.updatedAt).getTime() : 0;
+                if (locTime >= srvTime) {
+                  itemMap.set(localIt.id, localIt);
+                }
+              }
+            });
+          }
+
+          spesaItems = Array.from(itemMap.values());
+        }
+
+        // 4. Salvataggio locale su doppio slot di backup
+        try {
+          const payloadStr = JSON.stringify({
             items: spesaItems,
             stores: spesaStores,
             products: spesaProducts
-          }));
+          });
+          localStorage.setItem('gpp_spesa_cached', payloadStr);
+          localStorage.setItem('gpp_spesa_backup', payloadStr);
         } catch (e) {}
+
+        // Sincronizzazione al server se locale aveva nuovi elementi
+        if (needsSyncToServer) {
+          persistSpesaData();
+        }
+
+        // 5. Rinfresca la UI se la vista spesa è aperta
+        const spesaView = document.getElementById('spesa-view');
+        if (spesaView && !spesaView.classList.contains('hidden')) {
+          renderSpesaStoresCards();
+          const insideScreen = document.getElementById('spesa-inside-store-screen');
+          if (insideScreen && !insideScreen.classList.contains('hidden')) {
+            renderSpesaChecklist(currentSpesaStoreFilter);
+          }
+        }
       }
 
       async function persistSpesaData() {
@@ -3242,14 +3363,16 @@
           stores: spesaStores,
           products: spesaProducts
         };
+        const payloadStr = JSON.stringify(payload);
         try {
-          localStorage.setItem('gpp_spesa_cached', JSON.stringify(payload));
+          localStorage.setItem('gpp_spesa_cached', payloadStr);
+          localStorage.setItem('gpp_spesa_backup', payloadStr);
         } catch (e) {}
         try {
           await fetch('/api/spesa/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: payloadStr
           });
         } catch (e) {}
       }
@@ -3472,6 +3595,18 @@
       }
 
       async function clearCheckedSpesaItems() {
+        const removed = spesaItems.filter(it => it.store === currentSpesaStoreFilter && it.checked);
+        try {
+          let deletedIds = [];
+          const delCached = localStorage.getItem('gpp_spesa_deleted_ids');
+          if (delCached) deletedIds = JSON.parse(delCached);
+          removed.forEach(r => {
+            if (!deletedIds.includes(r.id)) deletedIds.push(r.id);
+          });
+          if (deletedIds.length > 500) deletedIds = deletedIds.slice(-500);
+          localStorage.setItem('gpp_spesa_deleted_ids', JSON.stringify(deletedIds));
+        } catch (e) {}
+
         spesaItems = spesaItems.filter(it => !(it.store === currentSpesaStoreFilter && it.checked));
         await persistSpesaData();
         renderSpesaChecklist(currentSpesaStoreFilter);
@@ -3760,6 +3895,18 @@
 
       async function deleteSpesaStore(storeName) {
         if (!confirm(`Eliminare il punto vendita "${storeName}" e tutti i suoi prodotti?`)) return;
+        const removed = spesaItems.filter(it => it.store === storeName);
+        try {
+          let deletedIds = [];
+          const delCached = localStorage.getItem('gpp_spesa_deleted_ids');
+          if (delCached) deletedIds = JSON.parse(delCached);
+          removed.forEach(r => {
+            if (!deletedIds.includes(r.id)) deletedIds.push(r.id);
+          });
+          if (deletedIds.length > 500) deletedIds = deletedIds.slice(-500);
+          localStorage.setItem('gpp_spesa_deleted_ids', JSON.stringify(deletedIds));
+        } catch (e) {}
+
         spesaStores = spesaStores.filter(s => s !== storeName);
         spesaItems = spesaItems.filter(it => it.store !== storeName);
         await persistSpesaData();
@@ -3912,6 +4059,17 @@
       }
 
       async function deleteSpesaItem(id) {
+        try {
+          let deletedIds = [];
+          const delCached = localStorage.getItem('gpp_spesa_deleted_ids');
+          if (delCached) deletedIds = JSON.parse(delCached);
+          if (!deletedIds.includes(id)) {
+            deletedIds.push(id);
+            if (deletedIds.length > 500) deletedIds = deletedIds.slice(-500);
+            localStorage.setItem('gpp_spesa_deleted_ids', JSON.stringify(deletedIds));
+          }
+        } catch (e) {}
+
         spesaItems = spesaItems.filter(x => x.id !== id);
         delete expandedSpesaIds[id];
         await persistSpesaData();

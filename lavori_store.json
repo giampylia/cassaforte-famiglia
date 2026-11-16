@@ -1,0 +1,64 @@
+{
+  "items": [
+    {
+      "id": "lav_1794834344291_426",
+      "title": "intonaco balcone",
+      "priority": 1,
+      "house": "G",
+      "description": "",
+      "priceType": "stimato",
+      "price": "",
+      "coverage": "",
+      "insertedDate": "2026-11-16",
+      "purchaseDate": "",
+      "links": [],
+      "photo": null,
+      "updatedAt": "2026-11-16T13:05:44.306Z"
+    },
+    {
+      "id": "lav_1794834379804_808",
+      "title": "base cucina",
+      "priority": 2,
+      "house": "G",
+      "description": "",
+      "priceType": "stimato",
+      "price": "",
+      "coverage": "",
+      "insertedDate": "2026-11-16",
+      "purchaseDate": "",
+      "links": [],
+      "photo": null,
+      "updatedAt": "2026-11-16T13:06:19.805Z"
+    },
+    {
+      "id": "lav_1794834403454_783",
+      "title": "intonaco balcone",
+      "priority": 3,
+      "house": "T",
+      "description": "",
+      "priceType": "stimato",
+      "price": "",
+      "coverage": "",
+      "insertedDate": "2026-11-16",
+      "purchaseDate": "",
+      "links": [],
+      "photo": null,
+      "updatedAt": "2026-11-16T13:06:43.454Z"
+    },
+    {
+      "id": "lav_1794834429924_503",
+      "title": "ante camino",
+      "priority": 20,
+      "house": "M",
+      "description": "",
+      "priceType": "stimato",
+      "price": "",
+      "coverage": "",
+      "insertedDate": "2026-11-16",
+      "purchaseDate": "",
+      "links": [],
+      "photo": null,
+      "updatedAt": "2026-11-16T13:07:09.924Z"
+    }
+  ]
+}

@@ -153,25 +153,27 @@ function saveLavoriStore(data) {
 const SPESA_FILE = path.join(__dirname, 'spesa_store.json');
 const DEFAULT_SPESA_STORES = ['Eurospin', 'Lidl', 'Maurys', 'Garden 50%', 'Tecnomat'];
 const DEFAULT_SPESA_PRODUCTS = [
-  'Ammorbidente', 'Acqua', 'Affettati', 'Caffè', 'Carne', 'Carta igienica',
+  'Acqua', 'Affettati', 'Ammorbidente', 'Baguettes', 'Banane', 'Caffè', 'Carne', 'Carta igienica',
   'Chanteclair', 'Coca cola', 'Deodorante', 'Detersivo lavatrice', 'Detersivo piatti',
   'Formaggio', 'Frutta', 'Latte', 'Legumi', 'Olio', 'Pane', 'Pasta', 'Pesce',
-  'Profiteroles', 'Sapone', 'Scottex', 'Uova', 'Vegano', 'Verdura', 'Wafer',
+  'Pizzette', 'Profiteroles', 'Sapone', 'Scottex', 'Uova', 'Vegano', 'Verdura', 'Wafer',
   'Yogurt', 'Zucchero'
 ];
 const DEFAULT_SPESA_ITEMS = [
-  { id: 'sp_init_1', store: 'Eurospin', product: 'chanteclair', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false },
-  { id: 'sp_init_2', store: 'Eurospin', product: 'ammorbidente', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false },
-  { id: 'sp_init_3', store: 'Eurospin', product: 'deodorante', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false },
-  { id: 'sp_init_4', store: 'Eurospin', product: 'legumi', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
+  { id: 'sp_1794861438862_661', store: 'Eurospin', product: 'Pizzette', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false, updatedAt: '2026-11-16T20:37:18.862Z' },
+  { id: 'sp_1794861428701_192', store: 'Eurospin', product: 'Yogurt', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false, updatedAt: '2026-11-16T20:37:08.701Z' },
+  { id: 'sp_1794861416805_35', store: 'Eurospin', product: 'Formaggio', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false, updatedAt: '2026-11-16T20:36:56.806Z' },
+  { id: 'sp_1794861410878_375', store: 'Eurospin', product: 'Banane', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false, updatedAt: '2026-11-16T20:36:50.878Z' },
+  { id: 'sp_1794861404414_512', store: 'Eurospin', product: 'Baguettes', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false, updatedAt: '2026-11-16T20:36:44.414Z' },
+  { id: 'sp_init_4', store: 'Eurospin', product: 'legumi', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false },
   { id: 'sp_init_5', store: 'Eurospin', product: 'olio', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
-  { id: 'sp_init_6', store: 'Eurospin', product: 'profiteroles', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
-  { id: 'sp_init_7', store: 'Eurospin', product: 'coca cola', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
-  { id: 'sp_init_8', store: 'Eurospin', product: 'pane', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
+  { id: 'sp_init_6', store: 'Eurospin', product: 'profiteroles', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false },
+  { id: 'sp_init_7', store: 'Eurospin', product: 'coca cola', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false },
+  { id: 'sp_init_8', store: 'Eurospin', product: 'pane', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false },
   { id: 'sp_init_9', store: 'Eurospin', product: 'frutta', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
   { id: 'sp_init_10', store: 'Eurospin', product: 'vegano', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
   { id: 'sp_init_11', store: 'Eurospin', product: 'uova', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true },
-  { id: 'sp_init_12', store: 'Eurospin', product: 'wafer', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: true }
+  { id: 'sp_init_12', store: 'Eurospin', product: 'wafer', price: '', quantity: 1, total: 0, date: '2026-11-16', checked: false }
 ];
 
 function getSpesaStore() {
