@@ -3192,12 +3192,13 @@
                 onclick="toggleLavoroExpand('${item.id}')"
                 class="w-full px-4 py-3.5 flex items-center justify-between gap-3 text-left hover:bg-white/[0.04] active:bg-white/[0.08] transition cursor-pointer"
               >
-                <div class="flex items-center gap-3 min-w-0">
+                <div class="flex items-center gap-2.5 min-w-0">
                   <span
                     class="w-3.5 h-3.5 rounded-full shrink-0 shadow-[0_0_8px_rgba(255,255,255,0.25)]"
                     style="background:${h.color};"
                     title="${h.code} = ${h.name}"
                   ></span>
+                  <span class="px-2 py-0.5 rounded-lg bg-amber-400/20 border border-amber-400/40 text-amber-300 font-mono text-[11px] font-bold shrink-0">#${item.priority !== undefined && item.priority !== null ? item.priority : 1}</span>
                   <span class="text-sm font-bold text-white truncate">${escapeHtml(item.title)}</span>
                 </div>
                 <svg class="h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-amber-300' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3476,17 +3477,46 @@
 
         // Slittamento priorità a cascata: se esiste già un lavoro con la stessa priorità,
         // il nuovo lavoro la occupa e tutti i successivi con priorità >= priority slittano di +1
-        const targetPriority = priority;
-        const hasCollision = lavoriItems.some(it => it.id !== editId && Number(it.priority) === targetPriority);
-        if (hasCollision) {
-          lavoriItems.forEach(it => {
-            if (it.id !== editId) {
+        const targetPriority = Math.max(1, Math.round(priority));
+
+        if (editId) {
+          // Modifica lavoro esistente
+          const oldItem = lavoriItems.find(x => x.id === editId);
+          const oldPriority = oldItem && oldItem.priority !== undefined ? Number(oldItem.priority) : null;
+          if (oldPriority !== null && oldPriority !== targetPriority) {
+            if (targetPriority < oldPriority) {
+              // Spostato a priorità più urgente (es. da 4 a 2): quelli tra 2 e 3 slittano giù di +1
+              lavoriItems.forEach(it => {
+                if (it.id !== editId) {
+                  const p = Number(it.priority);
+                  if (!isNaN(p) && p >= targetPriority && p < oldPriority) {
+                    it.priority = p + 1;
+                  }
+                }
+              });
+            } else {
+              // Spostato a priorità meno urgente (es. da 2 a 4): quelli tra 3 e 4 salgono di -1
+              lavoriItems.forEach(it => {
+                if (it.id !== editId) {
+                  const p = Number(it.priority);
+                  if (!isNaN(p) && p > oldPriority && p <= targetPriority) {
+                    it.priority = p - 1;
+                  }
+                }
+              });
+            }
+          }
+        } else {
+          // Nuovo lavoro inserito: se esiste già quella priorità, tutti i successivi >= targetPriority slittano di +1
+          const hasCollision = lavoriItems.some(it => Number(it.priority) === targetPriority);
+          if (hasCollision) {
+            lavoriItems.forEach(it => {
               const p = Number(it.priority);
               if (!isNaN(p) && p >= targetPriority) {
                 it.priority = p + 1;
               }
-            }
-          });
+            });
+          }
         }
 
         const record = {
