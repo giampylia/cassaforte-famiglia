@@ -1277,82 +1277,12 @@
           <!-- Contenuto scorrevole del Punto Vendita -->
           <div class="flex-1 overflow-y-auto p-3.5 sm:p-5 max-w-lg mx-auto w-full space-y-4 pb-36">
             
+            <!-- Notifica / Avviso lista spesa (es. prodotto già in lista) -->
+            <div id="spesa-notification-banner" class="hidden rounded-2xl p-3 text-xs font-bold shadow-lg transition-all flex items-center justify-between gap-2"></div>
+
             <!-- Lista Prodotti con Checkbox (In alto da acquistare, sotto spuntati e barrati) -->
             <div id="spesa-items-container" class="space-y-1.5">
               <!-- Riempito dinamicamente via JS -->
-            </div>
-
-            <!-- RIEPILOGO TOTALE SPESA & TASTO REGISTRA IN CONTABILITÀ (6110 -> 4010 / 4043) -->
-            <div class="rounded-3xl bg-gradient-to-b from-white/[0.08] to-white/[0.04] border border-amber-400/40 p-4 space-y-3 shadow-xl mt-6">
-              <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
-                <div>
-                  <h4 class="text-xs font-bold uppercase tracking-wider text-amber-200">Registra Spesa in Contabilità</h4>
-                  <p class="text-[10px] text-slate-400">Dare <strong class="text-amber-200 font-mono">6110</strong> · Descrizione <strong class="text-amber-200 font-mono">SPESA</strong></p>
-                </div>
-                <div class="text-right">
-                  <span class="text-[10px] uppercase text-slate-400 block">Totale Prodotti</span>
-                  <span id="spesa-calculated-total-badge" class="text-base font-mono font-bold text-amber-300">0,00 €</span>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-2.5">
-                <div class="space-y-1">
-                  <label class="text-[10px] font-bold uppercase text-slate-300">Totale Spesa (€)</label>
-                  <input
-                    id="spesa-reg-amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    class="w-full h-10 rounded-xl border border-amber-400/40 bg-navy-950/90 px-3 text-right font-mono text-sm font-bold text-amber-200 focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-                <div class="space-y-1">
-                  <label class="text-[10px] font-bold uppercase text-slate-300">Data Spesa</label>
-                  <input
-                    id="spesa-reg-date"
-                    type="date"
-                    class="w-full h-10 rounded-xl border border-white/20 bg-navy-950/90 px-2.5 font-mono text-xs text-white focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-              </div>
-
-              <!-- Scelta Conto Avere: Cassa 4010 o Banca 4043 -->
-              <div class="space-y-1.5">
-                <label class="text-[10px] font-bold uppercase text-slate-300">Conto Avere (Pagamento)</label>
-                <input type="hidden" id="spesa-reg-credit" value="4043" />
-                <div class="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    id="btn-spesa-credit-4010"
-                    onclick="selectSpesaCreditAccount('4010')"
-                    class="py-2.5 px-3 rounded-xl border border-white/15 bg-navy-950/80 text-xs font-bold text-slate-300 cursor-pointer transition flex items-center justify-center gap-1.5"
-                  >
-                    <span>💵</span>
-                    <span>Cassa 4010</span>
-                  </button>
-                  <button
-                    type="button"
-                    id="btn-spesa-credit-4043"
-                    onclick="selectSpesaCreditAccount('4043')"
-                    class="py-2.5 px-3 rounded-xl border border-amber-400 bg-amber-400/20 text-xs font-bold text-amber-200 cursor-pointer transition flex items-center justify-center gap-1.5"
-                  >
-                    <span>🏦</span>
-                    <span>Banca 4043</span>
-                  </button>
-                </div>
-              </div>
-
-              <div id="spesa-reg-feedback" class="hidden rounded-xl bg-emerald-500/20 border border-emerald-500/40 p-2.5 text-center text-xs font-bold text-emerald-200"></div>
-
-              <button
-                type="button"
-                id="btn-registra-spesa-contabilita"
-                onclick="registerSpesaToContabilita()"
-                class="w-full h-11 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 font-bold text-navy-950 text-xs shadow-lg transition active:scale-95 cursor-pointer uppercase tracking-wider flex items-center justify-center gap-2"
-              >
-                <span>✓ Registra in Contabilità (Dare 6110)</span>
-              </button>
             </div>
           </div>
 
@@ -3386,11 +3316,6 @@
         const titleEl = document.getElementById('spesa-active-store-title');
         if (titleEl) titleEl.textContent = storeName;
 
-        const dateInp = document.getElementById('spesa-reg-date');
-        if (dateInp && !dateInp.value) {
-          dateInp.value = new Date().toISOString().split('T')[0];
-        }
-
         const dl = document.getElementById('spesa-products-datalist');
         if (dl) {
           dl.innerHTML = spesaProducts.map(p => `<option value="${escapeHtml(p)}"></option>`).join('');
@@ -3405,27 +3330,12 @@
 
       function renderSpesaChecklist(storeName) {
         const container = document.getElementById('spesa-items-container');
-        const calcBadge = document.getElementById('spesa-calculated-total-badge');
-        const regAmountInp = document.getElementById('spesa-reg-amount');
         if (!container) return;
 
         const items = spesaItems.filter(it => it.store === storeName);
         const unchecked = items.filter(it => !it.checked);
         const checked = items.filter(it => it.checked);
         const ordered = [...unchecked, ...checked];
-
-        const totalCalculated = items.reduce((sum, it) => {
-          const p = (it.price !== '' && it.price !== null && it.price !== undefined) ? Number(it.price) : 0;
-          const q = (it.quantity !== '' && it.quantity !== null && it.quantity !== undefined) ? Number(it.quantity) : 1;
-          return sum + ((isNaN(p) ? 0 : p) * (isNaN(q) ? 1 : q));
-        }, 0);
-
-        if (calcBadge) {
-          calcBadge.textContent = formatEuroPrice(totalCalculated);
-        }
-        if (regAmountInp) {
-          regAmountInp.value = totalCalculated > 0 ? totalCalculated.toFixed(2) : '';
-        }
 
         if (ordered.length === 0) {
           container.innerHTML = `
@@ -3512,6 +3422,28 @@
       }
 
       let spesaTopT9Match = null;
+      let spesaNotifyTimer = null;
+
+      function showSpesaNotification(msg, type) {
+        const banner = document.getElementById('spesa-notification-banner');
+        if (!banner) return;
+        if (spesaNotifyTimer) clearTimeout(spesaNotifyTimer);
+        const bg = (type === 'rose')
+          ? 'bg-rose-500/25 border border-rose-500/60 text-rose-200'
+          : 'bg-amber-400/20 border border-amber-400/60 text-amber-200';
+        banner.className = `rounded-2xl p-3 text-xs font-bold shadow-lg transition-all flex items-center justify-between gap-2 ${bg}`;
+        banner.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span>${escapeHtml(msg)}</span>
+          </div>
+          <button type="button" onclick="document.getElementById('spesa-notification-banner').classList.add('hidden')" class="text-white/70 hover:text-white text-base leading-none px-1 cursor-pointer">&times;</button>
+        `;
+        banner.classList.remove('hidden');
+        spesaNotifyTimer = setTimeout(() => {
+          const b = document.getElementById('spesa-notification-banner');
+          if (b) b.classList.add('hidden');
+        }, 6000);
+      }
 
       function onSpesaQuickInput(val) {
         const popup = document.getElementById('spesa-t9-suggestions');
@@ -3524,6 +3456,12 @@
           return;
         }
 
+        const store = currentSpesaStoreFilter || spesaStores[0] || 'Eurospin';
+        const existingInStoreMap = new Map();
+        spesaItems.filter(it => it.store === store).forEach(it => {
+          existingInStoreMap.set(it.product.trim().toLowerCase(), it.checked);
+        });
+
         const starts = spesaProducts.filter(p => p.toLowerCase().startsWith(q));
         const contains = spesaProducts.filter(p => !p.toLowerCase().startsWith(q) && p.toLowerCase().includes(q));
         const matches = [...starts, ...contains];
@@ -3531,6 +3469,9 @@
         if (matches.length > 0) {
           spesaTopT9Match = matches[0];
           const hasExactMatch = spesaProducts.some(p => p.toLowerCase() === q);
+          const firstInList = existingInStoreMap.has(matches[0].trim().toLowerCase());
+          const firstChecked = existingInStoreMap.get(matches[0].trim().toLowerCase());
+
           popup.innerHTML = `
             <div class="flex items-center justify-between border-b border-white/10 pb-1 text-[11px]">
               <span class="text-amber-300 font-bold flex items-center gap-1">
@@ -3543,25 +3484,35 @@
             <button
               type="button"
               onclick="selectAndAddSpesaProduct('${escapeJs(matches[0])}')"
-              class="w-full py-2 px-3 rounded-xl bg-amber-400/25 hover:bg-amber-400/40 border border-amber-400/60 text-left flex items-center justify-between transition cursor-pointer"
+              class="w-full py-2 px-3 rounded-xl ${firstInList ? 'bg-amber-500/15 border-amber-400/40 hover:bg-amber-500/25' : 'bg-amber-400/25 hover:bg-amber-400/40 border-amber-400/60'} border text-left flex items-center justify-between transition cursor-pointer"
             >
               <div class="flex items-center gap-2">
                 <span class="text-amber-300 text-sm">⚡</span>
                 <span class="text-white font-bold text-sm tracking-wide">${escapeHtml(matches[0])}</span>
+                ${firstInList ? `
+                  <span class="text-[10px] text-amber-300 font-bold bg-amber-400/20 border border-amber-400/40 px-2 py-0.5 rounded-md">
+                    ${firstChecked ? '✓ Già spuntato' : '⚠️ Già in lista'}
+                  </span>
+                ` : ''}
               </div>
-              <span class="text-[10px] uppercase font-bold text-amber-200 bg-amber-500/25 px-2 py-0.5 rounded-md">Aggiungi</span>
+              <span class="text-[10px] uppercase font-bold ${firstInList ? 'text-amber-300 bg-amber-400/20' : 'text-amber-200 bg-amber-500/25'} px-2 py-0.5 rounded-md">
+                ${firstInList ? 'Già presente' : 'Aggiungi'}
+              </span>
             </button>
             ${matches.length > 1 ? `
               <div class="flex flex-wrap gap-1.5 pt-0.5">
-                ${matches.slice(1, 8).map(m => `
+                ${matches.slice(1, 8).map(m => {
+                  const inList = existingInStoreMap.has(m.trim().toLowerCase());
+                  return `
                   <button
                     type="button"
                     onclick="selectAndAddSpesaProduct('${escapeJs(m)}')"
-                    class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-semibold text-slate-200 transition cursor-pointer"
+                    class="px-2.5 py-1 rounded-lg ${inList ? 'bg-amber-400/15 border-amber-400/40 text-amber-300' : 'bg-white/10 hover:bg-white/20 border-white/10 text-slate-200'} border text-xs font-semibold transition cursor-pointer"
                   >
-                    ${escapeHtml(m)}
+                    ${escapeHtml(m)} ${inList ? '<span class="text-[9px] opacity-80 font-normal">(in lista)</span>' : ''}
                   </button>
-                `).join('')}
+                `;
+                }).join('')}
               </div>
             ` : ''}
             ${!hasExactMatch ? `
@@ -3615,6 +3566,21 @@
         if (!clean) return;
 
         const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
+        const store = currentSpesaStoreFilter || spesaStores[0] || 'Eurospin';
+
+        // Controllo se il prodotto è già presente nella lista del negozio
+        const alreadyInList = spesaItems.find(it => it.store === store && it.product.trim().toLowerCase() === formatted.toLowerCase());
+        if (alreadyInList) {
+          const detail = alreadyInList.checked ? " (è tra i prodotti già spuntati)" : " (è già nella lista da acquistare)";
+          showSpesaNotification(`⚠️ "${formatted}" è già presente nella lista di ${store}${detail}!`, 'amber');
+          alert(`⚠️ ATTENZIONE: "${formatted}" è già presente nella lista della spesa di ${store}${detail}!`);
+          const inp = document.getElementById('spesa-quick-input');
+          if (inp) {
+            inp.value = '';
+            inp.focus();
+          }
+          return;
+        }
 
         const exists = spesaProducts.some(p => p.toLowerCase() === formatted.toLowerCase());
         if (!exists) {
@@ -3624,7 +3590,7 @@
 
         const newItem = {
           id: 'sp_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-          store: currentSpesaStoreFilter || spesaStores[0] || 'Eurospin',
+          store: store,
           product: formatted,
           price: '',
           quantity: 1,
@@ -3642,7 +3608,7 @@
           inp.value = '';
           inp.focus();
         }
-        renderSpesaChecklist(currentSpesaStoreFilter);
+        renderSpesaChecklist(store);
       }
 
       async function handleQuickAddSpesaProduct(e) {
@@ -3672,6 +3638,9 @@
           popup.innerHTML = '';
           return;
         }
+        const store = document.getElementById('spesa-store-select').value || currentSpesaStoreFilter || spesaStores[0] || 'Eurospin';
+        const inListNames = new Set(spesaItems.filter(it => it.store === store).map(it => it.product.trim().toLowerCase()));
+
         const starts = spesaProducts.filter(p => p.toLowerCase().startsWith(q));
         const contains = spesaProducts.filter(p => !p.toLowerCase().startsWith(q) && p.toLowerCase().includes(q));
         const matches = [...starts, ...contains];
@@ -3680,15 +3649,18 @@
           popup.innerHTML = `
             <div class="text-[10px] text-amber-300 font-bold uppercase tracking-wider mb-1">Suggerimenti da banca dati:</div>
             <div class="flex flex-wrap gap-1.5">
-              ${matches.slice(0, 6).map(m => `
+              ${matches.slice(0, 6).map(m => {
+                const inList = inListNames.has(m.trim().toLowerCase());
+                return `
                 <button
                   type="button"
                   onclick="selectSpesaModalProduct('${escapeJs(m)}')"
-                  class="px-2.5 py-1 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/40 text-xs font-bold text-amber-200 transition cursor-pointer"
+                  class="px-2.5 py-1 rounded-lg ${inList ? 'bg-amber-400/15 border-amber-400/40 text-amber-300' : 'bg-amber-400/20 hover:bg-amber-400/30 border-amber-400/40 text-amber-200'} border text-xs font-bold transition cursor-pointer"
                 >
-                  ${escapeHtml(m)}
+                  ${escapeHtml(m)} ${inList ? '<span class="text-[9px] opacity-80 font-normal">(in lista)</span>' : ''}
                 </button>
-              `).join('')}
+              `;
+              }).join('')}
             </div>
           `;
           popup.classList.remove('hidden');
@@ -3709,6 +3681,12 @@
         if (popup) {
           popup.classList.add('hidden');
           popup.innerHTML = '';
+        }
+        const store = document.getElementById('spesa-store-select').value || currentSpesaStoreFilter || spesaStores[0] || 'Eurospin';
+        const alreadyInList = spesaItems.find(it => it.store === store && it.product.trim().toLowerCase() === name.trim().toLowerCase());
+        if (alreadyInList) {
+          const detail = alreadyInList.checked ? " (è tra i prodotti già spuntati)" : " (è già nella lista da acquistare)";
+          alert(`⚠️ ATTENZIONE: "${name}" è già presente nella lista di ${store}${detail}!`);
         }
       }
 
@@ -3835,6 +3813,16 @@
           return;
         }
 
+        if (!editId) {
+          const alreadyInList = spesaItems.find(it => it.store === store && it.product.trim().toLowerCase() === product.toLowerCase());
+          if (alreadyInList) {
+            const detail = alreadyInList.checked ? " (è tra i prodotti già spuntati)" : " (è già nella lista da acquistare)";
+            alert(`⚠️ ATTENZIONE: "${product}" è già presente nella lista di ${store}${detail}!`);
+            showSpesaNotification(`⚠️ "${product}" è già presente nella lista di ${store}${detail}!`, 'amber');
+            return;
+          }
+        }
+
         const existsInCat = spesaProducts.some(p => p.toLowerCase() === product.toLowerCase());
         if (!existsInCat) {
           spesaProducts.push(product);
@@ -3872,119 +3860,6 @@
         delete expandedSpesaIds[id];
         await persistSpesaData();
         renderSpesaChecklist(currentSpesaStoreFilter);
-      }
-
-      function selectSpesaCreditAccount(code) {
-        document.getElementById('spesa-reg-credit').value = code;
-        const btn4010 = document.getElementById('btn-spesa-credit-4010');
-        const btn4043 = document.getElementById('btn-spesa-credit-4043');
-        if (code === '4010') {
-          if (btn4010) btn4010.className = 'py-2.5 px-3 rounded-xl border border-amber-400 bg-amber-400/20 text-xs font-bold text-amber-200 cursor-pointer transition flex items-center justify-center gap-1.5';
-          if (btn4043) btn4043.className = 'py-2.5 px-3 rounded-xl border border-white/15 bg-navy-950/80 text-xs font-bold text-slate-300 cursor-pointer transition flex items-center justify-center gap-1.5';
-        } else {
-          if (btn4043) btn4043.className = 'py-2.5 px-3 rounded-xl border border-amber-400 bg-amber-400/20 text-xs font-bold text-amber-200 cursor-pointer transition flex items-center justify-center gap-1.5';
-          if (btn4010) btn4010.className = 'py-2.5 px-3 rounded-xl border border-white/15 bg-navy-950/80 text-xs font-bold text-slate-300 cursor-pointer transition flex items-center justify-center gap-1.5';
-        }
-      }
-
-      async function registerSpesaToContabilita() {
-        const amountInp = document.getElementById('spesa-reg-amount');
-        const dateInp = document.getElementById('spesa-reg-date');
-        const creditInp = document.getElementById('spesa-reg-credit');
-        const feedback = document.getElementById('spesa-reg-feedback');
-
-        const amount = Number(amountInp ? amountInp.value : 0);
-        if (!amount || amount <= 0) {
-          alert("Inserisci un importo valido (oppure inserisci i prezzi dei prodotti in lista) prima di registrare in Contabilità.");
-          return;
-        }
-
-        const date = (dateInp && dateInp.value) ? dateInp.value : new Date().toISOString().split('T')[0];
-        const creditAccountCode = (creditInp && creditInp.value) ? creditInp.value : '4043';
-
-        const entryId = (typeof crypto !== 'undefined' && crypto.randomUUID)
-          ? crypto.randomUUID()
-          : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-              const r = Math.random() * 16 | 0;
-              return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-            });
-
-        const entry = {
-          id: entryId,
-          date: date,
-          description: 'SPESA',
-          debitAccountCode: '6110',
-          creditAccountCode: creditAccountCode,
-          amount: amount
-        };
-
-        try {
-          const res = await fetch('/api/contabilita/add-entry', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(entry)
-          });
-          const data = await res.json();
-          if (data && data.success && data.data) {
-            try {
-              localStorage.setItem('giampycash_offline_cache', JSON.stringify(data.data));
-              localStorage.setItem('gpp_journal', JSON.stringify(data.data.journalEntries || []));
-            } catch (e) {}
-          }
-        } catch (err) {
-          alert("Errore durante la registrazione in contabilità: " + (err.message || ''));
-          return;
-        }
-
-        // Forza il reload dell'iframe di Contabilità così mostra subito la nuova registrazione
-        const frame = document.getElementById('contabilita-frame');
-        if (frame) frame.src = '/registrazioni?t=' + Date.now();
-
-        if (feedback) {
-          const creditLabel = creditAccountCode === '4010' ? 'Cassa (4010)' : 'Banca (4043)';
-          feedback.innerHTML = `
-            <div class="flex items-center justify-between gap-2 text-left">
-              <span class="text-xs font-bold text-emerald-200">✅ Registrato: Dare 6110 / Avere ${creditLabel} · ${formatEuroPrice(amount)} · SPESA</span>
-              <button
-                type="button"
-                onclick="undoSpesaRegistration('${entryId}')"
-                class="px-2.5 py-1 rounded-lg bg-rose-500/30 hover:bg-rose-500/50 text-rose-200 text-[11px] font-bold border border-rose-500/40 transition cursor-pointer shrink-0"
-              >
-                Annulla
-              </button>
-            </div>
-          `;
-          feedback.classList.remove('hidden');
-          setTimeout(() => feedback.classList.add('hidden'), 8000);
-        }
-      }
-
-      async function undoSpesaRegistration(entryId) {
-        if (!entryId) return;
-        try {
-          const res = await fetch('/api/contabilita/delete-entry', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: entryId })
-          });
-          const data = await res.json();
-          if (data && data.success && data.data) {
-            try {
-              localStorage.setItem('giampycash_offline_cache', JSON.stringify(data.data));
-              localStorage.setItem('gpp_journal', JSON.stringify(data.data.journalEntries || []));
-            } catch (e) {}
-          }
-          const frame = document.getElementById('contabilita-frame');
-          if (frame) frame.src = '/registrazioni?t=' + Date.now();
-          const feedback = document.getElementById('spesa-reg-feedback');
-          if (feedback) {
-            feedback.innerHTML = `<span class="text-xs font-bold text-rose-300">🗑️ Registrazione annullata dalla Contabilità!</span>`;
-            feedback.classList.remove('hidden');
-            setTimeout(() => feedback.classList.add('hidden'), 5000);
-          }
-        } catch (err) {
-          alert("Errore nell'annullare la registrazione: " + (err.message || ''));
-        }
       }
     </script>
   </body>
