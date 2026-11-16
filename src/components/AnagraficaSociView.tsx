@@ -20,6 +20,7 @@ import {
   getMemberParts,
   isProtectedSuperAdmin,
   isProtectedSegreteriaMember,
+  isProtectedAmministrativo7726,
   Profile,
 } from '../data/initialData';
 import { exportCsv, exportOfficialPdf } from '../utils/soundAndPdf';
@@ -1094,16 +1095,16 @@ export const AnagraficaSociView: React.FC = () => {
                     <th className="p-3.5 w-10 text-center">
                       <input
                         type="checkbox"
-                        title="Seleziona / Deseleziona tutti i soci visualizzati (escluso Amministratore 7726)"
+                        title="Seleziona / Deseleziona tutti i soci visualizzati (escluso Amministratore 2406 e protetti)"
                         checked={
-                          sortedMembers.filter((m) => !isProtectedSuperAdmin(m)).length > 0 &&
+                          sortedMembers.filter((m) => !isProtectedSuperAdmin(m) && (!isProtectedAmministrativo7726(m) || isSuperAdmin)).length > 0 &&
                           sortedMembers
-                            .filter((m) => !isProtectedSuperAdmin(m))
+                            .filter((m) => !isProtectedSuperAdmin(m) && (!isProtectedAmministrativo7726(m) || isSuperAdmin))
                             .every((m) => selectedIds.includes(m.id))
                         }
                         onChange={(e) => {
                           const deletableVisibleIds = sortedMembers
-                            .filter((m) => !isProtectedSuperAdmin(m))
+                            .filter((m) => !isProtectedSuperAdmin(m) && (!isProtectedAmministrativo7726(m) || isSuperAdmin))
                             .map((m) => m.id);
                           if (e.target.checked) {
                             setSelectedIds(
@@ -1163,7 +1164,8 @@ export const AnagraficaSociView: React.FC = () => {
                   const isSelected = selectedIds.includes(m.id);
                   const isProtectedAdmin = isProtectedSuperAdmin(m);
                   const isProtectedSegr = isProtectedSegreteriaMember(m);
-                  const cannotDelete = isProtectedAdmin || (isProtectedSegr && !isSuperAdmin);
+                  const isProtected7726 = isProtectedAmministrativo7726(m);
+                  const cannotDelete = isProtectedAdmin || ((isProtectedSegr || isProtected7726) && !isSuperAdmin);
                   const canEditThisRow = canManageMembers && (!isProtectedAdmin || isSuperAdmin);
 
                   return (
@@ -1367,6 +1369,11 @@ export const AnagraficaSociView: React.FC = () => {
                               <span className="inline-flex items-center gap-1.5 rounded-lg bg-purple-50 border border-purple-200 px-2.5 py-1 text-xs font-semibold text-purple-900 shadow-xs">
                                 <ShieldCheck className="h-3.5 w-3.5 text-purple-700" />
                                 Segreteria
+                              </span>
+                            ) : isProtected7726 ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-900 shadow-xs">
+                                <ShieldCheck className="h-3.5 w-3.5 text-amber-700" />
+                                Amministrativo
                               </span>
                             ) : canEditThisRow ? (
                               <select

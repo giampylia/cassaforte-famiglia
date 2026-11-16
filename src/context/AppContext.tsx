@@ -19,6 +19,7 @@ import {
   INITIAL_LIBRARY_BOOKS,
   isProtectedSegreteriaMember,
   isProtectedSuperAdmin,
+  isProtectedAmministrativo7726,
   Lesson,
   Profile,
   sanitizeSimultaneousAttendance,
@@ -430,6 +431,18 @@ function getAdminDeletedSegreteriaNumbers(): Set<string> {
 
 function saveAdminDeletedSegreteriaNumbers(nums: Set<string>): void {
   safeSetLocalStorage(STORAGE_KEYS.ADMIN_DELETED_SEGRETERIA, JSON.stringify(Array.from(nums)));
+}
+
+function getAdminDeleted7726(): boolean {
+  try {
+    return localStorage.getItem('quartimbra_admin_deleted_7726') === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function saveAdminDeleted7726(val: boolean): void {
+  safeSetLocalStorage('quartimbra_admin_deleted_7726', val ? 'true' : 'false');
 }
 
 function ensureDefaultRolesList(roles?: string[]): string[] {
@@ -906,13 +919,37 @@ function reconcileCashMovements(localList: CashMovement[], remoteList: CashMovem
   });
 }
 
-// 7726 (e 7796) corrisponde SEMPRE ed ESCLUSIVAMENTE a Giampiero Pilia (Super Admin indistruttibile)
+// 2406 corrisponde SEMPRE ed ESCLUSIVAMENTE al Super Admin (Amministratore)
 function normalizeSuperAdminProfile(p?: Partial<Profile> | null): Profile {
-  const base = INITIAL_PROFILES[0]; // 7726 Giampiero Pilia
+  const base = INITIAL_PROFILES[0]; // 2406 Giampiero Pilia
   const existingRoles = Array.isArray(p?.roles)
     ? p!.roles!.filter((r) => r !== 'Socio' && r !== 'CD')
     : [];
   const mergedRoles = Array.from(new Set(['Amministratore', ...existingRoles]));
+
+  return {
+    ...base,
+    ...(p || {}),
+    id: 'admin-2406',
+    member_number: '2406',
+    first_name: 'Giampiero',
+    last_name: 'Pilia',
+    full_name: 'Giampiero Pilia',
+    sede: p?.sede === 'Soleminis' ? 'Soleminis' : 'Quartu',
+    role: 'admin',
+    is_super_admin: true,
+    is_cd: typeof p?.is_cd === 'boolean' ? p.is_cd : true,
+    roles: mergedRoles,
+  };
+}
+
+// 7726 corrisponde a Giampiero Pilia con ruoli Amministrativo e Componente CD
+function normalizeProfile7726(p?: Partial<Profile> | null): Profile {
+  const base = INITIAL_PROFILES[1]; // 7726 Giampiero Pilia
+  const existingRoles = Array.isArray(p?.roles)
+    ? p!.roles!.filter((r) => r !== 'Socio' && r !== 'Amministratore')
+    : [];
+  const mergedRoles = Array.from(new Set(['Amministrativo', ...existingRoles]));
 
   return {
     ...base,
@@ -923,9 +960,9 @@ function normalizeSuperAdminProfile(p?: Partial<Profile> | null): Profile {
     last_name: 'Pilia',
     full_name: 'Giampiero Pilia',
     sede: p?.sede === 'Soleminis' ? 'Soleminis' : 'Quartu',
-    role: 'admin',
-    is_super_admin: true,
-    is_cd: typeof p?.is_cd === 'boolean' ? p.is_cd : true,
+    role: 'member',
+    is_super_admin: false,
+    is_cd: true,
     roles: mergedRoles,
   };
 }
@@ -965,7 +1002,7 @@ function cleanPersonNameField(raw?: string): string {
 
 function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
   const list = Array.isArray(rawProfiles) ? rawProfiles.filter(Boolean).map((p) => ({ ...p })) : [];
-  // Trova tutti gli eventuali record riconducibili a Giampiero Pilia (7726 / 7796 / is_super_admin)
+  // 1. Super Admin 2406 (indistruttibile)
   const superIndices: number[] = [];
   list.forEach((p, idx) => {
     if (isProtectedSuperAdmin(p)) {
@@ -974,15 +1011,12 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
   });
 
   if (superIndices.length === 0) {
-    // Non deve MAI sparire: se non c'è, lo reinserisce in cima
     list.unshift(normalizeSuperAdminProfile(INITIAL_PROFILES[0]));
   } else {
-    // Se c'è sia un record 7726 che un vecchio 7796, privilegia i dati di 7726 e rimuove il duplicato
     const preferredIdx =
-      superIndices.find((idx) => String(list[idx].member_number).trim() === '7726') ?? superIndices[0];
+      superIndices.find((idx) => String(list[idx].member_number).trim() === '2406') ?? superIndices[0];
     const mergedSuper = normalizeSuperAdminProfile(list[preferredIdx]);
     list[preferredIdx] = mergedSuper;
-    // Rimuove eventuali duplicati (es. vecchio 7796 + nuovo 7726) partendo dal fondo
     for (let i = superIndices.length - 1; i >= 0; i--) {
       const idx = superIndices[i];
       if (idx !== preferredIdx) {
@@ -991,8 +1025,21 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
     }
   }
 
-  // Garantisce che Nives Cocco (9999) e Josh Ronald Cocco (9998) con ruolo Segreteria siano sempre presenti
-  // a meno che non siano stati cancellati esplicitamente dall'Amministratore (7726)
+  // 2. Profilo 7726 (Giampiero Pilia - Amministrativo e CD)
+  // Non deve MAI essere cancellato se non dall'Amministratore (2406)
+  if (!getAdminDeleted7726()) {
+    const idx7726 = list.findIndex(
+      (p) => String(p.member_number).trim() === '7726' || p.id === 'admin-7726'
+    );
+    if (idx7726 >= 0) {
+      list[idx7726] = normalizeProfile7726(list[idx7726]);
+    } else {
+      list.push(normalizeProfile7726());
+    }
+  }
+
+  // 3. Garantisce che Nives Cocco (9999) e Josh Ronald Cocco (9998) con ruolo Segreteria siano sempre presenti
+  // a meno che non siano stati cancellati esplicitamente dall'Amministratore (2406)
   const adminDeletedSegreteria = getAdminDeletedSegreteriaNumbers();
 
   if (!adminDeletedSegreteria.has('9999')) {
@@ -1034,6 +1081,9 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
   return list.map((p) => {
     if (isProtectedSuperAdmin(p)) {
       return normalizeSuperAdminProfile(p);
+    }
+    if (isProtectedAmministrativo7726(p)) {
+      return normalizeProfile7726(p);
     }
     const numTrim = String(p.member_number || '').trim();
     const isNives =
@@ -1512,6 +1562,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!saved) return null;
       const parsed: Profile = JSON.parse(saved);
       if (isProtectedSuperAdmin(parsed)) return normalizeSuperAdminProfile(parsed);
+      if (isProtectedAmministrativo7726(parsed)) return normalizeProfile7726(parsed);
       if (isProtectedSegreteriaMember(parsed) || parsed.member_number === '9999' || parsed.member_number === '9998') {
         return normalizeProtectedSegreteriaProfile(parsed.member_number === '9998' ? '9998' : '9999', parsed);
       }
@@ -1542,6 +1593,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         profiles.find((p) => isProtectedSuperAdmin(p)) || normalizeSuperAdminProfile(currentUser);
       if (JSON.stringify(superProfile) !== JSON.stringify(currentUser)) {
         setCurrentUser(superProfile);
+      }
+      return;
+    }
+    if (isProtectedAmministrativo7726(currentUser)) {
+      const p7726 =
+        profiles.find((p) => isProtectedAmministrativo7726(p)) || normalizeProfile7726(currentUser);
+      if (JSON.stringify(p7726) !== JSON.stringify(currentUser)) {
+        setCurrentUser(p7726);
       }
       return;
     }
@@ -2923,13 +2982,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { error: 'Digita il numero della tua tessera per entrare.' };
     }
 
-    if (cleaned === '7726' || cleaned === '7796') {
+    // Accesso Super Admin 2406
+    if (cleaned === '2406') {
       const superAdminProfile = normalizeSuperAdminProfile(
         profiles.find((p) => isProtectedSuperAdmin(p)) || INITIAL_PROFILES[0]
       );
       setProfiles((prev) => ensureSuperAdminAndRoles(prev));
       setCurrentUser(superAdminProfile);
       setActiveSection('admin_dashboard');
+      return { error: null };
+    }
+
+    // Accesso Amministrativo e Componente CD 7726
+    if (cleaned === '7726' || cleaned === '7796') {
+      const p7726 =
+        profiles.find((p) => isProtectedAmministrativo7726(p)) || normalizeProfile7726();
+      setProfiles((prev) => ensureSuperAdminAndRoles(prev));
+      setCurrentUser(p7726);
+      setActiveSection('menu');
       return { error: null };
     }
 
@@ -2973,6 +3043,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveSection('admin_dashboard');
         return { error: null };
       }
+      if (isProtectedAmministrativo7726(matched)) {
+        const p7726 = normalizeProfile7726(matched);
+        setCurrentUser(p7726);
+        setActiveSection('menu');
+        return { error: null };
+      }
       if (isProtectedSegreteriaMember(matched)) {
         const numTrim = String(matched.member_number || '').trim();
         const segreteriaUser = normalizeProtectedSegreteriaProfile(
@@ -2996,7 +3072,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const signInAdmin = (secretCode: string): { error: string | null } => {
     const cleaned = secretCode.trim().toLowerCase();
-    if (cleaned === '7726' || cleaned === '7796') {
+    if (cleaned === '2406') {
       const superAdminProfile = normalizeSuperAdminProfile(
         profiles.find((p) => isProtectedSuperAdmin(p)) || INITIAL_PROFILES[0]
       );
@@ -3483,20 +3559,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const isCd =
         isAdminRole || finalRoles.some((r) => r.toUpperCase() === 'CD');
 
-      // 7726 (e 7796) appartiene ESCLUSIVAMENTE a Giampiero Pilia.
-      // Nessuna riga di Excel (es. con ruolo "Amministratore" o con cognome diverso da Pilia) può mai sovrascrivere il nome di 7726!
-      const isGiampieroName =
-        fullName.toLowerCase().includes('giampiero') && fullName.toLowerCase().includes('pilia');
+      // 2406 (Super Admin) e 7726 (Amministrativo e CD) appartengono a Giampiero Pilia.
+      const isCard2406 = cleanNum === '2406';
       const isCard7726 = cleanNum === '7726' || cleanNum === '7796';
-      const hasOtherSurnameOn7726 =
-        isCard7726 &&
+      const isProtectedKeyCard = isCard2406 || isCard7726;
+      const hasOtherSurnameOnProtected =
+        isProtectedKeyCard &&
         Boolean(lastName || firstName) &&
         !fullName.toLowerCase().includes('pilia') &&
         !fullName.toLowerCase().includes('giampiero');
 
-      if (hasOtherSurnameOn7726) {
-        // Se nel file Excel un altro socio (es. Galleri) aveva per errore il numero 7726 o una colonna spostata,
-        // NON sovrascrive 7726 Giampiero Pilia ma lo importa con un codice distinto
+      if (hasOtherSurnameOnProtected) {
+        // Se nel file Excel un altro socio aveva per errore il numero 2406 o 7726,
+        // NON sovrascrive i profili di Giampiero Pilia ma lo importa con un codice distinto
         const safeAltNum = `${cleanNum}-${lastName || idx + 1}`;
         next.push({
           id: `u-imp-${batchTs}-${idx}`,
@@ -3515,12 +3590,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
 
-      const isSuper = isCard7726 || isGiampieroName;
-
       const existingIndex = next.findIndex(
         (p) =>
           p.member_number.toLowerCase() === cleanNum.toLowerCase() ||
-          (isSuper && isProtectedSuperAdmin(p))
+          (isCard2406 && isProtectedSuperAdmin(p)) ||
+          (isCard7726 && isProtectedAmministrativo7726(p))
       );
 
       if (existingIndex >= 0) {
@@ -3543,16 +3617,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           isAdminRole ||
           mergedRoles.some((r) => r.toLowerCase() === 'amministratore');
 
-        if (isSuper || isProtectedSuperAdmin(existing)) {
+        if (isCard2406 || isProtectedSuperAdmin(existing)) {
           next[existingIndex] = normalizeSuperAdminProfile({
             ...existing,
             sede: row.sede ? sede : existing.sede,
-            roles: Array.from(
-              new Set(['Amministratore', ...mergedRoles.filter((r) => r !== 'Socio')])
-            ),
-            phone: row.phone?.trim() || existing.phone || '',
-            email: row.email?.trim() || existing.email || '',
+            email: row.email?.trim() || existing.email,
+            phone: row.phone?.trim() || existing.phone,
           });
+          updated++;
+          return;
+        }
+
+        if (isCard7726 || isProtectedAmministrativo7726(existing)) {
+          next[existingIndex] = normalizeProfile7726({
+            ...existing,
+            sede: row.sede ? sede : existing.sede,
+            email: row.email?.trim() || existing.email,
+            phone: row.phone?.trim() || existing.phone,
+          });
+          updated++;
+          return;
         } else if (isProtectedSegreteriaMember(existing)) {
           next[existingIndex] = {
             ...normalizeProtectedSegreteriaProfile(
@@ -3580,7 +3664,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         updated++;
       } else {
-        if (isSuper) {
+        if (isCard2406) {
           next.unshift(
             normalizeSuperAdminProfile({
               sede,
@@ -3589,6 +3673,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               roles: Array.from(
                 new Set(['Amministratore', ...finalRoles.filter((r) => r !== 'Socio')])
               ),
+            })
+          );
+        } else if (isCard7726) {
+          next.push(
+            normalizeProfile7726({
+              sede,
+              email: row.email?.trim(),
+              phone: row.phone?.trim(),
             })
           );
         } else if (cleanNum === '9999' || cleanNum === '9998') {
@@ -3649,6 +3741,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const target = profilesRef.current.find((p) => p.id === id);
     if (!target) return;
     if (isProtectedSuperAdmin(target)) return;
+    if (isProtectedAmministrativo7726(target) && !isSuperAdmin) {
+      return;
+    }
+    if (isProtectedAmministrativo7726(target) && isSuperAdmin) {
+      saveAdminDeleted7726(true);
+    }
     if (isProtectedSegreteriaMember(target) && !isSuperAdmin) {
       return;
     }
@@ -3656,7 +3754,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const num = String(target.member_number || '').trim();
       const currentDeleted = getAdminDeletedSegreteriaNumbers();
       if (num && !currentDeleted.has(num)) {
-        saveAdminDeletedSegreteriaNumbers([...Array.from(currentDeleted), num]);
+        saveAdminDeletedSegreteriaNumbers(new Set([...Array.from(currentDeleted), num]));
       }
     }
     const next = profilesRef.current.filter((p) => p.id !== id);
@@ -3669,6 +3767,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const next = profilesRef.current.filter((p) => {
       if (isProtectedSuperAdmin(p)) return true;
       if (idSet.has(p.id)) {
+        if (isProtectedAmministrativo7726(p)) {
+          if (!isSuperAdmin) return true;
+          saveAdminDeleted7726(true);
+          return false;
+        }
         if (isProtectedSegreteriaMember(p)) {
           if (!isSuperAdmin) return true;
           const num = String(p.member_number || '').trim();

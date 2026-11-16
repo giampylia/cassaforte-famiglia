@@ -11533,8 +11533,8 @@
       "email": "marco.galimberti962@gmail.com"
     },
     {
-      "id": "admin-7726",
-      "member_number": "7726",
+      "id": "admin-2406",
+      "member_number": "2406",
       "first_name": "Giampiero",
       "last_name": "Pilia",
       "full_name": "Giampiero Pilia",
@@ -11544,6 +11544,23 @@
       "is_cd": true,
       "roles": [
         "Amministratore"
+      ],
+      "phone": "070 881234",
+      "email": "giampylia@gmail.com",
+      "joined_year": 2026
+    },
+    {
+      "id": "admin-7726",
+      "member_number": "7726",
+      "first_name": "Giampiero",
+      "last_name": "Pilia",
+      "full_name": "Giampiero Pilia",
+      "sede": "Quartu",
+      "role": "member",
+      "is_super_admin": false,
+      "is_cd": true,
+      "roles": [
+        "Amministrativo"
       ],
       "phone": "070 881234",
       "email": "giampylia@gmail.com",

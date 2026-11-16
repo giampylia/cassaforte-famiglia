@@ -82,15 +82,19 @@ export interface LibraryBook {
 export function isProtectedSuperAdmin(p?: Partial<Profile> | null): boolean {
   if (!p) return false;
   const num = String(p.member_number || '').trim();
-  const full = `${p.first_name || ''} ${p.last_name || ''} ${p.full_name || ''}`.toLowerCase();
+  // 7726 è Amministrativo e CD, non Super Admin (che è ora 2406)
+  if (num === '7726' || p.id === 'admin-7726') return false;
   return (
     Boolean(p.is_super_admin) ||
-    num === '7726' ||
-    num === '7796' ||
-    p.id === 'admin-7726' ||
-    p.id === 'admin-7796' ||
-    (full.includes('giampiero') && full.includes('pilia'))
+    num === '2406' ||
+    p.id === 'admin-2406'
   );
+}
+
+export function isProtectedAmministrativo7726(p?: Partial<Profile> | null): boolean {
+  if (!p) return false;
+  const num = String(p.member_number || '').trim();
+  return num === '7726' || p.id === 'admin-7726';
 }
 
 export function isProtectedSegreteriaMember(p?: Partial<Profile> | null): boolean {
@@ -123,6 +127,13 @@ export function getMemberParts(p: Profile): {
   }
 
   const numTrim = String(p.member_number || '').trim();
+  if (numTrim === '7726' || p.id === 'admin-7726') {
+    return {
+      firstName: p.first_name || 'Giampiero',
+      lastName: p.last_name || 'Pilia',
+      primaryRole: 'Amministrativo',
+    };
+  }
   if (numTrim === '9999' || p.id === 'segreteria-9999') {
     return {
       firstName: 'Nives',
@@ -453,7 +464,8 @@ export function getSubjectMeta(subject: string): SubjectMeta {
 }
 
 export const INITIAL_PROFILES: Profile[] = [
-  { id: 'admin-7726', member_number: '7726', first_name: 'Giampiero', last_name: 'Pilia', full_name: 'Giampiero Pilia', sede: 'Quartu', role: 'admin', is_super_admin: true, is_cd: true, roles: ['Amministratore'], phone: '070 881234', email: 'giampiero.lia@gmail.com', joined_year: 2018 },
+  { id: 'admin-2406', member_number: '2406', first_name: 'Giampiero', last_name: 'Pilia', full_name: 'Giampiero Pilia', sede: 'Quartu', role: 'admin', is_super_admin: true, is_cd: true, roles: ['Amministratore'], phone: '070 881234', email: 'giampiero.lia@gmail.com', joined_year: 2018 },
+  { id: 'admin-7726', member_number: '7726', first_name: 'Giampiero', last_name: 'Pilia', full_name: 'Giampiero Pilia', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: true, roles: ['Amministrativo'], phone: '070 881234', email: 'giampiero.lia@gmail.com', joined_year: 2018 },
   { id: 'u-cd-sotgiu', member_number: 'CD-SOTGIU', first_name: 'Maria Giovanna', last_name: 'Sotgiu', full_name: 'Maria Giovanna Sotgiu', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: true, roles: ['Socio'], phone: '', email: 'mariagiovanna.sotgiu@gmail.com', joined_year: 2024 },
   { id: 'u-6128', member_number: '6128', first_name: 'Docente Didattica', last_name: 'QU3', full_name: 'Docente Didattica QU3', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: true, roles: ['Didattica'], phone: '070 881234', email: 'didattica@univerquartu.it', joined_year: 2020 },
   { id: 'segreteria-9999', member_number: '9999', first_name: 'Nives', last_name: 'Cocco', full_name: 'Nives Cocco', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: false, roles: ['Segreteria'], phone: '', email: 'nives.cocco@gmail.com', joined_year: 2024 },
