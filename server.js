@@ -150,6 +150,56 @@ function saveLavoriStore(data) {
   }
 }
 
+const SPESA_FILE = path.join(__dirname, 'spesa_store.json');
+const DEFAULT_SPESA_STORES = ['Eurospin', 'Lidl', 'Maurys'];
+const DEFAULT_SPESA_PRODUCTS = [
+  'Pane', 'Latte', 'Uova', 'Acqua', 'Pasta', 'Olio EVO', 'Caffè', 'Zucchero',
+  'Frutta', 'Verdura', 'Carne', 'Pesce', 'Formaggio', 'Affettati', 'Yogurt',
+  'Detersivo lavatrice', 'Detersivo piatti', 'Carta igienica', 'Scottex', 'Sapone'
+];
+
+function getSpesaStore() {
+  try {
+    if (fs.existsSync(SPESA_FILE)) {
+      const parsed = JSON.parse(fs.readFileSync(SPESA_FILE, 'utf8'));
+      if (parsed && typeof parsed === 'object') {
+        return {
+          items: Array.isArray(parsed.items) ? parsed.items : [],
+          stores: Array.isArray(parsed.stores) && parsed.stores.length > 0 ? parsed.stores : DEFAULT_SPESA_STORES,
+          products: Array.isArray(parsed.products) && parsed.products.length > 0 ? parsed.products : DEFAULT_SPESA_PRODUCTS
+        };
+      }
+    }
+    const dataSpesaFile = path.join(__dirname, 'data', 'spesa_store.json');
+    if (fs.existsSync(dataSpesaFile)) {
+      const parsed = JSON.parse(fs.readFileSync(dataSpesaFile, 'utf8'));
+      if (parsed && typeof parsed === 'object') {
+        return {
+          items: Array.isArray(parsed.items) ? parsed.items : [],
+          stores: Array.isArray(parsed.stores) && parsed.stores.length > 0 ? parsed.stores : DEFAULT_SPESA_STORES,
+          products: Array.isArray(parsed.products) && parsed.products.length > 0 ? parsed.products : DEFAULT_SPESA_PRODUCTS
+        };
+      }
+    }
+  } catch (e) {
+    console.error('Error reading spesa store:', e);
+  }
+  return { items: [], stores: DEFAULT_SPESA_STORES, products: DEFAULT_SPESA_PRODUCTS };
+}
+
+function saveSpesaStore(data) {
+  try {
+    if (!data || typeof data !== 'object') return;
+    const backupDir = path.join(__dirname, 'data', 'backups');
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    fs.writeFileSync(SPESA_FILE, JSON.stringify(data, null, 2), 'utf8');
+    const dataSpesaFile = path.join(__dirname, 'data', 'spesa_store.json');
+    fs.writeFileSync(dataSpesaFile, JSON.stringify(data, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error saving spesa store:', e);
+  }
+}
+
 const DATA_DIR = path.join(__dirname, 'data');
 const CONTABILITA_FILE = path.join(DATA_DIR, 'contabilita.json');
 let inMemoryContabilita = null;
@@ -424,6 +474,47 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // 2d. API Spesa (Lista, punti vendita, prodotti e salvataggio)
+  if (reqPath.startsWith('/api/spesa/')) {
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
+      res.end();
+      return;
+    }
+
+    if (reqPath === '/api/spesa/list' && req.method === 'GET') {
+      const s = getSpesaStore();
+      return sendJson(200, s);
+    }
+
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      let data = {};
+      try { if (body) data = JSON.parse(body); } catch (e) {}
+
+      if (reqPath === '/api/spesa/save' && req.method === 'POST') {
+        const cur = getSpesaStore();
+        const next = {
+          items: Array.isArray(data.items) ? data.items : cur.items,
+          stores: Array.isArray(data.stores) && data.stores.length > 0 ? data.stores : cur.stores,
+          products: Array.isArray(data.products) && data.products.length > 0 ? data.products : cur.products,
+          updatedAt: new Date().toISOString()
+        };
+        saveSpesaStore(next);
+        console.log(`[SPESA GPP] Salvati ${next.items.length} prodotti spesa`);
+        return sendJson(200, { success: true, count: next.items.length });
+      }
+
+      sendJson(404, { error: 'Endpoint spesa non trovato' });
+    });
+    return;
+  }
+
   // 3. API Contabilità & Bilancio (Persistenza reale registrazioni e conti)
   if (reqPath.startsWith('/api/contabilita')) {
     if (req.method === 'OPTIONS') {
@@ -447,6 +538,21 @@ const server = http.createServer((req, res) => {
       req.on('end', () => {
         try {
           const payload = JSON.parse(body || '{}');
+          if (reqPath === '/api/contabilita/add-entry') {
+            const current = loadContabilita();
+            const entry = {
+              id: payload.id || ('je-spesa-' + Date.now() + '-' + Math.floor(Math.random() * 1000)),
+              date: payload.date || new Date().toISOString().split('T')[0],
+              description: String(payload.description || 'SPESA').trim().toUpperCase(),
+              debitAccountCode: String(payload.debitAccountCode || '6110'),
+              creditAccountCode: String(payload.creditAccountCode || '4043'),
+              amount: Number(payload.amount || 0)
+            };
+            current.journalEntries = [...(current.journalEntries || []), entry].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+            const ok = saveContabilita(current);
+            console.log(`[CONTABILITÀ GPP] Registrata spesa automatica: Dare ${entry.debitAccountCode} / Avere ${entry.creditAccountCode} €${entry.amount} (${entry.description})`);
+            return sendJson(200, { success: ok, entry, data: current });
+          }
           const ok = saveContabilita(payload);
           return sendJson(200, { success: ok });
         } catch (err) {
