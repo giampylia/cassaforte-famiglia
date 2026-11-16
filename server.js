@@ -114,6 +114,42 @@ function saveAcquistiStore(data) {
   }
 }
 
+const LAVORI_FILE = path.join(__dirname, 'lavori_store.json');
+
+function getLavoriStore() {
+  try {
+    if (fs.existsSync(LAVORI_FILE)) {
+      const parsed = JSON.parse(fs.readFileSync(LAVORI_FILE, 'utf8'));
+      if (parsed && Array.isArray(parsed.items)) {
+        return parsed;
+      }
+    }
+    const dataLavoriFile = path.join(__dirname, 'data', 'lavori_store.json');
+    if (fs.existsSync(dataLavoriFile)) {
+      const parsed = JSON.parse(fs.readFileSync(dataLavoriFile, 'utf8'));
+      if (parsed && Array.isArray(parsed.items)) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Error reading lavori store:', e);
+  }
+  return { items: [] };
+}
+
+function saveLavoriStore(data) {
+  try {
+    if (!data || !Array.isArray(data.items)) return;
+    const backupDir = path.join(__dirname, 'data', 'backups');
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    fs.writeFileSync(LAVORI_FILE, JSON.stringify(data, null, 2), 'utf8');
+    const dataLavoriFile = path.join(__dirname, 'data', 'lavori_store.json');
+    fs.writeFileSync(dataLavoriFile, JSON.stringify(data, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error saving lavori store:', e);
+  }
+}
+
 const DATA_DIR = path.join(__dirname, 'data');
 const CONTABILITA_FILE = path.join(DATA_DIR, 'contabilita.json');
 let inMemoryContabilita = null;
@@ -344,6 +380,46 @@ const server = http.createServer((req, res) => {
       }
 
       sendJson(404, { error: 'Endpoint acquisti non trovato' });
+    });
+    return;
+  }
+
+  // 2c. API Lavori (Lista e salvataggio record lavori con foto e link)
+  if (reqPath.startsWith('/api/lavori/')) {
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
+      res.end();
+      return;
+    }
+
+    if (reqPath === '/api/lavori/list' && req.method === 'GET') {
+      const l = getLavoriStore();
+      return sendJson(200, { items: l.items || [] });
+    }
+
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      let data = {};
+      try { if (body) data = JSON.parse(body); } catch (e) {}
+
+      if (reqPath === '/api/lavori/save' && req.method === 'POST') {
+        if (!Array.isArray(data.items)) {
+          return sendJson(400, { success: false, message: 'Formato lista lavori non valido' });
+        }
+        saveLavoriStore({
+          items: data.items,
+          updatedAt: new Date().toISOString()
+        });
+        console.log(`[LAVORI GPP] Salvati ${data.items.length} lavori`);
+        return sendJson(200, { success: true, count: data.items.length });
+      }
+
+      sendJson(404, { error: 'Endpoint lavori non trovato' });
     });
     return;
   }
