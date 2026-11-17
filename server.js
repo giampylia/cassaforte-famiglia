@@ -223,32 +223,36 @@ function saveSpesaStore(data) {
 const PARKING_FILE = path.join(__dirname, 'parking.json');
 let inMemoryParking = null;
 
+function normalizeParkingUser(u) {
+  if (!u) return 'Giampy';
+  const s = String(u).trim().toLowerCase();
+  if (s === 'giampy' || s === 'giampiero' || s === 'gp') return 'Giampy';
+  if (s === 'ty' || s === 'lia') return 'Ty';
+  if (s === 'miki' || s === 'michele') return 'Miki';
+  return u.charAt(0).toUpperCase() + u.slice(1);
+}
+
 function loadParking() {
   if (inMemoryParking) return inMemoryParking;
+  let parsed = null;
   try {
     const dataParkingFile = path.join(__dirname, 'data', 'parking.json');
     if (fs.existsSync(dataParkingFile)) {
-      const parsed = JSON.parse(fs.readFileSync(dataParkingFile, 'utf8'));
-      if (parsed && typeof parsed === 'object') {
-        inMemoryParking = parsed;
-        return parsed;
-      }
-    }
-    if (fs.existsSync(PARKING_FILE)) {
-      const parsed = JSON.parse(fs.readFileSync(PARKING_FILE, 'utf8'));
-      if (parsed && typeof parsed === 'object') {
-        inMemoryParking = parsed;
-        return parsed;
-      }
+      parsed = JSON.parse(fs.readFileSync(dataParkingFile, 'utf8'));
+    } else if (fs.existsSync(PARKING_FILE)) {
+      parsed = JSON.parse(fs.readFileSync(PARKING_FILE, 'utf8'));
     }
   } catch (e) {
     console.error('Error reading parking store:', e);
   }
-  inMemoryParking = {
-    Giampy: { active: null, history: [] },
-    Ty: { active: null, history: [] },
-    Miki: { active: null, history: [] }
-  };
+  if (!parsed || typeof parsed !== 'object') {
+    parsed = {};
+  }
+  ['Giampy', 'Ty', 'Miki'].forEach(k => {
+    if (!parsed[k]) parsed[k] = { active: null, history: [] };
+    if (!Array.isArray(parsed[k].history)) parsed[k].history = [];
+  });
+  inMemoryParking = parsed;
   return inMemoryParking;
 }
 
@@ -658,7 +662,7 @@ const server = http.createServer((req, res) => {
 
     // 1. GET /api/parking (Restituisce parcheggio attivo e storico dell'utente)
     if (reqPath === '/api/parking' && req.method === 'GET') {
-      const user = query.user || 'Giampy';
+      const user = normalizeParkingUser(query.user || 'Giampy');
       const store = loadParking();
       const userData = store[user] || { active: null, history: [] };
       return sendJson(200, {
@@ -672,7 +676,7 @@ const server = http.createServer((req, res) => {
     if ((reqPath === '/api/auto-park' || reqPath === '/api/parking/auto-park') && (req.method === 'GET' || req.method === 'POST')) {
       const handleAutoPark = async (body) => {
         try {
-          const user = query.user || body.user || 'Giampy';
+          const user = normalizeParkingUser(query.user || body.user || 'Giampy');
           let lat = parseFloat(String(query.lat || query.latitude || body.lat || body.latitude || '').replace(',', '.'));
           let lng = parseFloat(String(query.lng || query.lon || query.longitude || body.lng || body.longitude || '').replace(',', '.'));
           const accuracy = Math.round(parseFloat(String(query.accuracy || body.accuracy || 5).replace(',', '.')) || 5);
@@ -775,17 +779,29 @@ const server = http.createServer((req, res) => {
     // 3. POST endpoints per azioni dal client: manual, release, note, delete-item, clear-history, restore
     let body = '';
     req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       let data = {};
       try { if (body) data = JSON.parse(body); } catch (e) {}
-      const user = data.user || query.user || 'Giampy';
+      const user = normalizeParkingUser(data.user || query.user || 'Giampy');
       const parkingStore = loadParking();
       if (!parkingStore[user]) parkingStore[user] = { active: null, history: [] };
 
       if (reqPath === '/api/parking/manual' && req.method === 'POST') {
-        const entry = data.entry || data;
+        let entry = data.entry || data;
+        if (entry.lat && entry.lng && (!entry.address || entry.address.startsWith('Coordinate GPS') || entry.address.startsWith('GPS ('))) {
+          try {
+            const geo = await reverseGeocodeServer(entry.lat, entry.lng);
+            if (geo && geo.addressShort && geo.addressShort !== 'Posizione GPS') {
+              entry.addressShort = geo.addressShort;
+              entry.address = geo.address;
+            }
+          } catch (e) {}
+        }
         if (parkingStore[user].active) {
           parkingStore[user].history.unshift(parkingStore[user].active);
+          if (parkingStore[user].history.length > 500) {
+            parkingStore[user].history = parkingStore[user].history.slice(0, 500);
+          }
         }
         parkingStore[user].active = entry;
         saveParking(parkingStore);

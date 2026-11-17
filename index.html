@@ -1470,17 +1470,25 @@
             </h2>
           </div>
 
-          <!-- Selettore Utente (Giampy / Ty / Miki) -->
-          <div class="flex items-center gap-1">
+          <!-- Selettore Utente (Giampy / Ty / Miki) & Sincronizzazione Rapida -->
+          <div class="flex items-center gap-1.5">
             <select
               id="parking-user-select"
               onchange="changeParkingUser(this.value)"
-              class="bg-white/10 border border-white/20 rounded-xl px-2 py-1 text-xs font-bold text-amber-200 outline-none cursor-pointer"
+              class="bg-white/10 border border-white/20 rounded-xl px-2.5 py-1 text-xs font-bold text-amber-200 outline-none cursor-pointer"
             >
               <option value="Giampy" selected>👨 Giampy</option>
               <option value="Ty">👩 Ty</option>
               <option value="Miki">👧 Miki</option>
             </select>
+            <button
+              type="button"
+              onclick="loadParkingData(true)"
+              title="Sincronizza subito con il server"
+              class="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-sky-300 transition active:scale-95 cursor-pointer flex items-center justify-center text-xs"
+            >
+              🔄
+            </button>
           </div>
         </header>
 
@@ -1750,7 +1758,14 @@
 
       try {
         const cachedParkActive = localStorage.getItem('gpp_parking_active_Giampy');
-        if (cachedParkActive) parkingActive = JSON.parse(cachedParkActive);
+        if (cachedParkActive) {
+          const parsed = JSON.parse(cachedParkActive);
+          if (parsed && parsed.id === 'park-20261003-221350') {
+            localStorage.removeItem('gpp_parking_active_Giampy');
+          } else {
+            parkingActive = parsed;
+          }
+        }
         const cachedParkHist = localStorage.getItem('gpp_parking_history_Giampy');
         if (cachedParkHist) parkingHistory = JSON.parse(cachedParkHist) || [];
       } catch (e) {}
@@ -4443,7 +4458,13 @@
         // Ripristino sincrono della cache per l'utente selezionato
         try {
           const cachedActive = localStorage.getItem(`gpp_parking_active_${currentParkingUser}`);
-          parkingActive = cachedActive ? JSON.parse(cachedActive) : null;
+          const parsed = cachedActive ? JSON.parse(cachedActive) : null;
+          if (parsed && parsed.id === 'park-20261003-221350') {
+            parkingActive = null;
+            localStorage.removeItem(`gpp_parking_active_${currentParkingUser}`);
+          } else {
+            parkingActive = parsed;
+          }
           const cachedHist = localStorage.getItem(`gpp_parking_history_${currentParkingUser}`);
           parkingHistory = cachedHist ? JSON.parse(cachedHist) || [] : [];
         } catch (e) {
@@ -4455,23 +4476,24 @@
         loadParkingData();
       }
 
-      async function loadParkingData() {
+      async function loadParkingData(forceRefresh = false) {
         const user = currentParkingUser || 'Giampy';
         let serverData = null;
         try {
-          const res = await fetch(`/api/parking?user=${encodeURIComponent(user)}`);
+          const res = await fetch(`/api/parking?user=${encodeURIComponent(user)}&_t=${Date.now()}`, {
+            cache: 'no-store'
+          });
           if (res.ok) {
             serverData = await res.json();
           }
         } catch (e) {}
 
         if (serverData) {
-          // Merge Smart Parcheggio Attivo
           if (serverData.active) {
-            const srvTime = new Date(serverData.active.timestamp || 0).getTime();
-            const locTime = parkingActive ? new Date(parkingActive.timestamp || 0).getTime() : 0;
-            if (!parkingActive || srvTime >= locTime) {
-              parkingActive = serverData.active;
+            parkingActive = serverData.active;
+          } else {
+            if (forceRefresh || (parkingActive && (parkingActive.id === 'park-20261003-221350' || (serverData.history || []).some(h => h.id === parkingActive.id)))) {
+              parkingActive = null;
             }
           }
 
@@ -4506,6 +4528,10 @@
         if (view && !view.classList.contains('hidden')) {
           renderParkingScreen();
         }
+
+        if (forceRefresh) {
+          showParkingToast("✅ Parcheggi sincronizzati con il server!");
+        }
       }
 
       function updateParkingMenuBadge() {
@@ -4533,10 +4559,11 @@
 
         const origin = window.location.origin;
         const webhookUrl = `${origin}/api/auto-park?user=${encodeURIComponent(user)}`;
+        const macroDroidUrl = `${origin}/api/auto-park?user=${encodeURIComponent(user)}&lat={lat}&lng={lng}&accuracy={accuracy}`;
 
-        if (webhookDisplay) webhookDisplay.textContent = webhookUrl;
-        if (androidModalLink) androidModalLink.textContent = webhookUrl;
-        if (iosModalLink) iosModalLink.textContent = webhookUrl;
+        if (webhookDisplay) webhookDisplay.textContent = macroDroidUrl;
+        if (androidModalLink) androidModalLink.textContent = macroDroidUrl;
+        if (iosModalLink) iosModalLink.textContent = macroDroidUrl;
 
         // 1. RENDER HERO CARD
         if (heroEl) {
@@ -4547,7 +4574,7 @@
             const accuracyStr = parkingActive.accuracy ? `±${parkingActive.accuracy}m` : '±5m';
             const triggerStr = parkingActive.trigger === 'bluetooth_auto'
               ? 'Spegnimento Motore (Bluetooth Auto)'
-              : (parkingActive.trigger === 'ios_shortcut' ? 'Automazione iPhone' : 'Salvataggio manuale');
+              : (parkingActive.trigger === 'ios_shortcut' ? 'Automazione iPhone' : (parkingActive.trigger === 'manuale_testo' ? 'Inserimento Manuale' : 'Salvataggio GPS'));
 
             heroEl.innerHTML = `
               <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
@@ -4568,7 +4595,7 @@
 
               <!-- Box Indirizzo in Evidenza -->
               <div class="p-3.5 rounded-2xl bg-black/40 border border-white/15 space-y-2 mb-3.5">
-                <div class="text-base sm:text-lg font-bold text-white tracking-wide leading-tight">
+                <div class="text-base sm:text-lg font-bold text-amber-300 tracking-wide leading-tight">
                   ${escapeHtml(displayAddr)}
                 </div>
                 <div class="text-xs text-slate-300 leading-relaxed">
@@ -4576,7 +4603,7 @@
                 </div>
                 <div class="flex flex-wrap gap-x-3 gap-y-1 pt-1 text-[11px] text-slate-400 border-t border-white/10">
                   <span>🕒 ${escapeHtml(timeAgoStr)} (${escapeHtml(dateTimeStr)})</span>
-                  <span>🎯 Precisione: ${escapeHtml(accuracyStr)}</span>
+                  ${parkingActive.accuracy ? `<span>🎯 Precisione: ${escapeHtml(accuracyStr)}</span>` : ''}
                   <span>⚡ ${escapeHtml(triggerStr)}</span>
                 </div>
                 ${parkingActive.notes ? `
@@ -4588,52 +4615,98 @@
 
               <!-- Azioni Primarie -->
               <div class="space-y-2">
+                ${(parkingActive.lat && parkingActive.lng) ? `
+                  <button
+                    type="button"
+                    onclick="openMapsNavigation(${parkingActive.lat}, ${parkingActive.lng})"
+                    class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                  >
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                    </svg>
+                    <span>🧭 Portami all'Auto (Navigatore a Piedi)</span>
+                  </button>
+                ` : `
+                  <button
+                    type="button"
+                    onclick="openMapsSearch('${escapeJs(parkingActive.address || parkingActive.addressShort || '')}')"
+                    class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                  >
+                    <span>🧭 Cerca Indirizzo su Mappe</span>
+                  </button>
+                `}
+
+                <!-- PULSANTE AGGIORNAMENTO / NUOVO PARCHEGGIO (SEMPRE VISIBILE ANCHE SE GIÀ PARCHEGGIATA!) -->
                 <button
                   type="button"
-                  onclick="openMapsNavigation(${parkingActive.lat}, ${parkingActive.lng})"
-                  class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                  id="btn-save-parking-now"
+                  onclick="saveManualParking()"
+                  class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-xs sm:text-sm shadow-lg flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
                 >
-                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
-                  </svg>
-                  <span>🧭 Portami all'Auto (Navigatore a Piedi)</span>
+                  <span class="text-base">📍</span>
+                  <span>AGGIORNA / PARCHEGGIA QUI ORA (1-Tap GPS)</span>
                 </button>
 
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-3 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onclick="saveManualAddressParking()"
+                    class="py-2.5 px-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold text-slate-200 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1"
+                    title="Digita la via o posto a mano se il GPS non prende"
+                  >
+                    <span>✏️ Via a Mano</span>
+                  </button>
                   <button
                     type="button"
                     onclick="addNoteToActiveParking()"
-                    class="py-2.5 px-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-slate-200 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                    class="py-2.5 px-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold text-slate-200 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1"
                   >
-                    <span>✏️ Nota / Piano</span>
+                    <span>📝 Nota/Piano</span>
                   </button>
                   <button
                     type="button"
                     onclick="releaseCurrentParking()"
-                    class="py-2.5 px-3 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-xs font-bold text-rose-200 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                    class="py-2.5 px-2 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-[11px] font-bold text-rose-200 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1"
                   >
-                    <span>✅ Ho ripreso l'auto</span>
+                    <span>✅ Ho ripreso</span>
                   </button>
                 </div>
               </div>
             `;
           } else {
             heroEl.innerHTML = `
-              <div class="text-center py-5 space-y-2">
-                <span class="text-4xl block mb-2">🚗</span>
-                <h3 class="text-sm font-bold text-white tracking-wide">Nessuna posizione salvata per ${escapeHtml(user)}</h3>
-                <p class="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-                  Quando spegni il motore e scendi dall'auto, la posizione viene registrata qui in automatico via Bluetooth.
+              <div class="text-center py-5 space-y-3">
+                <span class="text-4xl block mb-1">🚗</span>
+                <h3 class="text-base font-bold text-white tracking-wide">Nessuna auto registrata per ${escapeHtml(user)}</h3>
+                <p class="text-xs text-slate-300 max-w-sm mx-auto leading-relaxed">
+                  L'auto si memorizza in automatico via Bluetooth quando spegni il motore, oppure tocca qui sotto per salvarla adesso:
                 </p>
-                <div class="pt-3">
+                <div class="pt-2 space-y-2">
                   <button
                     type="button"
                     id="btn-save-parking-now"
                     onclick="saveManualParking()"
-                    class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-xl flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                    class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-sm shadow-xl flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
                   >
-                    <span>📍 Salva Posizione ORA (Backup 1-Click)</span>
+                    <span class="text-lg">📍</span>
+                    <span>REGISTRA PARCHEGGIO ORA (1-Tap GPS)</span>
                   </button>
+                  <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onclick="saveManualAddressParking()"
+                      class="py-2.5 px-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-slate-200 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <span>✏️ Inserisci a Mano</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick="loadParkingData(true)"
+                      class="py-2.5 px-3 rounded-2xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/30 text-xs font-bold text-sky-200 transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <span>🔄 Sincronizza Server</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             `;
@@ -4767,113 +4840,187 @@
 
       async function saveManualParking() {
         if (!('geolocation' in navigator)) {
-          alert("La geolocalizzazione GPS non è supportata da questo dispositivo.");
+          if (confirm("La geolocalizzazione GPS non è supportata da questo browser.\nVuoi inserire la via o il luogo a mano?")) {
+            saveManualAddressParking();
+          }
           return;
         }
 
         const btn = document.getElementById('btn-save-parking-now');
+        const origContent = btn ? btn.innerHTML : '';
         if (btn) {
           btn.disabled = true;
           btn.innerHTML = `<span>📡 Rilevamento GPS in corso...</span>`;
         }
 
-        navigator.geolocation.getCurrentPosition(
-          async (pos) => {
+        const doSaveWithPosition = async (pos) => {
+          try {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const accuracy = Math.round(pos.coords.accuracy || 5);
+
+            let address = `Coordinate GPS (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+            let addressShort = `GPS (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+
+            // Tentativo geocodifica inversa rapida
             try {
-              const lat = pos.coords.latitude;
-              const lng = pos.coords.longitude;
-              const accuracy = Math.round(pos.coords.accuracy || 5);
-
-              let address = `Coordinate GPS (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
-              let addressShort = `GPS (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
-
-              try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
-                  headers: { 'Accept': 'application/json' }
-                });
-                if (res.ok) {
-                  const data = await res.json();
-                  if (data && data.address) {
-                    const a = data.address;
-                    const road = a.road || a.pedestrian || a.street || '';
-                    const house = a.house_number ? ' ' + a.house_number : '';
-                    const city = a.city || a.town || a.village || a.municipality || a.suburb || '';
-                    if (road) {
-                      const streetWithHouse = (road + house).trim();
-                      addressShort = city ? `${streetWithHouse}, ${city}` : streetWithHouse;
-                      address = `${streetWithHouse}${city ? ', ' + city : ''}`;
-                    } else if (data.display_name) {
-                      const parts = data.display_name.split(',');
-                      const mainLoc = parts[0] ? parts[0].trim() : 'Posizione';
-                      const locCity = city || (parts[1] ? parts[1].trim() : '');
-                      addressShort = locCity && !mainLoc.includes(locCity) ? `${mainLoc}, ${locCity}` : mainLoc;
-                      address = parts.slice(0, 3).join(', ');
-                    }
+              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
+                headers: { 'Accept': 'application/json' }
+              });
+              if (res.ok) {
+                const data = await res.json();
+                if (data && data.address) {
+                  const a = data.address;
+                  const road = a.road || a.pedestrian || a.street || '';
+                  const house = a.house_number ? ' ' + a.house_number : '';
+                  const city = a.city || a.town || a.village || a.municipality || a.suburb || '';
+                  if (road) {
+                    const streetWithHouse = (road + house).trim();
+                    addressShort = city ? `${streetWithHouse}, ${city}` : streetWithHouse;
+                    address = `${streetWithHouse}${city ? ', ' + city : ''}`;
+                  } else if (data.display_name) {
+                    const parts = data.display_name.split(',');
+                    const mainLoc = parts[0] ? parts[0].trim() : 'Posizione';
+                    const locCity = city || (parts[1] ? parts[1].trim() : '');
+                    addressShort = locCity && !mainLoc.includes(locCity) ? `${mainLoc}, ${locCity}` : mainLoc;
+                    address = parts.slice(0, 3).join(', ');
                   }
                 }
-              } catch (geoErr) {}
-
-              const user = currentParkingUser || 'Giampy';
-              const newEntry = {
-                id: `park-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-                section: 'parking',
-                user: user,
-                owner: user,
-                lat: lat,
-                lng: lng,
-                accuracy: accuracy,
-                address: address,
-                addressShort: addressShort,
-                timestamp: new Date().toISOString(),
-                trigger: 'manuale',
-                notes: ''
-              };
-
-              if (parkingActive) {
-                parkingHistory.unshift(parkingActive);
               }
-              parkingActive = newEntry;
+            } catch (geoErr) {}
 
-              try {
-                localStorage.setItem(`gpp_parking_active_${user}`, JSON.stringify(parkingActive));
-                localStorage.setItem(`gpp_parking_history_${user}`, JSON.stringify(parkingHistory));
-              } catch (e) {}
+            const user = currentParkingUser || 'Giampy';
+            const newEntry = {
+              id: `park-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+              section: 'parking',
+              user: user,
+              owner: user,
+              lat: lat,
+              lng: lng,
+              accuracy: accuracy,
+              address: address,
+              addressShort: addressShort,
+              timestamp: new Date().toISOString(),
+              trigger: 'manuale_gps',
+              notes: ''
+            };
 
-              renderParkingScreen();
-              updateParkingMenuBadge();
-
-              // Invio al server
-              try {
-                await fetch('/api/parking/manual', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ user, entry: newEntry })
-                });
-              } catch (e) {}
-
-              alert(`🚗 Auto parcheggiata salvata!\n📍 ${addressShort}`);
-            } catch (err) {
-              alert("Errore salvataggio: " + err.message);
-            } finally {
-              if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = `<span>📍 Salva Posizione ORA (Backup 1-Click)</span>`;
-              }
+            if (parkingActive) {
+              parkingHistory.unshift(parkingActive);
             }
-          },
-          (err) => {
+            parkingActive = newEntry;
+
+            try {
+              localStorage.setItem(`gpp_parking_active_${user}`, JSON.stringify(parkingActive));
+              localStorage.setItem(`gpp_parking_history_${user}`, JSON.stringify(parkingHistory));
+            } catch (e) {}
+
+            renderParkingScreen();
+            updateParkingMenuBadge();
+
+            // Invio al server (che rifinisce la geocodifica se necessario)
+            try {
+              const srvRes = await fetch('/api/parking/manual', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user, entry: newEntry })
+              });
+              if (srvRes.ok) {
+                const srvJson = await srvRes.json();
+                if (srvJson && srvJson.active) {
+                  parkingActive = srvJson.active;
+                  localStorage.setItem(`gpp_parking_active_${user}`, JSON.stringify(parkingActive));
+                  renderParkingScreen();
+                }
+              }
+            } catch (e) {}
+
+            showParkingToast(`🚗 Auto salvata!\n📍 ${parkingActive.addressShort || addressShort}`);
+          } catch (err) {
+            alert("Errore salvataggio: " + err.message);
+          } finally {
             if (btn) {
               btn.disabled = false;
-              btn.innerHTML = `<span>📍 Salva Posizione ORA (Backup 1-Click)</span>`;
+              btn.innerHTML = origContent;
             }
-            let msg = "Impossibile rilevare la posizione.";
-            if (err.code === 1) msg = "Accesso GPS negato. Autorizza la posizione nelle impostazioni del browser/telefono.";
-            else if (err.code === 2) msg = "Posizione non disponibile (segnale GPS assente).";
-            else if (err.code === 3) msg = "Timeout richiesta GPS. Riprova.";
-            alert("⚠️ " + msg);
-          },
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+          }
+        };
+
+        const handleGpsError = (err) => {
+          // Secondo tentativo con geolocalizzazione cellulare/wifi (più rapida e meno restrittiva)
+          navigator.geolocation.getCurrentPosition(
+            (fallbackPos) => {
+              doSaveWithPosition(fallbackPos);
+            },
+            (err2) => {
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origContent;
+              }
+              let msg = "Segnale GPS non disponibile o permesso non autorizzato.";
+              if (err.code === 1) msg = "Accesso GPS negato. Autorizza la posizione nelle impostazioni del browser/telefono.";
+              else if (err.code === 3) msg = "Timeout GPS (possibile assenza di segnale o sei al chiuso).";
+
+              if (confirm(`⚠️ ${msg}\n\nVuoi inserire la via o il luogo a mano adesso?`)) {
+                saveManualAddressParking();
+              }
+            },
+            { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+          );
+        };
+
+        navigator.geolocation.getCurrentPosition(
+          doSaveWithPosition,
+          handleGpsError,
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
+      }
+
+      async function saveManualAddressParking() {
+        const addr = prompt("Inserisci la via o il luogo dove hai parcheggiato:\n(es. Via Dante 12, Cagliari oppure Parcheggio Stazione Piano -1)");
+        if (!addr || !addr.trim()) return;
+
+        const user = currentParkingUser || 'Giampy';
+        const cleanAddr = addr.trim();
+        const shortAddr = cleanAddr.length > 32 ? cleanAddr.substring(0, 30) + '...' : cleanAddr;
+
+        const newEntry = {
+          id: `park-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          section: 'parking',
+          user: user,
+          owner: user,
+          lat: 0,
+          lng: 0,
+          accuracy: 0,
+          address: cleanAddr,
+          addressShort: shortAddr,
+          timestamp: new Date().toISOString(),
+          trigger: 'manuale_testo',
+          notes: ''
+        };
+
+        if (parkingActive) {
+          parkingHistory.unshift(parkingActive);
+        }
+        parkingActive = newEntry;
+
+        try {
+          localStorage.setItem(`gpp_parking_active_${user}`, JSON.stringify(parkingActive));
+          localStorage.setItem(`gpp_parking_history_${user}`, JSON.stringify(parkingHistory));
+        } catch (e) {}
+
+        renderParkingScreen();
+        updateParkingMenuBadge();
+
+        try {
+          await fetch('/api/parking/manual', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user, entry: newEntry })
+          });
+        } catch (e) {}
+
+        showParkingToast(`🚗 Auto salvata!\n📍 ${shortAddr}`);
       }
 
       function openMapsNavigation(lat, lng) {
@@ -4883,6 +5030,33 @@
         } else {
           window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`, '_blank');
         }
+      }
+
+      function openMapsSearch(addr) {
+        if (!addr) return;
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        if (isIOS) {
+          window.open(`https://maps.apple.com/?q=${encodeURIComponent(addr)}`, '_blank');
+        } else {
+          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`, '_blank');
+        }
+      }
+
+      function showParkingToast(msg) {
+        let toast = document.getElementById('parking-toast');
+        if (!toast) {
+          toast = document.createElement('div');
+          toast.id = 'parking-toast';
+          toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-emerald-600/95 border border-emerald-400 text-white font-bold text-xs sm:text-sm px-5 py-3 rounded-2xl shadow-2xl transition-all duration-300 pointer-events-none opacity-0';
+          document.body.appendChild(toast);
+        }
+        toast.textContent = msg;
+        toast.style.opacity = '1';
+        toast.style.transform = 'translate(-50%, -10px)';
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transform = 'translate(-50%, 0)';
+        }, 3500);
       }
 
       async function addNoteToActiveParking() {
