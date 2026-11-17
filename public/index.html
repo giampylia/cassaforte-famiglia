@@ -393,55 +393,6 @@
               <span>Blocca</span>
             </button>
           </div>
-
-          <!-- Barra Sezioni Contabili: Registrazioni, Budget, Avanzamento, Liquidità, Piano dei Conti -->
-          <nav class="flex items-center gap-1.5 px-3 pb-2 pt-0.5 overflow-x-auto no-scrollbar" id="contabilita-subnav">
-            <button
-              type="button"
-              onclick="navContabilitaTab('registrazioni')"
-              id="tab-contab-registrazioni"
-              class="px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap bg-amber-400/20 border border-amber-400/50 text-amber-200 transition cursor-pointer flex items-center gap-1 shrink-0"
-            >
-              <span>📝</span>
-              <span>Registrazioni</span>
-            </button>
-            <button
-              type="button"
-              onclick="navContabilitaTab('avanzamento')"
-              id="tab-contab-avanzamento"
-              class="px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap bg-white/5 border border-white/10 text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1 shrink-0"
-            >
-              <span>📈</span>
-              <span>Avanzamento</span>
-            </button>
-            <button
-              type="button"
-              onclick="navContabilitaTab('budget')"
-              id="tab-contab-budget"
-              class="px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap bg-white/5 border border-white/10 text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1 shrink-0"
-            >
-              <span>📊</span>
-              <span>Budget</span>
-            </button>
-            <button
-              type="button"
-              onclick="navContabilitaTab('liquidita')"
-              id="tab-contab-liquidita"
-              class="px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap bg-white/5 border border-white/10 text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1 shrink-0"
-            >
-              <span>💳</span>
-              <span>Liquidità</span>
-            </button>
-            <button
-              type="button"
-              onclick="navContabilitaTab('piano')"
-              id="tab-contab-piano"
-              class="px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap bg-white/5 border border-white/10 text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1 shrink-0"
-            >
-              <span>📖</span>
-              <span>Piano dei Conti</span>
-            </button>
-          </nav>
         </header>
 
         <!-- Container Iframe ContaBook / Giampycash -->
@@ -1935,38 +1886,6 @@
       // ==============================================================
       // 2. NAVIGAZIONE: CONTABILITÀ, SICUREZZA, ACQUISTI, LAVORI, SPESA, PARCHEGGIO E MENU
       // ==============================================================
-      let activeContabilitaTab = 'registrazioni';
-
-      function navContabilitaTab(tabKey) {
-        activeContabilitaTab = tabKey || 'registrazioni';
-        const tabs = ['registrazioni', 'avanzamento', 'budget', 'liquidita', 'piano'];
-        tabs.forEach(t => {
-          const btn = document.getElementById('tab-contab-' + t);
-          if (!btn) return;
-          if (t === activeContabilitaTab) {
-            btn.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap bg-amber-400/20 border border-amber-400/50 text-amber-200 transition cursor-pointer flex items-center gap-1 shrink-0';
-          } else {
-            btn.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap bg-white/5 border border-white/10 text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1 shrink-0';
-          }
-        });
-
-        const frame = document.getElementById('contabilita-frame');
-        if (frame) {
-          try {
-            // Se l'iframe è già caricato e ha React Router, usiamo la sua history interna
-            if (frame.contentWindow && frame.contentWindow.location) {
-              const targetPath = '/' + (activeContabilitaTab === 'registrazioni' ? 'registrazioni' : activeContabilitaTab);
-              if (frame.contentWindow.location.pathname !== targetPath) {
-                frame.contentWindow.location.href = targetPath;
-                return;
-              }
-            }
-          } catch (e) {}
-          // Fallback assegnazione src
-          frame.src = '/' + activeContabilitaTab + '?v=' + Date.now();
-        }
-      }
-
       function showContabilitaView() {
         document.getElementById('main-menu-view').classList.add('hidden');
         document.getElementById('security-vault-view').classList.add('hidden');
@@ -1977,7 +1896,7 @@
         document.getElementById('contabilita-view').classList.remove('hidden');
         const frame = document.getElementById('contabilita-frame');
         if (frame && (!frame.src || frame.src === 'about:blank' || frame.src.endsWith('about:blank') || frame.src.endsWith('/'))) {
-          navContabilitaTab('registrazioni');
+          frame.src = '/registrazioni?v=20261117_fix_sections';
         }
         window.scrollTo(0, 0);
       }

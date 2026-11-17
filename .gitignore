@@ -2,3 +2,4 @@ tunnel.log
 research/
 .DS_Store
 node_modules/
+.chrome-temp
