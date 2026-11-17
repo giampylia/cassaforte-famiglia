@@ -111,6 +111,21 @@ export function isProtectedSegreteriaMember(p?: Partial<Profile> | null): boolea
   );
 }
 
+export function isProtectedPresidenzaCinus(p?: Partial<Profile> | null): boolean {
+  if (!p) return false;
+  const num = String(p.member_number || '').trim();
+  const full = `${p.first_name || ''} ${p.last_name || ''} ${p.full_name || ''}`.toLowerCase();
+  return (
+    num === '0000' ||
+    num === '000' ||
+    num === '00' ||
+    num === '0' ||
+    p.id === 'u-cinus-0000' ||
+    p.id === 'u-imp-1794587049200-0' ||
+    (full.includes('aldo') && full.includes('cinus'))
+  );
+}
+
 export function getMemberParts(p: Profile): {
   firstName: string;
   lastName: string;
@@ -123,6 +138,14 @@ export function getMemberParts(p: Profile): {
       firstName: 'Giampiero',
       lastName: 'Pilia',
       primaryRole,
+    };
+  }
+
+  if (isProtectedPresidenzaCinus(p)) {
+    return {
+      firstName: 'Aldo',
+      lastName: 'Cinus',
+      primaryRole: 'Presidenza',
     };
   }
 
@@ -470,7 +493,7 @@ export const INITIAL_PROFILES: Profile[] = [
   { id: 'u-6128', member_number: '6128', first_name: 'Docente Didattica', last_name: 'QU3', full_name: 'Docente Didattica QU3', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: true, roles: ['Didattica'], phone: '070 881234', email: 'didattica@univerquartu.it', joined_year: 2020 },
   { id: 'segreteria-9999', member_number: '9999', first_name: 'Nives', last_name: 'Cocco', full_name: 'Nives Cocco', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: false, roles: ['Segreteria'], phone: '', email: 'nives.cocco@gmail.com', joined_year: 2024 },
   { id: 'segreteria-9998', member_number: '9998', first_name: 'Josh Ronald', last_name: 'Cocco', full_name: 'Josh Ronald Cocco', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: false, roles: ['Segreteria'], phone: '', email: 'josh.cocco@gmail.com', joined_year: 2024 },
-  { id: 'admin-1', member_number: '000', first_name: 'Ufficio', last_name: 'Presenze QU3', full_name: 'Ufficio Presenze QU3', sede: 'Quartu', role: 'admin', is_super_admin: false, is_cd: false, roles: ['Didattica'], phone: '070 881234', email: 'segreteria@univerquartu.it', joined_year: 2018 },
+  { id: 'u-cinus-0000', member_number: '0000', first_name: 'Aldo', last_name: 'Cinus', full_name: 'Aldo Cinus', sede: 'Quartu', role: 'member', is_super_admin: false, is_cd: true, roles: ['Presidenza'], phone: '', email: 'presidenza@univerquartu.it', joined_year: 2026 },
   { id: 'u-101', member_number: '101', first_name: 'Maria Bonaria', last_name: 'Melis', full_name: 'Maria Bonaria Melis', sede: 'Quartu', role: 'member', is_cd: true, roles: ['Amministrativo'], phone: '347 1122334', joined_year: 2021 },
   { id: 'u-102', member_number: '102', first_name: 'Efisio', last_name: 'Piras', full_name: 'Efisio Piras', sede: 'Quartu', role: 'member', is_cd: true, roles: ['Amministrativo'], phone: '348 2233445', joined_year: 2020 },
   { id: 'u-103', member_number: '103', first_name: 'Anna Rita', last_name: 'Cao', full_name: 'Anna Rita Cao', sede: 'Quartu', role: 'member', is_cd: false, roles: ['Socio'], phone: '349 3344556', joined_year: 2022 },

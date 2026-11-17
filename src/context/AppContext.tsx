@@ -20,6 +20,7 @@ import {
   isProtectedSegreteriaMember,
   isProtectedSuperAdmin,
   isProtectedAmministrativo7726,
+  isProtectedPresidenzaCinus,
   Lesson,
   Profile,
   sanitizeSimultaneousAttendance,
@@ -1001,7 +1002,12 @@ function cleanPersonNameField(raw?: string): string {
 }
 
 function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
-  const list = Array.isArray(rawProfiles) ? rawProfiles.filter(Boolean).map((p) => ({ ...p })) : [];
+  const list = Array.isArray(rawProfiles)
+    ? rawProfiles
+        .filter(Boolean)
+        .filter((p) => !(p.id === 'admin-1' || p.member_number === '000' || /ufficio\s+presenze/i.test(p.full_name || '')))
+        .map((p) => ({ ...p }))
+    : [];
   // 1. Super Admin 2406 (indistruttibile)
   const superIndices: number[] = [];
   list.forEach((p, idx) => {
@@ -1078,12 +1084,72 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
     }
   }
 
+  // 4. Garantisce che Aldo Cinus (0000) sia presente, con ruolo Presidenza e componente CD
+  const idxCinus = list.findIndex(
+    (p) =>
+      String(p.member_number).trim() === '0000' ||
+      p.id === 'u-cinus-0000' ||
+      p.id === 'u-imp-1794587049200-0' ||
+      isProtectedPresidenzaCinus(p)
+  );
+  if (idxCinus >= 0) {
+    const existingRoles = list[idxCinus].roles || [];
+    const rolesWithPresidenza = existingRoles.includes('Presidenza')
+      ? existingRoles
+      : ['Presidenza', ...existingRoles.filter((r) => r !== 'Presidenza')];
+    list[idxCinus] = {
+      ...list[idxCinus],
+      id: list[idxCinus].id || 'u-cinus-0000',
+      member_number: '0000',
+      first_name: 'Aldo',
+      last_name: 'Cinus',
+      full_name: 'Aldo Cinus',
+      sede: 'Quartu',
+      role: 'member',
+      is_super_admin: false,
+      is_cd: true,
+      roles: rolesWithPresidenza,
+      email: list[idxCinus].email || 'presidenza@univerquartu.it',
+    };
+  } else {
+    list.push({
+      id: 'u-cinus-0000',
+      member_number: '0000',
+      first_name: 'Aldo',
+      last_name: 'Cinus',
+      full_name: 'Aldo Cinus',
+      sede: 'Quartu',
+      role: 'member',
+      is_super_admin: false,
+      is_cd: true,
+      roles: ['Presidenza'],
+      phone: '',
+      email: 'presidenza@univerquartu.it',
+      joined_year: 2026,
+    });
+  }
+
   return list.map((p) => {
     if (isProtectedSuperAdmin(p)) {
       return normalizeSuperAdminProfile(p);
     }
     if (isProtectedAmministrativo7726(p)) {
       return normalizeProfile7726(p);
+    }
+    if (isProtectedPresidenzaCinus(p)) {
+      const existingRoles = p.roles || [];
+      const rolesWithPresidenza = existingRoles.includes('Presidenza')
+        ? existingRoles
+        : ['Presidenza', ...existingRoles.filter((r) => r !== 'Presidenza')];
+      return {
+        ...p,
+        member_number: '0000',
+        first_name: 'Aldo',
+        last_name: 'Cinus',
+        full_name: 'Aldo Cinus',
+        is_cd: true,
+        roles: rolesWithPresidenza,
+      };
     }
     const numTrim = String(p.member_number || '').trim();
     const isNives =
@@ -1147,6 +1213,15 @@ function sanitizeQueueState(q: QueueState, knownProfiles?: Profile[]): QueueStat
     ) {
       name = 'Giampiero Pilia';
     } else if (
+      cardNum === '0000' ||
+      cardNum === '000' ||
+      cardNum === '00' ||
+      cardNum === '0' ||
+      name.toLowerCase().includes('aldo cinus') ||
+      name.toLowerCase().includes('ufficio presenze')
+    ) {
+      name = 'Aldo Cinus';
+    } else if (
       cardNum &&
       (!name || name.toLowerCase() === 'socio sconosciuto') &&
       Array.isArray(knownProfiles) &&
@@ -1159,6 +1234,7 @@ function sanitizeQueueState(q: QueueState, knownProfiles?: Profile[]): QueueStat
           (p.member_number.trim().toLowerCase() === cardNum.toLowerCase() ||
             (/^\d+$/.test(cardNum) &&
               /^\d+$/.test(p.member_number.trim()) &&
+              parseInt(cardNum, 10) > 0 &&
               parseInt(p.member_number.trim(), 10) === parseInt(cardNum, 10)))
       );
       if (matched && matched.full_name && !/^socio\s+tessera/i.test(matched.full_name)) {
@@ -3003,12 +3079,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { error: null };
     }
 
-    if (cleaned === '000') {
-      const staffProfile =
-        profiles.find((p) => p.member_number === '000') || INITIAL_PROFILES[1] || INITIAL_PROFILES[0];
-      setCurrentUser(staffProfile);
-      setActiveSection('admin_dashboard');
-      return { error: null };
+    // Accesso Presidenza: 0000 (Aldo Cinus)
+    if (cleaned === '0000' || cleaned === '000' || cleaned === '00' || cleaned === '0') {
+      const cinus =
+        profiles.find((p) => isProtectedPresidenzaCinus(p)) ||
+        INITIAL_PROFILES.find((p) => p.member_number === '0000');
+      if (cinus) {
+        setCurrentUser(cinus);
+        setActiveSection('menu');
+        return { error: null };
+      }
     }
 
     if (cleaned.toLowerCase() === 'admin' || cleaned.includes('@')) {
@@ -3033,6 +3113,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         p.full_name.toLowerCase() === cleaned.toLowerCase() ||
         (/^\d+$/.test(cleaned) &&
           /^\d+$/.test(p.member_number.trim()) &&
+          parseInt(cleaned, 10) > 0 &&
           parseInt(p.member_number.trim(), 10) === parseInt(cleaned, 10))
     );
 
@@ -3046,6 +3127,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (isProtectedAmministrativo7726(matched)) {
         const p7726 = normalizeProfile7726(matched);
         setCurrentUser(p7726);
+        setActiveSection('menu');
+        return { error: null };
+      }
+      if (isProtectedPresidenzaCinus(matched)) {
+        setCurrentUser(matched);
         setActiveSection('menu');
         return { error: null };
       }
@@ -3078,13 +3164,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
       setProfiles((prev) => ensureSuperAdminAndRoles(prev));
       setCurrentUser(superAdminProfile);
-      setActiveSection('admin_dashboard');
-      return { error: null };
-    }
-    if (cleaned === '000') {
-      const staffProfile =
-        profiles.find((p) => p.member_number === '000') || INITIAL_PROFILES[1] || INITIAL_PROFILES[0];
-      setCurrentUser(staffProfile);
       setActiveSection('admin_dashboard');
       return { error: null };
     }

@@ -1,22 +1,6 @@
 {
   "profiles": [
     {
-      "id": "admin-1",
-      "member_number": "000",
-      "full_name": "Ufficio Presenze QU3",
-      "sede": "Quartu",
-      "role": "admin",
-      "is_super_admin": false,
-      "is_cd": false,
-      "roles": [
-        "Didattica"
-      ],
-      "phone": "070 881234",
-      "joined_year": 2018,
-      "first_name": "Ufficio",
-      "last_name": "Presenze QU3"
-    },
-    {
       "id": "u-imp-1793372512946-0",
       "member_number": "10463",
       "first_name": "Albertina",

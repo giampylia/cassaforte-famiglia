@@ -291,34 +291,80 @@ function findSocioByCardNumber(rawCandidate: string, knownProfiles: Profile[]): 
     .replace(/^(?:n[°º.]?|num(?:ero)?\.?|tess(?:era)?\.?|socio|cod(?:ice)?\.?|#)\s*/i, '')
     .trim();
 
-  if (!cleaned || cleaned === '000' || cleaned === '0') return null;
+  if (!cleaned) return null;
 
   const validProfiles = (knownProfiles || []).filter(
     (p) =>
       p &&
       p.member_number &&
+      p.id !== 'admin-1' &&
       p.member_number.trim() !== '000' &&
       p.full_name &&
       !/^socio\s+tessera\b/i.test(p.full_name.trim()) &&
       !/ufficio\s+presenze/i.test(p.full_name.trim())
   );
 
-  // 1) Super Admin 7726 / 7796 -> SEMPRE Giampiero Pilia
-  if (cleaned === '7726' || cleaned === '7796') {
-    const superP = validProfiles.find(
+  // 1) Aldo Cinus (0000, 000, 00, 0) -> SEMPRE Aldo Cinus (Presidenza)
+  if (cleaned === '0000' || cleaned === '000' || cleaned === '00' || cleaned === '0') {
+    const cinus = validProfiles.find(
       (p) =>
-        p.member_number.trim() === '7726' ||
-        p.member_number.trim() === '7796' ||
-        p.is_super_admin
+        p.member_number.trim() === '0000' ||
+        (p.full_name && p.full_name.toLowerCase().includes('aldo cinus')) ||
+        (p.first_name && p.first_name.toLowerCase().includes('aldo') && p.last_name && p.last_name.toLowerCase().includes('cinus'))
+    );
+    return cinus || {
+      id: 'u-cinus-0000',
+      member_number: '0000',
+      first_name: 'Aldo',
+      last_name: 'Cinus',
+      full_name: 'Aldo Cinus',
+      sede: 'Quartu',
+      role: 'member',
+      is_super_admin: false,
+      is_cd: true,
+      roles: ['Presidenza'],
+      phone: '',
+      email: 'presidenza@univerquartu.it',
+      joined_year: 2026,
+    };
+  }
+
+  // 2) Super Admin 2406 -> SEMPRE Giampiero Pilia
+  if (cleaned === '2406') {
+    const superP = validProfiles.find(
+      (p) => p.member_number.trim() === '2406' || p.is_super_admin
     );
     return {
       ...(superP || {
-        id: 'admin-7726',
+        id: 'admin-2406',
         sede: 'Quartu',
         role: 'admin',
         is_super_admin: true,
         is_cd: true,
         roles: ['Amministratore'],
+      }),
+      member_number: '2406',
+      first_name: 'Giampiero',
+      last_name: 'Pilia',
+      full_name: 'Giampiero Pilia',
+    };
+  }
+
+  // 3) Amministrativo 7726 / 7796 -> SEMPRE Giampiero Pilia
+  if (cleaned === '7726' || cleaned === '7796') {
+    const superP = validProfiles.find(
+      (p) =>
+        p.member_number.trim() === '7726' ||
+        p.member_number.trim() === '7796'
+    );
+    return {
+      ...(superP || {
+        id: 'admin-7726',
+        sede: 'Quartu',
+        role: 'member',
+        is_super_admin: false,
+        is_cd: true,
+        roles: ['Amministrativo'],
       }),
       member_number: '7726',
       first_name: 'Giampiero',
@@ -327,13 +373,13 @@ function findSocioByCardNumber(rawCandidate: string, knownProfiles: Profile[]): 
     };
   }
 
-  // 2) Corrispondenza diretta sul member_number
+  // 4) Corrispondenza diretta sul member_number
   const exact = validProfiles.find(
     (p) => p.member_number.trim().toLowerCase() === cleaned.toLowerCase()
   );
   if (exact) return exact;
 
-  // 3) Confronto numerico ignorando gli zeri iniziali (es. "045" <-> "45")
+  // 5) Confronto numerico ignorando gli zeri iniziali (es. "045" <-> "45")
   if (/^\d{1,6}$/.test(cleaned)) {
     const numVal = parseInt(cleaned, 10);
     if (!isNaN(numVal) && numVal > 0) {
@@ -452,7 +498,8 @@ function resolveCellToSocioOrUnknown(rawCellText: string, knownProfiles: Profile
     if (cleanAlpha.length >= 5 && !FORGOTTEN_CARD_PHRASE.test(cleanAlpha)) {
       const exactNameProfile = (knownProfiles || []).find(
         (p) =>
-          p.member_number !== '000' &&
+          p.id !== 'admin-1' &&
+          !/ufficio\s+presenze/i.test(p.full_name || '') &&
           !/^socio\s+tessera\b/i.test(p.full_name) &&
           p.full_name.trim().toLowerCase() === cleanAlpha
       );
@@ -2526,7 +2573,8 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
     return profiles
       .filter(
         (p) =>
-          p.member_number !== '000' &&
+          p.id !== 'admin-1' &&
+          !/ufficio\s+presenze/i.test(p.full_name || '') &&
           !/^socio\s+tessera\b/i.test(p.full_name) &&
           (p.member_number.toLowerCase().includes(q) || p.full_name.toLowerCase().includes(q))
       )

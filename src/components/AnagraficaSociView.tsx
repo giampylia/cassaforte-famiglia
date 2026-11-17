@@ -135,7 +135,7 @@ export const AnagraficaSociView: React.FC = () => {
   // Arricchisce ogni profilo con Nome, Cognome e Ruolo principale separati
   const enrichedProfiles = useMemo(() => {
     return profiles
-      .filter((p) => p.member_number !== '000') // Nasconde l'account tecnico 000 dall'anagrafica soci
+      .filter((p) => !(p.id === 'admin-1' || p.member_number === '000' || /ufficio\s+presenze/i.test(p.full_name || '')))
       .map((p) => {
         const parts = getMemberParts(p);
         return {
