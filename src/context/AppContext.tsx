@@ -245,6 +245,9 @@ interface AppContextType {
   };
   signInAdmin: (secretCode: string) => { error: string | null };
   signOut: () => void;
+  rememberedMember: RememberedMemberInfo | null;
+  quickLoginRemembered: () => { ok: boolean; error?: string };
+  forgetRememberedMember: () => void;
   updateMyPassword: (newPin: string | null) => { ok: boolean; message?: string };
   adminSetMemberPassword: (userId: string, newPin: string | null) => { ok: boolean; message?: string };
   // Member actions
@@ -341,8 +344,16 @@ interface AppContextType {
   resetDemoData: () => void;
 }
 
+export interface RememberedMemberInfo {
+  memberNumber: string;
+  fullName: string;
+  autoLogin: boolean;
+  timestamp: number;
+}
+
 const STORAGE_KEYS = {
   USER: 'quartimbra_current_user_v4',
+  REMEMBERED_MEMBER: 'quartimbra_remembered_member_v1',
   PROFILES: 'quartimbra_profiles_v4',
   ROLES: 'quartimbra_available_roles_v4',
   PROFILES_TS: 'quartimbra_profiles_updated_at_v4',
@@ -1674,17 +1685,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  // Socio precedentemente autenticato e memorizzato su questo smartphone
+  const [rememberedMember, setRememberedMember] = useState<RememberedMemberInfo | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.REMEMBERED_MEMBER);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [currentUser, setCurrentUser] = useState<Profile | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.USER);
-      if (!saved) return null;
-      const parsed: Profile = JSON.parse(saved);
-      if (isProtectedSuperAdmin(parsed)) return normalizeSuperAdminProfile(parsed);
-      if (isProtectedAmministrativo7726(parsed)) return normalizeProfile7726(parsed);
-      if (isProtectedSegreteriaMember(parsed) || parsed.member_number === '9999' || parsed.member_number === '9998') {
-        return normalizeProtectedSegreteriaProfile(parsed.member_number === '9998' ? '9998' : '9999', parsed);
+      if (saved) {
+        const parsed: Profile = JSON.parse(saved);
+        if (isProtectedSuperAdmin(parsed)) return normalizeSuperAdminProfile(parsed);
+        if (isProtectedAmministrativo7726(parsed)) return normalizeProfile7726(parsed);
+        if (isProtectedSegreteriaMember(parsed) || parsed.member_number === '9999' || parsed.member_number === '9998') {
+          return normalizeProtectedSegreteriaProfile(parsed.member_number === '9998' ? '9998' : '9999', parsed);
+        }
+        return parsed;
       }
-      return parsed;
+
+      // Se non c'è currentUser esplicito in sessione, verifica se il telefono ricorda il socio con auto-login
+      const remRaw = localStorage.getItem(STORAGE_KEYS.REMEMBERED_MEMBER);
+      if (remRaw) {
+        const rem: RememberedMemberInfo = JSON.parse(remRaw);
+        if (rem && rem.autoLogin && rem.memberNumber) {
+          const cleanNum = String(rem.memberNumber).trim();
+          const matched = profiles.find((p) => String(p.member_number).trim() === cleanNum);
+          if (matched) {
+            if (isProtectedSuperAdmin(matched)) return normalizeSuperAdminProfile(matched);
+            if (isProtectedAmministrativo7726(matched)) return normalizeProfile7726(matched);
+            if (isProtectedSegreteriaMember(matched)) {
+              return normalizeProtectedSegreteriaProfile(cleanNum === '9998' ? '9998' : '9999', matched);
+            }
+            return matched;
+          }
+        }
+      }
+      return null;
     } catch {
       return null;
     }
@@ -1692,20 +1733,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [activeSection, setActiveSection] = useState<AppSection>(() => {
     try {
+      let targetUser: Profile | null = null;
       const saved = localStorage.getItem(STORAGE_KEYS.USER);
       if (saved) {
-        const parsed: Profile = JSON.parse(saved);
-        if (isProtectedSegreteriaMember(parsed) || parsed.member_number === '9999' || parsed.member_number === '9998') {
+        targetUser = JSON.parse(saved);
+      } else {
+        const remRaw = localStorage.getItem(STORAGE_KEYS.REMEMBERED_MEMBER);
+        if (remRaw) {
+          const rem: RememberedMemberInfo = JSON.parse(remRaw);
+          if (rem && rem.autoLogin && rem.memberNumber) {
+            const cleanNum = String(rem.memberNumber).trim();
+            targetUser = profiles.find((p) => String(p.member_number).trim() === cleanNum) || null;
+          }
+        }
+      }
+      if (targetUser) {
+        if (isProtectedSegreteriaMember(targetUser) || targetUser.member_number === '9999' || targetUser.member_number === '9998') {
           return 'eliminacode';
+        }
+        if (isProtectedSuperAdmin(targetUser) || targetUser.role === 'admin') {
+          return 'admin_dashboard';
         }
       }
     } catch {}
     return 'menu';
   });
 
-  // Keep currentUser synchronized with updated roles/CD status in profiles
+  // Keep currentUser synchronized with updated roles/CD status in profiles and auto-login if remembered
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      try {
+        const remRaw = localStorage.getItem(STORAGE_KEYS.REMEMBERED_MEMBER);
+        if (remRaw) {
+          const rem: RememberedMemberInfo = JSON.parse(remRaw);
+          if (rem && rem.autoLogin && rem.memberNumber) {
+            const cleanNum = String(rem.memberNumber).trim();
+            const matched = profiles.find((p) => String(p.member_number).trim() === cleanNum);
+            if (matched) {
+              if (isProtectedSuperAdmin(matched)) {
+                setCurrentUser(normalizeSuperAdminProfile(matched));
+                setActiveSection('admin_dashboard');
+              } else if (isProtectedAmministrativo7726(matched)) {
+                setCurrentUser(normalizeProfile7726(matched));
+                setActiveSection('menu');
+              } else if (isProtectedSegreteriaMember(matched)) {
+                setCurrentUser(normalizeProtectedSegreteriaProfile(cleanNum === '9998' ? '9998' : '9999', matched));
+                setActiveSection('eliminacode');
+              } else {
+                const isCd = Boolean(matched.is_cd || (matched.roles && matched.roles.includes('CD')));
+                setCurrentUser(matched);
+                setActiveSection(isCd ? 'menu' : matched.role === 'admin' ? 'admin_dashboard' : 'presenze');
+              }
+            }
+          }
+        }
+      } catch {}
+      return;
+    }
     if (isProtectedSuperAdmin(currentUser)) {
       const superProfile =
         profiles.find((p) => isProtectedSuperAdmin(p)) || normalizeSuperAdminProfile(currentUser);
@@ -3165,6 +3249,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
+    // Memorizza questo socio su questo smartphone con auto-login abilitato
+    const remInfo: RememberedMemberInfo = {
+      memberNumber: matched.member_number,
+      fullName: matched.full_name,
+      autoLogin: true,
+      timestamp: Date.now(),
+    };
+    safeSetLocalStorage(STORAGE_KEYS.REMEMBERED_MEMBER, JSON.stringify(remInfo));
+    setRememberedMember(remInfo);
+
     // Accesso confermato: imposta l'utente e naviga alla sezione autorizzata
     if (isProtectedSuperAdmin(matched)) {
       const superAdminProfile = normalizeSuperAdminProfile(matched);
@@ -3224,6 +3318,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const signOut = () => {
     setCurrentUser(null);
     setActiveSection('presenze');
+    // Quando si esce esplicitamente, disattiviamo l'auto-login automatico
+    // ma conserviamo il profilo per permettere il rientro rapido con 1 tocco
+    try {
+      const remRaw = localStorage.getItem(STORAGE_KEYS.REMEMBERED_MEMBER);
+      if (remRaw) {
+        const rem: RememberedMemberInfo = JSON.parse(remRaw);
+        rem.autoLogin = false;
+        safeSetLocalStorage(STORAGE_KEYS.REMEMBERED_MEMBER, JSON.stringify(rem));
+        setRememberedMember(rem);
+      }
+    } catch {}
+  };
+
+  const quickLoginRemembered = (): { ok: boolean; error?: string } => {
+    try {
+      const remRaw = localStorage.getItem(STORAGE_KEYS.REMEMBERED_MEMBER);
+      if (!remRaw) return { ok: false, error: 'Nessun profilo memorizzato su questo telefono.' };
+      const rem: RememberedMemberInfo = JSON.parse(remRaw);
+      const cleanNum = String(rem.memberNumber || '').trim();
+      const matched = profiles.find((p) => String(p.member_number).trim() === cleanNum);
+      if (!matched) {
+        return { ok: false, error: 'Socio memorizzato non trovato in anagrafica.' };
+      }
+      if (isProtectedSuperAdmin(matched)) {
+        const superAdminProfile = normalizeSuperAdminProfile(matched);
+        setProfiles((prev) => ensureSuperAdminAndRoles(prev));
+        setCurrentUser(superAdminProfile);
+        setActiveSection('admin_dashboard');
+      } else if (isProtectedAmministrativo7726(matched)) {
+        const p7726 = normalizeProfile7726(matched);
+        setProfiles((prev) => ensureSuperAdminAndRoles(prev));
+        setCurrentUser(p7726);
+        setActiveSection('menu');
+      } else if (isProtectedPresidenzaCinus(matched)) {
+        setCurrentUser(matched);
+        setActiveSection('menu');
+      } else if (isProtectedSegreteriaMember(matched)) {
+        const numTrim = String(matched.member_number || '').trim();
+        const segreteriaUser = normalizeProtectedSegreteriaProfile(
+          numTrim === '9998' ? '9998' : '9999',
+          matched
+        );
+        setCurrentUser(segreteriaUser);
+        setActiveSection('eliminacode');
+      } else {
+        const isCd = Boolean(matched.is_cd || (matched.roles && matched.roles.includes('CD')));
+        setCurrentUser(matched);
+        setActiveSection(isCd ? 'menu' : matched.role === 'admin' ? 'admin_dashboard' : 'presenze');
+      }
+      // Riabilita auto-login per i prossimi accessi
+      rem.autoLogin = true;
+      safeSetLocalStorage(STORAGE_KEYS.REMEMBERED_MEMBER, JSON.stringify(rem));
+      setRememberedMember(rem);
+      return { ok: true };
+    } catch {
+      return { ok: false, error: 'Errore durante l\'accesso rapido.' };
+    }
+  };
+
+  const forgetRememberedMember = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.REMEMBERED_MEMBER);
+    } catch {}
+    setRememberedMember(null);
   };
 
   const registerAttendance = (room: ClassroomKey) => {
@@ -5092,6 +5250,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         signInMember,
         signInAdmin,
         signOut,
+        rememberedMember,
+        quickLoginRemembered,
+        forgetRememberedMember,
         registerAttendance,
         registerAssistedAttendance,
         cancelAttendance,

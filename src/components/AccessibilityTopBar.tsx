@@ -221,15 +221,16 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
               </button>
             )}
 
-            {/* Tasto Esci */}
+            {/* Tasto Cambia Socio */}
             {currentUser && (
               <button
                 type="button"
                 onClick={signOut}
+                title="Cambia utente o esci dal profilo attuale"
                 className="inline-flex items-center gap-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-medium shadow-xs transition active:scale-95"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                <span>Esci</span>
+                <span>Cambia Socio</span>
               </button>
             )}
           </div>
