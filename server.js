@@ -270,6 +270,64 @@ function saveParking(data) {
   }
 }
 
+function syncParkingWithFamylia(user) {
+  return new Promise((resolve) => {
+    const u = normalizeParkingUser(user);
+    const famUrl = `https://famylia.onrender.com/api/parking?user=${encodeURIComponent(u)}`;
+    const req = https.get(famUrl, {
+      headers: { 'User-Agent': 'GPPApp/1.0', 'Accept': 'application/json' },
+      timeout: 3500
+    }, (res) => {
+      let raw = '';
+      res.on('data', c => { raw += c; });
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(raw);
+          if (data && (data.active || Array.isArray(data.history))) {
+            const store = loadParking();
+            if (!store[u]) store[u] = { active: null, history: [] };
+
+            let changed = false;
+            if (data.active) {
+              const famTime = new Date(data.active.timestamp || 0).getTime();
+              const curTime = store[u].active ? new Date(store[u].active.timestamp || 0).getTime() : 0;
+              if (famTime > curTime) {
+                if (store[u].active) {
+                  store[u].history.unshift(store[u].active);
+                }
+                store[u].active = data.active;
+                changed = true;
+                console.log(`[PARKING GPP] Sincronizzato parcheggio attivo da Famylia per ${u}: ${data.active.addressShort}`);
+              }
+            }
+
+            const seen = new Set();
+            const merged = [];
+            [...(store[u].history || []), ...(data.history || [])].forEach(it => {
+              if (it && it.id && !seen.has(it.id)) {
+                seen.add(it.id);
+                merged.push(it);
+              }
+            });
+            merged.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+            if (merged.length !== store[u].history.length) {
+              store[u].history = merged.slice(0, 500);
+              changed = true;
+            }
+
+            if (changed) {
+              saveParking(store);
+            }
+          }
+        } catch (e) {}
+        resolve();
+      });
+    });
+    req.on('error', () => resolve());
+    req.on('timeout', () => { req.destroy(); resolve(); });
+  });
+}
+
 function reverseGeocodeServer(lat, lng) {
   return new Promise((resolve) => {
     const latNum = parseFloat(lat);
@@ -660,25 +718,63 @@ const server = http.createServer((req, res) => {
     const parsedUrl = url.parse(req.url, true);
     const query = parsedUrl.query || {};
 
-    // 1. GET /api/parking (Restituisce parcheggio attivo e storico dell'utente)
+    // 1. GET /api/parking (Restituisce parcheggio attivo e storico dell'utente, sincronizzando da Famylia)
     if (reqPath === '/api/parking' && req.method === 'GET') {
       const user = normalizeParkingUser(query.user || 'Giampy');
-      const store = loadParking();
-      const userData = store[user] || { active: null, history: [] };
-      return sendJson(200, {
-        user: user,
-        active: userData.active || null,
-        history: userData.history || []
+      syncParkingWithFamylia(user).finally(() => {
+        const store = loadParking();
+        const userData = store[user] || { active: null, history: [] };
+        return sendJson(200, {
+          user: user,
+          active: userData.active || null,
+          history: userData.history || []
+        });
       });
+      return;
     }
 
     // 2. GET o POST /api/auto-park (Compatibile al 100% con MacroDroid, Scorciatoie iOS, Webhook)
     if ((reqPath === '/api/auto-park' || reqPath === '/api/parking/auto-park') && (req.method === 'GET' || req.method === 'POST')) {
       const handleAutoPark = async (body) => {
         try {
-          const user = normalizeParkingUser(query.user || body.user || 'Giampy');
-          let lat = parseFloat(String(query.lat || query.latitude || body.lat || body.latitude || '').replace(',', '.'));
-          let lng = parseFloat(String(query.lng || query.lon || query.longitude || body.lng || body.longitude || '').replace(',', '.'));
+          const rawUser = query.user || body.user;
+          const rawPin = query.pin || body.pin;
+          const user = normalizeParkingUser(rawUser || rawPin || 'Giampy');
+
+          let rawLat = query.lat || query.latitude || body.lat || body.latitude;
+          let rawLng = query.lng || query.lon || query.longitude || body.lng || body.lon;
+          const rawLoc = query.loc || query.location || body.loc || body.location;
+
+          // Se rawLat e rawLng sono presenti entrambi, converti l'eventuale virgola decimale (es. 39,225 inviato da MacroDroid italiano) in punto
+          if (rawLat && rawLng) {
+            rawLat = String(rawLat).trim().replace(',', '.');
+            rawLng = String(rawLng).trim().replace(',', '.');
+          } else if ((!rawLat || !rawLng) && rawLoc && typeof rawLoc === 'string' && rawLoc.includes(',')) {
+            const parts = rawLoc.split(',');
+            if (parts.length === 4) {
+              // Caso loc="39,2252,9,1289"
+              rawLat = `${parts[0].trim()}.${parts[1].trim()}`;
+              rawLng = `${parts[2].trim()}.${parts[3].trim()}`;
+            } else {
+              rawLat = parts[0].trim().replace(',', '.');
+              rawLng = parts[1].trim().replace(',', '.');
+            }
+          } else if (rawLat && typeof rawLat === 'string' && rawLat.includes(',') && !rawLng) {
+            const parts = rawLat.split(',');
+            rawLat = parts[0].trim();
+            rawLng = parts[1].trim();
+          }
+
+          // Pulisci eventuali placeholder non risolti da MacroDroid (es. "[last_loc_lat]", "0.0", "null")
+          const isPlaceholder = (v) => !v || v.includes('[') || v.includes('{') || v === 'null' || v === 'undefined' || v === '0' || v === '0.0';
+
+          let lat = isPlaceholder(rawLat) ? NaN : parseFloat(rawLat);
+          let lng = isPlaceholder(rawLng) ? NaN : parseFloat(rawLng);
+          if (lat === 0 && lng === 0) {
+            lat = NaN;
+            lng = NaN;
+          }
+
           const accuracy = Math.round(parseFloat(String(query.accuracy || body.accuracy || 5).replace(',', '.')) || 5);
           const trigger = query.trigger || body.trigger || 'bluetooth_auto';
           const notes = (query.notes || body.notes || '').trim();
@@ -688,7 +784,7 @@ const server = http.createServer((req, res) => {
           if (!Array.isArray(parkingStore[user].history)) parkingStore[user].history = [];
 
           let geo;
-          if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) {
+          if (isNaN(lat) || isNaN(lng)) {
             const lastKnown = parkingStore[user].active || (parkingStore[user].history.length > 0 ? parkingStore[user].history[0] : null);
             if (lastKnown && lastKnown.lat && lastKnown.lng) {
               lat = lastKnown.lat;
@@ -734,6 +830,12 @@ const server = http.createServer((req, res) => {
           parkingStore[user].active = newParking;
           saveParking(parkingStore);
           console.log(`[PARKING GPP] Auto parcheggiata salvata per ${user}: ${geo.addressShort} (trigger: ${trigger})`);
+
+          // Mirroring verso famylia.onrender.com per allineamento totale bidirezionale
+          try {
+            const famMirrorUrl = `https://famylia.onrender.com/api/auto-park?user=${encodeURIComponent(user)}&lat=${lat}&lng=${lng}&accuracy=${accuracy}&trigger=${encodeURIComponent(trigger)}&notes=${encodeURIComponent(notes)}`;
+            https.get(famMirrorUrl, { timeout: 4000 }, () => {}).on('error', () => {});
+          } catch (e) {}
 
           if (query.format === 'html') {
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

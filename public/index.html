@@ -4488,6 +4488,37 @@
           }
         } catch (e) {}
 
+        // Sincronizzazione automatica e immediata anche da Famylia
+        try {
+          const famRes = await fetch(`https://famylia.onrender.com/api/parking?user=${encodeURIComponent(user)}&_t=${Date.now()}`, {
+            cache: 'no-store'
+          });
+          if (famRes.ok) {
+            const famData = await famRes.json();
+            if (famData && (famData.active || Array.isArray(famData.history))) {
+              if (!serverData) {
+                serverData = famData;
+              } else {
+                const famTime = famData.active ? new Date(famData.active.timestamp || 0).getTime() : 0;
+                const srvTime = serverData.active ? new Date(serverData.active.timestamp || 0).getTime() : 0;
+                if (famTime > srvTime) {
+                  serverData.active = famData.active;
+                }
+                const seenH = new Set();
+                const combo = [];
+                [...(serverData.history || []), ...(famData.history || [])].forEach(h => {
+                  if (h && h.id && !seenH.has(h.id)) {
+                    seenH.add(h.id);
+                    combo.push(h);
+                  }
+                });
+                combo.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+                serverData.history = combo;
+              }
+            }
+          }
+        } catch (e) {}
+
         if (serverData) {
           if (serverData.active) {
             parkingActive = serverData.active;

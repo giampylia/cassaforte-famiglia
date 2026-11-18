@@ -1,7 +1,48 @@
 {
   "Giampy": {
-    "active": null,
+    "active": {
+      "id": "park-1795007483157-gg95",
+      "section": "parking",
+      "user": "Giampy",
+      "owner": "Giampy",
+      "lat": 39.224953,
+      "lng": 9.1293873,
+      "accuracy": 5,
+      "address": "Via Genneruxi 1a, Casteddu/Cagliari",
+      "addressShort": "Via Genneruxi 1a, Casteddu/Cagliari",
+      "timestamp": "2026-11-18T13:11:23.157Z",
+      "trigger": "bluetooth_auto",
+      "notes": "Nissan"
+    },
     "history": [
+      {
+        "id": "park-1794989033095-2h4j",
+        "section": "parking",
+        "user": "Giampy",
+        "owner": "Giampy",
+        "lat": 39.23612,
+        "lng": 9.18345,
+        "accuracy": 5,
+        "address": "Via Turati, Quartu Sant'Aleni/Quartu Sant'Elena",
+        "addressShort": "Via Turati, Quartu Sant'Elena",
+        "timestamp": "2026-11-18T08:03:53.095Z",
+        "trigger": "bluetooth_auto",
+        "notes": "Nissan"
+      },
+      {
+        "id": "park-1794943545523-04mn",
+        "section": "parking",
+        "user": "Giampy",
+        "owner": "Giampy",
+        "lat": 39.2336107,
+        "lng": 9.1853983,
+        "accuracy": 1,
+        "address": "Viale Cristoforo Colombo 177, Quartu Sant'Elena",
+        "addressShort": "Viale Cristoforo Colombo 177",
+        "timestamp": "2026-11-17T19:25:45.523Z",
+        "trigger": "manuale_gps",
+        "notes": ""
+      },
       {
         "id": "park-20261003-221350",
         "section": "parking",
