@@ -132,19 +132,39 @@ export const AnagraficaSociView: React.FC = () => {
     }
   };
 
-  // Arricchisce ogni profilo con Nome, Cognome e Ruolo principale separati
+  // Arricchisce ogni profilo con Nome, Cognome e Ruolo principale separati e deduplica le tessere
   const enrichedProfiles = useMemo(() => {
-    return profiles
-      .filter((p) => !(p.id === 'admin-1' || p.member_number === '000' || /ufficio\s+presenze/i.test(p.full_name || '')))
-      .map((p) => {
-        const parts = getMemberParts(p);
-        return {
-          ...p,
-          parsedFirstName: parts.firstName,
-          parsedLastName: parts.lastName,
-          parsedRole: parts.primaryRole,
-        };
-      });
+    const seenNumbers = new Set<string>();
+    const deduplicated: Profile[] = [];
+
+    for (const p of profiles) {
+      if (!p) continue;
+      if (
+        p.id === 'admin-1' ||
+        p.member_number === '000' ||
+        /ufficio\s+presenze/i.test(p.full_name || '')
+      ) {
+        continue;
+      }
+      const numKey = String(p.member_number || '').trim().toLowerCase();
+      if (numKey) {
+        if (seenNumbers.has(numKey)) {
+          continue; // Ignora duplicati
+        }
+        seenNumbers.add(numKey);
+      }
+      deduplicated.push(p);
+    }
+
+    return deduplicated.map((p) => {
+      const parts = getMemberParts(p);
+      return {
+        ...p,
+        parsedFirstName: parts.firstName,
+        parsedLastName: parts.lastName,
+        parsedRole: parts.primaryRole,
+      };
+    });
   }, [profiles]);
 
   // Filtro e Ordinamento per tutti i campi (Tessera, Nome, Cognome, Sede, Ruolo) con ricerca multi-parola

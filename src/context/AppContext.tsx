@@ -955,13 +955,9 @@ function normalizeSuperAdminProfile(p?: Partial<Profile> | null): Profile {
   };
 }
 
-// 7726 corrisponde a Giampiero Pilia con ruoli Amministrativo e Componente CD
+// 7726 corrisponde a Giampiero Pilia con ruolo Amministrativo e Componente CD (non LsC)
 function normalizeProfile7726(p?: Partial<Profile> | null): Profile {
   const base = INITIAL_PROFILES[1]; // 7726 Giampiero Pilia
-  const existingRoles = Array.isArray(p?.roles)
-    ? p!.roles!.filter((r) => r !== 'Socio' && r !== 'Amministratore')
-    : [];
-  const mergedRoles = Array.from(new Set(['Amministrativo', ...existingRoles]));
 
   return {
     ...base,
@@ -975,7 +971,9 @@ function normalizeProfile7726(p?: Partial<Profile> | null): Profile {
     role: 'member',
     is_super_admin: false,
     is_cd: true,
-    roles: mergedRoles,
+    roles: ['Amministrativo'],
+    phone: p?.phone || '070 881234',
+    email: p?.email || 'giampiero.lia@gmail.com',
   };
 }
 
@@ -1043,15 +1041,28 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
   }
 
   // 2. Profilo 7726 (Giampiero Pilia - Amministrativo e CD)
-  // Non deve MAI essere cancellato se non dall'Amministratore (2406)
+  // Non deve MAI essere cancellato se non dall'Amministratore (2406) e deve esistere in UNA SOLA copia
+  const indices7726: number[] = [];
+  list.forEach((p, idx) => {
+    if (isProtectedAmministrativo7726(p)) {
+      indices7726.push(idx);
+    }
+  });
+
   if (!getAdminDeleted7726()) {
-    const idx7726 = list.findIndex(
-      (p) => String(p.member_number).trim() === '7726' || p.id === 'admin-7726'
-    );
-    if (idx7726 >= 0) {
-      list[idx7726] = normalizeProfile7726(list[idx7726]);
-    } else {
+    if (indices7726.length === 0) {
       list.push(normalizeProfile7726());
+    } else {
+      const preferredIdx = indices7726[0];
+      list[preferredIdx] = normalizeProfile7726(list[preferredIdx]);
+      // Rimuovi tutte le copie duplicate di 7726
+      for (let i = indices7726.length - 1; i > 0; i--) {
+        list.splice(indices7726[i], 1);
+      }
+    }
+  } else {
+    for (let i = indices7726.length - 1; i >= 0; i--) {
+      list.splice(indices7726[i], 1);
     }
   }
 
@@ -1140,19 +1151,23 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
     });
   }
 
-  return list.map((p) => {
+  // 5. Normalizzazione e deduplica assoluta per numero di tessera
+  const seenMemberNumbers = new Set<string>();
+  const finalUniqueList: Profile[] = [];
+
+  for (const raw of list) {
+    if (!raw) continue;
+    let p = raw;
     if (isProtectedSuperAdmin(p)) {
-      return normalizeSuperAdminProfile(p);
-    }
-    if (isProtectedAmministrativo7726(p)) {
-      return normalizeProfile7726(p);
-    }
-    if (isProtectedPresidenzaCinus(p)) {
+      p = normalizeSuperAdminProfile(p);
+    } else if (isProtectedAmministrativo7726(p)) {
+      p = normalizeProfile7726(p);
+    } else if (isProtectedPresidenzaCinus(p)) {
       const existingRoles = p.roles || [];
       const rolesWithPresidenza = existingRoles.includes('Presidenza')
         ? existingRoles
         : ['Presidenza', ...existingRoles.filter((r) => r !== 'Presidenza')];
-      return {
+      p = {
         ...p,
         member_number: '0000',
         first_name: 'Aldo',
@@ -1161,52 +1176,66 @@ function ensureSuperAdminAndRoles(rawProfiles: Profile[]): Profile[] {
         is_cd: true,
         roles: rolesWithPresidenza,
       };
-    }
-    const numTrim = String(p.member_number || '').trim();
-    const isNives =
-      numTrim === '9999' ||
-      p.id === 'segreteria-9999' ||
-      Boolean(
-        p.full_name &&
-          p.full_name.toLowerCase().includes('nives') &&
-          p.full_name.toLowerCase().includes('cocco')
-      );
-    if (isNives) {
-      return normalizeProtectedSegreteriaProfile('9999', p);
-    }
-    const isJosh =
-      numTrim === '9998' ||
-      p.id === 'segreteria-9998' ||
-      Boolean(
-        p.full_name &&
-          p.full_name.toLowerCase().includes('josh') &&
-          p.full_name.toLowerCase().includes('cocco')
-      );
-    if (isJosh) {
-      return normalizeProtectedSegreteriaProfile('9998', p);
-    }
-    const initialMatch = INITIAL_PROFILES.find((ip) => ip.member_number === p.member_number);
-    const roles = p.roles && p.roles.length > 0 ? p.roles : initialMatch?.roles || ['Socio'];
-    const is_cd = typeof p.is_cd === 'boolean' ? p.is_cd : roles.includes('CD') || Boolean(initialMatch?.is_cd);
-    const cleanRoles = roles.filter((r) => r !== 'CD');
-    const finalRoles = cleanRoles.length > 0 ? cleanRoles : ['Socio'];
+    } else {
+      const numTrim = String(p.member_number || '').trim();
+      const isNives =
+        numTrim === '9999' ||
+        p.id === 'segreteria-9999' ||
+        Boolean(
+          p.full_name &&
+            p.full_name.toLowerCase().includes('nives') &&
+            p.full_name.toLowerCase().includes('cocco')
+        );
+      if (isNives) {
+        p = normalizeProtectedSegreteriaProfile('9999', p);
+      } else {
+        const isJosh =
+          numTrim === '9998' ||
+          p.id === 'segreteria-9998' ||
+          Boolean(
+            p.full_name &&
+              p.full_name.toLowerCase().includes('josh') &&
+              p.full_name.toLowerCase().includes('cocco')
+          );
+        if (isJosh) {
+          p = normalizeProtectedSegreteriaProfile('9998', p);
+        } else {
+          const initialMatch = INITIAL_PROFILES.find((ip) => ip.member_number === p.member_number);
+          const roles = p.roles && p.roles.length > 0 ? p.roles : initialMatch?.roles || ['Socio'];
+          const is_cd = typeof p.is_cd === 'boolean' ? p.is_cd : roles.includes('CD') || Boolean(initialMatch?.is_cd);
+          const cleanRoles = roles.filter((r) => r !== 'CD');
+          const finalRoles = cleanRoles.length > 0 ? cleanRoles : ['Socio'];
 
-    const cleanedFirst = cleanPersonNameField(p.first_name) || initialMatch?.first_name || '';
-    const cleanedLast = cleanPersonNameField(p.last_name) || initialMatch?.last_name || '';
-    const isPlaceholderFull = /^socio\s+(tessera\s+)?n?[°.]?\s*\d+/i.test((p.full_name || '').trim());
-    const cleanedFull = isPlaceholderFull
-      ? p.full_name
-      : cleanPersonNameField(p.full_name) || `${cleanedFirst} ${cleanedLast}`.trim() || p.full_name;
+          const cleanedFirst = cleanPersonNameField(p.first_name) || initialMatch?.first_name || '';
+          const cleanedLast = cleanPersonNameField(p.last_name) || initialMatch?.last_name || '';
+          const isPlaceholderFull = /^socio\s+(tessera\s+)?n?[°.]?\s*\d+/i.test((p.full_name || '').trim());
+          const cleanedFull = isPlaceholderFull
+            ? p.full_name
+            : cleanPersonNameField(p.full_name) || `${cleanedFirst} ${cleanedLast}`.trim() || p.full_name;
 
-    return {
-      ...p,
-      first_name: cleanedFirst,
-      last_name: cleanedLast,
-      full_name: cleanedFull,
-      is_cd,
-      roles: finalRoles,
-    };
-  });
+          p = {
+            ...p,
+            first_name: cleanedFirst,
+            last_name: cleanedLast,
+            full_name: cleanedFull,
+            is_cd,
+            roles: finalRoles,
+          };
+        }
+      }
+    }
+
+    const numKey = String(p.member_number || '').trim().toLowerCase();
+    if (numKey) {
+      if (seenMemberNumbers.has(numKey)) {
+        continue; // Elimina rigorosamente qualsiasi duplicato dello stesso numero di tessera
+      }
+      seenMemberNumbers.add(numKey);
+    }
+    finalUniqueList.push(p);
+  }
+
+  return finalUniqueList;
 }
 
 function sanitizeQueueState(q: QueueState, knownProfiles?: Profile[]): QueueState {
