@@ -3062,7 +3062,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   }, [attendance, currentUser, todayIsoPrefix]);
 
-  // Login: per i componenti CD (cd = sì) la password è Qu3, per i soci ordinari è la tessera
+  // Login: per i componenti CD (cd = sì) la password è 100000, per i soci ordinari è la tessera
   const signInMember = (
     rawCardNumber: string,
     password?: string
@@ -3077,9 +3077,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { error: 'Digita il numero della tua tessera per entrare.' };
     }
 
-    // Accesso rapido se viene digitata direttamente la password Qu3
-    if (isValidCdPassword(cleaned)) {
-      return { error: null, isCdDirectAccess: true };
+    if (cleaned === '100000') {
+      return {
+        error: '100000 è la password per i componenti CD. Digita prima il tuo numero di tessera.',
+      };
     }
 
     // Identificazione del profilo
@@ -3123,7 +3124,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Controllo se il profilo appartiene al Consiglio Direttivo (cd = sì)
     const isCd = isCdMemberProfile(matched);
     if (isCd) {
-      // Per i componenti CD la password è "Qu3", non più il numero del badge
+      // Per i componenti CD la password è "100000", non più il numero del badge
       if (!password || !password.trim()) {
         return {
           error: null,
@@ -3133,7 +3134,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       if (!isValidCdPassword(password)) {
         return {
-          error: 'Password errata per componente CD. Inserisci la password corretta (Qu3).',
+          error: 'Password errata. Per i componenti CD la password è 100000.',
           requiresPassword: true,
           targetProfile: matched,
         };
@@ -3187,7 +3188,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setActiveSection('admin_dashboard');
       return { error: null };
     }
-    if (cleaned === 'qu3') {
+    if (cleaned === 'qu3' || cleaned === '100000') {
       const cdP = profiles.find((p) => isProtectedSuperAdmin(p)) || normalizeProfile7726();
       setCurrentUser(cdP);
       setActiveSection('menu');

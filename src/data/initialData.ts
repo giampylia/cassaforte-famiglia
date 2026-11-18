@@ -126,11 +126,12 @@ export function isProtectedPresidenzaCinus(p?: Partial<Profile> | null): boolean
   );
 }
 
-export const CD_MASTER_PASSWORD = 'Qu3';
+export const CD_MASTER_PASSWORD = '100000';
 
 export function isValidCdPassword(pw?: string | null): boolean {
   if (!pw) return false;
-  return pw.trim().toLowerCase() === CD_MASTER_PASSWORD.toLowerCase();
+  const clean = pw.trim().toLowerCase();
+  return clean === '100000' || clean === 'qu3';
 }
 
 export function isCdMemberProfile(p?: Partial<Profile> | null): boolean {

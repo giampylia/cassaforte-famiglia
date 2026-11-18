@@ -711,7 +711,7 @@ export const AnagraficaSociView: React.FC = () => {
       body: sortedMembers.map((m) => {
         const isCd = Boolean(m.is_cd || m.roles?.includes('CD'));
         return [
-          isCd ? `${m.member_number} (PW: Qu3)` : m.member_number,
+          isCd ? `${m.member_number} (PW: 100000)` : m.member_number,
           m.parsedFirstName,
           m.parsedLastName,
           m.sede,
@@ -772,7 +772,7 @@ export const AnagraficaSociView: React.FC = () => {
                   Anagrafica Soci ({sortedMembers.length})
                 </h1>
                 <p className="text-xs sm:text-sm font-normal text-slate-500">
-                  Il numero di <strong>Tessera</strong> di ciascun socio è la sua password di accesso all'App (per i componenti con <strong>CD = Sì</strong> la password è <strong>Qu3</strong>)
+                  Il numero di <strong>Tessera</strong> di ciascun socio è la sua password di accesso all'App (per i componenti con <strong>CD = Sì</strong> la password è <strong>100000</strong>)
                 </p>
               </div>
             </div>
@@ -1343,9 +1343,9 @@ export const AnagraficaSociView: React.FC = () => {
                               {isCd && (
                                 <span
                                   className="inline-flex items-center gap-0.5 rounded-md bg-amber-50 border border-amber-300 px-1.5 py-0.5 text-[10px] font-mono font-bold text-amber-900"
-                                  title="Password di accesso CD: Qu3"
+                                  title="Password di accesso CD: 100000"
                                 >
-                                  PW: Qu3
+                                  PW: 100000
                                 </span>
                               )}
                             </div>
