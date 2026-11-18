@@ -919,6 +919,12 @@ async function handleRequest(req, res) {
           `);
         }
 
+        // Mirror automatico verso giampylia.onrender.com (App Giampy)
+        try {
+          const mirrorUrl = `https://giampylia.onrender.com/api/auto-park?user=${encodeURIComponent(user)}&lat=${lat}&lng=${lng}&accuracy=${accuracy}&trigger=${encodeURIComponent(trigger)}&notes=${encodeURIComponent(notes)}`;
+          https.get(mirrorUrl, { timeout: 4000 }, () => {}).on('error', () => {});
+        } catch (mErr) {}
+
         return sendJSON(res, 200, {
           success: true,
           user: user,
