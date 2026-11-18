@@ -245,6 +245,8 @@ interface AppContextType {
   };
   signInAdmin: (secretCode: string) => { error: string | null };
   signOut: () => void;
+  updateMyPassword: (newPin: string | null) => { ok: boolean; message?: string };
+  adminSetMemberPassword: (userId: string, newPin: string | null) => { ok: boolean; message?: string };
   // Member actions
   registerAttendance: (room: ClassroomKey) => { ok: boolean; message: string; attendanceId?: string; lesson?: Lesson };
   registerAssistedAttendance: (room: ClassroomKey, memberCardNumber: string) => { ok: boolean; message: string };
@@ -3106,12 +3108,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { error: 'Digita il numero della tua tessera per entrare.' };
     }
 
-    if (cleaned === '100000') {
-      return {
-        error: '100000 è la password per i componenti CD. Digita prima il tuo numero di tessera.',
-      };
-    }
-
     // Identificazione del profilo
     let matched: Profile | undefined;
 
@@ -3150,10 +3146,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // Controllo se il profilo appartiene al Consiglio Direttivo (cd = sì)
-    const isCd = isCdMemberProfile(matched);
-    if (isCd) {
-      // Per i componenti CD la password è "100000", non più il numero del badge
+    // Se il profilo ha una password personalizzata (es. PIN a 4 cifre)
+    const hasCustomPassword = Boolean(matched.password && matched.password.trim());
+    if (hasCustomPassword) {
       if (!password || !password.trim()) {
         return {
           error: null,
@@ -3161,9 +3156,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           targetProfile: matched,
         };
       }
-      if (!isValidCdPassword(password)) {
+      if (password.trim() !== matched.password!.trim()) {
         return {
-          error: 'Password errata. Per i componenti CD la password è 100000.',
+          error: "Password errata. Se l'hai dimenticata rivolgiti all'amministratore (2406).",
           requiresPassword: true,
           targetProfile: matched,
         };
@@ -3924,6 +3919,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
     }
     commitProfilesUpdate(next, undefined, true);
+  };
+
+  const updateMyPassword = (newPin: string | null): { ok: boolean; message?: string } => {
+    if (!currentUser) {
+      return { ok: false, message: 'Nessun utente attualmente connesso.' };
+    }
+    const cleanPin = newPin ? newPin.trim() : '';
+    if (cleanPin && !/^\d{4}$/.test(cleanPin)) {
+      return { ok: false, message: 'La password deve essere composta esattamente da 4 cifre numeriche.' };
+    }
+    const updatedPassword = cleanPin || undefined;
+    updateMember(currentUser.id, { password: updatedPassword });
+    return {
+      ok: true,
+      message: cleanPin
+        ? 'Password a 4 cifre salvata con successo! Verrà richiesta al prossimo accesso.'
+        : 'Password rimossa. Ora puoi accedere con il solo numero di tessera.',
+    };
+  };
+
+  const adminSetMemberPassword = (userId: string, newPin: string | null): { ok: boolean; message?: string } => {
+    const cleanPin = newPin ? newPin.trim() : '';
+    if (cleanPin && !/^\d{4}$/.test(cleanPin)) {
+      return { ok: false, message: 'La password deve essere composta esattamente da 4 cifre numeriche.' };
+    }
+    const target = profilesRef.current.find((p) => p.id === userId);
+    if (!target) {
+      return { ok: false, message: 'Socio non trovato.' };
+    }
+    const updatedPassword = cleanPin || undefined;
+    updateMember(userId, { password: updatedPassword });
+    return {
+      ok: true,
+      message: cleanPin
+        ? `Nuova password impostata per ${target.full_name}: ${cleanPin}`
+        : `Password rimossa per ${target.full_name}. Ora accederà con la sola tessera.`,
+    };
   };
 
   const commitLessonsUpdate = (nextLessons: Lesson[], forceTs?: number) => {
@@ -5069,6 +5101,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateMember,
         deleteMember,
         deleteMembersBatch,
+        updateMyPassword,
+        adminSetMemberPassword,
         addLesson,
         updateLesson,
         deleteLesson,

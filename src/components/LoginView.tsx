@@ -8,13 +8,13 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { Profile, isValidCdPassword } from '../data/initialData';
+import { Profile } from '../data/initialData';
 
 export const LoginView: React.FC = () => {
   const { signInMember, signInAdmin } = useApp();
   const [cardNumber, setCardNumber] = useState('');
-  const [cdPassword, setCdPassword] = useState('');
-  const [pendingCdProfile, setPendingCdProfile] = useState<Profile | null>(null);
+  const [userPassword, setUserPassword] = useState('');
+  const [pendingProfile, setPendingProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Modal riservato esclusivamente al personale dell'Ufficio Presenze / Didattica
@@ -22,28 +22,24 @@ export const LoginView: React.FC = () => {
   const [staffPin, setStaffPin] = useState('');
   const [staffError, setStaffError] = useState<string | null>(null);
 
-  const isPasswordStep = pendingCdProfile !== null;
+  const isPasswordStep = pendingProfile !== null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (isPasswordStep) {
-      const cleanPw = cdPassword.trim();
+    if (isPasswordStep && pendingProfile) {
+      const cleanPw = userPassword.trim();
       if (!cleanPw) {
-        setError('Inserisci la password (100000).');
+        setError('Inserisci la tua password a 4 cifre.');
         return;
       }
-      if (!isValidCdPassword(cleanPw)) {
-        setError('Password errata. Per i componenti CD la password è 100000.');
-        return;
-      }
-      const res = signInMember(pendingCdProfile.member_number, cleanPw);
+      const res = signInMember(pendingProfile.member_number, cleanPw);
       if (res.error) {
         setError(res.error);
       } else {
         setError(null);
-        setPendingCdProfile(null);
-        setCdPassword('');
+        setPendingProfile(null);
+        setUserPassword('');
       }
       return;
     }
@@ -54,16 +50,11 @@ export const LoginView: React.FC = () => {
       return;
     }
 
-    if (cleanCard === '100000') {
-      setError('100000 è la password per i componenti CD. Digita prima il tuo numero di tessera.');
-      return;
-    }
-
     const res = signInMember(cleanCard);
     if (res.requiresPassword && res.targetProfile) {
       setError(null);
-      setPendingCdProfile(res.targetProfile);
-      setCdPassword('');
+      setPendingProfile(res.targetProfile);
+      setUserPassword('');
       return;
     }
 
@@ -88,7 +79,7 @@ export const LoginView: React.FC = () => {
   const appendDigit = (digit: string) => {
     setError(null);
     if (isPasswordStep) {
-      setCdPassword((prev) => (prev.length < 10 ? prev + digit : prev));
+      setUserPassword((prev) => (prev.length < 4 ? prev + digit : prev));
     } else {
       setCardNumber((prev) => (prev.length < 10 ? prev + digit : prev));
     }
@@ -97,7 +88,7 @@ export const LoginView: React.FC = () => {
   const backspace = () => {
     setError(null);
     if (isPasswordStep) {
-      setCdPassword((prev) => prev.slice(0, -1));
+      setUserPassword((prev) => prev.slice(0, -1));
     } else {
       setCardNumber((prev) => prev.slice(0, -1));
     }
@@ -106,7 +97,7 @@ export const LoginView: React.FC = () => {
   const clearInput = () => {
     setError(null);
     if (isPasswordStep) {
-      setCdPassword('');
+      setUserPassword('');
     } else {
       setCardNumber('');
     }
@@ -114,8 +105,8 @@ export const LoginView: React.FC = () => {
 
   const cancelPasswordStep = () => {
     setError(null);
-    setPendingCdProfile(null);
-    setCdPassword('');
+    setPendingProfile(null);
+    setUserPassword('');
   };
 
   return (
@@ -153,18 +144,18 @@ export const LoginView: React.FC = () => {
             </>
           ) : (
             <>
-              {/* Profilo CD Riconosciuto */}
-              <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3.5 mb-3 text-left flex items-center justify-between">
+              {/* Profilo con password personalizzata riconosciuto */}
+              <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3.5 mb-3 text-left flex items-center justify-between">
                 <div>
                   <p className="text-base font-bold text-slate-900">
-                    {pendingCdProfile.full_name}
+                    {pendingProfile.full_name}
                   </p>
                   <p className="text-xs text-slate-600">
-                    Tessera N° <strong className="text-slate-800 font-semibold">{pendingCdProfile.member_number}</strong>
+                    Tessera N° <strong className="text-slate-800 font-semibold">{pendingProfile.member_number}</strong>
                   </p>
                 </div>
                 <span className="text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                  CD = Sì
+                  PIN Attivo
                 </span>
               </div>
 
@@ -173,11 +164,11 @@ export const LoginView: React.FC = () => {
                   htmlFor="member-password-input"
                   className="block text-xl sm:text-2xl font-normal text-slate-800 flex items-center justify-center gap-2"
                 >
-                  <KeyRound className="h-6 w-6 text-amber-600" />
-                  <span>Digita la Password CD</span>
+                  <KeyRound className="h-6 w-6 text-emerald-700" />
+                  <span>Digita la tua Password</span>
                 </label>
                 <p className="mt-1 text-sm font-normal text-slate-500">
-                  Per i componenti del Consiglio Direttivo la password è <strong className="text-slate-800 font-semibold">100000</strong>
+                  Inserisci il tuo PIN personale a 4 cifre
                 </p>
               </div>
             </>
@@ -204,15 +195,16 @@ export const LoginView: React.FC = () => {
                   id="member-password-input"
                   type="password"
                   inputMode="numeric"
-                  value={cdPassword}
+                  maxLength={4}
+                  value={userPassword}
                   onChange={(e) => {
                     setError(null);
-                    setCdPassword(e.target.value.replace(/[^\d]/g, ''));
+                    setUserPassword(e.target.value.replace(/[^\d]/g, '').slice(0, 4));
                   }}
-                  placeholder="Password (100000)"
-                  aria-label="Digita la password CD (100000)"
+                  placeholder="PIN a 4 cifre (••••)"
+                  aria-label="Digita il tuo PIN a 4 cifre"
                   autoFocus
-                  className="w-full h-16 sm:h-20 rounded-2xl border border-amber-300 bg-amber-50/50 px-4 text-center text-2xl sm:text-3xl font-bold tracking-widest text-slate-900 placeholder:text-slate-400 placeholder:text-lg sm:placeholder:text-xl focus:bg-white focus:border-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-600/20 transition"
+                  className="w-full h-16 sm:h-20 rounded-2xl border border-emerald-400 bg-emerald-50/40 px-4 text-center text-3xl font-bold tracking-[0.5em] text-slate-900 placeholder:text-slate-400 placeholder:text-lg sm:placeholder:text-xl placeholder:tracking-normal focus:bg-white focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 transition"
                 />
               )}
             </div>
@@ -261,7 +253,7 @@ export const LoginView: React.FC = () => {
 
             <button
               type="submit"
-              disabled={!isPasswordStep ? !cardNumber.trim() : !cdPassword.trim()}
+              disabled={!isPasswordStep ? !cardNumber.trim() : !userPassword.trim()}
               className="w-full min-h-[68px] sm:min-h-[74px] rounded-2xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white text-xl sm:text-2xl font-normal tracking-normal shadow-sm flex items-center justify-center gap-3 active:scale-[0.99] transition"
             >
               <LogIn className="h-6 w-6 stroke-[1.75]" />
@@ -284,7 +276,7 @@ export const LoginView: React.FC = () => {
         </div>
       </div>
 
-      {/* Footer minimale senza pulsante CD */}
+      {/* Footer minimale */}
       <footer className="mt-8 text-center">
         <button
           type="button"

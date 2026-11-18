@@ -36,6 +36,7 @@ export interface Profile {
   is_super_admin?: boolean;
   is_cd?: boolean;
   roles?: string[];
+  password?: string;
   phone?: string;
   email?: string;
   joined_year?: number;

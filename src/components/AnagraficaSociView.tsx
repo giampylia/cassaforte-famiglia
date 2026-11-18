@@ -14,6 +14,7 @@ import {
   FileDown,
   Users,
   ShieldCheck,
+  KeyRound,
 } from 'lucide-react';
 import { useApp, ImportedMemberRow } from '../context/AppContext';
 import {
@@ -58,10 +59,18 @@ export const AnagraficaSociView: React.FC = () => {
     updateMember,
     deleteMember,
     deleteMembersBatch,
+    adminSetMemberPassword,
   } = useApp();
 
   // Sia Giampiero Pilia (7796) sia l'accesso Amministratore (000) possono gestire/eliminare soci in Anagrafica
   const canManageMembers = Boolean(isSuperAdmin || currentUser?.role === 'admin');
+
+  // L'amministratore (badge 2406, superadmin o admin) può visualizzare e gestire i PIN a 4 cifre di tutti i soci
+  const isBadge2406 = Boolean(
+    isSuperAdmin ||
+    currentUser?.role === 'admin' ||
+    String(currentUser?.member_number).trim() === '2406'
+  );
 
   // Selezione multipla soci per eliminazione rapida di gruppo
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -121,6 +130,52 @@ export const AnagraficaSociView: React.FC = () => {
   const showNotice = (type: 'success' | 'error', text: string) => {
     setFeedbackMsg({ type, text });
     setTimeout(() => setFeedbackMsg(null), 5000);
+  };
+
+  // Modal Amministratore Gestione Password / PIN del Socio (Badge 2406)
+  const [adminPwMember, setAdminPwMember] = useState<Profile | null>(null);
+  const [adminPinInput, setAdminPinInput] = useState('');
+  const [adminPwError, setAdminPwError] = useState<string | null>(null);
+
+  const handleOpenAdminPwModal = (m: Profile) => {
+    setAdminPwMember(m);
+    setAdminPinInput(m.password || '');
+    setAdminPwError(null);
+  };
+
+  const handleSaveAdminPin = async () => {
+    if (!adminPwMember) return;
+    const cleanPin = adminPinInput.trim();
+    if (cleanPin.length > 0 && !/^\d{4}$/.test(cleanPin)) {
+      setAdminPwError('Il PIN deve essere composto esattamente da 4 cifre numeriche');
+      return;
+    }
+    const res = await adminSetMemberPassword(adminPwMember.id, cleanPin);
+    if (res.success) {
+      showNotice(
+        'success',
+        cleanPin
+          ? `✓ PIN di ${adminPwMember.full_name} (Tessera ${adminPwMember.member_number}) impostato a: ${cleanPin}`
+          : `✓ PIN di ${adminPwMember.full_name} rimosso. Ora accede direttamente con il numero tessera.`
+      );
+      setAdminPwMember(null);
+    } else {
+      setAdminPwError(res.error || 'Errore durante il salvataggio');
+    }
+  };
+
+  const handleResetAdminPin = async () => {
+    if (!adminPwMember) return;
+    const res = await adminSetMemberPassword(adminPwMember.id, '');
+    if (res.success) {
+      showNotice(
+        'success',
+        `✓ PIN di ${adminPwMember.full_name} (Tessera ${adminPwMember.member_number}) azzerato. Il socio entra direttamente con la tessera.`
+      );
+      setAdminPwMember(null);
+    } else {
+      setAdminPwError(res.error || 'Errore durante l\'azzeramento');
+    }
   };
 
   const handleSortClick = (field: SortField) => {
@@ -697,18 +752,35 @@ export const AnagraficaSociView: React.FC = () => {
 
   // Esporta l'intera Anagrafica Soci ordinata in CSV (apribile con Excel)
   const handleExportAllCsv = () => {
+    const headers = isBadge2406
+      ? ['Tessera', 'Password (PIN)', 'Nome', 'Cognome', 'Sede', 'Ruolo', 'Email', 'Telefono']
+      : ['Tessera', 'Nome', 'Cognome', 'Sede', 'Ruolo', 'Email', 'Telefono'];
+
     exportCsv(
       `anagrafica_soci_Q3_${new Date().toISOString().slice(0, 10)}.csv`,
-      ['Tessera', 'Nome', 'Cognome', 'Sede', 'Ruolo', 'Email', 'Telefono'],
-      sortedMembers.map((m) => [
-        m.member_number,
-        m.parsedFirstName,
-        m.parsedLastName,
-        m.sede,
-        m.parsedRole,
-        m.email || '',
-        m.phone || '',
-      ])
+      headers,
+      sortedMembers.map((m) =>
+        isBadge2406
+          ? [
+              m.member_number,
+              m.password || '',
+              m.parsedFirstName,
+              m.parsedLastName,
+              m.sede,
+              m.parsedRole,
+              m.email || '',
+              m.phone || '',
+            ]
+          : [
+              m.member_number,
+              m.parsedFirstName,
+              m.parsedLastName,
+              m.sede,
+              m.parsedRole,
+              m.email || '',
+              m.phone || '',
+            ]
+      )
     );
   };
 
@@ -727,11 +799,18 @@ export const AnagraficaSociView: React.FC = () => {
           ? 'Sede'
           : 'Ruolo'
       }`,
-      head: ['N° Tessera (Password)', 'Nome', 'Cognome', 'Sede', 'Ruolo', 'Email'],
+      head: isBadge2406
+        ? ['N° Tessera (PIN)', 'Nome', 'Cognome', 'Sede', 'Ruolo', 'Email']
+        : ['N° Tessera', 'Nome', 'Cognome', 'Sede', 'Ruolo', 'Email'],
       body: sortedMembers.map((m) => {
-        const isCd = Boolean(m.is_cd || m.roles?.includes('CD'));
+        let tesseraCol = m.member_number;
+        if (isBadge2406) {
+          tesseraCol = m.password
+            ? `${m.member_number} (PIN: ${m.password})`
+            : `${m.member_number} (Nessun PIN)`;
+        }
         return [
-          isCd ? `${m.member_number} (PW: 100000)` : m.member_number,
+          tesseraCol,
           m.parsedFirstName,
           m.parsedLastName,
           m.sede,
@@ -792,7 +871,7 @@ export const AnagraficaSociView: React.FC = () => {
                   Anagrafica Soci ({sortedMembers.length})
                 </h1>
                 <p className="text-xs sm:text-sm font-normal text-slate-500">
-                  Il numero di <strong>Tessera</strong> di ciascun socio è la sua password di accesso all'App (per i componenti con <strong>CD = Sì</strong> la password è <strong>100000</strong>)
+                  Accesso soci con <strong>N° Tessera</strong>. Ciascun socio può impostare autonomamente un <strong>PIN di sicurezza a 4 cifre</strong>.
                 </p>
               </div>
             </div>
@@ -1356,17 +1435,24 @@ export const AnagraficaSociView: React.FC = () => {
                             </td>
                           )}
                           <td className="p-3.5 font-medium tabular-nums whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-sm text-emerald-900 font-semibold">
                                 {m.member_number}
                               </span>
-                              {isCd && (
-                                <span
-                                  className="inline-flex items-center gap-0.5 rounded-md bg-amber-50 border border-amber-300 px-1.5 py-0.5 text-[10px] font-mono font-bold text-amber-900"
-                                  title="Password di accesso CD: 100000"
+                              {isBadge2406 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAdminPwModal(m)}
+                                  className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-mono font-bold transition border ${
+                                    m.password
+                                      ? 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-900'
+                                      : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-500'
+                                  }`}
+                                  title="Visualizza / Reimposta PIN a 4 cifre del socio"
                                 >
-                                  PW: 100000
-                                </span>
+                                  <KeyRound className="h-3 w-3 text-amber-600" />
+                                  <span>{m.password ? `PIN: ${m.password}` : 'Nessun PIN'}</span>
+                                </button>
                               )}
                             </div>
                           </td>
@@ -1532,6 +1618,100 @@ export const AnagraficaSociView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal Amministratore Gestione / Reset PIN del Socio (Badge 2406) */}
+      {adminPwMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <button
+              type="button"
+              onClick={() => setAdminPwMember(null)}
+              className="absolute right-4 top-4 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+              title="Chiudi"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
+                <KeyRound className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Password / PIN Socio
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Amministratore (Badge 2406)
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Socio:</span>
+                <span className="font-semibold text-slate-900">{adminPwMember.full_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">N° Tessera:</span>
+                <span className="font-mono font-bold text-emerald-800">{adminPwMember.member_number}</span>
+              </div>
+              <div className="flex justify-between items-center pt-1 border-t border-slate-200">
+                <span className="text-slate-500">Stato PIN attuale:</span>
+                {adminPwMember.password ? (
+                  <span className="inline-flex items-center gap-1 font-mono font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-lg text-sm">
+                    {adminPwMember.password}
+                  </span>
+                ) : (
+                  <span className="text-xs text-slate-500 italic">
+                    Nessun PIN (entra con solo tessera)
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                Imposta / Modifica PIN (4 Cifre):
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                value={adminPinInput}
+                onChange={(e) => setAdminPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="Es. 1234"
+                className="w-full text-center text-2xl tracking-[0.3em] font-mono font-bold py-3 px-4 rounded-2xl border border-slate-300 bg-slate-50 focus:bg-white focus:border-amber-600 focus:outline-none"
+              />
+              <p className="text-[11px] text-slate-400 text-center">
+                Lascia vuoto per togliere il PIN e permettere l'accesso solo con tessera.
+              </p>
+            </div>
+
+            {adminPwError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                {adminPwError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={handleSaveAdminPin}
+                className="w-full py-3 px-4 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm shadow-md transition"
+              >
+                Salva PIN
+              </button>
+              <button
+                type="button"
+                onClick={handleResetAdminPin}
+                className="w-full py-3 px-4 rounded-2xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 font-semibold text-sm transition"
+              >
+                Azzera PIN
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

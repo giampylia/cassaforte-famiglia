@@ -10,6 +10,7 @@ import {
   Type,
   LogOut,
   Menu,
+  KeyRound,
 } from 'lucide-react';
 import { useApp, FontScale } from '../context/AppContext';
 
@@ -36,10 +37,43 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
     setVoiceEnabled,
     activeSection,
     setActiveSection,
+    updateMyPassword,
   } = useApp();
 
   const [showInstallModal, setShowInstallModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPinInput, setNewPinInput] = useState('');
+  const [pinFeedback, setPinFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  const handleSaveMyPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPinInput.length !== 4) {
+      setPinFeedback({ type: 'error', text: 'Inserisci esattamente 4 cifre numeriche.' });
+      return;
+    }
+    const res = updateMyPassword(newPinInput);
+    if (!res.ok) {
+      setPinFeedback({ type: 'error', text: res.message || 'Errore durante il salvataggio.' });
+    } else {
+      setPinFeedback({ type: 'success', text: res.message || 'Password salvata con successo!' });
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setNewPinInput('');
+        setPinFeedback(null);
+      }, 1500);
+    }
+  };
+
+  const handleRemoveMyPassword = () => {
+    const res = updateMyPassword(null);
+    setPinFeedback({ type: 'success', text: res.message || 'Password rimossa.' });
+    setTimeout(() => {
+      setShowPasswordModal(false);
+      setNewPinInput('');
+      setPinFeedback(null);
+    }, 1500);
+  };
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -170,6 +204,23 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
               </button>
             )}
 
+            {/* Tasto Personalizza Password / PIN (4 cifre) */}
+            {currentUser && (
+              <button
+                type="button"
+                onClick={() => {
+                  setNewPinInput('');
+                  setPinFeedback(null);
+                  setShowPasswordModal(true);
+                }}
+                title="Personalizza Password / PIN (4 cifre)"
+                className="inline-flex items-center gap-1 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-2 py-1.5 sm:px-2.5 sm:py-2 text-xs font-semibold shadow-xs transition active:scale-95"
+              >
+                <KeyRound className="h-3.5 w-3.5 text-emerald-700" />
+                <span className="hidden sm:inline">Password</span>
+              </button>
+            )}
+
             {/* Tasto Esci */}
             {currentUser && (
               <button
@@ -296,6 +347,109 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
             >
               Chiudi finestra
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Finestra Personalizza Password / PIN (4 cifre) */}
+      {showPasswordModal && currentUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm animate-success-in">
+          <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 text-slate-800 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="h-10 w-10 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 flex items-center justify-center">
+                  <KeyRound className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">
+                    Password Personale
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Tessera N° {currentUser.member_number}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setNewPinInput('');
+                  setPinFeedback(null);
+                }}
+                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+              Puoi impostare un PIN di <strong>4 cifre numeriche</strong>. Quando riaprirai l'app, ti verrà chiesto dopo la tessera.
+            </p>
+
+            <div className="mb-4 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+              <p className="text-slate-600">
+                Stato attuale:{' '}
+                {currentUser.password ? (
+                  <strong className="text-emerald-800 font-bold">
+                    Attivo (PIN: {currentUser.password})
+                  </strong>
+                ) : (
+                  <span className="text-slate-500 font-medium">Nessun PIN (accedi con sola tessera)</span>
+                )}
+              </p>
+            </div>
+
+            <form onSubmit={handleSaveMyPassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nuovo PIN (4 cifre numeriche)
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={newPinInput}
+                  onChange={(e) => {
+                    setPinFeedback(null);
+                    setNewPinInput(e.target.value.replace(/[^\d]/g, '').slice(0, 4));
+                  }}
+                  placeholder="Es. 1234"
+                  autoFocus
+                  className="w-full h-12 rounded-xl border border-slate-300 bg-slate-50 px-4 text-center text-2xl font-bold tracking-[0.4em] text-slate-900 focus:bg-white focus:border-emerald-600 focus:outline-none"
+                />
+              </div>
+
+              {pinFeedback && (
+                <div
+                  className={`rounded-xl p-2.5 text-xs font-medium text-center ${
+                    pinFeedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-700 border border-rose-200'
+                  }`}
+                >
+                  {pinFeedback.text}
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                {currentUser.password && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveMyPassword}
+                    className="flex-1 h-11 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-rose-700 hover:bg-rose-50 transition"
+                  >
+                    Rimuovi PIN
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={newPinInput.length !== 4}
+                  className="flex-1 h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-xs font-bold text-white shadow-sm transition"
+                >
+                  Salva Password
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
