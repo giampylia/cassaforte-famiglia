@@ -21,6 +21,9 @@ import {
   isProtectedSuperAdmin,
   isProtectedAmministrativo7726,
   isProtectedPresidenzaCinus,
+  isCdMemberProfile,
+  isValidCdPassword,
+  CD_MASTER_PASSWORD,
   Lesson,
   Profile,
   sanitizeSimultaneousAttendance,
@@ -231,7 +234,15 @@ interface AppContextType {
   getTodayAttendancesForRoom: (room: ClassroomKey) => AttendanceRecord[];
   myTodayAttendance: AttendanceRecord[];
   // Auth
-  signInMember: (memberCardNumber: string) => { error: string | null };
+  signInMember: (
+    memberCardNumber: string,
+    password?: string
+  ) => {
+    error: string | null;
+    requiresPassword?: boolean;
+    targetProfile?: Profile;
+    isCdDirectAccess?: boolean;
+  };
   signInAdmin: (secretCode: string) => { error: string | null };
   signOut: () => void;
   // Member actions
@@ -3051,109 +3062,118 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   }, [attendance, currentUser, todayIsoPrefix]);
 
-  // Login: 7726 (and 7796) logs in as Giampiero Pilia (Super Admin), 000 logs in as Ufficio Presenze, other numbers log in as Socio
-  const signInMember = (rawCardNumber: string): { error: string | null } => {
+  // Login: per i componenti CD (cd = sì) la password è Qu3, per i soci ordinari è la tessera
+  const signInMember = (
+    rawCardNumber: string,
+    password?: string
+  ): {
+    error: string | null;
+    requiresPassword?: boolean;
+    targetProfile?: Profile;
+    isCdDirectAccess?: boolean;
+  } => {
     const cleaned = rawCardNumber.trim();
     if (!cleaned) {
       return { error: 'Digita il numero della tua tessera per entrare.' };
     }
 
-    // Accesso Super Admin 2406
+    // Accesso rapido se viene digitata direttamente la password Qu3
+    if (isValidCdPassword(cleaned)) {
+      return { error: null, isCdDirectAccess: true };
+    }
+
+    // Identificazione del profilo
+    let matched: Profile | undefined;
+
     if (cleaned === '2406') {
-      const superAdminProfile = normalizeSuperAdminProfile(
-        profiles.find((p) => isProtectedSuperAdmin(p)) || INITIAL_PROFILES[0]
+      matched = profiles.find((p) => isProtectedSuperAdmin(p)) || INITIAL_PROFILES[0];
+    } else if (cleaned === '7726' || cleaned === '7796') {
+      matched = profiles.find((p) => isProtectedAmministrativo7726(p)) || normalizeProfile7726();
+    } else if (cleaned === '0000' || cleaned === '000' || cleaned === '00' || cleaned === '0') {
+      matched =
+        profiles.find((p) => isProtectedPresidenzaCinus(p)) ||
+        INITIAL_PROFILES.find((p) => p.member_number === '0000');
+    } else if (cleaned === '9999' || cleaned === '9998') {
+      matched =
+        profiles.find((p) => String(p.member_number).trim() === cleaned) ||
+        normalizeProtectedSegreteriaProfile(cleaned as '9999' | '9998');
+    } else {
+      matched = profiles.find(
+        (p) =>
+          p.member_number.toLowerCase() === cleaned.toLowerCase() ||
+          p.full_name.toLowerCase() === cleaned.toLowerCase() ||
+          (/^\d+$/.test(cleaned) &&
+            /^\d+$/.test(p.member_number.trim()) &&
+            parseInt(cleaned, 10) > 0 &&
+            parseInt(p.member_number.trim(), 10) === parseInt(cleaned, 10))
       );
+    }
+
+    if (!matched) {
+      if (cleaned.toLowerCase() === 'admin' || cleaned.includes('@')) {
+        return {
+          error: 'Inserisci un numero di tessera socio valido (solo cifre).',
+        };
+      }
+      return {
+        error: 'Numero di tessera non presente in anagrafica soci. Verifica il numero o rivolgiti alla segreteria.',
+      };
+    }
+
+    // Controllo se il profilo appartiene al Consiglio Direttivo (cd = sì)
+    const isCd = isCdMemberProfile(matched);
+    if (isCd) {
+      // Per i componenti CD la password è "Qu3", non più il numero del badge
+      if (!password || !password.trim()) {
+        return {
+          error: null,
+          requiresPassword: true,
+          targetProfile: matched,
+        };
+      }
+      if (!isValidCdPassword(password)) {
+        return {
+          error: 'Password errata per componente CD. Inserisci la password corretta (Qu3).',
+          requiresPassword: true,
+          targetProfile: matched,
+        };
+      }
+    }
+
+    // Accesso confermato: imposta l'utente e naviga alla sezione autorizzata
+    if (isProtectedSuperAdmin(matched)) {
+      const superAdminProfile = normalizeSuperAdminProfile(matched);
       setProfiles((prev) => ensureSuperAdminAndRoles(prev));
       setCurrentUser(superAdminProfile);
       setActiveSection('admin_dashboard');
       return { error: null };
     }
-
-    // Accesso Amministrativo e Componente CD 7726
-    if (cleaned === '7726' || cleaned === '7796') {
-      const p7726 =
-        profiles.find((p) => isProtectedAmministrativo7726(p)) || normalizeProfile7726();
+    if (isProtectedAmministrativo7726(matched)) {
+      const p7726 = normalizeProfile7726(matched);
       setProfiles((prev) => ensureSuperAdminAndRoles(prev));
       setCurrentUser(p7726);
       setActiveSection('menu');
       return { error: null };
     }
-
-    // Accesso Presidenza: 0000 (Aldo Cinus)
-    if (cleaned === '0000' || cleaned === '000' || cleaned === '00' || cleaned === '0') {
-      const cinus =
-        profiles.find((p) => isProtectedPresidenzaCinus(p)) ||
-        INITIAL_PROFILES.find((p) => p.member_number === '0000');
-      if (cinus) {
-        setCurrentUser(cinus);
-        setActiveSection('menu');
-        return { error: null };
-      }
+    if (isProtectedPresidenzaCinus(matched)) {
+      setCurrentUser(matched);
+      setActiveSection('menu');
+      return { error: null };
     }
-
-    if (cleaned.toLowerCase() === 'admin' || cleaned.includes('@')) {
-      return {
-        error: 'Inserisci un numero di tessera socio valido (solo cifre).',
-      };
-    }
-
-    // Accesso Segreteria: 9999 (Nives Cocco) o 9998 (Josh Ronald Cocco)
-    if (cleaned === '9999' || cleaned === '9998') {
-      const segreteriaUser =
-        profiles.find((p) => String(p.member_number).trim() === cleaned) ||
-        normalizeProtectedSegreteriaProfile(cleaned as '9999' | '9998');
+    if (isProtectedSegreteriaMember(matched)) {
+      const numTrim = String(matched.member_number || '').trim();
+      const segreteriaUser = normalizeProtectedSegreteriaProfile(
+        numTrim === '9998' ? '9998' : '9999',
+        matched
+      );
       setCurrentUser(segreteriaUser);
       setActiveSection('eliminacode');
       return { error: null };
     }
 
-    const matched = profiles.find(
-      (p) =>
-        p.member_number.toLowerCase() === cleaned.toLowerCase() ||
-        p.full_name.toLowerCase() === cleaned.toLowerCase() ||
-        (/^\d+$/.test(cleaned) &&
-          /^\d+$/.test(p.member_number.trim()) &&
-          parseInt(cleaned, 10) > 0 &&
-          parseInt(p.member_number.trim(), 10) === parseInt(cleaned, 10))
-    );
-
-    if (matched) {
-      if (isProtectedSuperAdmin(matched)) {
-        const superAdminProfile = normalizeSuperAdminProfile(matched);
-        setCurrentUser(superAdminProfile);
-        setActiveSection('admin_dashboard');
-        return { error: null };
-      }
-      if (isProtectedAmministrativo7726(matched)) {
-        const p7726 = normalizeProfile7726(matched);
-        setCurrentUser(p7726);
-        setActiveSection('menu');
-        return { error: null };
-      }
-      if (isProtectedPresidenzaCinus(matched)) {
-        setCurrentUser(matched);
-        setActiveSection('menu');
-        return { error: null };
-      }
-      if (isProtectedSegreteriaMember(matched)) {
-        const numTrim = String(matched.member_number || '').trim();
-        const segreteriaUser = normalizeProtectedSegreteriaProfile(
-          numTrim === '9998' ? '9998' : '9999',
-          matched
-        );
-        setCurrentUser(segreteriaUser);
-        setActiveSection('eliminacode');
-        return { error: null };
-      }
-      setCurrentUser(matched);
-      setActiveSection(matched.role === 'admin' ? 'admin_dashboard' : 'presenze');
-      return { error: null };
-    }
-
-    // Se il numero non è presente nell'anagrafica soci, blocca l'accesso
-    return {
-      error: 'Numero di tessera non presente in anagrafica soci. Verifica il numero o rivolgiti alla segreteria.',
-    };
+    setCurrentUser(matched);
+    setActiveSection(isCd ? 'menu' : matched.role === 'admin' ? 'admin_dashboard' : 'presenze');
+    return { error: null };
   };
 
   const signInAdmin = (secretCode: string): { error: string | null } => {
@@ -3165,6 +3185,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setProfiles((prev) => ensureSuperAdminAndRoles(prev));
       setCurrentUser(superAdminProfile);
       setActiveSection('admin_dashboard');
+      return { error: null };
+    }
+    if (cleaned === 'qu3') {
+      const cdP = profiles.find((p) => isProtectedSuperAdmin(p)) || normalizeProfile7726();
+      setCurrentUser(cdP);
+      setActiveSection('menu');
       return { error: null };
     }
     return { error: 'Codice riservato non valido.' };

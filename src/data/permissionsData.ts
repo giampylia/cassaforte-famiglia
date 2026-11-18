@@ -288,24 +288,27 @@ export function computeUserSectionPermission(
   const map = permissionsMap || DEFAULT_ROLE_PERMISSIONS;
   const sectionPerms = map[sectionKey] || DEFAULT_ROLE_PERMISSIONS[sectionKey] || {};
 
-  // Raccogli tutti i ruoli posseduti dall'utente
-  const userRoles: ManagedRoleName[] = [];
-
-  if (user.is_cd) {
-    userRoles.push('Solo CD');
-  }
-
-  if (Array.isArray(user.roles) && user.roles.length > 0) {
-    for (const r of user.roles) {
-      userRoles.push(normalizeRoleKey(r));
-    }
-  } else {
-    userRoles.push('Socio');
-  }
+  // Ruoli operativi specifici assegnati all'utente (es. LsC, Didattica, Segreteria, Biblioteca, Viaggi, Amministrativo, Presidenza)
+  const explicitRoles: ManagedRoleName[] = (Array.isArray(user.roles) ? user.roles : [])
+    .map(normalizeRoleKey)
+    .filter((r) => r !== 'Socio');
 
   // Se l'utente ha il ruolo esplicito Amministratore
-  if (userRoles.includes('Amministratore')) {
+  if (explicitRoles.includes('Amministratore')) {
     return 'edit';
+  }
+
+  // Raccogli i ruoli effettivi:
+  // Se l'utente ha ruoli operativi specifici (es. LsC), sono questi a governare i suoi accessi.
+  // Se è membro del CD senza altri ruoli operativi specifici, si applica 'Solo CD'.
+  // Altrimenti è un semplice 'Socio'.
+  const userRoles: ManagedRoleName[] = [];
+  if (explicitRoles.length > 0) {
+    userRoles.push(...explicitRoles);
+  } else if (user.is_cd) {
+    userRoles.push('Solo CD');
+  } else {
+    userRoles.push('Socio');
   }
 
   let highest: PermissionLevel = 'none';

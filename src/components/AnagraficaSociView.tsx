@@ -708,14 +708,17 @@ export const AnagraficaSociView: React.FC = () => {
           : 'Ruolo'
       }`,
       head: ['N° Tessera (Password)', 'Nome', 'Cognome', 'Sede', 'Ruolo', 'Email'],
-      body: sortedMembers.map((m) => [
-        m.member_number,
-        m.parsedFirstName,
-        m.parsedLastName,
-        m.sede,
-        m.parsedRole,
-        m.email || '-',
-      ]),
+      body: sortedMembers.map((m) => {
+        const isCd = Boolean(m.is_cd || m.roles?.includes('CD'));
+        return [
+          isCd ? `${m.member_number} (PW: Qu3)` : m.member_number,
+          m.parsedFirstName,
+          m.parsedLastName,
+          m.sede,
+          m.parsedRole,
+          m.email || '-',
+        ];
+      }),
       fileName: `anagrafica_soci_Q3_${new Date().toISOString().slice(0, 10)}.pdf`,
     });
   };
@@ -769,7 +772,7 @@ export const AnagraficaSociView: React.FC = () => {
                   Anagrafica Soci ({sortedMembers.length})
                 </h1>
                 <p className="text-xs sm:text-sm font-normal text-slate-500">
-                  Il numero di <strong>Tessera</strong> di ciascun socio è anche la sua password di accesso all'App
+                  Il numero di <strong>Tessera</strong> di ciascun socio è la sua password di accesso all'App (per i componenti con <strong>CD = Sì</strong> la password è <strong>Qu3</strong>)
                 </p>
               </div>
             </div>
@@ -1333,9 +1336,19 @@ export const AnagraficaSociView: React.FC = () => {
                             </td>
                           )}
                           <td className="p-3.5 font-medium tabular-nums whitespace-nowrap">
-                            <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-sm text-emerald-900">
-                              {m.member_number}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-sm text-emerald-900 font-semibold">
+                                {m.member_number}
+                              </span>
+                              {isCd && (
+                                <span
+                                  className="inline-flex items-center gap-0.5 rounded-md bg-amber-50 border border-amber-300 px-1.5 py-0.5 text-[10px] font-mono font-bold text-amber-900"
+                                  title="Password di accesso CD: Qu3"
+                                >
+                                  PW: Qu3
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="p-3.5 text-sm sm:text-base font-normal text-slate-800">
                             {m.parsedFirstName}

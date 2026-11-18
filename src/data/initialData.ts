@@ -126,6 +126,24 @@ export function isProtectedPresidenzaCinus(p?: Partial<Profile> | null): boolean
   );
 }
 
+export const CD_MASTER_PASSWORD = 'Qu3';
+
+export function isValidCdPassword(pw?: string | null): boolean {
+  if (!pw) return false;
+  return pw.trim().toLowerCase() === CD_MASTER_PASSWORD.toLowerCase();
+}
+
+export function isCdMemberProfile(p?: Partial<Profile> | null): boolean {
+  if (!p) return false;
+  return Boolean(
+    p.is_cd ||
+    (Array.isArray(p.roles) && (p.roles.includes('CD') || p.roles.includes('Consiglio Direttivo'))) ||
+    isProtectedSuperAdmin(p) ||
+    isProtectedAmministrativo7726(p) ||
+    isProtectedPresidenzaCinus(p)
+  );
+}
+
 export function getMemberParts(p: Profile): {
   firstName: string;
   lastName: string;
