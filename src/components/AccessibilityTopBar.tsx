@@ -141,12 +141,25 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
             )}
 
             {currentUser ? (
-              <div className="min-w-0 flex-1">
-                <p className="text-sm sm:text-base font-medium text-slate-900 leading-tight truncate">
-                  {currentUser.full_name}
-                </p>
-                <p className="text-[11px] sm:text-xs font-normal text-slate-500 leading-tight truncate">
-                  Tessera {currentUser.member_number} · {currentUser.sede || 'Quartu'}
+              <div
+                className="min-w-0 flex-1 cursor-pointer"
+                onClick={() => {
+                  setNewPinInput('');
+                  setPinFeedback(null);
+                  setShowPasswordModal(true);
+                }}
+                title="Tocca per impostare o cambiare la tua Password / PIN"
+              >
+                <div className="flex items-center gap-1 min-w-0">
+                  <p className="text-xs sm:text-sm md:text-base font-bold text-slate-900 leading-tight truncate">
+                    {currentUser.full_name}
+                  </p>
+                  {currentUser.password && (
+                    <KeyRound className="h-3 w-3 text-emerald-600 shrink-0 opacity-70" title="PIN Attivo" />
+                  )}
+                </div>
+                <p className="text-[10px] sm:text-xs font-medium text-slate-500 leading-tight truncate">
+                  Tess. {currentUser.member_number} · {currentUser.sede || 'Quartu'}
                 </p>
               </div>
             ) : (
@@ -168,7 +181,7 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
               type="button"
               onClick={cycleFontScale}
               title="Cambia grandezza testo"
-              className="inline-flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 active:scale-95 px-2 py-1.5 text-xs font-medium text-slate-700 transition"
+              className="inline-flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 active:scale-95 px-2 py-1.5 text-xs font-medium text-slate-700 transition shrink-0"
             >
               <Type className="h-3.5 w-3.5 text-emerald-700 hidden sm:inline" />
               <span>{fontShortLabel}</span>
@@ -179,7 +192,7 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
               type="button"
               onClick={() => setVoiceEnabled(!voiceEnabled)}
               title={voiceEnabled ? 'Audio attivo' : 'Audio disattivato'}
-              className={`inline-flex items-center justify-center rounded-xl border p-1.5 sm:p-2 transition ${
+              className={`inline-flex items-center justify-center rounded-xl border p-1.5 sm:p-2 transition shrink-0 ${
                 voiceEnabled
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                   : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
@@ -197,14 +210,14 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
               <button
                 type="button"
                 onClick={() => setShowInstallModal(true)}
-                className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-2.5 py-1.5 text-xs sm:text-sm font-normal shadow-xs transition active:scale-95"
+                className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-2.5 py-1.5 text-xs sm:text-sm font-normal shadow-xs transition active:scale-95 shrink-0"
               >
                 <Smartphone className="h-4 w-4" />
                 <span>Installa</span>
               </button>
             )}
 
-            {/* Tasto Personalizza Password / PIN (4 cifre) */}
+            {/* Tasto Personalizza Password / PIN (4 cifre) - su mobile comodo toccando il nome, su tablet e desktop mostrato come pulsante */}
             {currentUser && (
               <button
                 type="button"
@@ -214,23 +227,24 @@ export const AccessibilityTopBar: React.FC<AccessibilityTopBarProps> = ({
                   setShowPasswordModal(true);
                 }}
                 title="Personalizza Password / PIN (4 cifre)"
-                className="inline-flex items-center gap-1 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-2 py-1.5 sm:px-2.5 sm:py-2 text-xs font-semibold shadow-xs transition active:scale-95"
+                className="hidden sm:inline-flex items-center gap-1 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-2 py-1.5 sm:px-2.5 sm:py-2 text-xs font-semibold shadow-xs transition active:scale-95 shrink-0"
               >
                 <KeyRound className="h-3.5 w-3.5 text-emerald-700" />
-                <span className="hidden sm:inline">Password</span>
+                <span>Password</span>
               </button>
             )}
 
-            {/* Tasto Cambia Socio */}
+            {/* Tasto Cambia Socio / Esci */}
             {currentUser && (
               <button
                 type="button"
                 onClick={signOut}
                 title="Cambia utente o esci dal profilo attuale"
-                className="inline-flex items-center gap-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-medium shadow-xs transition active:scale-95"
+                className="inline-flex items-center gap-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 text-xs font-semibold shadow-xs transition active:scale-95 shrink-0"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                <span>Cambia Socio</span>
+                <span className="hidden sm:inline">Cambia Socio</span>
+                <span className="sm:hidden">Esci</span>
               </button>
             )}
           </div>

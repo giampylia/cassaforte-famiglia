@@ -54,7 +54,7 @@ const MainRouter: React.FC = () => {
     signOut,
   } = useApp();
 
-  const CURRENT_APP_VERSION = 'v77';
+  const CURRENT_APP_VERSION = 'v78';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
