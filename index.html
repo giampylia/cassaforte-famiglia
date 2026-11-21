@@ -2948,16 +2948,31 @@
             const pa = Number(a.priority);
             const pb = Number(b.priority);
             if (pa !== pb) return pa - pb;
-            return String(a.insertedDate || '').localeCompare(String(b.insertedDate || ''));
+            const da = a.purchaseDate || '';
+            const db = b.purchaseDate || '';
+            if (da && db) {
+              const cmp = db.localeCompare(da);
+              if (cmp !== 0) return cmp;
+            } else if (da && !db) return -1;
+            else if (!da && db) return 1;
+            return String(a.title || '').localeCompare(String(b.title || ''));
           } else if (hasPriA && !hasPriB) {
             return -1; // Con priorità assegnata viene PRIMA
           } else if (!hasPriA && hasPriB) {
             return 1;  // Senza priorità assegnata va IN CODA
           } else {
-            // Entrambi senza priorità: in coda per data inserimento decrescente (più recente prima)
-            const da = a.insertedDate || '';
-            const db = b.insertedDate || '';
-            return db.localeCompare(da);
+            // Entrambi senza priorità: conta la Data Esecuzione / Acquisto (da fare), NON la data di inserimento!
+            const da = a.purchaseDate || '';
+            const db = b.purchaseDate || '';
+            if (da && db) {
+              const cmp = db.localeCompare(da);
+              if (cmp !== 0) return cmp;
+            } else if (da && !db) {
+              return -1;
+            } else if (!da && db) {
+              return 1;
+            }
+            return String(a.title || '').localeCompare(String(b.title || ''));
           }
         });
 
@@ -3427,26 +3442,28 @@
               const ccmp = cb.localeCompare(ca);
               if (ccmp !== 0) return ccmp;
             }
+            const da = a.purchaseDate || '';
+            const db = b.purchaseDate || '';
+            if (da && db) {
+              const dcmp = db.localeCompare(da);
+              if (dcmp !== 0) return dcmp;
+            }
+            return String(a.title || '').localeCompare(String(b.title || ''));
           }
 
-          // Lavori attivi (o pari data chiusura): ordina per data esecuzione decrescente (più recente prima)
+          // Lavori attivi (DA FARE): CONTA LA DATA ESECUZIONE, NON LA DATA DI INSERIMENTO
           const da = a.purchaseDate || '';
           const db = b.purchaseDate || '';
           if (da && db) {
             const cmp = db.localeCompare(da);
             if (cmp !== 0) return cmp;
           } else if (da && !db) {
-            return -1;
+            return -1; // Con data esecuzione viene prima
           } else if (!da && db) {
-            return 1;
+            return 1;  // Senza data esecuzione va dopo
           }
 
-          const ia = a.insertedDate || '';
-          const ib = b.insertedDate || '';
-          if (ia && ib) {
-            const icmp = ib.localeCompare(ia);
-            if (icmp !== 0) return icmp;
-          }
+          // Nessun fallback su insertedDate: ordine alfabetico per titolo
           return String(a.title || '').localeCompare(String(b.title || ''));
         });
 
