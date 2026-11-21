@@ -1250,6 +1250,34 @@
               </div>
             </div>
 
+            <!-- Data Chiusura Lavoro (se compilata, lavoro eseguito e va in coda) -->
+            <div class="space-y-1.5 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
+              <div class="flex items-center justify-between">
+                <label class="text-[11px] font-bold text-emerald-300 uppercase flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                  Data Chiusura Lavoro (Eseguito)
+                </label>
+                <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onclick="document.getElementById('lavoro-closed-date').value = new Date().toISOString().split('T')[0]"
+                    class="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
+                  >Oggi</button>
+                  <button
+                    type="button"
+                    onclick="document.getElementById('lavoro-closed-date').value = ''"
+                    class="text-[10px] text-slate-400 hover:text-slate-300 underline cursor-pointer"
+                  >Cancella</button>
+                </div>
+              </div>
+              <input
+                id="lavoro-closed-date"
+                type="date"
+                class="w-full h-10 rounded-xl border border-emerald-500/35 bg-navy-950/90 px-2.5 font-mono text-xs text-emerald-200 focus:outline-none focus:border-emerald-400"
+              />
+              <p class="text-[10px] text-slate-400">Se compili questa data, il lavoro viene considerato concluso (eseguito), mostrato trasparente e posizionato in coda.</p>
+            </div>
+
             <!-- Link Riferimento / Preventivo (anche più di 1) -->
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
@@ -3381,19 +3409,38 @@
         const countSpan = document.getElementById('lavori-count');
         if (!container) return;
 
-        // Ordine di data esecuzione: prima quelli con data più recente, dopo quelli più lontani nel tempo.
-        // Se la data di esecuzione manca, vanno in coda ordinati per data inserimento decrescente.
+        // Ordine: prima i lavori aperti/attivi per data esecuzione decrescente (più recente prima).
+        // I lavori con data chiusura compilata (eseguiti) vanno IN CODA con trasparenza visiva.
         const sorted = [...lavoriItems].sort((a, b) => {
+          const isClosedA = !!(a.closedDate && a.closedDate.trim());
+          const isClosedB = !!(b.closedDate && b.closedDate.trim());
+
+          // Se uno è chiuso e l'altro no, il lavoro chiuso va IN CODA
+          if (!isClosedA && isClosedB) return -1;
+          if (isClosedA && !isClosedB) return 1;
+
+          if (isClosedA && isClosedB) {
+            // Entrambi chiusi: ordina per data chiusura decrescente (più recente prima)
+            const ca = a.closedDate || '';
+            const cb = b.closedDate || '';
+            if (ca && cb) {
+              const ccmp = cb.localeCompare(ca);
+              if (ccmp !== 0) return ccmp;
+            }
+          }
+
+          // Lavori attivi (o pari data chiusura): ordina per data esecuzione decrescente (più recente prima)
           const da = a.purchaseDate || '';
           const db = b.purchaseDate || '';
           if (da && db) {
-            const cmp = db.localeCompare(da); // Più recente prima
+            const cmp = db.localeCompare(da);
             if (cmp !== 0) return cmp;
           } else if (da && !db) {
-            return -1; // Con data esecuzione viene prima
+            return -1;
           } else if (!da && db) {
-            return 1;  // Senza data esecuzione va dopo
+            return 1;
           }
+
           const ia = a.insertedDate || '';
           const ib = b.insertedDate || '';
           if (ia && ib) {
@@ -3408,7 +3455,9 @@
           : sorted.filter(it => it.house === currentLavoriHouseFilter);
 
         if (countSpan) {
-          countSpan.textContent = filtered.length + ' ' + (filtered.length === 1 ? 'Lavoro' : 'Lavori');
+          const closedCount = filtered.filter(it => it.closedDate && it.closedDate.trim()).length;
+          const openCount = filtered.length - closedCount;
+          countSpan.textContent = `${filtered.length} ${filtered.length === 1 ? 'Lavoro' : 'Lavori'}${closedCount > 0 ? ` (${openCount} aperti, ${closedCount} eseguiti)` : ''}`;
         }
 
         if (filtered.length === 0) {
@@ -3425,6 +3474,7 @@
         container.innerHTML = filtered.map(item => {
           const h = HOUSE_MAP[item.house] || HOUSE_MAP.C;
           const isExpanded = !!expandedLavoriIds[item.id];
+          const isClosed = !!(item.closedDate && item.closedDate.trim());
           const links = Array.isArray(item.links) ? item.links.filter(l => l && l.trim()) : [];
           const priceLabel = item.priceType === 'certo' ? 'Prezzo Certo' : 'Prezzo Stimato';
           const priceBadgeClass = item.priceType === 'certo'
@@ -3432,8 +3482,8 @@
             : 'bg-amber-500/20 text-amber-200 border-amber-500/30';
 
           return `
-            <div class="rounded-2xl bg-white/[0.06] border border-white/15 shadow-lg overflow-hidden transition">
-              <!-- RIGA PRINCIPALE: PALLINO CASA + BADGE DATA ESECUZIONE + NOME DEL LAVORO -->
+            <div class="rounded-2xl ${isClosed ? 'bg-white/[0.03] border-white/10 opacity-55 hover:opacity-90' : 'bg-white/[0.06] border-white/15'} shadow-lg overflow-hidden transition-all duration-200">
+              <!-- RIGA PRINCIPALE: PALLINO CASA + BADGE DATA O ESEGUITO + NOME DEL LAVORO -->
               <button
                 type="button"
                 onclick="toggleLavoroExpand('${item.id}')"
@@ -3445,7 +3495,12 @@
                     style="background:${h.color};"
                     title="${h.code} = ${h.name}"
                   ></span>
-                  ${item.purchaseDate ? `
+                  ${isClosed ? `
+                    <span class="px-2 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-mono text-[11px] font-semibold shrink-0 flex items-center gap-1">
+                      <svg class="w-3 h-3 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                      Eseguito · ${formatItDate(item.closedDate)}
+                    </span>
+                  ` : item.purchaseDate ? `
                     <span class="px-2 py-0.5 rounded-lg bg-sky-500/20 border border-sky-500/35 text-sky-200 font-mono text-[11px] font-semibold shrink-0 flex items-center gap-1">
                       <svg class="w-3 h-3 text-sky-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                       ${formatItDate(item.purchaseDate)}
@@ -3453,7 +3508,7 @@
                   ` : `
                     <span class="px-2 py-0.5 rounded-lg bg-white/10 border border-white/15 text-slate-400 text-[10px] shrink-0 font-medium">Da eseguire</span>
                   `}
-                  <span class="text-sm font-bold text-white truncate">${escapeHtml(item.title)}</span>
+                  <span class="text-sm font-bold ${isClosed ? 'text-slate-300' : 'text-white'} truncate">${escapeHtml(item.title)}</span>
                 </div>
                 <svg class="h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-amber-300' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -3464,9 +3519,11 @@
               ${isExpanded ? `
                 <div class="px-4 pb-4 pt-2 border-t border-white/10 bg-navy-950/60 space-y-3 text-xs">
                   <div class="grid grid-cols-2 gap-2">
-                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
-                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Data Esecuzione</span>
-                      <span class="font-mono font-bold text-sky-300 text-sm block mt-0.5">${item.purchaseDate ? formatItDate(item.purchaseDate) : '<span class="text-slate-400 font-normal text-xs">Da concordare / non indicata</span>'}</span>
+                    <div class="p-2.5 rounded-xl ${isClosed ? 'bg-emerald-500/15 border border-emerald-500/30' : 'bg-white/[0.04] border border-white/10'}">
+                      <span class="text-[10px] uppercase font-bold ${isClosed ? 'text-emerald-300' : 'text-slate-400'} block">Stato Chiusura</span>
+                      <span class="font-mono font-bold ${isClosed ? 'text-emerald-200' : 'text-slate-200'} text-xs block mt-0.5">
+                        ${isClosed ? '✓ Chiuso il ' + formatItDate(item.closedDate) : 'In corso / Non chiuso'}
+                      </span>
                     </div>
                     <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
                       <span class="text-[10px] uppercase font-bold text-slate-400 block">Casa Destinazione</span>
@@ -3479,21 +3536,27 @@
 
                   <div class="grid grid-cols-2 gap-2">
                     <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Data Esecuzione</span>
+                      <span class="font-mono font-bold text-sky-300 text-sm block mt-0.5">${item.purchaseDate ? formatItDate(item.purchaseDate) : '<span class="text-slate-400 font-normal text-xs">Non indicata</span>'}</span>
+                    </div>
+                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
                       <div class="flex items-center justify-between gap-1">
                         <span class="text-[10px] uppercase font-bold text-slate-400">Prezzo</span>
                         <span class="text-[9px] font-bold px-1.5 py-0.5 rounded border ${priceBadgeClass}">${priceLabel}</span>
                       </div>
                       <span class="font-mono font-bold text-amber-200 text-sm block mt-1">${formatEuroPrice(item.price)}</span>
                     </div>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2">
                     <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
                       <span class="text-[10px] uppercase font-bold text-slate-400 block">Copertura</span>
                       <span class="font-semibold text-slate-200 block mt-1 truncate">${item.coverage ? escapeHtml(item.coverage) : '—'}</span>
                     </div>
-                  </div>
-
-                  <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Data Inserimento</span>
-                    <span class="font-mono text-slate-200 block mt-0.5">${formatItDate(item.insertedDate)}</span>
+                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Data Inserimento</span>
+                      <span class="font-mono text-slate-200 block mt-0.5">${formatItDate(item.insertedDate)}</span>
+                    </div>
                   </div>
 
                   ${item.description ? `
@@ -3538,6 +3601,13 @@
                   ` : ''}
 
                   <div class="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onclick="toggleLavoroClosed('${item.id}')"
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${isClosed ? 'bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300' : 'bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300'} font-bold text-xs transition cursor-pointer"
+                    >
+                      ${isClosed ? '↩ Riapri Lavoro' : '✓ Segna Eseguito'}
+                    </button>
                     <button
                       type="button"
                       onclick="openEditLavoroModal('${item.id}')"
@@ -3659,6 +3729,7 @@
         document.getElementById('lavoro-coverage').value = '';
         document.getElementById('lavoro-inserted-date').value = today;
         document.getElementById('lavoro-purchase-date').value = '';
+        document.getElementById('lavoro-closed-date').value = '';
         const linksList = document.getElementById('lavoro-links-list');
         if (linksList) linksList.innerHTML = '';
         addLavoroLinkInput('');
@@ -3681,6 +3752,7 @@
         document.getElementById('lavoro-coverage').value = item.coverage || '';
         document.getElementById('lavoro-inserted-date').value = item.insertedDate || '';
         document.getElementById('lavoro-purchase-date').value = item.purchaseDate || '';
+        document.getElementById('lavoro-closed-date').value = item.closedDate || '';
 
         const linksList = document.getElementById('lavoro-links-list');
         if (linksList) linksList.innerHTML = '';
@@ -3716,6 +3788,7 @@
         const coverage = document.getElementById('lavoro-coverage').value.trim();
         const insertedDate = document.getElementById('lavoro-inserted-date').value;
         const purchaseDate = document.getElementById('lavoro-purchase-date').value;
+        const closedDate = document.getElementById('lavoro-closed-date').value;
 
         const linkInputs = document.querySelectorAll('#lavoro-links-list .lavoro-link-field');
         const links = Array.from(linkInputs).map(inp => inp.value.trim()).filter(Boolean);
@@ -3733,6 +3806,7 @@
           coverage,
           insertedDate,
           purchaseDate,
+          closedDate: closedDate || null,
           links,
           photo: currentLavoroPhotoData || null,
           updatedAt: new Date().toISOString()
@@ -3747,6 +3821,19 @@
 
         await persistLavoriItems();
         closeAddLavoroModal();
+        renderLavoriItems();
+      }
+
+      async function toggleLavoroClosed(id) {
+        const item = lavoriItems.find(x => x.id === id);
+        if (!item) return;
+        if (item.closedDate) {
+          item.closedDate = null;
+        } else {
+          item.closedDate = new Date().toISOString().split('T')[0];
+        }
+        item.updatedAt = new Date().toISOString();
+        await persistLavoriItems();
         renderLavoriItems();
       }
 
