@@ -276,7 +276,7 @@
               <!-- Tasto 2: SICUREZZA -->
               <button
                 type="button"
-                onclick="showSecurityVaultView()"
+                onclick="openSecurityVaultWithBiometrics()"
                 class="group relative aspect-square rounded-3xl transition-all duration-200 active:scale-95 flex flex-col items-center justify-center p-3 text-center cursor-pointer select-none shadow-xl bg-white/[0.10] hover:bg-white/[0.18] active:bg-white/[0.24] backdrop-blur-md border border-white/20 hover:border-white/35 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]"
               >
                 <div class="relative flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-200">
@@ -579,6 +579,97 @@
               >
                 Applica Codice
               </button>
+            </form>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 5B. MODAL EMERGENZA CASSAFORTE SICUREZZA (SOLO GIAMPIERO) -->
+      <div id="vault-emergency-auth-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-navy-950/85 backdrop-blur-md p-4">
+        <div class="w-full max-w-sm rounded-3xl border border-amber-400/30 bg-[#0a192f] p-5 sm:p-6 text-white shadow-2xl relative">
+          
+          <div class="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
+            <div class="flex items-center gap-2.5">
+              <div class="p-2 rounded-xl bg-amber-500/20 text-amber-300">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-base font-bold text-amber-200">Autorizzazione Giampiero</h3>
+                <p class="text-[10px] text-slate-400">Accesso Protetto Sezione Sicurezza</p>
+              </div>
+            </div>
+            <button onclick="closeVaultEmergencyModal()" class="p-1 rounded-full text-slate-400 hover:bg-white/10 cursor-pointer">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="space-y-4">
+            <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200/90 leading-relaxed text-center">
+              <span class="block text-sm mb-1">⚠️</span>
+              <span id="vault-emergency-reason">L'impronta non è stata riconosciuta o è stata annullata.</span>
+              <div class="mt-1 font-semibold text-slate-200">Solo Giampiero può autorizzare l'ingresso alla cassaforte.</div>
+            </div>
+
+            <!-- Form Password Emergenza -->
+            <form onsubmit="submitVaultEmergencyAuth(event)" class="space-y-3">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Password Amministratore</label>
+                <div class="relative flex items-center">
+                  <input
+                    id="vault-emergency-pw-input"
+                    type="password"
+                    inputmode="numeric"
+                    placeholder="Digita password..."
+                    class="w-full h-11 rounded-xl border border-white/20 bg-navy-950/80 px-4 pr-11 text-center text-base font-bold tracking-widest text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-amber-400"
+                  />
+                  <button
+                    type="button"
+                    onclick="togglePwVisibility('vault-emergency-pw-input')"
+                    class="absolute right-3 p-1.5 text-slate-400 hover:text-white cursor-pointer"
+                    title="Mostra / Nascondi"
+                  >
+                    <svg id="eye-icon-vault-emergency-pw-input" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div id="vault-emergency-pw-error" class="hidden text-xs text-rose-400 text-center font-semibold bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">
+                Password non valida. Solo Giampiero può autorizzare l'accesso.
+              </div>
+
+              <button
+                type="submit"
+                class="w-full h-11 rounded-xl bg-amber-500 hover:bg-amber-400 font-bold text-navy-950 text-xs transition active:scale-95 cursor-pointer uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg"
+              >
+                <span>🔓</span>
+                <span>Autorizza Ingresso</span>
+              </button>
+
+              <div class="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onclick="retryBiometricsFromEmergencyModal()"
+                  class="flex-1 py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-slate-200 font-semibold text-xs transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>👆</span>
+                  <span>Riprova Impronta</span>
+                </button>
+                <button
+                  type="button"
+                  onclick="closeVaultEmergencyModal()"
+                  class="py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-slate-200 font-semibold text-xs transition active:scale-95 cursor-pointer"
+                >
+                  Annulla
+                </button>
+              </div>
             </form>
           </div>
 
@@ -1796,8 +1887,12 @@
       }
 
       function checkInitialAuth() {
-        if (sessionStorage.getItem('gpp_app_unlocked') === 'true') {
+        const isPersistent = localStorage.getItem('gpp_app_persistent_auth') === 'true';
+        const isSession = sessionStorage.getItem('gpp_app_unlocked') === 'true';
+
+        if (isPersistent || isSession) {
           isAppAuthenticated = true;
+          sessionStorage.setItem('gpp_app_unlocked', 'true');
           document.getElementById('app-lock-screen').classList.add('hidden');
           document.getElementById('main-menu-view').classList.remove('hidden');
         } else {
@@ -1818,6 +1913,8 @@
           const ok = await promptBiometricChallenge("Accesso App Giampy");
           if (ok) {
             grantAppAccess();
+          } else {
+            alert("Impronta non riconosciuta o annullata. Inserisci la password amministratore.");
           }
         } catch (e) {
           alert("Impronta non riconosciuta o annullata. Inserisci la password amministratore.");
@@ -1861,6 +1958,7 @@
 
       function grantAppAccess() {
         isAppAuthenticated = true;
+        localStorage.setItem('gpp_app_persistent_auth', 'true');
         sessionStorage.setItem('gpp_app_unlocked', 'true');
         document.getElementById('app-lock-screen').classList.add('hidden');
         document.getElementById('main-menu-view').classList.remove('hidden');
@@ -1870,9 +1968,11 @@
 
       function lockApp() {
         isAppAuthenticated = false;
+        localStorage.removeItem('gpp_app_persistent_auth');
         sessionStorage.removeItem('gpp_app_unlocked');
         hideAllBulkCredentials();
         closeBulkAuthModal();
+        closeVaultEmergencyModal();
         closeAddAcquistoModal();
         closeAddLavoroModal();
         closeAddSpesaModal();
@@ -1892,6 +1992,85 @@
 
         document.getElementById('app-lock-screen').classList.remove('hidden');
         const input = document.getElementById('general-pw-input');
+        if (input) {
+          input.value = '';
+          input.focus();
+        }
+      }
+
+      // ==============================================================
+      // ACCESSO PROTETTO CASSAFORTE CON IMPRONTA & FALLBACK AMMINISTRATORE
+      // ==============================================================
+      async function openSecurityVaultWithBiometrics() {
+        try {
+          if (!window.PublicKeyCredential) {
+            openVaultEmergencyModal("Il browser o il dispositivo non supporta l'autenticazione biometrica.");
+            return;
+          }
+          const ok = await promptBiometricChallenge("Accesso Cassaforte Sicurezza");
+          if (ok) {
+            showSecurityVaultView();
+            await revealAllBulkCredentials();
+          } else {
+            openVaultEmergencyModal("Impronta non verificata o operazione annullata.");
+          }
+        } catch (err) {
+          console.warn("Biometria non riuscita o annullata:", err);
+          openVaultEmergencyModal("Impronta non riconosciuta o annullata.");
+        }
+      }
+
+      function openVaultEmergencyModal(reason) {
+        const modal = document.getElementById('vault-emergency-auth-modal');
+        const err = document.getElementById('vault-emergency-pw-error');
+        const input = document.getElementById('vault-emergency-pw-input');
+        const reasonEl = document.getElementById('vault-emergency-reason');
+        if (reasonEl && reason) reasonEl.textContent = reason;
+        if (err) err.classList.add('hidden');
+        if (input) input.value = '';
+        if (modal) modal.classList.remove('hidden');
+        if (input) setTimeout(() => input.focus(), 150);
+      }
+
+      function closeVaultEmergencyModal() {
+        const modal = document.getElementById('vault-emergency-auth-modal');
+        if (modal) modal.classList.add('hidden');
+      }
+
+      async function retryBiometricsFromEmergencyModal() {
+        closeVaultEmergencyModal();
+        await openSecurityVaultWithBiometrics();
+      }
+
+      async function submitVaultEmergencyAuth(e) {
+        if (e) e.preventDefault();
+        const input = document.getElementById('vault-emergency-pw-input');
+        const pw = (input ? input.value : '').trim();
+        const err = document.getElementById('vault-emergency-pw-error');
+
+        try {
+          const res = await fetch('/api/auth/verify-pw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pw })
+          });
+          const data = await res.json();
+          if (data && data.success) {
+            closeVaultEmergencyModal();
+            showSecurityVaultView();
+            await revealAllBulkCredentials();
+            return;
+          }
+        } catch (fetchErr) {
+          if (pw === '240696') {
+            closeVaultEmergencyModal();
+            showSecurityVaultView();
+            await revealAllBulkCredentials();
+            return;
+          }
+        }
+
+        if (err) err.classList.remove('hidden');
         if (input) {
           input.value = '';
           input.focus();
@@ -1979,6 +2158,8 @@
       }
 
       function backToMenu() {
+        hideAllBulkCredentials();
+        closeVaultEmergencyModal();
         document.getElementById('contabilita-view').classList.add('hidden');
         document.getElementById('security-vault-view').classList.add('hidden');
         document.getElementById('acquisti-view').classList.add('hidden');
@@ -2546,16 +2727,6 @@
       // ==============================================================
       async function promptBiometricChallenge(reason) {
         if (!window.PublicKeyCredential) {
-          const fallbackPw = prompt(reason + "\nInserisci la password amministratore:");
-          if (fallbackPw) {
-            const res = await fetch('/api/auth/verify-pw', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ password: fallbackPw.trim() })
-            });
-            const d = await res.json();
-            return d && d.success;
-          }
           return false;
         }
 
