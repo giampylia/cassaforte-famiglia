@@ -305,6 +305,8 @@ export const PrenotazioneEventiView: React.FC = () => {
   // Drawer / Elenco Ospiti
   const [guestListEvento, setGuestListEvento] = useState<Evento | null>(null);
   const [guestSearch, setGuestSearch] = useState('');
+  // Modale Report Ingressi & Lista d'Attesa (Esclusivo per componenti CD)
+  const [reportEvento, setReportEvento] = useState<Evento | null>(null);
 
   // Trova profilo corrente per email/telefono
   const currentMemberProfile = useMemo(() => {
@@ -560,26 +562,418 @@ export const PrenotazioneEventiView: React.FC = () => {
     XLSX.writeFile(wb, `Elenco_Ospiti_${evento.titolo.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
   };
 
-  // Esporta foglio presenze PDF per l'evento
+  // Esporta foglio presenze PDF per l'evento con netta separazione tra confermati e lista d'attesa
   const handleExportGuestsPdf = (evento: Evento) => {
     const list = eventiPrenotazioni.filter((p) => p.evento_id === evento.id && p.stato !== 'annullata');
-    exportOfficialPdf({
-      title: `Foglio Presenze: ${evento.titolo}`,
-      subtitle: `Data Evento: ${getEventoDate(evento).toLocaleDateString('it-IT')} · Luogo: ${evento.luogo} · Totale Iscritti: ${list.reduce((acc, p) => acc + p.num_posti, 0)} posti`,
-      head: ['N°', 'Tessera', 'Nominativo', '2° Ospite', 'Posti', 'Stato', 'Pagamento', 'Firma Presenza'],
-      body: list.map((p, idx) => [
+    const confermati = list.filter((p) => p.stato === 'confermata');
+    const inAttesaList = list
+      .filter((p) => p.stato === 'lista_attesa')
+      .sort((a, b) => (a.posizione_attesa || 0) - (b.posizione_attesa || 0));
+
+    const totalPostiConfermati = confermati.reduce((acc, p) => acc + p.num_posti, 0);
+    const totalPostiAttesa = inAttesaList.reduce((acc, p) => acc + p.num_posti, 0);
+
+    const body: (string | number)[][] = [];
+
+    // Righe Confermati
+    confermati.forEach((p, idx) => {
+      body.push([
         idx + 1,
         p.socio_tessera,
         p.socio_nominativo,
-        p.ospite_nominativo || '-',
+        p.ospite_nominativo ? `${p.ospite_nominativo} ${p.ospite_tessera ? `(Tess. ${p.ospite_tessera})` : ''}` : '-',
         p.num_posti,
-        p.stato === 'confermata' ? 'Confermato' : `Attesa #${p.posizione_attesa || 1}`,
+        'CONFERMATO',
         p.stato_pagamento === 'pagato' ? 'Pagato' : p.stato_pagamento === 'gratuito' ? 'Gratuito' : 'Da Pagare',
-        '', // Spazio per firma a penna
-      ]),
-      fileName: `Presenze_${evento.titolo.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+        '', // Spazio firma a penna
+      ]);
+    });
+
+    // Righe Lista d'Attesa
+    if (inAttesaList.length > 0) {
+      body.push([
+        '---',
+        '---',
+        '=== LISTA D\'ATTESA (IN ORDINE DI PRIORITÀ) ===',
+        '---',
+        '---',
+        '---',
+        '---',
+        '---',
+      ]);
+      inAttesaList.forEach((p, idx) => {
+        body.push([
+          `#${p.posizione_attesa || idx + 1}`,
+          p.socio_tessera,
+          `${p.socio_nominativo}${p.socio_telefono ? ` (Tel: ${p.socio_telefono})` : ''}`,
+          p.ospite_nominativo || '-',
+          p.num_posti,
+          'IN ATTESA',
+          p.stato_pagamento === 'pagato' ? 'Pagato' : p.stato_pagamento === 'gratuito' ? 'Gratuito' : 'Da Pagare',
+          '',
+        ]);
+      });
+    }
+
+    exportOfficialPdf({
+      title: `Foglio Ingressi & Attesa: ${evento.titolo}`,
+      subtitle: `Data: ${getEventoDate(evento).toLocaleDateString('it-IT')} · Luogo: ${evento.luogo || 'Sede Sociale'} · Confermati: ${totalPostiConfermati}/${getEventoPostiTotali(evento)} · In Attesa: ${totalPostiAttesa} posti`,
+      head: ['N°', 'Tessera', 'Nominativo', '2° Ospite', 'Posti', 'Stato', 'Pagamento', 'Firma Presenza'],
+      body,
+      fileName: `Foglio_Ingressi_${evento.titolo.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
       landscape: true,
     });
+  };
+
+  // Stampa Ufficiale Foglio Ingressi & Lista d'Attesa per il giorno dell'evento (Esclusivo per il CD)
+  const handlePrintEventReport = (evento: Evento) => {
+    if (!canManage) return;
+
+    const prenotazioniEvento = eventiPrenotazioni.filter(
+      (p) => p.evento_id === evento.id && p.stato !== 'annullata'
+    );
+    const confermati = prenotazioniEvento.filter((p) => p.stato === 'confermata');
+    const inAttesaList = prenotazioniEvento
+      .filter((p) => p.stato === 'lista_attesa')
+      .sort((a, b) => (a.posizione_attesa || 0) - (b.posizione_attesa || 0));
+
+    const totaleCapienza = getEventoPostiTotali(evento);
+    const postiConfermati = confermati.reduce((acc, p) => acc + p.num_posti, 0);
+    const postiInAttesa = inAttesaList.reduce((acc, p) => acc + p.num_posti, 0);
+    const d = getEventoDate(evento);
+    const dataOraStr = !isNaN(d.getTime())
+      ? d.toLocaleDateString('it-IT', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : evento.data_evento || '';
+    const quotaStr = (getEventoCosto(evento) || 0) > 0 ? `€ ${Number(getEventoCosto(evento)).toFixed(2)} a persona` : 'Ingresso Gratuito';
+    const stampatoIl = new Date().toLocaleString('it-IT');
+
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      alert('Impossibile aprire la finestra di stampa. Verifica se il browser blocca i pop-up.');
+      return;
+    }
+
+    const confermatiRowsHtml = confermati.length > 0
+      ? confermati.map((p, idx) => {
+          const quotaDovuta = p.quota_totale ? `€ ${p.quota_totale.toFixed(2)}` : (p.stato_pagamento === 'gratuito' ? 'Gratuito' : '—');
+          const pagBadge = p.stato_pagamento === 'pagato'
+            ? `<span style="background:#dcfce7;color:#166534;padding:2px 6px;border-radius:4px;font-weight:700;font-size:10px;">PAGATO</span>`
+            : p.stato_pagamento === 'gratuito'
+            ? `<span style="background:#f1f5f9;color:#475569;padding:2px 6px;border-radius:4px;font-weight:600;font-size:10px;">GRATUITO</span>`
+            : `<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-weight:700;font-size:10px;">DA SALDARE</span>`;
+
+          return `
+            <tr>
+              <td style="text-align:center;font-weight:bold;color:#475569;">${idx + 1}</td>
+              <td style="font-family:monospace;font-size:10.5px;color:#334155;">${p.booking_code || p.id.slice(0, 8)}</td>
+              <td style="font-weight:bold;text-align:center;">${p.socio_tessera}</td>
+              <td style="font-weight:600;color:#0f172a;">${p.socio_nominativo}</td>
+              <td style="color:#475569;">${p.ospite_nominativo ? `${p.ospite_nominativo} ${p.ospite_tessera ? `(Tess. ${p.ospite_tessera})` : ''}` : '—'}</td>
+              <td style="text-align:center;font-weight:bold;color:#065f46;">${p.num_posti}</td>
+              <td style="text-align:center;">${pagBadge} <div style="font-size:9.5px;color:#64748b;margin-top:2px;">${quotaDovuta}</div></td>
+              <td style="text-align:center;width:125px;border-left:2px solid #cbd5e1;">
+                <div style="height:28px;border:1px dashed #94a3b8;border-radius:4px;background:#f8fafc;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:9.5px;">
+                  [  ] Firma / Spunta
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('')
+      : `<tr><td colspan="8" style="text-align:center;padding:16px;color:#64748b;font-style:italic;">Nessuna prenotazione confermata per questo evento.</td></tr>`;
+
+    const attesaRowsHtml = inAttesaList.length > 0
+      ? inAttesaList.map((p, idx) => {
+          const priorita = p.posizione_attesa || (idx + 1);
+          const contatti = [
+            p.socio_telefono ? `<strong>📞 ${p.socio_telefono}</strong>` : '',
+            p.socio_email ? `✉️ ${p.socio_email}` : ''
+          ].filter(Boolean).join('<br/>') || '—';
+
+          return `
+            <tr>
+              <td style="text-align:center;font-weight:bold;color:#b45309;background:#fffbeb;font-size:12px;">#${priorita}</td>
+              <td style="font-weight:bold;text-align:center;">${p.socio_tessera}</td>
+              <td style="font-weight:600;color:#0f172a;">${p.socio_nominativo}</td>
+              <td style="text-align:center;font-weight:bold;color:#b45309;">${p.num_posti}</td>
+              <td style="font-size:10px;color:#1e293b;line-height:1.3;">${contatti}</td>
+              <td style="font-size:10px;color:#475569;">${p.note_staff || '—'}</td>
+              <td style="text-align:center;width:130px;border-left:2px solid #fcd34d;">
+                <div style="height:28px;border:1px dashed #d97706;border-radius:4px;background:#fffbeb;display:flex;align-items:center;justify-content:center;color:#b45309;font-size:9.5px;">
+                  [  ] Ammesso all'ingresso
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('')
+      : `<tr><td colspan="7" style="text-align:center;padding:14px;color:#64748b;font-style:italic;">Nessun socio attualmente in lista d'attesa.</td></tr>`;
+
+    printWin.document.open();
+    printWin.document.write(`<!DOCTYPE html>
+      <html lang="it">
+      <head>
+        <meta charset="utf-8" />
+        <title>Controllo Ingressi & Attesa - ${evento.titolo}</title>
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 10mm 10mm 10mm 10mm;
+          }
+          * { box-sizing: border-box; }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #0f172a;
+            margin: 0;
+            padding: 10px;
+            font-size: 11px;
+            background: #fff;
+          }
+          .header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border-bottom: 2.5px solid #065f46;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+          }
+          .header img {
+            width: 55px;
+            height: 55px;
+            object-fit: contain;
+          }
+          .header-text { flex: 1; }
+          .header-assoc {
+            font-size: 11.5px;
+            font-weight: bold;
+            color: #065f46;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+          }
+          .header h1 {
+            font-size: 16px;
+            margin: 2px 0;
+            color: #0f172a;
+          }
+          .header p {
+            margin: 0;
+            font-size: 9.5px;
+            color: #64748b;
+          }
+          .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-bottom: 12px;
+          }
+          .meta-box { font-size: 10px; }
+          .meta-box .lbl { color: #64748b; font-weight: 500; display: block; margin-bottom: 1px; }
+          .meta-box .val { font-size: 11.5px; font-weight: 700; color: #0f172a; }
+          
+          .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #065f46;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px 6px 0 0;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            margin-top: 10px;
+          }
+          .section-title.amber {
+            background: #b45309;
+            margin-top: 18px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+            margin-bottom: 8px;
+          }
+          tr { page-break-inside: avoid; }
+          thead { display: table-header-group; }
+          th {
+            background: #f1f5f9;
+            color: #334155;
+            font-weight: 700;
+            text-align: left;
+            padding: 5px 6px;
+            border: 1px solid #cbd5e1;
+            font-size: 9.5px;
+            text-transform: uppercase;
+          }
+          td {
+            padding: 5px 6px;
+            border: 1px solid #e2e8f0;
+            vertical-align: middle;
+          }
+          tbody tr:nth-child(even) {
+            background: #f8fafc;
+          }
+          .summary-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 10.5px;
+            font-weight: 600;
+            color: #065f46;
+            margin-bottom: 6px;
+          }
+          .footer-sigs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 18px;
+            margin-top: 24px;
+            padding-top: 8px;
+            border-top: 1px solid #cbd5e1;
+            page-break-inside: avoid;
+          }
+          .sig-box { text-align: center; font-size: 10px; color: #475569; }
+          .sig-line { border-bottom: 1px solid #64748b; height: 32px; margin-bottom: 4px; }
+          .watermark {
+            text-align: center;
+            font-size: 9px;
+            color: #94a3b8;
+            margin-top: 14px;
+          }
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none !important; }
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background:#065f46;color:#fff;padding:8px 12px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+          <span><strong>Stampa Foglio Controllo Ingressi</strong> · Formato ottimizzato per foglio A4</span>
+          <button onclick="window.print()" style="background:#fff;color:#065f46;border:none;padding:6px 14px;font-weight:bold;border-radius:6px;cursor:pointer;">Stampa Ora</button>
+        </div>
+
+        <div class="header">
+          <img id="assoc-logo" src="${ASSOCIATION_LOGO_URL}" alt="Logo UTE Quartu S. Elena" />
+          <div class="header-text">
+            <div class="header-assoc">Università della Terza Età di Quartu S. Elena — APS</div>
+            <h1>FOGLIO DI CONTROLLO INGRESSI EVENTO & LISTA D'ATTESA</h1>
+            <p>Documento ufficiale ad uso esclusivo del Consiglio Direttivo e dei Responsabili dell'Accoglienza</p>
+          </div>
+        </div>
+
+        <div class="meta-grid">
+          <div class="meta-box"><span class="lbl">Evento:</span><span class="val">${evento.titolo}</span></div>
+          <div class="meta-box"><span class="lbl">Data & Orario:</span><span class="val">${dataOraStr}</span></div>
+          <div class="meta-box"><span class="lbl">Luogo:</span><span class="val">${evento.luogo || 'Sede Sociale'}</span></div>
+          <div class="meta-box"><span class="lbl">Quota Biglietto:</span><span class="val">${quotaStr}</span></div>
+        </div>
+
+        <div class="section-title">
+          <span>1. PARTECIPANTI PRENOTATI & CONFERMATI (Ammessi all'ingresso)</span>
+          <span style="font-size:9.5px;font-weight:normal;">Posti Assegnati: ${postiConfermati} / ${totaleCapienza}</span>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width:26px;text-align:center;">N°</th>
+              <th style="width:75px;">Codice</th>
+              <th style="width:50px;text-align:center;">Tess.</th>
+              <th>Socio Intestatario</th>
+              <th>2° Ospite / Coniuge</th>
+              <th style="width:38px;text-align:center;">Posti</th>
+              <th style="width:85px;text-align:center;">Quota</th>
+              <th style="width:125px;text-align:center;">Spazio Firma / Check-in</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${confermatiRowsHtml}
+          </tbody>
+        </table>
+
+        <div class="summary-bar">
+          <span>Riepilogo Confermati: ${confermati.length} prenotazioni per un totale di ${postiConfermati} posti</span>
+          <span>Posti Disponibili Residui: ${Math.max(0, totaleCapienza - postiConfermati)}</span>
+        </div>
+
+        <div class="section-title amber">
+          <span>2. LISTA D'ATTESA (In ordine di priorità per subentri/rinunce)</span>
+          <span style="font-size:9.5px;font-weight:normal;">Totale in Attesa: ${postiInAttesa} posti</span>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width:45px;text-align:center;">Priorità</th>
+              <th style="width:50px;text-align:center;">Tess.</th>
+              <th>Socio Richiedente</th>
+              <th style="width:38px;text-align:center;">Posti</th>
+              <th style="width:180px;">Contatto Telefonico / Email</th>
+              <th>Note Richiesta</th>
+              <th style="width:130px;text-align:center;">Ammissione all'Ingresso</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${attesaRowsHtml}
+          </tbody>
+        </table>
+
+        <div class="footer-sigs">
+          <div class="sig-box">
+            <div class="sig-line"></div>
+            Data e Ora Controllo
+          </div>
+          <div class="sig-box">
+            <div class="sig-line"></div>
+            Firma Responsabile Accoglienza CD
+          </div>
+          <div class="sig-box">
+            <div class="sig-line"></div>
+            Firma Membro Consiglio Direttivo
+          </div>
+        </div>
+
+        <div class="watermark">
+          Generato da Portale Q3 il ${stampatoIl} · Riservato al Consiglio Direttivo UTE Quartu S. Elena
+        </div>
+
+        <script>
+          (function() {
+            var img = document.getElementById('assoc-logo');
+            var printed = false;
+            function triggerPrint() {
+              if (printed) return;
+              printed = true;
+              setTimeout(function() { window.print(); }, 150);
+            }
+            if (img && !img.complete) {
+              img.onload = triggerPrint;
+              img.onerror = triggerPrint;
+              setTimeout(triggerPrint, 1200);
+            } else {
+              window.onload = triggerPrint;
+            }
+          })();
+        </script>
+      </body>
+      </html>
+    `);
+    printWin.document.close();
   };
 
   return (
@@ -977,6 +1371,15 @@ export const PrenotazioneEventiView: React.FC = () => {
                         title="Visualizza Elenco Ospiti & Check-in"
                       >
                         <Users className="h-4 w-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setReportEvento(evento)}
+                        className="p-2 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition shadow-2xs"
+                        title="Report Ingressi & Stampa Lista d'Attesa (Solo CD)"
+                      >
+                        <Printer className="h-4 w-4" />
                       </button>
 
                       <button
@@ -1559,6 +1962,16 @@ export const PrenotazioneEventiView: React.FC = () => {
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <button
                   type="button"
+                  onClick={() => setReportEvento(guestListEvento)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 transition shadow-2xs"
+                  title="Visualizza e Stampa Report Completo Ingressi e Lista d'Attesa"
+                >
+                  <Printer className="h-4 w-4 text-emerald-700" />
+                  <span>Report Ingressi & Attesa</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleExportGuestsExcel(guestListEvento)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
                 >
@@ -1571,8 +1984,8 @@ export const PrenotazioneEventiView: React.FC = () => {
                   onClick={() => handleExportGuestsPdf(guestListEvento)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
                 >
-                  <Printer className="h-4 w-4 text-emerald-700" />
-                  <span>Foglio Presenze PDF</span>
+                  <FileDown className="h-4 w-4 text-emerald-700" />
+                  <span>PDF Presenze</span>
                 </button>
               </div>
             </div>
@@ -1712,6 +2125,310 @@ export const PrenotazioneEventiView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* MODALE REPORT INGRESSI & LISTA D'ATTESA (ESCLUSIVO PER IL CD) */}
+      {reportEvento && canManage && (() => {
+        const prenotazioniEvento = eventiPrenotazioni.filter(
+          (p) => p.evento_id === reportEvento.id && p.stato !== 'annullata'
+        );
+        const confermati = prenotazioniEvento.filter((p) => p.stato === 'confermata');
+        const inAttesaList = prenotazioniEvento
+          .filter((p) => p.stato === 'lista_attesa')
+          .sort((a, b) => (a.posizione_attesa || 0) - (b.posizione_attesa || 0));
+
+        const totaleCapienza = getEventoPostiTotali(reportEvento);
+        const postiConfermati = confermati.reduce((acc, p) => acc + p.num_posti, 0);
+        const postiInAttesa = inAttesaList.reduce((acc, p) => acc + p.num_posti, 0);
+        const postiResidui = Math.max(0, totaleCapienza - postiConfermati);
+
+        const d = getEventoDate(reportEvento);
+        const dataStr = !isNaN(d.getTime())
+          ? d.toLocaleDateString('it-IT', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : reportEvento.data_evento || '';
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+            <div className="bg-white rounded-3xl max-w-5xl w-full p-5 sm:p-6 space-y-5 shadow-2xl border border-slate-200 my-8 max-h-[92vh] flex flex-col">
+              {/* Header Modale Report */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold uppercase tracking-wider">
+                      Uso Esclusivo CD
+                    </span>
+                    <span className="text-xs text-slate-500 font-medium">Controllo Ingressi Giorno Evento</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{reportEvento.titolo}</h3>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
+                    📅 {dataStr} · 📍 {reportEvento.luogo || 'Sede Sociale'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePrintEventReport(reportEvento)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-800 text-white text-xs sm:text-sm font-semibold hover:bg-emerald-900 shadow-sm transition"
+                    title="Stampa foglio per l'accoglienza all'ingresso"
+                  >
+                    <Printer className="h-4 w-4" />
+                    <span>Stampa Foglio Ingressi</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleExportGuestsPdf(reportEvento)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition"
+                    title="Scarica PDF"
+                  >
+                    <FileDown className="h-4 w-4 text-emerald-700" />
+                    <span className="hidden sm:inline">PDF</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleExportGuestsExcel(reportEvento)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition"
+                    title="Scarica Excel"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-700" />
+                    <span className="hidden sm:inline">Excel</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setReportEvento(null)}
+                    className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200"
+                    title="Chiudi"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Statistiche Riassuntive */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-center">
+                  <span className="text-xs font-semibold text-emerald-800">Posti Confermati</span>
+                  <div className="text-xl font-bold text-emerald-950 mt-0.5">
+                    {postiConfermati} <span className="text-xs text-emerald-700 font-normal">/ {totaleCapienza}</span>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-blue-50 border border-blue-200 p-3 text-center">
+                  <span className="text-xs font-semibold text-blue-800">Posti Disponibili</span>
+                  <div className="text-xl font-bold text-blue-950 mt-0.5">{postiResidui}</div>
+                </div>
+
+                <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-center">
+                  <span className="text-xs font-semibold text-amber-800">In Lista d'Attesa</span>
+                  <div className="text-xl font-bold text-amber-950 mt-0.5">{postiInAttesa}</div>
+                </div>
+
+                <div className="rounded-2xl bg-slate-100 border border-slate-200 p-3 text-center">
+                  <span className="text-xs font-semibold text-slate-700">Quota Persona</span>
+                  <div className="text-xl font-bold text-slate-900 mt-0.5">
+                    {(getEventoCosto(reportEvento) || 0) > 0 ? `€ ${Number(getEventoCosto(reportEvento)).toFixed(2)}` : 'Gratuito'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Contenuto Scorrevole con le due tabelle */}
+              <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+                {/* SEZIONE 1: CONFERMATI */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                      <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                        1. Persone Prenotate & Confermate ({confermati.length} prenotazioni · {postiConfermati} posti)
+                      </h4>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-emerald-900 text-white font-semibold uppercase tracking-wider text-[11px]">
+                          <th className="p-2.5 text-center w-10">N°</th>
+                          <th className="p-2.5">Codice</th>
+                          <th className="p-2.5 text-center">Tessera</th>
+                          <th className="p-2.5">Socio Intestatario</th>
+                          <th className="p-2.5">2° Ospite / Coniuge</th>
+                          <th className="p-2.5 text-center">Posti</th>
+                          <th className="p-2.5 text-center">Quota / Pagamento</th>
+                          <th className="p-2.5 text-center w-28">Check-in Ingresso</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {confermati.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="p-4 text-center text-slate-500 italic">
+                              Nessuna prenotazione confermata per questo evento.
+                            </td>
+                          </tr>
+                        ) : (
+                          confermati.map((pren, idx) => (
+                            <tr key={pren.id} className="hover:bg-slate-50 transition">
+                              <td className="p-2.5 text-center font-bold text-slate-500">{idx + 1}</td>
+                              <td className="p-2.5 font-mono text-[11px] text-slate-600 font-medium">
+                                {pren.booking_code || pren.id.slice(0, 8)}
+                              </td>
+                              <td className="p-2.5 text-center font-bold text-slate-900">
+                                {pren.socio_tessera}
+                              </td>
+                              <td className="p-2.5">
+                                <div className="font-semibold text-slate-900">{pren.socio_nominativo}</div>
+                                {pren.socio_telefono && (
+                                  <div className="text-[10px] text-slate-500">📞 {pren.socio_telefono}</div>
+                                )}
+                              </td>
+                              <td className="p-2.5 text-slate-700">
+                                {pren.ospite_nominativo ? (
+                                  <div>
+                                    <span className="font-medium">{pren.ospite_nominativo}</span>
+                                    {pren.ospite_tessera && (
+                                      <span className="text-[10px] text-slate-500 block">Tess. {pren.ospite_tessera}</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-400">—</span>
+                                )}
+                              </td>
+                              <td className="p-2.5 text-center font-bold text-emerald-900">
+                                <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                                  {pren.num_posti}
+                                </span>
+                              </td>
+                              <td className="p-2.5 text-center">
+                                {pren.stato_pagamento === 'pagato' ? (
+                                  <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                    PAGATO (€ {(pren.quota_totale || 0).toFixed(2)})
+                                  </span>
+                                ) : pren.stato_pagamento === 'gratuito' ? (
+                                  <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600">
+                                    GRATUITO
+                                  </span>
+                                ) : (
+                                  <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800">
+                                    DA SALDARE (€ {(pren.quota_totale || 0).toFixed(2)})
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-500 text-[11px] font-medium shadow-2xs">
+                                  [ ] Spunta
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* SEZIONE 2: LISTA D'ATTESA */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                      <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                        2. Lista d'Attesa — In Ordine di Priorità ({inAttesaList.length} soci in attesa · {postiInAttesa} posti)
+                      </h4>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-amber-800 text-white font-semibold uppercase tracking-wider text-[11px]">
+                          <th className="p-2.5 text-center w-16">Priorità</th>
+                          <th className="p-2.5 text-center">Tessera</th>
+                          <th className="p-2.5">Socio Richiedente</th>
+                          <th className="p-2.5 text-center">Posti</th>
+                          <th className="p-2.5">Contatti (Telefono / Email)</th>
+                          <th className="p-2.5">Note Richiesta</th>
+                          <th className="p-2.5 text-center w-28">Ammissione</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {inAttesaList.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-4 text-center text-slate-500 italic">
+                              Nessuna prenotazione attualmente in lista d'attesa.
+                            </td>
+                          </tr>
+                        ) : (
+                          inAttesaList.map((pren, idx) => (
+                            <tr key={pren.id} className="hover:bg-amber-50/40 transition">
+                              <td className="p-2.5 text-center font-bold text-amber-700 bg-amber-50/60">
+                                #{pren.posizione_attesa || (idx + 1)}
+                              </td>
+                              <td className="p-2.5 text-center font-bold text-slate-900">
+                                {pren.socio_tessera}
+                              </td>
+                              <td className="p-2.5 font-semibold text-slate-900">
+                                {pren.socio_nominativo}
+                              </td>
+                              <td className="p-2.5 text-center font-bold text-amber-900">
+                                <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                                  {pren.num_posti}
+                                </span>
+                              </td>
+                              <td className="p-2.5 text-slate-700">
+                                {pren.socio_telefono && (
+                                  <div className="font-semibold text-emerald-800">📞 {pren.socio_telefono}</div>
+                                )}
+                                {pren.socio_email && (
+                                  <div className="text-[10px] text-slate-500">✉️ {pren.socio_email}</div>
+                                )}
+                                {!pren.socio_telefono && !pren.socio_email && (
+                                  <span className="text-slate-400">—</span>
+                                )}
+                              </td>
+                              <td className="p-2.5 text-slate-600 italic">
+                                {pren.note_staff || '—'}
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <span className="inline-block px-2 py-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-[10px] font-bold">
+                                  Subentro
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Modale */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
+                <span>Foglio predisposto per la verifica all'ingresso da parte del personale del Consiglio Direttivo</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePrintEventReport(reportEvento)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-800 text-white font-semibold hover:bg-emerald-900 transition shadow-sm"
+                  >
+                    <Printer className="h-4 w-4" />
+                    <span>Stampa per il giorno dell'evento</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* MODALE NUOVO / MODIFICA EVENTO */}
       {showEventModal && editingEvento && (
