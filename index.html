@@ -2951,7 +2951,7 @@
             const da = a.purchaseDate || '';
             const db = b.purchaseDate || '';
             if (da && db) {
-              const cmp = db.localeCompare(da);
+              const cmp = da.localeCompare(db); // Data più vicina prima (es. 24/11 prima del 25/11)
               if (cmp !== 0) return cmp;
             } else if (da && !db) return -1;
             else if (!da && db) return 1;
@@ -2961,11 +2961,11 @@
           } else if (!hasPriA && hasPriB) {
             return 1;  // Senza priorità assegnata va IN CODA
           } else {
-            // Entrambi senza priorità: conta la Data Esecuzione / Acquisto (da fare), NON la data di inserimento!
+            // Entrambi senza priorità: conta la Data Esecuzione / Acquisto (da fare, cronologico crescente)
             const da = a.purchaseDate || '';
             const db = b.purchaseDate || '';
             if (da && db) {
-              const cmp = db.localeCompare(da);
+              const cmp = da.localeCompare(db); // Data più vicina prima (es. 24/11 prima del 25/11)
               if (cmp !== 0) return cmp;
             } else if (da && !db) {
               return -1;
@@ -3451,11 +3451,11 @@
             return String(a.title || '').localeCompare(String(b.title || ''));
           }
 
-          // Lavori attivi (DA FARE): CONTA LA DATA ESECUZIONE, NON LA DATA DI INSERIMENTO
+          // Lavori attivi (DA FARE): CONTA LA DATA ESECUZIONE (24/11 prima del 25/11)
           const da = a.purchaseDate || '';
           const db = b.purchaseDate || '';
           if (da && db) {
-            const cmp = db.localeCompare(da);
+            const cmp = da.localeCompare(db); // Data più imminente/vicina prima (24/11 prima di 25/11)
             if (cmp !== 0) return cmp;
           } else if (da && !db) {
             return -1; // Con data esecuzione viene prima
