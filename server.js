@@ -590,7 +590,7 @@ const CONTABILITA_ROUTES = new Set([
   '/install'
 ]);
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   let reqPath = req.url.split('?')[0];
 
   // Helper per inviare risposte JSON
