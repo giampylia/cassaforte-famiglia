@@ -895,15 +895,14 @@
                 />
               </div>
               <div class="space-y-1">
-                <label class="text-[11px] font-semibold text-amber-200 uppercase">Priorità *</label>
+                <label class="text-[11px] font-semibold text-slate-300 uppercase">Priorità</label>
                 <input
                   id="acquisto-priority"
                   type="number"
                   step="1"
                   min="1"
-                  value="1"
-                  required
-                  class="w-full h-10 rounded-xl border border-amber-400/40 bg-navy-950/80 px-3 text-center font-mono text-xs font-bold text-amber-200 focus:outline-none focus:border-amber-400"
+                  placeholder="In coda"
+                  class="w-full h-10 rounded-xl border border-white/20 bg-navy-950/80 px-2 text-center font-mono text-xs font-bold text-amber-200 placeholder:text-slate-500 focus:outline-none focus:border-amber-400"
                 />
               </div>
             </div>
@@ -1139,30 +1138,17 @@
           <form onsubmit="handleSaveLavoro(event)" class="space-y-3">
             <input type="hidden" id="lavoro-edit-id" value="" />
 
-            <!-- Nome Lavoro e Priorità -->
-            <div class="grid grid-cols-3 gap-2.5">
-              <div class="col-span-2 space-y-1">
-                <label class="text-[11px] font-semibold text-amber-200 uppercase">Nome Lavoro *</label>
-                <input
-                  id="lavoro-title"
-                  type="text"
-                  placeholder="Es. Tinteggiatura, Impianto, Riparazione..."
-                  required
-                  class="w-full h-10 rounded-xl border border-white/20 bg-navy-950/80 px-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400"
-                />
-              </div>
-              <div class="space-y-1">
-                <label class="text-[11px] font-semibold text-amber-200 uppercase">Priorità *</label>
-                <input
-                  id="lavoro-priority"
-                  type="number"
-                  step="1"
-                  min="1"
-                  value="1"
-                  required
-                  class="w-full h-10 rounded-xl border border-amber-400/40 bg-navy-950/80 px-3 text-center font-mono text-xs font-bold text-amber-200 focus:outline-none focus:border-amber-400"
-                />
-              </div>
+            <!-- Nome Lavoro -->
+            <div class="space-y-1">
+              <label class="text-[11px] font-semibold text-amber-200 uppercase">Nome Lavoro *</label>
+              <input
+                id="lavoro-title"
+                type="text"
+                placeholder="Es. Tinteggiatura, Impianto, Riparazione..."
+                required
+                class="w-full h-10 rounded-xl border border-white/20 bg-navy-950/80 px-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400"
+              />
+              <input type="hidden" id="lavoro-priority" value="" />
             </div>
 
             <!-- Casa per la quale è destinato il lavoro -->
@@ -2927,10 +2913,24 @@
         if (!container) return;
 
         const sorted = [...acquistiItems].sort((a, b) => {
-          const pa = Number((a.priority !== undefined && a.priority !== null && a.priority !== '') ? a.priority : 9999);
-          const pb = Number((b.priority !== undefined && b.priority !== null && b.priority !== '') ? b.priority : 9999);
-          if (pa !== pb) return pa - pb;
-          return String(a.insertedDate || '').localeCompare(String(b.insertedDate || ''));
+          const hasPriA = (a.priority !== undefined && a.priority !== null && a.priority !== '' && !isNaN(Number(a.priority)));
+          const hasPriB = (b.priority !== undefined && b.priority !== null && b.priority !== '' && !isNaN(Number(b.priority)));
+
+          if (hasPriA && hasPriB) {
+            const pa = Number(a.priority);
+            const pb = Number(b.priority);
+            if (pa !== pb) return pa - pb;
+            return String(a.insertedDate || '').localeCompare(String(b.insertedDate || ''));
+          } else if (hasPriA && !hasPriB) {
+            return -1; // Con priorità assegnata viene PRIMA
+          } else if (!hasPriA && hasPriB) {
+            return 1;  // Senza priorità assegnata va IN CODA
+          } else {
+            // Entrambi senza priorità: in coda per data inserimento decrescente (più recente prima)
+            const da = a.insertedDate || '';
+            const db = b.insertedDate || '';
+            return db.localeCompare(da);
+          }
         });
 
         const filtered = currentAcquistiHouseFilter === 'ALL'
@@ -2946,7 +2946,7 @@
             <div class="rounded-2xl border border-dashed border-white/20 p-8 text-center text-slate-400">
               <span class="text-3xl block mb-2">🛒</span>
               <p class="text-xs font-semibold text-slate-300">Nessun acquisto in lista.</p>
-              <p class="text-[11px] text-slate-500 mt-1">Premi "+ Nuovo Acquisto" per inserire un elemento ordinato per priorità.</p>
+              <p class="text-[11px] text-slate-500 mt-1">Premi "+ Nuovo Acquisto" per inserire un elemento.</p>
             </div>
           `;
           return;
@@ -2961,20 +2961,27 @@
             ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
             : 'bg-amber-500/20 text-amber-200 border-amber-500/30';
 
+          const hasExplicitPriority = (item.priority !== undefined && item.priority !== null && item.priority !== '' && !isNaN(Number(item.priority)));
+
           return `
             <div class="rounded-2xl bg-white/[0.06] border border-white/15 shadow-lg overflow-hidden transition">
-              <!-- RIGA PRINCIPALE: SOLO PALLINO CASA + NOME DELL'ACQUISTO -->
+              <!-- RIGA PRINCIPALE: SOLO PALLINO CASA + BADGE PRIORITÀ O CODA + NOME DELL'ACQUISTO -->
               <button
                 type="button"
                 onclick="toggleAcquistoExpand('${item.id}')"
                 class="w-full px-4 py-3.5 flex items-center justify-between gap-3 text-left hover:bg-white/[0.04] active:bg-white/[0.08] transition cursor-pointer"
               >
-                <div class="flex items-center gap-3 min-w-0">
+                <div class="flex items-center gap-2.5 min-w-0">
                   <span
                     class="w-3.5 h-3.5 rounded-full shrink-0 shadow-[0_0_8px_rgba(255,255,255,0.25)]"
                     style="background:${h.color};"
                     title="${h.code} = ${h.name}"
                   ></span>
+                  ${hasExplicitPriority ? `
+                    <span class="px-2 py-0.5 rounded-lg bg-amber-400/20 border border-amber-400/40 text-amber-300 font-mono text-[11px] font-bold shrink-0">#${item.priority}</span>
+                  ` : `
+                    <span class="px-2 py-0.5 rounded-lg bg-slate-800/80 border border-white/10 text-slate-400 text-[10px] shrink-0 font-medium">In coda</span>
+                  `}
                   <span class="text-sm font-bold text-white truncate">${escapeHtml(item.title)}</span>
                 </div>
                 <svg class="h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-amber-300' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2988,7 +2995,7 @@
                   <div class="grid grid-cols-2 gap-2">
                     <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
                       <span class="text-[10px] uppercase font-bold text-slate-400 block">Priorità</span>
-                      <span class="font-mono font-bold text-amber-300 text-sm">#${escapeHtml(String(item.priority !== undefined && item.priority !== null ? item.priority : 1))}</span>
+                      <span class="font-mono font-bold text-amber-300 text-sm">${hasExplicitPriority ? '#' + escapeHtml(String(item.priority)) : '<span class="text-slate-400 font-normal">In coda (nessuna)</span>'}</span>
                     </div>
                     <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
                       <span class="text-[10px] uppercase font-bold text-slate-400 block">Casa Destinazione</span>
@@ -3179,7 +3186,7 @@
         document.getElementById('modal-acquisto-title-text').textContent = 'Nuovo Acquisto';
         document.getElementById('btn-save-acquisto').textContent = 'Salva Acquisto';
         document.getElementById('acquisto-title').value = '';
-        document.getElementById('acquisto-priority').value = String(acquistiItems.length + 1);
+        document.getElementById('acquisto-priority').value = '';
         selectAcquistoHouse('C');
         document.getElementById('acquisto-description').value = '';
         document.getElementById('acquisto-price-type').value = 'stimato';
@@ -3201,7 +3208,7 @@
         document.getElementById('modal-acquisto-title-text').textContent = 'Modifica Acquisto';
         document.getElementById('btn-save-acquisto').textContent = 'Salva Modifiche';
         document.getElementById('acquisto-title').value = item.title || '';
-        document.getElementById('acquisto-priority').value = String(item.priority !== undefined && item.priority !== null ? item.priority : 1);
+        document.getElementById('acquisto-priority').value = (item.priority !== undefined && item.priority !== null && item.priority !== '' && !isNaN(Number(item.priority))) ? String(item.priority) : '';
         selectAcquistoHouse(item.house || 'C');
         document.getElementById('acquisto-description').value = item.description || '';
         document.getElementById('acquisto-price-type').value = item.priceType || 'stimato';
@@ -3236,7 +3243,8 @@
         if (e) e.preventDefault();
         const editId = document.getElementById('acquisto-edit-id').value;
         const title = document.getElementById('acquisto-title').value.trim();
-        const priority = Number(document.getElementById('acquisto-priority').value || 1);
+        const rawPriority = document.getElementById('acquisto-priority').value.trim();
+        const priority = (rawPriority !== '' && !isNaN(Number(rawPriority))) ? Math.max(1, Math.round(Number(rawPriority))) : null;
         const house = document.getElementById('acquisto-house').value || 'C';
         const description = document.getElementById('acquisto-description').value.trim();
         const priceType = document.getElementById('acquisto-price-type').value || 'stimato';
@@ -3373,11 +3381,26 @@
         const countSpan = document.getElementById('lavori-count');
         if (!container) return;
 
+        // Ordine di data esecuzione: prima quelli con data più recente, dopo quelli più lontani nel tempo.
+        // Se la data di esecuzione manca, vanno in coda ordinati per data inserimento decrescente.
         const sorted = [...lavoriItems].sort((a, b) => {
-          const pa = Number((a.priority !== undefined && a.priority !== null && a.priority !== '') ? a.priority : 9999);
-          const pb = Number((b.priority !== undefined && b.priority !== null && b.priority !== '') ? b.priority : 9999);
-          if (pa !== pb) return pa - pb;
-          return String(a.insertedDate || '').localeCompare(String(b.insertedDate || ''));
+          const da = a.purchaseDate || '';
+          const db = b.purchaseDate || '';
+          if (da && db) {
+            const cmp = db.localeCompare(da); // Più recente prima
+            if (cmp !== 0) return cmp;
+          } else if (da && !db) {
+            return -1; // Con data esecuzione viene prima
+          } else if (!da && db) {
+            return 1;  // Senza data esecuzione va dopo
+          }
+          const ia = a.insertedDate || '';
+          const ib = b.insertedDate || '';
+          if (ia && ib) {
+            const icmp = ib.localeCompare(ia);
+            if (icmp !== 0) return icmp;
+          }
+          return String(a.title || '').localeCompare(String(b.title || ''));
         });
 
         const filtered = currentLavoriHouseFilter === 'ALL'
@@ -3393,7 +3416,7 @@
             <div class="rounded-2xl border border-dashed border-white/20 p-8 text-center text-slate-400">
               <span class="text-3xl block mb-2">🛠️</span>
               <p class="text-xs font-semibold text-slate-300">Nessun lavoro in lista.</p>
-              <p class="text-[11px] text-slate-500 mt-1">Premi "+ Nuovo Lavoro" per inserire un intervento ordinato per priorità.</p>
+              <p class="text-[11px] text-slate-500 mt-1">Premi "+ Nuovo Lavoro" per inserire un intervento ordinato per data esecuzione.</p>
             </div>
           `;
           return;
@@ -3410,7 +3433,7 @@
 
           return `
             <div class="rounded-2xl bg-white/[0.06] border border-white/15 shadow-lg overflow-hidden transition">
-              <!-- RIGA PRINCIPALE: SOLO PALLINO CASA + NOME DEL LAVORO -->
+              <!-- RIGA PRINCIPALE: PALLINO CASA + BADGE DATA ESECUZIONE + NOME DEL LAVORO -->
               <button
                 type="button"
                 onclick="toggleLavoroExpand('${item.id}')"
@@ -3422,7 +3445,14 @@
                     style="background:${h.color};"
                     title="${h.code} = ${h.name}"
                   ></span>
-                  <span class="px-2 py-0.5 rounded-lg bg-amber-400/20 border border-amber-400/40 text-amber-300 font-mono text-[11px] font-bold shrink-0">#${item.priority !== undefined && item.priority !== null ? item.priority : 1}</span>
+                  ${item.purchaseDate ? `
+                    <span class="px-2 py-0.5 rounded-lg bg-sky-500/20 border border-sky-500/35 text-sky-200 font-mono text-[11px] font-semibold shrink-0 flex items-center gap-1">
+                      <svg class="w-3 h-3 text-sky-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                      ${formatItDate(item.purchaseDate)}
+                    </span>
+                  ` : `
+                    <span class="px-2 py-0.5 rounded-lg bg-white/10 border border-white/15 text-slate-400 text-[10px] shrink-0 font-medium">Da eseguire</span>
+                  `}
                   <span class="text-sm font-bold text-white truncate">${escapeHtml(item.title)}</span>
                 </div>
                 <svg class="h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-amber-300' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3435,8 +3465,8 @@
                 <div class="px-4 pb-4 pt-2 border-t border-white/10 bg-navy-950/60 space-y-3 text-xs">
                   <div class="grid grid-cols-2 gap-2">
                     <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
-                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Priorità</span>
-                      <span class="font-mono font-bold text-amber-300 text-sm">#${escapeHtml(String(item.priority !== undefined && item.priority !== null ? item.priority : 1))}</span>
+                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Data Esecuzione</span>
+                      <span class="font-mono font-bold text-sky-300 text-sm block mt-0.5">${item.purchaseDate ? formatItDate(item.purchaseDate) : '<span class="text-slate-400 font-normal text-xs">Da concordare / non indicata</span>'}</span>
                     </div>
                     <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
                       <span class="text-[10px] uppercase font-bold text-slate-400 block">Casa Destinazione</span>
@@ -3461,15 +3491,9 @@
                     </div>
                   </div>
 
-                  <div class="grid grid-cols-2 gap-2">
-                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
-                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Data Inserimento</span>
-                      <span class="font-mono text-slate-200 block mt-0.5">${formatItDate(item.insertedDate)}</span>
-                    </div>
-                    <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
-                      <span class="text-[10px] uppercase font-bold text-slate-400 block">Data Esecuzione</span>
-                      <span class="font-mono text-slate-200 block mt-0.5">${formatItDate(item.purchaseDate)}</span>
-                    </div>
+                  <div class="p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Data Inserimento</span>
+                    <span class="font-mono text-slate-200 block mt-0.5">${formatItDate(item.insertedDate)}</span>
                   </div>
 
                   ${item.description ? `
@@ -3627,7 +3651,7 @@
         document.getElementById('modal-lavoro-title-text').textContent = 'Nuovo Lavoro';
         document.getElementById('btn-save-lavoro').textContent = 'Salva Lavoro';
         document.getElementById('lavoro-title').value = '';
-        document.getElementById('lavoro-priority').value = String(lavoriItems.length + 1);
+        document.getElementById('lavoro-priority').value = '';
         selectLavoroHouse('C');
         document.getElementById('lavoro-description').value = '';
         document.getElementById('lavoro-price-type').value = 'stimato';
@@ -3649,7 +3673,7 @@
         document.getElementById('modal-lavoro-title-text').textContent = 'Modifica Lavoro';
         document.getElementById('btn-save-lavoro').textContent = 'Salva Modifiche';
         document.getElementById('lavoro-title').value = item.title || '';
-        document.getElementById('lavoro-priority').value = String(item.priority !== undefined && item.priority !== null ? item.priority : 1);
+        document.getElementById('lavoro-priority').value = '';
         selectLavoroHouse(item.house || 'C');
         document.getElementById('lavoro-description').value = item.description || '';
         document.getElementById('lavoro-price-type').value = item.priceType || 'stimato';
@@ -3684,7 +3708,6 @@
         if (e) e.preventDefault();
         const editId = document.getElementById('lavoro-edit-id').value;
         const title = document.getElementById('lavoro-title').value.trim();
-        const priority = Number(document.getElementById('lavoro-priority').value || 1);
         const house = document.getElementById('lavoro-house').value || 'C';
         const description = document.getElementById('lavoro-description').value.trim();
         const priceType = document.getElementById('lavoro-price-type').value || 'stimato';
@@ -3699,54 +3722,10 @@
 
         if (!title) return;
 
-        // Slittamento priorità a cascata: se esiste già un lavoro con la stessa priorità,
-        // il nuovo lavoro la occupa e tutti i successivi con priorità >= priority slittano di +1
-        const targetPriority = Math.max(1, Math.round(priority));
-
-        if (editId) {
-          // Modifica lavoro esistente
-          const oldItem = lavoriItems.find(x => x.id === editId);
-          const oldPriority = oldItem && oldItem.priority !== undefined ? Number(oldItem.priority) : null;
-          if (oldPriority !== null && oldPriority !== targetPriority) {
-            if (targetPriority < oldPriority) {
-              // Spostato a priorità più urgente (es. da 4 a 2): quelli tra 2 e 3 slittano giù di +1
-              lavoriItems.forEach(it => {
-                if (it.id !== editId) {
-                  const p = Number(it.priority);
-                  if (!isNaN(p) && p >= targetPriority && p < oldPriority) {
-                    it.priority = p + 1;
-                  }
-                }
-              });
-            } else {
-              // Spostato a priorità meno urgente (es. da 2 a 4): quelli tra 3 e 4 salgono di -1
-              lavoriItems.forEach(it => {
-                if (it.id !== editId) {
-                  const p = Number(it.priority);
-                  if (!isNaN(p) && p > oldPriority && p <= targetPriority) {
-                    it.priority = p - 1;
-                  }
-                }
-              });
-            }
-          }
-        } else {
-          // Nuovo lavoro inserito: se esiste già quella priorità, tutti i successivi >= targetPriority slittano di +1
-          const hasCollision = lavoriItems.some(it => Number(it.priority) === targetPriority);
-          if (hasCollision) {
-            lavoriItems.forEach(it => {
-              const p = Number(it.priority);
-              if (!isNaN(p) && p >= targetPriority) {
-                it.priority = p + 1;
-              }
-            });
-          }
-        }
-
         const record = {
           id: editId || ('lav_' + Date.now() + '_' + Math.floor(Math.random() * 1000)),
           title,
-          priority: targetPriority,
+          priority: null,
           house,
           description,
           priceType,
