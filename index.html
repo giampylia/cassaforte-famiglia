@@ -1753,16 +1753,20 @@
               </div>
 
               <div class="p-3 rounded-2xl bg-sky-950/30 border border-sky-400/30">
-                <strong class="text-sky-300 block font-bold mb-1">Opzione 2: Automazione con MacroDroid</strong>
+                <strong class="text-sky-300 block font-bold mb-1">Opzione 2: Automazione con MacroDroid (Android)</strong>
                 <p class="text-slate-300 text-[11px] leading-relaxed mb-2">
                   1. Installa <strong>MacroDroid</strong> dal Google Play Store.<br>
-                  2. Crea una Macro: <em>Trigger</em>: <strong>Bluetooth ➔ Disconnessione dispositivo</strong> (Vivavoce Auto).<br>
-                  3. <em>Azione</em>: <strong>Apri Sito Web / Richiesta HTTP GET</strong> con il tuo link:
+                  2. <em>Trigger</em>: <strong>Bluetooth ➔ Disconnessione dispositivo</strong> (seleziona il vivavoce della tua auto).<br>
+                  3. <em>Azione 1 (FONDAMENTALE per la via esatta)</em>: <strong>Posizione ➔ Forza aggiornamento posizione</strong> (oppure Azione ➔ <em>Attendere 3 secondi</em> per dare tempo al GPS di agganciare i satelliti da fermo).<br>
+                  4. <em>Azione 2</em>: <strong>Apri Sito Web / Richiesta HTTP GET</strong> con questo link personale:
                 </p>
                 <div class="p-2 rounded-xl bg-black/50 border border-white/10 flex items-center justify-between gap-2">
                   <span id="android-webhook-modal-link" class="text-[10px] font-mono text-emerald-300 truncate select-all"></span>
                   <button type="button" onclick="copyAndroidModalWebhook()" class="px-2 py-0.5 rounded bg-white/10 text-[10px] font-bold text-amber-300">Copia</button>
                 </div>
+                <p class="text-[10px] text-amber-300/90 mt-2">
+                  💡 <em>Perché è importante l'Azione 1?</em> Senza di essa, il telefono invia l'ultima posizione memorizzata in cache mentre stavi ancora viaggiando in strada, invece del punto preciso in cui hai spento il motore!
+                </p>
               </div>
             </div>
           </div>
@@ -4797,10 +4801,10 @@
 
               <!-- Box Indirizzo in Evidenza -->
               <div class="p-3.5 rounded-2xl bg-black/40 border border-white/15 space-y-2 mb-3.5">
-                <div class="text-base sm:text-lg font-bold text-amber-300 tracking-wide leading-tight">
+                <div id="parking-hero-address-short" class="text-base sm:text-lg font-bold text-amber-300 tracking-wide leading-tight">
                   ${escapeHtml(displayAddr)}
                 </div>
-                <div class="text-xs text-slate-300 leading-relaxed">
+                <div id="parking-hero-address-full" class="text-xs text-slate-300 leading-relaxed">
                   ${escapeHtml(parkingActive.address || '')}
                 </div>
                 <div class="flex flex-wrap gap-x-3 gap-y-1 pt-1 text-[11px] text-slate-400 border-t border-white/10">
@@ -4912,6 +4916,14 @@
                 </div>
               </div>
             `;
+          }
+
+          if (parkingActive && parkingActive.lat && parkingActive.lng) {
+            const sAddr = (parkingActive.addressShort || '').trim();
+            const fAddr = (parkingActive.address || '').trim();
+            if (sAddr.startsWith('GPS (') || fAddr.startsWith('Coordinate GPS') || sAddr === 'Posizione GPS' || !sAddr) {
+              autoResolveParkingAddress(parkingActive);
+            }
           }
         }
 
@@ -5064,32 +5076,38 @@
             let address = `Coordinate GPS (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
             let addressShort = `GPS (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
 
-            // Tentativo geocodifica inversa rapida
+            // Tentativo 1: Photon Komoot (estremamente affidabile, civico + via, nessun blocco CORS)
             try {
-              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
-                headers: { 'Accept': 'application/json' }
-              });
+              const res = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}`);
               if (res.ok) {
                 const data = await res.json();
-                if (data && data.address) {
-                  const a = data.address;
-                  const road = a.road || a.pedestrian || a.street || '';
-                  const house = a.house_number ? ' ' + a.house_number : '';
-                  const city = a.city || a.town || a.village || a.municipality || a.suburb || '';
-                  if (road) {
-                    const streetWithHouse = (road + house).trim();
+                if (data && data.features && data.features.length > 0) {
+                  const p = data.features[0].properties;
+                  const street = p.street || p.name || '';
+                  const house = p.housenumber ? ' ' + p.housenumber : '';
+                  const city = p.city || p.locality || p.district || p.town || '';
+                  if (street) {
+                    const streetWithHouse = (street + house).trim();
                     addressShort = city ? `${streetWithHouse}, ${city}` : streetWithHouse;
                     address = `${streetWithHouse}${city ? ', ' + city : ''}`;
-                  } else if (data.display_name) {
-                    const parts = data.display_name.split(',');
-                    const mainLoc = parts[0] ? parts[0].trim() : 'Posizione';
-                    const locCity = city || (parts[1] ? parts[1].trim() : '');
-                    addressShort = locCity && !mainLoc.includes(locCity) ? `${mainLoc}, ${locCity}` : mainLoc;
-                    address = parts.slice(0, 3).join(', ');
                   }
                 }
               }
             } catch (geoErr) {}
+
+            // Tentativo 2: Se Photon non ha estratto la via, chiedi al server via /api/parking/resolve-geo
+            if (addressShort.startsWith('GPS (')) {
+              try {
+                const srvRes = await fetch(`/api/parking/resolve-geo?lat=${lat}&lng=${lng}`);
+                if (srvRes.ok) {
+                  const srvGeo = await srvRes.json();
+                  if (srvGeo && srvGeo.addressShort && !srvGeo.addressShort.startsWith('GPS (')) {
+                    addressShort = srvGeo.addressShort;
+                    address = srvGeo.address;
+                  }
+                }
+              } catch (sErr) {}
+            }
 
             const user = currentParkingUser || 'Giampy';
             const newEntry = {
@@ -5176,6 +5194,69 @@
           handleGpsError,
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
+      }
+
+      // Risoluzione automatica indirizzo via client (se registrato come sole coordinate GPS)
+      async function autoResolveParkingAddress(p) {
+        if (!p || !p.lat || !p.lng) return;
+        const short = (p.addressShort || '').trim();
+        const full = (p.address || '').trim();
+        const isGenericGps = short.startsWith('GPS (') || full.startsWith('Coordinate GPS') || short === 'Posizione GPS' || !short;
+        if (!isGenericGps) return;
+
+        try {
+          // 1. Prova prima Photon via client
+          const res = await fetch(`https://photon.komoot.io/reverse?lat=${p.lat}&lon=${p.lng}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.features && data.features.length > 0) {
+              const props = data.features[0].properties;
+              const street = props.street || props.name || '';
+              const house = props.housenumber ? ' ' + props.housenumber : '';
+              const city = props.city || props.locality || props.district || props.town || '';
+              if (street) {
+                const streetWithHouse = (street + house).trim();
+                const newShort = city ? `${streetWithHouse}, ${city}` : streetWithHouse;
+                const newFull = `${streetWithHouse}${city ? ', ' + city : ''}`;
+                p.addressShort = newShort;
+                p.address = newFull;
+                applyResolvedAddressToUI(newShort, newFull);
+                saveResolvedAddressToServer(p.id, newShort, newFull);
+                return;
+              }
+            }
+          }
+        } catch (e) {}
+
+        // 2. Fallback: chiedi al server via /api/parking/resolve-geo
+        try {
+          const sRes = await fetch(`/api/parking/resolve-geo?lat=${p.lat}&lng=${p.lng}`);
+          if (sRes.ok) {
+            const sGeo = await sRes.json();
+            if (sGeo && sGeo.addressShort && !sGeo.addressShort.startsWith('GPS (')) {
+              p.addressShort = sGeo.addressShort;
+              p.address = sGeo.address;
+              applyResolvedAddressToUI(sGeo.addressShort, sGeo.address);
+              saveResolvedAddressToServer(p.id, sGeo.addressShort, sGeo.address);
+            }
+          }
+        } catch (e) {}
+      }
+
+      function applyResolvedAddressToUI(short, full) {
+        const titleEl = document.getElementById('parking-hero-address-short');
+        const subEl = document.getElementById('parking-hero-address-full');
+        if (titleEl) titleEl.textContent = short;
+        if (subEl) subEl.textContent = full;
+      }
+
+      function saveResolvedAddressToServer(id, short, full) {
+        const user = currentParkingUser || 'Giampy';
+        fetch('/api/parking/update-address', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user, id, address: full, addressShort: short })
+        }).catch(() => {});
       }
 
       async function saveManualAddressParking() {

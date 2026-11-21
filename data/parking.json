@@ -1,20 +1,34 @@
 {
   "Giampy": {
     "active": {
-      "id": "park-1795007483157-gg95",
+      "id": "park-20261121-183700-cavaro",
       "section": "parking",
       "user": "Giampy",
       "owner": "Giampy",
-      "lat": 39.224953,
-      "lng": 9.1293873,
+      "lat": 39.2252545,
+      "lng": 9.1289067,
       "accuracy": 5,
-      "address": "Via Genneruxi 1a, Casteddu/Cagliari",
-      "addressShort": "Via Genneruxi 1a, Casteddu/Cagliari",
-      "timestamp": "2026-11-18T13:11:23.157Z",
+      "address": "Via Pietro Cavaro 9, Cagliari",
+      "addressShort": "Via Pietro Cavaro 9, Cagliari",
+      "timestamp": "2026-11-21T17:37:00.000Z",
       "trigger": "bluetooth_auto",
       "notes": "Nissan"
     },
     "history": [
+      {
+        "id": "park-1795007483157-gg95",
+        "section": "parking",
+        "user": "Giampy",
+        "owner": "Giampy",
+        "lat": 39.224953,
+        "lng": 9.1293873,
+        "accuracy": 5,
+        "address": "Via Genneruxi 1a, Casteddu/Cagliari",
+        "addressShort": "Via Genneruxi 1a, Casteddu/Cagliari",
+        "timestamp": "2026-11-18T13:11:23.157Z",
+        "trigger": "bluetooth_auto",
+        "notes": "Nissan"
+      },
       {
         "id": "park-1794989033095-2h4j",
         "section": "parking",

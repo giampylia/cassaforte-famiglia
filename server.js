@@ -328,64 +328,122 @@ function syncParkingWithFamylia(user) {
   });
 }
 
-function reverseGeocodeServer(lat, lng) {
+function fetchJsonWithTimeout(urlStr, timeoutMs = 3500, customHeaders = {}) {
   return new Promise((resolve) => {
-    const latNum = parseFloat(lat);
-    const lngNum = parseFloat(lng);
-    const fallback = {
-      address: `Coordinate GPS (${latNum.toFixed(5)}, ${lngNum.toFixed(5)})`,
-      addressShort: `GPS (${latNum.toFixed(4)}, ${lngNum.toFixed(4)})`
-    };
+    try {
+      const parsed = url.parse(urlStr);
+      const isHttps = parsed.protocol === 'https:';
+      const client = isHttps ? https : http;
+      const options = {
+        hostname: parsed.hostname,
+        port: parsed.port || (isHttps ? 443 : 80),
+        path: parsed.path,
+        method: 'GET',
+        headers: Object.assign({
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) GPPApp/2.0',
+          'Accept': 'application/json'
+        }, customHeaders),
+        timeout: timeoutMs
+      };
 
-    if (isNaN(latNum) || isNaN(lngNum) || (latNum === 0 && lngNum === 0)) {
-      return resolve({ address: 'Posizione non specificata', addressShort: 'Posizione GPS' });
-    }
-
-    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latNum}&lon=${lngNum}`;
-    const req = https.get(url, {
-      headers: {
-        'User-Agent': 'GPPApp/1.0 (contact: giampylia@gmail.com)',
-        'Accept': 'application/json'
-      },
-      timeout: 4000
-    }, (res) => {
-      let data = '';
-      res.on('data', chunk => { data += chunk; });
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          if (json && json.address) {
-            const a = json.address;
-            const road = a.road || a.pedestrian || a.street || '';
-            const house = a.house_number ? ' ' + a.house_number : '';
-            const city = a.city || a.town || a.village || a.municipality || a.suburb || '';
-            if (road) {
-              const streetWithHouse = (road + house).trim();
-              return resolve({
-                addressShort: city ? `${streetWithHouse}, ${city}` : streetWithHouse,
-                address: `${streetWithHouse}${city ? ', ' + city : ''}`
-              });
-            } else if (json.display_name) {
-              const parts = json.display_name.split(',');
-              const mainLoc = parts[0] ? parts[0].trim() : 'Posizione';
-              const locCity = city || (parts[1] ? parts[1].trim() : '');
-              return resolve({
-                addressShort: locCity && !mainLoc.includes(locCity) ? `${mainLoc}, ${locCity}` : mainLoc,
-                address: parts.slice(0, 3).join(', ')
-              });
-            }
+      const req = client.request(options, (res) => {
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            resolve(null);
           }
-        } catch (e) {}
-        resolve(fallback);
+        });
       });
-    });
 
-    req.on('error', () => resolve(fallback));
-    req.on('timeout', () => {
-      req.destroy();
-      resolve(fallback);
-    });
+      req.on('error', () => resolve(null));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve(null);
+      });
+      req.end();
+    } catch (e) {
+      resolve(null);
+    }
   });
+}
+
+async function reverseGeocodeServer(lat, lng) {
+  const latNum = parseFloat(lat);
+  const lngNum = parseFloat(lng);
+  const fallback = {
+    address: `Coordinate GPS (${latNum.toFixed(5)}, ${lngNum.toFixed(5)})`,
+    addressShort: `GPS (${latNum.toFixed(4)}, ${lngNum.toFixed(4)})`
+  };
+
+  if (isNaN(latNum) || isNaN(lngNum) || (latNum === 0 && lngNum === 0)) {
+    return { address: 'Posizione non specificata', addressShort: 'Posizione GPS' };
+  }
+
+  // 1. TENTATIVO 1: PHOTON (KOMOOT OSM) - Veloce, preciso (via + civico), nessun rate limit o access denied
+  try {
+    const photonUrl = `https://photon.komoot.io/reverse?lat=${latNum}&lon=${lngNum}`;
+    const pData = await fetchJsonWithTimeout(photonUrl, 3500);
+    if (pData && pData.features && pData.features.length > 0) {
+      const p = pData.features[0].properties;
+      const street = p.street || p.name || '';
+      const house = p.housenumber ? ' ' + p.housenumber : '';
+      const city = p.city || p.locality || p.district || p.town || '';
+      if (street) {
+        const streetWithHouse = (street + house).trim();
+        return {
+          addressShort: city ? `${streetWithHouse}, ${city}` : streetWithHouse,
+          address: `${streetWithHouse}${city ? ', ' + city : ''}`
+        };
+      }
+    }
+  } catch (e) {}
+
+  // 2. TENTATIVO 2: NOMINATIM OPENSTREETMAP
+  try {
+    const nomUrl = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latNum}&lon=${lngNum}`;
+    const nomData = await fetchJsonWithTimeout(nomUrl, 3000, {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) GPPApp/2.0'
+    });
+    if (nomData && nomData.address) {
+      const a = nomData.address;
+      const road = a.road || a.pedestrian || a.street || '';
+      const house = a.house_number ? ' ' + a.house_number : '';
+      const city = a.city || a.town || a.village || a.municipality || a.suburb || '';
+      if (road) {
+        const streetWithHouse = (road + house).trim();
+        return {
+          addressShort: city ? `${streetWithHouse}, ${city}` : streetWithHouse,
+          address: `${streetWithHouse}${city ? ', ' + city : ''}`
+        };
+      } else if (nomData.display_name) {
+        const parts = nomData.display_name.split(',');
+        const mainLoc = parts[0] ? parts[0].trim() : 'Posizione';
+        const locCity = city || (parts[1] ? parts[1].trim() : '');
+        return {
+          addressShort: locCity && !mainLoc.includes(locCity) ? `${mainLoc}, ${locCity}` : mainLoc,
+          address: parts.slice(0, 3).join(', ')
+        };
+      }
+    }
+  } catch (e) {}
+
+  // 3. TENTATIVO 3: BIGDATACOLUD (LOCALITY REVERSE GEOCODE)
+  try {
+    const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latNum}&longitude=${lngNum}&localityLanguage=it`;
+    const bdcData = await fetchJsonWithTimeout(bdcUrl, 3000);
+    if (bdcData && (bdcData.locality || bdcData.city)) {
+      const city = bdcData.city || bdcData.locality || '';
+      return {
+        addressShort: city ? `${city} (${latNum.toFixed(4)}, ${lngNum.toFixed(4)})` : fallback.addressShort,
+        address: `${city} - Coordinate (${latNum.toFixed(5)}, ${lngNum.toFixed(5)})`
+      };
+    }
+  } catch (e) {}
+
+  return fallback;
 }
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -733,6 +791,14 @@ const server = http.createServer((req, res) => {
       return;
     }
 
+    // 1b. GET /api/parking/resolve-geo (Risoluzione geocodifica inversa via Photon/OSM per qualsiasi coordinata)
+    if (reqPath === '/api/parking/resolve-geo' && req.method === 'GET') {
+      const qLat = query.lat || query.latitude;
+      const qLng = query.lng || query.lon || query.longitude;
+      const geo = await reverseGeocodeServer(qLat, qLng);
+      return sendJson(200, geo);
+    }
+
     // 2. GET o POST /api/auto-park (Compatibile al 100% con MacroDroid, Scorciatoie iOS, Webhook)
     if ((reqPath === '/api/auto-park' || reqPath === '/api/parking/auto-park') && (req.method === 'GET' || req.method === 'POST')) {
       const handleAutoPark = async (body) => {
@@ -805,7 +871,12 @@ const server = http.createServer((req, res) => {
             geo = await reverseGeocodeServer(lat, lng);
           }
 
-          if (parkingStore[user].active) {
+          // Debounce: se è arrivata una richiesta identica/ripetuta entro 35 secondi, non creare 25 duplicati nello storico
+          const isRecentDuplicate = parkingStore[user].active &&
+            parkingStore[user].active.lat &&
+            (Date.now() - new Date(parkingStore[user].active.timestamp).getTime() < 35000);
+
+          if (parkingStore[user].active && !isRecentDuplicate) {
             parkingStore[user].history.unshift(parkingStore[user].active);
             if (parkingStore[user].history.length > 500) {
               parkingStore[user].history = parkingStore[user].history.slice(0, 500);
@@ -908,6 +979,21 @@ const server = http.createServer((req, res) => {
         parkingStore[user].active = entry;
         saveParking(parkingStore);
         return sendJson(200, { success: true, active: entry });
+      }
+
+      if (reqPath === '/api/parking/update-address' && req.method === 'POST') {
+        const { id, address, addressShort, lat, lng } = data;
+        if (parkingStore[user].active && (!id || parkingStore[user].active.id === id)) {
+          if (address) parkingStore[user].active.address = address;
+          if (addressShort) parkingStore[user].active.addressShort = addressShort;
+          if (lat && lng) {
+            parkingStore[user].active.lat = parseFloat(lat);
+            parkingStore[user].active.lng = parseFloat(lng);
+          }
+          saveParking(parkingStore);
+          return sendJson(200, { success: true, active: parkingStore[user].active });
+        }
+        return sendJson(200, { success: false, message: 'Nessun parcheggio attivo' });
       }
 
       if (reqPath === '/api/parking/release' && req.method === 'POST') {
