@@ -152,6 +152,199 @@
       });
     </script>
 
+    <!-- MOTORE DI PROTEZIONE E SINCRONIZZAZIONE BI-DIREZIONALE DATI CONTABILITÀ -->
+    <script>
+      (function() {
+        const VAULT_KEY = 'gpp_journal_vault';
+        const JOURNAL_KEY = 'gpp_journal';
+        const CACHE_KEY = 'giampycash_offline_cache';
+        const ACCOUNTS_KEY = 'gpp_accounts';
+        const BUDGETS_KEY = 'gpp_budgets';
+
+        function collectLocalEntries() {
+          const map = new Map();
+          const sources = [
+            localStorage.getItem(VAULT_KEY),
+            localStorage.getItem(JOURNAL_KEY),
+            localStorage.getItem(CACHE_KEY)
+          ];
+
+          sources.forEach(src => {
+            if (!src) return;
+            try {
+              const parsed = JSON.parse(src);
+              let list = [];
+              if (Array.isArray(parsed)) list = parsed;
+              else if (parsed && Array.isArray(parsed.journalEntries)) list = parsed.journalEntries;
+              list.forEach(e => {
+                if (e && e.id) {
+                  const id = String(e.id);
+                  if (!map.has(id)) {
+                    map.set(id, e);
+                  } else {
+                    map.set(id, Object.assign({}, map.get(id), e));
+                  }
+                }
+              });
+            } catch (err) {}
+          });
+          return Array.from(map.values());
+        }
+
+        function persistToVault(entries) {
+          if (!Array.isArray(entries) || entries.length === 0) return;
+          try {
+            const existing = collectLocalEntries();
+            const map = new Map();
+            existing.forEach(e => { if (e && e.id) map.set(String(e.id), e); });
+            entries.forEach(e => { if (e && e.id) map.set(String(e.id), e); });
+            const merged = Array.from(map.values()).sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')));
+            localStorage.setItem(VAULT_KEY, JSON.stringify(merged));
+          } catch (e) {}
+        }
+
+        // Salva subito quanto attualmente noto nel vault
+        const initial = collectLocalEntries();
+        if (initial.length > 0) persistToVault(initial);
+
+        function showToast(msg, isSuccess = true) {
+          let toast = document.getElementById('gpp-sync-toast');
+          if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'gpp-sync-toast';
+            toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999999;background:rgba(11,25,44,0.96);border:1px solid ' + (isSuccess ? '#10b981' : '#f59e0b') + ';color:#fff;padding:10px 18px;border-radius:14px;font-size:13px;font-family:system-ui,-apple-system,sans-serif;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,0.6);display:flex;align-items:center;gap:8px;backdrop-filter:blur(10px);transition:all 0.3s cubic-bezier(0.16,1,0.3,1);opacity:0;pointer-events:none;';
+            document.body.appendChild(toast);
+          }
+          toast.innerHTML = (isSuccess ? '✨ ' : '⚠️ ') + msg;
+          toast.style.opacity = '1';
+          toast.style.transform = 'translateX(-50%) translateY(0)';
+          setTimeout(() => {
+            if (toast) {
+              toast.style.opacity = '0';
+              toast.style.transform = 'translateX(-50%) translateY(12px)';
+            }
+          }, 4500);
+        }
+
+        async function syncWithServer() {
+          try {
+            const res = await fetch('/api/contabilita');
+            if (!res.ok) return;
+            const j = await res.json();
+            const serverData = j && j.data ? j.data : null;
+            if (!serverData) return;
+
+            const serverJournal = Array.isArray(serverData.journalEntries) ? serverData.journalEntries : [];
+            const serverIds = new Set(serverJournal.map(e => String(e.id)));
+
+            const localEntries = collectLocalEntries();
+            const missingOnServer = localEntries.filter(e => !serverIds.has(String(e.id)));
+
+            if (missingOnServer.length > 0) {
+              console.log(`[GPP SYNC] Rilevate ${missingOnServer.length} registrazioni locali non presenti sul server. Unione in corso...`);
+              const payload = {
+                accounts: serverData.accounts,
+                budgetEntries: serverData.budgetEntries,
+                journalEntries: [...serverJournal, ...missingOnServer]
+              };
+              const postRes = await fetch('/api/contabilita/sync-merge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              if (postRes.ok) {
+                const postJson = await postRes.json();
+                if (postJson && postJson.data && Array.isArray(postJson.data.journalEntries)) {
+                  persistToVault(postJson.data.journalEntries);
+                  localStorage.setItem(JOURNAL_KEY, JSON.stringify(postJson.data.journalEntries));
+                  localStorage.setItem(CACHE_KEY, JSON.stringify(postJson.data));
+                  showToast(`Recuperate ${missingOnServer.length} registrazioni dallo smartphone e protette sul Cloud!`, true);
+                  try {
+                    window.parent.postMessage({ type: 'gpp-sync-updated', count: postJson.data.journalEntries.length }, '*');
+                  } catch (e) {}
+                  return;
+                }
+              }
+            } else {
+              persistToVault(serverJournal);
+              localStorage.setItem(JOURNAL_KEY, JSON.stringify(serverJournal));
+            }
+          } catch (err) {
+            console.warn('[GPP SYNC] Errore sincronizzazione:', err);
+          }
+        }
+
+        // Esegui sincronizzazione all'avvio
+        syncWithServer();
+
+        // Intercetta fetch per proteggere ogni nuova spesa o modifica
+        const _origFetch = window.fetch;
+        window.fetch = async function(...args) {
+          const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
+          const opt = args[1] || {};
+
+          if (url.includes('/api/contabilita') && opt.method === 'POST') {
+            try {
+              if (opt.body) {
+                const b = JSON.parse(opt.body);
+                if (b && Array.isArray(b.journalEntries)) persistToVault(b.journalEntries);
+              }
+            } catch (e) {}
+          }
+
+          const resp = await _origFetch.apply(this, args);
+
+          if (url.includes('/api/contabilita') && opt.method === 'POST') {
+            try {
+              const clone = resp.clone();
+              clone.json().then(data => {
+                if (data && data.data && Array.isArray(data.data.journalEntries)) {
+                  persistToVault(data.data.journalEntries);
+                  localStorage.setItem(JOURNAL_KEY, JSON.stringify(data.data.journalEntries));
+                  localStorage.setItem(CACHE_KEY, JSON.stringify(data.data));
+                }
+              }).catch(() => {});
+            } catch (e) {}
+          }
+
+          return resp;
+        };
+
+        // Ascolta comandi dalla finestra genitore (index.html)
+        window.addEventListener('message', function(ev) {
+          if (ev.data && ev.data.action === 'sync-contabilita') {
+            syncWithServer().then(() => {
+              showToast('Sincronizzazione completata!', true);
+              setTimeout(() => location.reload(), 800);
+            });
+          }
+        });
+
+        // Oggetto globale di supporto
+        window.gppContabilitaManager = {
+          syncNow: async function() {
+            await syncWithServer();
+            location.reload();
+          },
+          exportBackup: function() {
+            const data = {
+              vault: JSON.parse(localStorage.getItem(VAULT_KEY) || '[]'),
+              journal: JSON.parse(localStorage.getItem(JOURNAL_KEY) || '[]'),
+              accounts: JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]'),
+              budgets: JSON.parse(localStorage.getItem(BUDGETS_KEY) || '[]'),
+              backupDate: new Date().toISOString()
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `backup_contabilita_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+          }
+        };
+      })();
+    </script>
+
     <!-- Bundle Logico App Contabile -->
     <script type="module" crossorigin src="/assets/index-DjHMptbn.js?v=20261117_fix_sections_v4"></script>
   </body>

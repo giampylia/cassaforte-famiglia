@@ -448,7 +448,75 @@ async function reverseGeocodeServer(lat, lng) {
 
 const DATA_DIR = path.join(__dirname, 'data');
 const CONTABILITA_FILE = path.join(DATA_DIR, 'contabilita.json');
+const CONTABILITA_DELETED_FILE = path.join(DATA_DIR, 'deleted_journal_ids.json');
 let inMemoryContabilita = null;
+let deletedJournalIds = new Set();
+
+function loadDeletedIds() {
+  try {
+    if (fs.existsSync(CONTABILITA_DELETED_FILE)) {
+      const data = JSON.parse(fs.readFileSync(CONTABILITA_DELETED_FILE, 'utf8') || '[]');
+      if (Array.isArray(data)) deletedJournalIds = new Set(data);
+    }
+  } catch (e) {}
+}
+loadDeletedIds();
+
+function saveDeletedIds() {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(CONTABILITA_DELETED_FILE, JSON.stringify(Array.from(deletedJournalIds)), 'utf8');
+  } catch (e) {}
+}
+
+function mergeContabilitaPayload(existing, incoming) {
+  if (!existing || typeof existing !== 'object') {
+    existing = { accounts: [], budgetEntries: [], journalEntries: [] };
+  }
+  if (!incoming || typeof incoming !== 'object') return existing;
+
+  // 1. Accounts merge (mantiene codici esistenti e aggiunge nuovi)
+  const accountMap = new Map();
+  (existing.accounts || []).forEach(a => { if (a && a.code) accountMap.set(String(a.code), a); });
+  (incoming.accounts || []).forEach(a => { if (a && a.code) accountMap.set(String(a.code), a); });
+  const mergedAccounts = Array.from(accountMap.values()).sort((a, b) => String(a.code).localeCompare(String(b.code)));
+
+  // 2. Budgets merge
+  const budgetMap = new Map();
+  (existing.budgetEntries || []).forEach(b => { if (b && b.accountCode) budgetMap.set(String(b.accountCode), b); });
+  (incoming.budgetEntries || []).forEach(b => { if (b && b.accountCode) budgetMap.set(String(b.accountCode), b); });
+  const mergedBudgets = Array.from(budgetMap.values());
+
+  // 3. Journal Entries merge (FONDAMENTALE: unisce smartphone e PC senza mai cancellare le registrazioni)
+  const journalMap = new Map();
+  (existing.journalEntries || []).forEach(e => {
+    if (e && e.id && !deletedJournalIds.has(String(e.id))) {
+      journalMap.set(String(e.id), e);
+    }
+  });
+  (incoming.journalEntries || []).forEach(e => {
+    if (e && e.id && !deletedJournalIds.has(String(e.id))) {
+      const prev = journalMap.get(String(e.id));
+      if (!prev) {
+        journalMap.set(String(e.id), e);
+      } else {
+        journalMap.set(String(e.id), { ...prev, ...e });
+      }
+    }
+  });
+
+  const mergedJournal = Array.from(journalMap.values()).sort((a, b) => {
+    const da = String(a.date || '');
+    const db = String(b.date || '');
+    return da.localeCompare(db);
+  });
+
+  return {
+    accounts: mergedAccounts.length > 0 ? mergedAccounts : (existing.accounts || []),
+    budgetEntries: mergedBudgets.length > 0 ? mergedBudgets : (existing.budgetEntries || []),
+    journalEntries: mergedJournal
+  };
+}
 
 function loadContabilita() {
   if (inMemoryContabilita) return inMemoryContabilita;
@@ -478,16 +546,21 @@ function loadContabilita() {
   return { accounts: [], journalEntries: [], budgetEntries: [] };
 }
 
-function saveContabilita(payload) {
+function saveContabilita(payload, forceOverwrite = false) {
   try {
     if (!payload || typeof payload !== 'object') return false;
-    inMemoryContabilita = payload;
+    let toSave = payload;
+    if (!forceOverwrite) {
+      const current = loadContabilita();
+      toSave = mergeContabilitaPayload(current, payload);
+    }
+    inMemoryContabilita = toSave;
     fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(CONTABILITA_FILE, JSON.stringify(payload, null, 2), 'utf8');
+    fs.writeFileSync(CONTABILITA_FILE, JSON.stringify(toSave, null, 2), 'utf8');
     try {
-      fs.writeFileSync(path.join(PUBLIC_DIR, 'contabilita-data.json'), JSON.stringify(payload, null, 2), 'utf8');
+      fs.writeFileSync(path.join(PUBLIC_DIR, 'contabilita-data.json'), JSON.stringify(toSave, null, 2), 'utf8');
     } catch (e) {}
-    return true;
+    return toSave;
   } catch (err) {
     console.error('[Contabilità] Errore salvataggio:', err.message);
     return false;
@@ -1087,22 +1160,30 @@ const server = http.createServer((req, res) => {
               amount: Number(payload.amount || 0)
             };
             current.journalEntries = [...(current.journalEntries || []), entry].sort((a, b) => String(a.date).localeCompare(String(b.date)));
-            const ok = saveContabilita(current);
+            const saved = saveContabilita(current, false);
             console.log(`[CONTABILITÀ GPP] Registrata spesa automatica: Dare ${entry.debitAccountCode} / Avere ${entry.creditAccountCode} €${entry.amount} (${entry.description})`);
-            return sendJson(200, { success: ok, entry, data: current });
+            return sendJson(200, { success: !!saved, entry, data: saved });
           }
           if (reqPath === '/api/contabilita/delete-entry') {
             const current = loadContabilita();
             const idToDelete = payload.id;
             if (idToDelete) {
-              current.journalEntries = (current.journalEntries || []).filter(e => e.id !== idToDelete);
-              saveContabilita(current);
+              deletedJournalIds.add(String(idToDelete));
+              saveDeletedIds();
+              current.journalEntries = (current.journalEntries || []).filter(e => String(e.id) !== String(idToDelete));
+              saveContabilita(current, true);
               console.log(`[CONTABILITÀ GPP] Eliminata registrazione con ID: ${idToDelete}`);
             }
             return sendJson(200, { success: true, data: current });
           }
-          const ok = saveContabilita(payload);
-          return sendJson(200, { success: ok });
+          if (reqPath === '/api/contabilita/sync-merge') {
+            const saved = saveContabilita(payload, false);
+            const count = saved && Array.isArray(saved.journalEntries) ? saved.journalEntries.length : 0;
+            console.log(`[CONTABILITÀ GPP] Sincronizzazione bi-direzionale smartphone/PC completata. Totale registrazioni unite: ${count}`);
+            return sendJson(200, { success: !!saved, data: saved, totalEntries: count });
+          }
+          const saved = saveContabilita(payload, false);
+          return sendJson(200, { success: !!saved, data: saved });
         } catch (err) {
           return sendJson(400, { success: false, error: err.message });
         }
