@@ -339,6 +339,17 @@ interface AppContextType {
     note_staff?: string;
   }) => Promise<{ ok: boolean; stato: 'confermata' | 'lista_attesa'; posizioneAttesa?: number; message?: string }>;
   annullaPrenotazione: (prenotazioneId: string) => Promise<void>;
+  modificaPrenotazione: (
+    prenotazioneId: string,
+    updates: {
+      num_posti: 1 | 2;
+      ospite_tessera?: string;
+      ospite_nominativo?: string;
+      socio_email?: string;
+      socio_telefono?: string;
+      note_staff?: string;
+    }
+  ) => Promise<{ ok: boolean; message?: string }>;
   aggiornaStatoPagamentoPrenotazione: (prenotazioneId: string, statoPagamento: 'gratuito' | 'da_pagare_in_sede' | 'pagato') => Promise<void>;
   promuoviDaListaAttesa: (prenotazioneId: string) => Promise<void>;
   resetDemoData: () => void;
@@ -1827,6 +1838,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const isCDMember = Boolean(
     currentUser &&
       (isSuperAdmin ||
+        isCdMemberProfile(currentUser) ||
         currentUser.is_cd ||
         (currentUser.roles && currentUser.roles.includes('CD')))
   );
@@ -5169,6 +5181,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     commitEventiUpdate(eventiRef.current, eventiTipologieRef.current, nextList);
   };
 
+  const modificaPrenotazione = async (
+    prenotazioneId: string,
+    updates: {
+      num_posti: 1 | 2;
+      ospite_tessera?: string;
+      ospite_nominativo?: string;
+      socio_email?: string;
+      socio_telefono?: string;
+      note_staff?: string;
+    }
+  ): Promise<{ ok: boolean; message?: string }> => {
+    const target = eventiPrenotazioniRef.current.find((p) => p.id === prenotazioneId);
+    if (!target) return { ok: false, message: 'Prenotazione non trovata.' };
+
+    const evento = eventiRef.current.find((e) => e.id === target.evento_id);
+    if (!evento) return { ok: false, message: 'Evento non trovato.' };
+
+    if (target.stato === 'confermata' && target.num_posti === 1 && updates.num_posti === 2) {
+      const postiResidui = calcolaPostiResiduiOnline(evento, eventiPrenotazioniRef.current);
+      if (postiResidui < 1) {
+        return { ok: false, message: 'Non ci sono posti liberi per aggiungere un secondo partecipante.' };
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const costoUnitario = evento.costo_biglietto || 0;
+    const nuovaQuotaTotale = costoUnitario * updates.num_posti;
+
+    const nextList = eventiPrenotazioniRef.current.map((p) => {
+      if (p.id !== prenotazioneId) return p;
+      return {
+        ...p,
+        num_posti: updates.num_posti,
+        ospite_tessera: updates.num_posti === 2 ? updates.ospite_tessera : undefined,
+        ospite_nominativo: updates.num_posti === 2 ? updates.ospite_nominativo : undefined,
+        socio_email: updates.socio_email !== undefined ? updates.socio_email : p.socio_email,
+        socio_telefono: updates.socio_telefono !== undefined ? updates.socio_telefono : p.socio_telefono,
+        note_staff: updates.note_staff !== undefined ? updates.note_staff : p.note_staff,
+        quota_totale: nuovaQuotaTotale,
+        updated_at: nowIso,
+      };
+    });
+
+    commitEventiUpdate(eventiRef.current, eventiTipologieRef.current, nextList);
+    return { ok: true };
+  };
+
   const aggiornaStatoPagamentoPrenotazione = async (
     prenotazioneId: string,
     statoPagamento: 'gratuito' | 'da_pagare_in_sede' | 'pagato'
@@ -5328,6 +5387,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteTipoAttivita,
         prenotaEvento,
         annullaPrenotazione,
+        modificaPrenotazione,
         aggiornaStatoPagamentoPrenotazione,
         promuoviDaListaAttesa,
         resetDemoData,

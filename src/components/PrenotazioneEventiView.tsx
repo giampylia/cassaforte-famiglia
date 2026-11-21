@@ -44,6 +44,7 @@ import {
   getEventoRichiedePagamento,
 } from '../data/eventiData';
 import { exportCsv, exportOfficialPdf, ASSOCIATION_LOGO_URL } from '../utils/soundAndPdf';
+import { isCdMemberProfile } from '../data/initialData';
 
 // Caricamento dinamico di SheetJS per Excel nativo (.xlsx)
 let xlsxPromise: Promise<any> | null = null;
@@ -235,19 +236,22 @@ export const PrenotazioneEventiView: React.FC = () => {
     deleteTipoAttivita,
     prenotaEvento,
     annullaPrenotazione,
+    modificaPrenotazione,
     aggiornaStatoPagamentoPrenotazione,
     promuoviDaListaAttesa,
     profiles,
   } = useApp();
 
-  const sectionPerm = getUserSectionPermission('prenotazione_eventi');
-  const canManage = Boolean(
+  // REGOLA: Solo i componenti del CD (Consiglio Direttivo) possono inserire eventi, vedere tutte le prenotazioni e report
+  const isCD = Boolean(
     isSuperAdmin ||
       currentUser?.role === 'admin' ||
       isCDMember ||
-      isSegreteriaMember ||
-      sectionPerm === 'write'
+      isCdMemberProfile(currentUser) ||
+      currentUser?.id === 'admin-2406' ||
+      currentUser?.member_number === '2406'
   );
+  const canManage = isCD;
 
   // Stato filtri
   const [selectedTipoId, setSelectedTipoId] = useState<string>('ALL');
@@ -279,6 +283,19 @@ export const PrenotazioneEventiView: React.FC = () => {
   const [bookingTelefono, setBookingTelefono] = useState('');
   const [bookingNote, setBookingNote] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
+
+  // Modale modifica prenotazione (socio)
+  const [editingBooking, setEditingBooking] = useState<{
+    prenotazione: PrenotazioneEvento;
+    evento: Evento;
+  } | null>(null);
+  const [editBookingNumPosti, setEditBookingNumPosti] = useState<1 | 2>(1);
+  const [editBookingOspiteNome, setEditBookingOspiteNome] = useState('');
+  const [editBookingOspiteTessera, setEditBookingOspiteTessera] = useState('');
+  const [editBookingEmail, setEditBookingEmail] = useState('');
+  const [editBookingTelefono, setEditBookingTelefono] = useState('');
+  const [editBookingNote, setEditBookingNote] = useState('');
+  const [editBookingLoading, setEditBookingLoading] = useState(false);
 
   const [confirmedBookingResult, setConfirmedBookingResult] = useState<{
     prenotazione: PrenotazioneEvento;
@@ -414,6 +431,40 @@ export const PrenotazioneEventiView: React.FC = () => {
       alert(`Errore: ${err?.message || 'Errore durante la prenotazione'}`);
     } finally {
       setBookingLoading(false);
+    }
+  };
+
+  // Modifica della propria prenotazione da parte del socio
+  const handleOpenEditBooking = (pren: PrenotazioneEvento, ev: Evento) => {
+    setEditingBooking({ prenotazione: pren, evento: ev });
+    setEditBookingNumPosti(pren.num_posti);
+    setEditBookingOspiteNome(pren.ospite_nominativo || '');
+    setEditBookingOspiteTessera(pren.ospite_tessera || '');
+    setEditBookingEmail(pren.socio_email || currentMemberProfile?.email || '');
+    setEditBookingTelefono(pren.socio_telefono || currentMemberProfile?.phone || '');
+    setEditBookingNote(pren.note_staff || '');
+  };
+
+  const handleSaveEditBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBooking) return;
+    setEditBookingLoading(true);
+    try {
+      const res = await modificaPrenotazione(editingBooking.prenotazione.id, {
+        num_posti: editBookingNumPosti,
+        ospite_nominativo: editBookingNumPosti === 2 ? editBookingOspiteNome.trim() : undefined,
+        ospite_tessera: editBookingNumPosti === 2 ? editBookingOspiteTessera.trim() : undefined,
+        socio_email: editBookingEmail.trim() || undefined,
+        socio_telefono: editBookingTelefono.trim() || undefined,
+        note_staff: editBookingNote.trim() || undefined,
+      });
+      if (!res.ok) {
+        alert(res.message || 'Errore durante la modifica della prenotazione.');
+      } else {
+        setEditingBooking(null);
+      }
+    } finally {
+      setEditBookingLoading(false);
     }
   };
 
@@ -875,18 +926,28 @@ export const PrenotazioneEventiView: React.FC = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between text-xs pt-1 border-t border-emerald-200">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (window.confirm('Sei sicuro di voler disdire questa prenotazione?')) {
-                              annullaPrenotazione(myBooking.id);
-                            }
-                          }}
-                          className="text-[11px] text-rose-600 hover:text-rose-700 font-semibold hover:underline"
-                        >
-                          Disdici prenotazione
-                        </button>
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1 border-t border-emerald-200">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditBooking(myBooking, evento)}
+                            className="text-[11px] text-emerald-800 hover:text-emerald-950 font-semibold hover:underline"
+                          >
+                            Modifica prenotazione
+                          </button>
+                          <span className="text-emerald-300">·</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm('Sei sicuro di voler disdire questa prenotazione?')) {
+                                annullaPrenotazione(myBooking.id);
+                              }
+                            }}
+                            className="text-[11px] text-rose-600 hover:text-rose-700 font-semibold hover:underline"
+                          >
+                            Disdici prenotazione
+                          </button>
+                        </div>
 
                         <button
                           type="button"
@@ -1242,8 +1303,173 @@ export const PrenotazioneEventiView: React.FC = () => {
         </div>
       )}
 
-      {/* DRAWER / MODALE STAFF: ELENCO PRENOTATI & OSPITI */}
-      {guestListEvento && (
+      {/* MODALE MODIFICA PRENOTAZIONE (Socio) */}
+      {editingBooking && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-xl border border-slate-100 my-8">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800">
+                  Modifica la tua Prenotazione
+                </span>
+                <h3 className="text-lg font-bold text-slate-900 mt-0.5">
+                  {editingBooking.evento.titolo}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingBooking(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditBooking} className="space-y-3.5">
+              {/* Selezione Numero Posti: 1 o 2 */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Numero di Partecipanti
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditBookingNumPosti(1)}
+                    className={`p-3 rounded-2xl border text-center transition ${
+                      editBookingNumPosti === 1
+                        ? 'border-emerald-700 bg-emerald-50 text-emerald-950 font-bold shadow-2xs'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-sm block">1 Posto</span>
+                    <span className="text-[11px] text-slate-500 font-normal">Solo per me</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditBookingNumPosti(2)}
+                    className={`p-3 rounded-2xl border text-center transition ${
+                      editBookingNumPosti === 2
+                        ? 'border-emerald-700 bg-emerald-50 text-emerald-950 font-bold shadow-2xs'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-sm block">2 Posti</span>
+                    <span className="text-[11px] text-slate-500 font-normal">Con Coniuge/Accompagnatore</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Dati del 2° Ospite se selezionati 2 posti */}
+              {editBookingNumPosti === 2 && (
+                <div className="rounded-2xl bg-amber-50/50 border border-amber-200 p-3 space-y-2.5">
+                  <span className="text-xs font-bold text-amber-950 block">
+                    Dati del Coniuge / 2° Accompagnatore
+                  </span>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-700">
+                      Nome e Cognome Coniuge *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editBookingOspiteNome}
+                      onChange={(e) => setEditBookingOspiteNome(e.target.value)}
+                      placeholder="Nome e Cognome"
+                      className="w-full h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-xs mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-700">
+                      N° Tessera se anche lui/lei è socio/a (opzionale)
+                    </label>
+                    <input
+                      type="text"
+                      value={editBookingOspiteTessera}
+                      onChange={(e) => setEditBookingOspiteTessera(e.target.value)}
+                      placeholder="es. 125"
+                      className="w-full h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-xs mt-1"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Recapiti socio */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-700">Email di Contatto</label>
+                  <input
+                    type="email"
+                    value={editBookingEmail}
+                    onChange={(e) => setEditBookingEmail(e.target.value)}
+                    className="w-full h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-xs mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-700">Telefono</label>
+                  <input
+                    type="tel"
+                    value={editBookingTelefono}
+                    onChange={(e) => setEditBookingTelefono(e.target.value)}
+                    className="w-full h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-xs mt-1"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-slate-700">Note o Esigenze particolari</label>
+                <input
+                  type="text"
+                  value={editBookingNote}
+                  onChange={(e) => setEditBookingNote(e.target.value)}
+                  placeholder="Es. allergie alimentari, posto sedia a rotelle..."
+                  className="w-full h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-xs mt-1"
+                />
+              </div>
+
+              {/* Riepilogo Quota / Pagamento */}
+              <div className="rounded-2xl bg-slate-100 p-3 text-xs space-y-1">
+                <div className="flex items-center justify-between font-bold text-slate-900">
+                  <span>Totale Quota Prevista:</span>
+                  <span>
+                    {getEventoCosto(editingBooking.evento) > 0
+                      ? `€ ${(getEventoCosto(editingBooking.evento) * editBookingNumPosti).toFixed(2)}`
+                      : 'Gratuito'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Azioni Modale */}
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingBooking(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  disabled={editBookingLoading}
+                  className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5"
+                >
+                  {editBookingLoading ? (
+                    <span>Salvataggio in corso...</span>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>Salva Modifiche</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DRAWER / MODALE STAFF: ELENCO PRENOTATI & OSPITI (Solo CD) */}
+      {guestListEvento && canManage && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-4xl w-full p-5 sm:p-6 space-y-4 shadow-xl border border-slate-200 my-8 max-h-[90vh] flex flex-col">
             {/* Header Drawer */}

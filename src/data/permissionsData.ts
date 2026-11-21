@@ -142,7 +142,7 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsMap = {
   },
   piccola_cassa: {
     'Solo CD': 'edit',
-    'Socio': 'none',
+    'Socio': 'view',
     'Segreteria': 'none',
     'Amministrativo': 'edit',
     'Didattica': 'none',
@@ -319,4 +319,29 @@ export function computeUserSectionPermission(
   }
 
   return highest;
+}
+
+/**
+ * Determina se un profilo è Amministratore o ha il Ruolo Amministrativo
+ * (es. Giampiero Pilia 7726, badge 2406, superadmin, o con ruolo Amministrativo/Amministratore)
+ */
+export function isAmministrativoOrAdmin(
+  user?: {
+    id?: string;
+    member_number?: string;
+    role?: string;
+    is_super_admin?: boolean;
+    roles?: string[];
+  } | null
+): boolean {
+  if (!user) return false;
+  if (user.is_super_admin || user.role === 'admin') return true;
+  const num = String(user.member_number || '').trim();
+  if (num === '2406' || num === '7726') return true;
+  if (user.id === 'admin-2406' || user.id === 'admin-7726') return true;
+  const roles = Array.isArray(user.roles) ? user.roles : [];
+  return roles.some((r) => {
+    const clean = r.trim().toLowerCase();
+    return clean === 'amministrativo' || clean === 'amministratore' || clean === 'admin';
+  });
 }

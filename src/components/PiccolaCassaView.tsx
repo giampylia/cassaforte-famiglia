@@ -28,7 +28,22 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { CashMovement, getMemberParts } from '../data/initialData';
+import { isAmministrativoOrAdmin } from '../data/permissionsData';
 import { ASSOCIATION_LOGO_URL, exportCsv, exportOfficialPdf } from '../utils/soundAndPdf';
+
+// Controlla se un movimento è intestato all'utente autenticato (anche se inserito da altri)
+export function isMovementOfUser(m: CashMovement, user: any): boolean {
+  if (!user) return false;
+  if (m.requester_id && m.requester_id === user.id) return true;
+  if (m.user_id && m.user_id === user.id) return true;
+  const userNum = String(user.member_number || '').trim();
+  const mNum = String(m.member_number || '').trim();
+  if (userNum && mNum && userNum === mNum) return true;
+  const uName = (user.full_name || `${user.first_name || ''} ${user.last_name || ''}`).trim().toLowerCase();
+  const rName = (m.requester_name || `${m.first_name || ''} ${m.last_name || ''}`).trim().toLowerCase();
+  if (uName && rName && (uName === rName || rName.includes(uName) || uName.includes(rName))) return true;
+  return false;
+}
 
 // Calcola l'Anno Contabile (dal 1° Luglio di ogni anno al 30 Giugno dell'anno successivo)
 export function getAccountingYearForDate(dateStr?: string): string {
@@ -247,6 +262,8 @@ export const PiccolaCassaView: React.FC = () => {
     importCashMovements,
   } = useApp();
 
+  const isAdminOrAmministrativo = Boolean(isSuperAdmin || isAmministrativoOrAdmin(currentUser));
+
   const todayIso = new Date().toISOString().slice(0, 10);
   const currentAccountingYear = useMemo(() => getAccountingYearForDate(todayIso), [todayIso]);
 
@@ -394,7 +411,7 @@ export const PiccolaCassaView: React.FC = () => {
     setSelectedCategoryId(defaultCat);
     setCustomCategoryName('');
     setDescription('');
-    setStatusInput(type === 'entrata' && isSuperAdmin ? 'pagato' : 'inviato');
+    setStatusInput(type === 'entrata' && isAdminOrAmministrativo ? 'pagato' : 'inviato');
     setReceiptImageData(undefined);
     setScanFeedback(null);
     setShowFormModal(true);
@@ -550,7 +567,7 @@ export const PiccolaCassaView: React.FC = () => {
         category_id: finalCategoryId,
         category_name: finalCategoryName,
         description: description.trim() || undefined,
-        status: isSuperAdmin ? statusInput : undefined,
+        status: isAdminOrAmministrativo ? statusInput : undefined,
         receipt_image_data: receiptImageData,
       });
       showToast('✓ Movimento aggiornato correttamente.');
@@ -568,7 +585,7 @@ export const PiccolaCassaView: React.FC = () => {
         category_id: finalCategoryId,
         category_name: finalCategoryName,
         description: description.trim() || undefined,
-        status: isSuperAdmin ? statusInput : 'inviato',
+        status: isAdminOrAmministrativo ? statusInput : 'inviato',
         receipt_image_data: receiptImageData,
       });
       showToast(
@@ -582,20 +599,42 @@ export const PiccolaCassaView: React.FC = () => {
   };
 
   // Movimenti dell'Anno Contabile selezionato (1° Luglio – 30 Giugno) ordinati per data decrescente
+  // REGOLA: Se l'utente non è Amministratore o Ruolo Amministrativo, vede SOLO i movimenti a lui intestati (anche se digitati da altri).
   const accountingYearMovements = useMemo(() => {
-    const list =
+    let list =
       selectedAccountingYear === 'all'
         ? cashMovements
         : cashMovements.filter(
             (m) => getAccountingYearForDate(m.request_date || m.receipt_date) === selectedAccountingYear
           );
+    if (!isAdminOrAmministrativo) {
+      list = list.filter((m) => isMovementOfUser(m, currentUser));
+    }
     return list.slice().sort((a, b) => {
       const dateA = a.request_date || a.receipt_date || '';
       const dateB = b.request_date || b.receipt_date || '';
       if (dateA !== dateB) return dateB.localeCompare(dateA);
       return b.id.localeCompare(a.id);
     });
-  }, [cashMovements, selectedAccountingYear]);
+  }, [cashMovements, selectedAccountingYear, isAdminOrAmministrativo, currentUser]);
+
+  // Statistiche personali per i Soci non amministratori (visualizzate al posto del bilancio globale)
+  const myPaidMovements = useMemo(
+    () => accountingYearMovements.filter((m) => m.entry_type === 'spesa' && m.status === 'pagato'),
+    [accountingYearMovements]
+  );
+  const myPaidTotal = useMemo(
+    () => myPaidMovements.reduce((acc, m) => acc + Number(m.amount_requested || 0), 0),
+    [myPaidMovements]
+  );
+  const myPendingMovements = useMemo(
+    () => accountingYearMovements.filter((m) => m.entry_type === 'spesa' && m.status !== 'pagato'),
+    [accountingYearMovements]
+  );
+  const myPendingTotal = useMemo(
+    () => myPendingMovements.reduce((acc, m) => acc + Number(m.amount_requested || 0), 0),
+    [myPendingMovements]
+  );
 
   // Filtra movimenti per stato, tipo e testo
   const visibleMovements = useMemo(() => {
@@ -760,17 +799,32 @@ export const PiccolaCassaView: React.FC = () => {
     printWin.document.close();
   };
 
-  // Esporta PDF Registro Cassa completo
+  // Esporta PDF Registro Cassa o I Miei Rimborsi
   const handleExportRegisterPdf = () => {
+    const isGlobal = isAdminOrAmministrativo;
+    const title = isGlobal
+      ? `Registro Piccola Cassa — Anno Contabile ${
+          selectedAccountingYear === 'all'
+            ? 'Tutti'
+            : `${selectedAccountingYear} (${formatAccountingYearRange(selectedAccountingYear)})`
+        }`
+      : `I Miei Rimborsi Spesa — ${currentUser?.full_name || 'Socio'} (${
+          selectedAccountingYear === 'all' ? 'Tutti gli Anni' : selectedAccountingYear
+        })`;
+
+    const subtitle = isGlobal
+      ? `Saldo Iniziale: € ${cashOpeningBalance.toFixed(2)} · Versamenti (Pagati): +€ ${stats.totalEntrate.toFixed(2)} · Rimborsi (Pagati): -€ ${stats.totalSpese.toFixed(2)} · Saldo Cassa Effettivo: € ${stats.finalBalance.toFixed(2)}${
+          stats.pendingCountTotal > 0 ? ` · [${stats.pendingCountTotal} pratiche non a saldo]` : ''
+        }`
+      : `Totale Liquidato: € ${myPaidTotal.toFixed(2)} · In Attesa / Lavorazione: € ${myPendingTotal.toFixed(2)}`;
+
+    const fileName = isGlobal
+      ? `registro_piccola_cassa_QU3_${todayIso}.pdf`
+      : `i_miei_rimborsi_QU3_${todayIso}.pdf`;
+
     exportOfficialPdf({
-      title: `Registro Piccola Cassa — Anno Contabile ${
-        selectedAccountingYear === 'all'
-          ? 'Tutti'
-          : `${selectedAccountingYear} (${formatAccountingYearRange(selectedAccountingYear)})`
-      }`,
-      subtitle: `Saldo Iniziale: € ${cashOpeningBalance.toFixed(2)} · Versamenti (Pagati): +€ ${stats.totalEntrate.toFixed(2)} · Rimborsi (Pagati): -€ ${stats.totalSpese.toFixed(2)} · Saldo Cassa Effettivo: € ${stats.finalBalance.toFixed(2)}${
-        stats.pendingCountTotal > 0 ? ` · [${stats.pendingCountTotal} pratiche non a saldo]` : ''
-      }`,
+      title,
+      subtitle,
       head: [
         'Data Rich.',
         'Data Scontr.',
@@ -797,14 +851,18 @@ export const PiccolaCassaView: React.FC = () => {
           m.status === 'pagato' ? 'PAGATO' : `${m.status.toUpperCase()} (NON A SALDO)`,
         ];
       }),
-      fileName: `registro_piccola_cassa_QU3_${todayIso}.pdf`,
+      fileName,
       landscape: true,
     });
   };
 
   const handleExportRegisterCsv = () => {
+    const fileName = isAdminOrAmministrativo
+      ? `piccola_cassa_QU3_${todayIso}.csv`
+      : `i_miei_rimborsi_QU3_${todayIso}.csv`;
+
     exportCsv(
-      `piccola_cassa_QU3_${todayIso}.csv`,
+      fileName,
       [
         'Anno Contabile',
         'Data Richiesta',
@@ -1021,7 +1079,7 @@ export const PiccolaCassaView: React.FC = () => {
                 </select>
               </div>
 
-              {isSuperAdmin && (
+              {isAdminOrAmministrativo && (
                 <>
                   <button
                     type="button"
@@ -1047,76 +1105,112 @@ export const PiccolaCassaView: React.FC = () => {
             </div>
           </div>
 
-          {/* I 2 pulsanti principali grandi e immediati */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <button
-              type="button"
-              onClick={() => openNewForm('spesa')}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 py-3.5 px-4 text-base font-medium text-white shadow-xs transition active:scale-[0.99]"
-            >
-              <Plus className="h-5 w-5" />
-              <span>Richiesta di Rimborso</span>
-            </button>
+          {/* Pulsanti principali: solo Admin e Amministrativo vedono Registra Versamento */}
+          {isAdminOrAmministrativo ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => openNewForm('spesa')}
+                className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 py-3.5 px-4 text-base font-medium text-white shadow-xs transition active:scale-[0.99]"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Richiesta di Rimborso</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => openNewForm('entrata')}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-700 bg-emerald-50 hover:bg-emerald-100 py-3.5 px-4 text-base font-medium text-emerald-900 transition active:scale-[0.99]"
-            >
-              <ArrowDownLeft className="h-5 w-5 text-emerald-700" />
-              <span>Registra Versamento</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => openNewForm('entrata')}
+                className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-700 bg-emerald-50 hover:bg-emerald-100 py-3.5 px-4 text-base font-medium text-emerald-900 transition active:scale-[0.99]"
+              >
+                <ArrowDownLeft className="h-5 w-5 text-emerald-700" />
+                <span>Registra Versamento</span>
+              </button>
+            </div>
+          ) : (
+            <div>
+              <button
+                type="button"
+                onClick={() => openNewForm('spesa')}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 py-3.5 px-4 text-base font-medium text-white shadow-xs transition active:scale-[0.99]"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Nuova Richiesta di Rimborso</span>
+              </button>
+            </div>
+          )}
 
-          {/* Riepilogo Saldo in 4 caselle pulite: calcolato unicamente su operazioni PAGATE */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-            <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3">
-              <span className="text-[11px] font-normal text-slate-500 block">
-                Saldo 1° Luglio
-              </span>
-              <span className="text-base sm:text-lg font-medium text-slate-800 tabular-nums">
-                € {cashOpeningBalance.toFixed(2)}
-              </span>
-              <span className="text-[10px] text-slate-400 block mt-0.5">Inizio esercizio</span>
-            </div>
-            <div className="rounded-2xl bg-emerald-50/60 border border-emerald-200 p-3">
-              <span className="text-[11px] font-normal text-emerald-800 block">+ Versamenti (Pagati)</span>
-              <span className="text-base sm:text-lg font-medium text-emerald-700 tabular-nums">
-                + € {stats.totalEntrate.toFixed(2)}
-              </span>
-              {stats.pendingEntrate > 0 ? (
-                <span className="text-[10px] font-medium text-amber-700 block mt-0.5">
-                  In attesa: +€ {stats.pendingEntrate.toFixed(2)}
+          {/* Riepilogo Saldo: globale per Admin/Amministrativo, personale per i singoli soci */}
+          {isAdminOrAmministrativo ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+              <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3">
+                <span className="text-[11px] font-normal text-slate-500 block">
+                  Saldo 1° Luglio
                 </span>
-              ) : (
-                <span className="text-[10px] text-emerald-600/70 block mt-0.5">Solo pagati a saldo</span>
-              )}
-            </div>
-            <div className="rounded-2xl bg-rose-50/60 border border-rose-200 p-3">
-              <span className="text-[11px] font-normal text-rose-800 block">- Rimborsi (Pagati)</span>
-              <span className="text-base sm:text-lg font-medium text-rose-700 tabular-nums">
-                - € {stats.totalSpese.toFixed(2)}
-              </span>
-              {stats.pendingSpese > 0 ? (
-                <span className="text-[10px] font-medium text-amber-700 block mt-0.5">
-                  In attesa: -€ {stats.pendingSpese.toFixed(2)}
+                <span className="text-base sm:text-lg font-medium text-slate-800 tabular-nums">
+                  € {cashOpeningBalance.toFixed(2)}
                 </span>
-              ) : (
-                <span className="text-[10px] text-rose-600/70 block mt-0.5">Solo pagati a saldo</span>
-              )}
+                <span className="text-[10px] text-slate-400 block mt-0.5">Inizio esercizio</span>
+              </div>
+              <div className="rounded-2xl bg-emerald-50/60 border border-emerald-200 p-3">
+                <span className="text-[11px] font-normal text-emerald-800 block">+ Versamenti (Pagati)</span>
+                <span className="text-base sm:text-lg font-medium text-emerald-700 tabular-nums">
+                  + € {stats.totalEntrate.toFixed(2)}
+                </span>
+                {stats.pendingEntrate > 0 ? (
+                  <span className="text-[10px] font-medium text-amber-700 block mt-0.5">
+                    In attesa: +€ {stats.pendingEntrate.toFixed(2)}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-emerald-600/70 block mt-0.5">Solo pagati a saldo</span>
+                )}
+              </div>
+              <div className="rounded-2xl bg-rose-50/60 border border-rose-200 p-3">
+                <span className="text-[11px] font-normal text-rose-800 block">- Rimborsi (Pagati)</span>
+                <span className="text-base sm:text-lg font-medium text-rose-700 tabular-nums">
+                  - € {stats.totalSpese.toFixed(2)}
+                </span>
+                {stats.pendingSpese > 0 ? (
+                  <span className="text-[10px] font-medium text-amber-700 block mt-0.5">
+                    In attesa: -€ {stats.pendingSpese.toFixed(2)}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-rose-600/70 block mt-0.5">Solo pagati a saldo</span>
+                )}
+              </div>
+              <div className="rounded-2xl bg-emerald-700 text-white p-3">
+                <span className="text-[11px] font-normal text-emerald-100 block">Saldo Cassa Effettivo</span>
+                <span className="text-base sm:text-lg font-medium tabular-nums">
+                  € {stats.finalBalance.toFixed(2)}
+                </span>
+                <span className="text-[10px] text-emerald-200 block mt-0.5">
+                  {stats.pendingCountTotal > 0
+                    ? `${stats.pendingCountTotal} ${stats.pendingCountTotal === 1 ? 'pratica' : 'pratiche'} non a saldo`
+                    : 'Tutte le pratiche regolate'}
+                </span>
+              </div>
             </div>
-            <div className="rounded-2xl bg-emerald-700 text-white p-3">
-              <span className="text-[11px] font-normal text-emerald-100 block">Saldo Cassa Effettivo</span>
-              <span className="text-base sm:text-lg font-medium tabular-nums">
-                € {stats.finalBalance.toFixed(2)}
-              </span>
-              <span className="text-[10px] text-emerald-200 block mt-0.5">
-                {stats.pendingCountTotal > 0
-                  ? `${stats.pendingCountTotal} ${stats.pendingCountTotal === 1 ? 'pratica' : 'pratiche'} non a saldo`
-                  : 'Tutte le pratiche regolate'}
-              </span>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <div className="rounded-2xl bg-emerald-50/80 border border-emerald-200 p-3.5">
+                <span className="text-xs font-normal text-emerald-800 block">I Miei Rimborsi Ricevuti</span>
+                <span className="text-lg sm:text-xl font-medium text-emerald-700 tabular-nums">
+                  € {myPaidTotal.toFixed(2)}
+                </span>
+                <span className="text-[11px] text-emerald-600 block mt-0.5">
+                  {myPaidMovements.length} {myPaidMovements.length === 1 ? 'pratica liquidata' : 'pratiche liquidate'}
+                </span>
+              </div>
+              <div className="rounded-2xl bg-amber-50/80 border border-amber-200 p-3.5">
+                <span className="text-xs font-normal text-amber-800 block">Richieste in Lavorazione / Attesa</span>
+                <span className="text-lg sm:text-xl font-medium text-amber-800 tabular-nums">
+                  € {myPendingTotal.toFixed(2)}
+                </span>
+                <span className="text-[11px] text-amber-700 block mt-0.5">
+                  {myPendingMovements.length} {myPendingMovements.length === 1 ? 'pratica in attesa' : 'pratiche in attesa'}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* BLOCCO 2: ELENCO OPERAZIONI LEGGIBILE A SCHEDE */}
@@ -1163,7 +1257,7 @@ export const PiccolaCassaView: React.FC = () => {
                 <span>CSV</span>
               </button>
 
-              {isSuperAdmin && (
+              {isAdminOrAmministrativo && (
                 <>
                   <input
                     ref={csvImportInputRef}
@@ -1202,11 +1296,13 @@ export const PiccolaCassaView: React.FC = () => {
                   `${mov.first_name || ''} ${mov.last_name || ''}`.trim() ||
                   'Socio CD';
                 const compilerName = mov.compiled_by_name || beneficiaryName;
+                const isMine = isMovementOfUser(mov, currentUser);
                 const canEdit =
-                  isSuperAdmin ||
-                  ((mov.requester_id === currentUser?.id ||
-                    mov.compiled_by_id === currentUser?.id) &&
-                    mov.status === 'inviato');
+                  isAdminOrAmministrativo ||
+                  (isMine && mov.entry_type === 'spesa' && mov.status !== 'pagato');
+                const canDelete =
+                  isAdminOrAmministrativo ||
+                  (isMine && mov.entry_type === 'spesa' && mov.status !== 'pagato');
 
                 return (
                   <div
@@ -1314,7 +1410,7 @@ export const PiccolaCassaView: React.FC = () => {
                           </button>
                         )}
 
-                        {isSuperAdmin && mov.status === 'inviato' && (
+                        {isAdminOrAmministrativo && mov.status === 'inviato' && (
                           <button
                             type="button"
                             onClick={() => {
@@ -1327,7 +1423,7 @@ export const PiccolaCassaView: React.FC = () => {
                           </button>
                         )}
 
-                        {isSuperAdmin && mov.status !== 'pagato' && (
+                        {isAdminOrAmministrativo && mov.status !== 'pagato' && (
                           <button
                             type="button"
                             onClick={() => {
@@ -1343,12 +1439,14 @@ export const PiccolaCassaView: React.FC = () => {
                           </button>
                         )}
 
-                        {isSuperAdmin && (
+                        {canDelete && (
                           <button
                             type="button"
                             onClick={() => {
-                              deleteCashMovement(mov.id);
-                              showToast('Movimento eliminato.');
+                              if (window.confirm('Sei sicuro di voler eliminare questa richiesta?')) {
+                                deleteCashMovement(mov.id);
+                                showToast('Movimento eliminato.');
+                              }
                             }}
                             className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-white p-1.5 text-rose-600 hover:bg-rose-50"
                             title="Elimina"
@@ -1554,66 +1652,74 @@ export const PiccolaCassaView: React.FC = () => {
                     </span>
                   </label>
 
-                  {/* Casella di ricerca rapida per trovare subito un singolo socio senza scorrere l'elenco */}
-                  <div className="relative">
-                    <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      value={beneficiarySearch}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setBeneficiarySearch(val);
-                        const q = val.trim().toLowerCase();
-                        if (q) {
-                          const words = q.split(/\s+/).filter(Boolean);
-                          const match = eligibleBeneficiaries.find((p) => {
-                            const blob = `${p.member_number} ${p.full_name} ${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
-                            return words.every((w) => blob.includes(w));
-                          });
-                          if (match) {
-                            setRequesterId(match.id);
-                            setRequesterName(match.full_name);
-                          }
-                        }
-                      }}
-                      placeholder="Cerca socio per nome, cognome o N° tessera..."
-                      className={`w-full h-10 rounded-xl pl-9 pr-8 text-xs sm:text-sm font-normal ${inputClass}`}
-                    />
-                    {beneficiarySearch && (
-                      <button
-                        type="button"
-                        onClick={() => setBeneficiarySearch('')}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
+                  {isAdminOrAmministrativo ? (
+                    <>
+                      {/* Casella di ricerca rapida per trovare subito un singolo socio senza scorrere l'elenco */}
+                      <div className="relative">
+                        <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={beneficiarySearch}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setBeneficiarySearch(val);
+                            const q = val.trim().toLowerCase();
+                            if (q) {
+                              const words = q.split(/\s+/).filter(Boolean);
+                              const match = eligibleBeneficiaries.find((p) => {
+                                const blob = `${p.member_number} ${p.full_name} ${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
+                                return words.every((w) => blob.includes(w));
+                              });
+                              if (match) {
+                                setRequesterId(match.id);
+                                setRequesterName(match.full_name);
+                              }
+                            }
+                          }}
+                          placeholder="Cerca socio per nome, cognome o N° tessera..."
+                          className={`w-full h-10 rounded-xl pl-9 pr-8 text-xs sm:text-sm font-normal ${inputClass}`}
+                        />
+                        {beneficiarySearch && (
+                          <button
+                            type="button"
+                            onClick={() => setBeneficiarySearch('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
 
-                  <select
-                    value={requesterId}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      setRequesterId(id);
-                      const found = profiles.find((p) => p.id === id);
-                      if (found) setRequesterName(found.full_name);
-                    }}
-                    className={`w-full h-11 rounded-xl px-3 text-sm font-medium ${inputClass}`}
-                    required
-                  >
-                    {filteredBeneficiaries.length === 0 ? (
-                      <option value={requesterId}>{requesterName} (Nessun altro risultato per &quot;{beneficiarySearch}&quot;)</option>
-                    ) : (
-                      filteredBeneficiaries.map((p) => {
-                        const roleLabel = getMemberParts(p).primaryRole;
-                        return (
-                          <option key={p.id} value={p.id}>
-                            {p.full_name} — Ruolo: {roleLabel} (Tessera {p.member_number})
-                          </option>
-                        );
-                      })
-                    )}
-                  </select>
+                      <select
+                        value={requesterId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setRequesterId(id);
+                          const found = profiles.find((p) => p.id === id);
+                          if (found) setRequesterName(found.full_name);
+                        }}
+                        className={`w-full h-11 rounded-xl px-3 text-sm font-medium ${inputClass}`}
+                        required
+                      >
+                        {filteredBeneficiaries.length === 0 ? (
+                          <option value={requesterId}>{requesterName} (Nessun altro risultato per &quot;{beneficiarySearch}&quot;)</option>
+                        ) : (
+                          filteredBeneficiaries.map((p) => {
+                            const roleLabel = getMemberParts(p).primaryRole;
+                            return (
+                              <option key={p.id} value={p.id}>
+                                {p.full_name} — Ruolo: {roleLabel} (Tessera {p.member_number})
+                              </option>
+                            );
+                          })
+                        )}
+                      </select>
+                    </>
+                  ) : (
+                    <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900">
+                      {currentUser?.full_name || requesterName} (Tessera {currentUser?.member_number || '—'})
+                    </div>
+                  )}
                 </div>
 
                 {/* Sotto: FISSO il nome di chi si è autenticato che ha compilato la pratica a nome del fruitore selezionato */}
@@ -1748,11 +1854,11 @@ export const PiccolaCassaView: React.FC = () => {
                 />
               </div>
 
-              {/* Stato Operazione (riservato a Giampiero Pilia 7796) */}
-              {isSuperAdmin && (
+              {/* Stato Operazione (riservato ad Amministratore e Amministrativo) */}
+              {isAdminOrAmministrativo && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5">
                   <label className="text-xs font-medium text-amber-900 block mb-1.5">
-                    Stato Operazione (Controllo Amministratore 7796)
+                    Stato Operazione (Controllo Amministrazione)
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {(
@@ -1947,7 +2053,7 @@ export const PiccolaCassaView: React.FC = () => {
               </button>
 
               <div className="flex flex-wrap items-center gap-2">
-                {isSuperAdmin && selectedMovement.status === 'inviato' && (
+                {isAdminOrAmministrativo && selectedMovement.status === 'inviato' && (
                   <button
                     type="button"
                     onClick={() => {
@@ -1962,7 +2068,7 @@ export const PiccolaCassaView: React.FC = () => {
                   </button>
                 )}
 
-                {isSuperAdmin && selectedMovement.status !== 'pagato' && (
+                {isAdminOrAmministrativo && selectedMovement.status !== 'pagato' && (
                   <button
                     type="button"
                     onClick={() => {
@@ -1983,22 +2089,38 @@ export const PiccolaCassaView: React.FC = () => {
                   </button>
                 )}
 
-                {(isSuperAdmin ||
-                  ((selectedMovement.requester_id === currentUser?.id ||
-                    selectedMovement.compiled_by_id === currentUser?.id) &&
-                    selectedMovement.status === 'inviato')) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const mov = selectedMovement;
-                      setSelectedMovement(null);
-                      openEditForm(mov);
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 text-xs sm:text-sm font-normal text-slate-700"
-                  >
-                    <Edit3 className="h-4 w-4" />
-                    <span>Modifica</span>
-                  </button>
+                {(isAdminOrAmministrativo ||
+                  (isMovementOfUser(selectedMovement, currentUser) &&
+                    selectedMovement.entry_type === 'spesa' &&
+                    selectedMovement.status !== 'pagato')) && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const mov = selectedMovement;
+                        setSelectedMovement(null);
+                        openEditForm(mov);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 text-xs sm:text-sm font-normal text-slate-700"
+                    >
+                      <Edit3 className="h-4 w-4" />
+                      <span>Modifica</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('Sei sicuro di voler eliminare questa richiesta?')) {
+                          deleteCashMovement(selectedMovement.id);
+                          setSelectedMovement(null);
+                          showToast('Movimento eliminato.');
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 px-3.5 py-2 text-xs sm:text-sm font-normal text-rose-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span>Elimina</span>
+                    </button>
+                  </>
                 )}
 
                 <button
@@ -2015,9 +2137,9 @@ export const PiccolaCassaView: React.FC = () => {
       )}
 
       {/* =====================================================================
-          MODAL GESTIONE CAUSALI (Solo Giampiero Pilia 7796)
+          MODAL GESTIONE CAUSALI
          ===================================================================== */}
-      {showCategoriesModal && isSuperAdmin && (
+      {showCategoriesModal && isAdminOrAmministrativo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
           <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xl space-y-4 max-h-[88vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -2087,7 +2209,7 @@ export const PiccolaCassaView: React.FC = () => {
       {/* =====================================================================
           MODAL SALDO INIZIALE (Solo Giampiero Pilia 7796)
          ===================================================================== */}
-      {showOpeningBalanceModal && isSuperAdmin && (
+      {showOpeningBalanceModal && isAdminOrAmministrativo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
           <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
