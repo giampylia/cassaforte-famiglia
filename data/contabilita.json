@@ -9457,6 +9457,102 @@
       "amount": 7.5
     },
     {
+      "id": "b802be5d-a0aa-46ed-8d43-bcf110de7950",
+      "date": "2026-11-16",
+      "description": "MSF MIKI TRAMITE CC POSTALE",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4010",
+      "amount": 500
+    },
+    {
+      "id": "382818cb-bde3-46df-ae30-caa7458fba1c",
+      "date": "2026-11-16",
+      "description": "PENNELLI PER INGINOCCHIATOIO",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4010",
+      "amount": 2.5
+    },
+    {
+      "id": "aed9ed88-9e80-44f4-9264-133452f5b694",
+      "date": "2026-11-16",
+      "description": "COMMISSINI BOLLETTINO POSTALE",
+      "debitAccountCode": "6130",
+      "creditAccountCode": "4010",
+      "amount": 2.5
+    },
+    {
+      "id": "2e4921ac-1c43-4e8d-9bc9-081b16270dcc",
+      "date": "2026-11-16",
+      "description": "BAR CON TY",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 6
+    },
+    {
+      "id": "f4ad7779-e1f4-4011-a5a6-7148db7814e8",
+      "date": "2026-11-19",
+      "description": "AFFITTO FEDERICO TORRESAGASTI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "8040",
+      "amount": 700
+    },
+    {
+      "id": "e2b2f1e5-3a65-4ec3-84cf-c0031b958ffd",
+      "date": "2026-11-19",
+      "description": "AFFITTI GEN MAG FEDERICO TORRESAGASTI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5010",
+      "amount": 2500
+    },
+    {
+      "id": "2f310730-9e2f-46bb-ad29-c62bdd342ffb",
+      "date": "2026-11-21",
+      "description": "CAUZIONE FEDERICO TORRESAGASTI",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "5024",
+      "amount": 500
+    },
+    {
+      "id": "4ca5db3f-8414-4431-9756-f8bbd66ce17e",
+      "date": "2026-11-21",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 30
+    },
+    {
+      "id": "366dc666-073f-4028-b0e1-2c89a3e4f2c2",
+      "date": "2026-11-21",
+      "description": "4 PAIA SCARPE TENNIS, PASSEGGIO(2) TREKKING",
+      "debitAccountCode": "6012",
+      "creditAccountCode": "4010",
+      "amount": 102
+    },
+    {
+      "id": "68744224-215c-4ca5-a0d8-599c09df0934",
+      "date": "2026-11-21",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 23
+    },
+    {
+      "id": "eabade1f-0aea-4a0a-8577-f8824597927d",
+      "date": "2026-11-21",
+      "description": "SPESA PER TREKKING DOMENICA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 8.5
+    },
+    {
+      "id": "46fa8446-67de-415f-9a3b-7476f56a78aa",
+      "date": "2026-11-21",
+      "description": "RIMBORSO ON RENDER",
+      "debitAccountCode": "4010",
+      "creditAccountCode": "4071",
+      "amount": 5.5
+    },
+    {
       "id": "1723e51c-0a65-455d-ae90-5358932ee133",
       "date": "2026-11-27",
       "description": "FATTURA ELETTRICA TISIDDU 46,77€",
@@ -9478,7 +9574,7 @@
       "description": "ACCANTONAM.O AFFITTI  A RISERVA LIQUIDITA",
       "debitAccountCode": "8040",
       "creditAccountCode": "5070",
-      "amount": 5174.71
+      "amount": 5804.71
     },
     {
       "id": "29180182-b64c-4fef-b8c7-cd93eaf00a0a",
@@ -9486,7 +9582,7 @@
       "description": "SURPLUS AFFITTI 2026",
       "debitAccountCode": "8040",
       "creditAccountCode": "5030",
-      "amount": 3406.57
+      "amount": 3396.16
     },
     {
       "id": "3c6c1bcc-7f4b-44e4-8e5c-3a8e4a7bd539",
