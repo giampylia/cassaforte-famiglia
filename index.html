@@ -2874,16 +2874,12 @@
           if (cached) localItems = JSON.parse(cached) || [];
         } catch (e) {}
 
-        if (serverItems && serverItems.length >= localItems.length) {
-          acquistiItems = serverItems;
-        } else {
-          const merged = new Map();
-          (serverItems || []).forEach(it => { if (it && it.id) merged.set(it.id, it); });
-          localItems.forEach(it => { if (it && it.id) merged.set(it.id, it); });
-          acquistiItems = Array.from(merged.values());
-          if (acquistiItems.length > (serverItems || []).length) {
-            persistAcquistiItems();
-          }
+        const merged = new Map();
+        (serverItems || []).forEach(it => { if (it && it.id) merged.set(it.id, it); });
+        localItems.forEach(it => { if (it && it.id && !merged.has(it.id)) merged.set(it.id, it); });
+        acquistiItems = Array.from(merged.values());
+        if (acquistiItems.length > (serverItems || []).length) {
+          persistAcquistiItems();
         }
         try {
           localStorage.setItem('gpp_acquisti_cached', JSON.stringify(acquistiItems));
@@ -3371,16 +3367,12 @@
           if (cached) localItems = JSON.parse(cached) || [];
         } catch (e) {}
 
-        if (serverItems && serverItems.length >= localItems.length) {
-          lavoriItems = serverItems;
-        } else {
-          const merged = new Map();
-          (serverItems || []).forEach(it => { if (it && it.id) merged.set(it.id, it); });
-          localItems.forEach(it => { if (it && it.id) merged.set(it.id, it); });
-          lavoriItems = Array.from(merged.values());
-          if (lavoriItems.length > (serverItems || []).length) {
-            persistLavoriItems();
-          }
+        const merged = new Map();
+        (serverItems || []).forEach(it => { if (it && it.id) merged.set(it.id, it); });
+        localItems.forEach(it => { if (it && it.id && !merged.has(it.id)) merged.set(it.id, it); });
+        lavoriItems = Array.from(merged.values());
+        if (lavoriItems.length > (serverItems || []).length) {
+          persistLavoriItems();
         }
         try {
           localStorage.setItem('gpp_lavori_cached', JSON.stringify(lavoriItems));
