@@ -2957,12 +2957,12 @@ export const EliminacodeView: React.FC<EliminacodeViewProps> = ({ forceMonitorMo
               📺 Link diretto per il Monitor in Sala d&apos;Attesa (senza login):{' '}
             </span>
             <a
-              href="https://qu3.onrender.com/monitor"
+              href="https://univerquartu.onrender.com/monitor"
               target="_blank"
               rel="noopener noreferrer"
               className="font-mono font-bold text-white underline break-all"
             >
-              https://qu3.onrender.com/monitor
+              https://univerquartu.onrender.com/monitor
             </a>
           </div>
           <button

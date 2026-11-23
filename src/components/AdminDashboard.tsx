@@ -599,7 +599,7 @@ export const AdminDashboard: React.FC = () => {
     manual_utility_boost: number;
   } | null>(null);
 
-  const shareUrl = 'https://qu3.onrender.com';
+  const shareUrl = 'https://univerquartu.onrender.com';
 
   const handleCopyShareLink = () => {
     if (navigator.clipboard) {
@@ -2784,7 +2784,7 @@ export const AdminDashboard: React.FC = () => {
               </p>
               <ul className="space-y-1 text-slate-800">
                 <li>
-                  • <strong>https://qu3.onrender.com</strong>
+                  • <strong>https://univerquartu.onrender.com</strong>
                 </li>
               </ul>
             </div>

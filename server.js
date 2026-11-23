@@ -20,7 +20,7 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 }
 
 const sseClients = new Set();
-let publicCloudUrl = process.env.PUBLIC_URL || 'https://qu3.onrender.com';
+let publicCloudUrl = process.env.PUBLIC_URL || 'https://univerquartu.onrender.com';
 
 const GOOGLE_DRIVE_WEBHOOK_URL =
   process.env.GOOGLE_DRIVE_WEBHOOK_URL ||
@@ -1271,7 +1271,7 @@ const server = http.createServer(async (req, res) => {
 // Keep-alive self-ping every 10 minutes so Render never puts the server into cold-start sleep
 setInterval(() => {
   try {
-    https.get('https://qu3.onrender.com/api/ping', (res) => {
+    https.get('https://univerquartu.onrender.com/api/ping', (res) => {
       res.resume();
     }).on('error', () => {});
   } catch {}
