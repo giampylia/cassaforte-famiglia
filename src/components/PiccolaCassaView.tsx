@@ -553,6 +553,7 @@ export const PiccolaCassaView: React.FC = () => {
     const finalCompiledById = compiledById || currentUser?.id || '';
     const finalCompiledByName = compiledByName || currentUser?.full_name || finalRequesterName;
 
+    let savedMov: CashMovement | null = null;
     if (editingMovementId) {
       updateCashMovement(editingMovementId, {
         entry_type: entryType,
@@ -571,8 +572,9 @@ export const PiccolaCassaView: React.FC = () => {
         receipt_image_data: receiptImageData,
       });
       showToast('✓ Movimento aggiornato correttamente.');
+      savedMov = cashMovements.find((m) => m.id === editingMovementId) || null;
     } else {
-      addCashMovement({
+      savedMov = addCashMovement({
         entry_type: entryType,
         requester_id: requesterId || currentUser?.id || 'cd-member',
         requester_name: finalRequesterName,
@@ -596,6 +598,46 @@ export const PiccolaCassaView: React.FC = () => {
     }
 
     setShowFormModal(false);
+    if (savedMov) {
+      setSelectedMovement(savedMov);
+    }
+  };
+
+  // Stampa immediata della ricevuta / richiesta direttamente dal form di compilazione (prima di inviare)
+  const handlePrintCurrentDraft = () => {
+    const numericAmount = parseFloat(String(amountInput).replace(',', '.'));
+    let finalCategoryName = 'Generale';
+    if (selectedCategoryId === 'altro') {
+      finalCategoryName = customCategoryName.trim() || 'Altro';
+    } else if (selectedCategoryId) {
+      const found = expenseCategories.find((c) => c.id === selectedCategoryId);
+      finalCategoryName = found ? found.name : 'Generale';
+    }
+
+    const selectedBeneficiary = profiles.find((p) => p.id === requesterId);
+    const finalRequesterName =
+      selectedBeneficiary?.full_name || requesterName.trim() || currentUser?.full_name || 'Socio';
+    const finalCompiledByName = compiledByName || currentUser?.full_name || finalRequesterName;
+
+    const draftMov: CashMovement = {
+      id: editingMovementId || `Bozza_${new Date().toLocaleDateString('it-IT')}`,
+      entry_type: entryType,
+      requester_id: requesterId || currentUser?.id || '',
+      requester_name: finalRequesterName,
+      compiled_by_id: compiledById || currentUser?.id || '',
+      compiled_by_name: finalCompiledByName,
+      request_date: requestDate || todayIso,
+      receipt_date: receiptDate || requestDate || todayIso,
+      receipt_number: receiptNumber.trim() || undefined,
+      amount_requested: !isNaN(numericAmount) ? Math.round(numericAmount * 100) / 100 : 0,
+      category_id: selectedCategoryId || null,
+      category_name: finalCategoryName,
+      description: description.trim() || undefined,
+      status: isAdminOrAmministrativo ? statusInput : (editingMovementId ? 'approvato' : 'inviato'),
+      created_at: new Date().toISOString(),
+    };
+
+    handlePrintSingleReceipt(draftMov);
   };
 
   // Movimenti dell'Anno Contabile selezionato (1° Luglio – 30 Giugno) ordinati per data decrescente
@@ -1885,27 +1927,39 @@ export const PiccolaCassaView: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowFormModal(false)}
-                  className="h-11 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-4 text-sm font-normal text-slate-700"
+                  onClick={handlePrintCurrentDraft}
+                  className="h-11 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-3.5 text-xs sm:text-sm font-semibold text-emerald-800 flex items-center justify-center gap-1.5 shadow-2xs transition active:scale-95 cursor-pointer"
+                  title="Stampa subito la ricevuta con i dati inseriti (prima di inviare)"
                 >
-                  Annulla
+                  <Printer className="h-4 w-4 text-emerald-700" />
+                  <span>Stampa Ricevuta</span>
                 </button>
-                <button
-                  type="submit"
-                  className="h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 text-sm font-normal text-white flex items-center gap-2 shadow-sm transition"
-                >
-                  <Check className="h-4 w-4" />
-                  <span>
-                    {editingMovementId
-                      ? 'Salva Modifiche'
-                      : entryType === 'spesa'
-                      ? 'Invia Richiesta di Rimborso'
-                      : 'Registra Versamento'}
-                  </span>
-                </button>
+
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowFormModal(false)}
+                    className="h-11 flex-1 sm:flex-none rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-4 text-xs sm:text-sm font-normal text-slate-700 cursor-pointer"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="submit"
+                    className="h-11 flex-1 sm:flex-none rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 sm:px-5 text-xs sm:text-sm font-semibold text-white flex items-center justify-center gap-1.5 shadow-sm transition active:scale-95 cursor-pointer"
+                  >
+                    <Check className="h-4 w-4" />
+                    <span>
+                      {editingMovementId
+                        ? 'Salva Modifiche'
+                        : entryType === 'spesa'
+                        ? 'Invia Richiesta'
+                        : 'Registra Versamento'}
+                    </span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
