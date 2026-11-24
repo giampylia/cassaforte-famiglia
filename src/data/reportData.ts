@@ -234,17 +234,27 @@ export function normalizeCassaRecord(r: any): {
 export function filterCassaRecordsForReport(
   records: any[] = [],
   periodo: string = 'tutti', // "tutti" | "YYYY-MM"
-  stato: string = 'tutti' // "tutti" | "approvato" | "in_attesa" | "rifiutato" | "bozza"
+  stato: string = 'tutti' // "tutti" | "pagato" | "approvato" | "in_attesa" | "rifiutato" | "bozza"
 ) {
   const safeRecords = Array.isArray(records) ? records : [];
   return safeRecords.map(normalizeCassaRecord).filter((r) => {
     if (periodo !== 'tutti') {
-      const recMonth = (r.data_movimento || r.created_at || '').slice(0, 7);
+      const rawDate = r.data_movimento || r.created_at || '';
+      const recMonth = rawDate.slice(0, 7);
       if (recMonth !== periodo) return false;
     }
     if (stato !== 'tutti') {
       const recStato = (r.stato || 'approvato').toLowerCase();
-      if (recStato !== stato.toLowerCase()) return false;
+      const s = stato.toLowerCase();
+      if (s === 'pagato') {
+        if (recStato !== 'pagato') return false;
+      } else if (s === 'approvato') {
+        if (recStato !== 'approvato' && recStato !== 'pagato') return false;
+      } else if (s === 'in_attesa') {
+        if (recStato !== 'in_attesa' && recStato !== 'inviato') return false;
+      } else if (recStato !== s) {
+        return false;
+      }
     }
     return true;
   });

@@ -207,6 +207,8 @@ export const ReportView: React.FC = () => {
     { value: '2026-11', label: 'Novembre 2026' },
     { value: '2026-10', label: 'Ottobre 2026' },
     { value: '2026-09', label: 'Settembre 2026' },
+    { value: '2026-08', label: 'Agosto 2026' },
+    { value: '2026-07', label: 'Luglio 2026' },
     { value: '2026-06', label: 'Giugno 2026' },
     { value: '2026-05', label: 'Maggio 2026' },
     { value: '2026-04', label: 'Aprile 2026' },
@@ -289,8 +291,9 @@ export const ReportView: React.FC = () => {
                     className="w-full h-9 px-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-800 focus:bg-white focus:outline-emerald-600"
                   >
                     <option value="tutti">Tutti gli stati</option>
-                    <option value="approvato">Approvato</option>
-                    <option value="in_attesa">In attesa</option>
+                    <option value="pagato">Pagato</option>
+                    <option value="approvato">Approvato / Pagato</option>
+                    <option value="in_attesa">In attesa / Inviato</option>
                     <option value="rifiutato">Rifiutato</option>
                     <option value="bozza">Bozza</option>
                   </select>
