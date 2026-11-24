@@ -591,13 +591,25 @@ const server = http.createServer(async (req, res) => {
         db.queueState = sanitizeServerQueueState(db.queueState, db.profiles);
       }
     }
+    const stateTag = `W/"st_${db?.updatedAt || '0'}_${db?.profilesUpdatedAt || '0'}_${db?.cashUpdatedAt || '0'}_${db?.lessonsUpdatedAt || '0'}"`;
+    const clientTag = req.headers['if-none-match'];
+    if (clientTag && clientTag === stateTag) {
+      res.writeHead(304, {
+        'ETag': stateTag,
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-cache',
+      });
+      res.end();
+      return;
+    }
+    res.setHeader('ETag', stateTag);
     sendJson(res, 200, {
       ok: true,
       db,
       publicUrl: publicCloudUrl,
       connectedDevices: sseClients.size,
       serverTime: new Date().toISOString(),
-    });
+    }, req);
     return;
   }
 

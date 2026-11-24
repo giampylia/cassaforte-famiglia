@@ -2801,7 +2801,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // 2) Sincronizzazione con il Cloud Server (/api/state) SOLO DOPO che la memoria locale è protetta
       try {
-        const res = await fetch('/api/state');
+        const lastEtag = safeGetLocalStorage('q3_last_state_etag');
+        const headers: Record<string, string> = {};
+        if (lastEtag) headers['If-None-Match'] = lastEtag;
+        const res = await fetch('/api/state', { headers });
+        if (res.status === 304) {
+          // I dati sul cloud sono invariati: 0 byte scaricati!
+          setCloudConnected(true);
+          hasHydratedRef.current = true;
+          return;
+        }
+        const newEtag = res.headers.get('ETag');
+        if (newEtag) safeSetLocalStorage('q3_last_state_etag', newEtag);
         const data = await res.json();
         if (isCancelled) return;
         setCloudConnected(true);
@@ -3042,7 +3053,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         })
         .catch(() => {});
-    }, 1800);
+    }, 25000);
 
     return () => {
       isCancelled = true;
