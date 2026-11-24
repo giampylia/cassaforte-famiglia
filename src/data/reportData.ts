@@ -268,18 +268,35 @@ export async function exportRegistroCassaXls(
   const XLSX = await loadSheetJS();
   const filtered = filterCassaRecordsForReport(records, periodo, stato);
 
-  const data = filtered.map((f) => ({
-    'Data Scontrino': f.data_movimento ? new Date(f.data_movimento).toLocaleDateString('it-IT') : '',
-    'N. Scontrino': f.numero_scontrino || '',
-    Nome: f.richiedente_nominativo || 'Segreteria',
-    Tipo: f.tipo === 'entrata' ? 'Entrata' : 'Spesa',
-    Causale: f.causale || '',
-    Importo: f.tipo === 'entrata' ? `+ ${f.importo.toFixed(2)}` : `- ${f.importo.toFixed(2)}`,
-    'Importo Versato': f.importo_versato != null ? f.importo_versato.toFixed(2) : f.importo.toFixed(2),
-    Stato: (f.stato || 'Approvato').charAt(0).toUpperCase() + (f.stato || 'approvato').slice(1),
-  }));
+  const data = filtered.map((f) => {
+    const isEntrata = f.tipo === 'entrata';
+    const num = Math.round((Number(f.importo) || 0) * 100) / 100;
+    const numVersato = f.importo_versato != null ? Math.round(Number(f.importo_versato) * 100) / 100 : num;
+    return {
+      'Data Scontrino': f.data_movimento ? new Date(f.data_movimento).toLocaleDateString('it-IT') : '',
+      'N. Scontrino': f.numero_scontrino || '',
+      Nome: f.richiedente_nominativo || 'Segreteria',
+      Tipo: isEntrata ? 'Entrata' : 'Spesa',
+      Causale: f.causale || '',
+      'Entrata (€)': isEntrata ? num : 0,
+      'Uscita (€)': !isEntrata ? num : 0,
+      'Importo Netto (€)': isEntrata ? num : -num,
+      'Importo Versato (€)': numVersato,
+      Stato: (f.stato || 'Approvato').charAt(0).toUpperCase() + (f.stato || 'approvato').slice(1),
+    };
+  });
 
   const ws = XLSX.utils.json_to_sheet(data.length > 0 ? data : [{ Nota: 'Nessun movimento trovato per i filtri selezionati' }]);
+
+  // Applica formattazione numerica valuta nativa Excel (.xlsx) per consentire calcoli immediati (=SOMMA)
+  for (const cellRef in ws) {
+    if (cellRef.startsWith('!')) continue;
+    const cell = ws[cellRef];
+    if (cell && cell.t === 'n') {
+      cell.z = '#,##0.00 €;[Red]-#,##0.00 €';
+    }
+  }
+
   ws['!cols'] = [
     { wch: 14 },
     { wch: 14 },
@@ -287,6 +304,8 @@ export async function exportRegistroCassaXls(
     { wch: 12 },
     { wch: 28 },
     { wch: 14 },
+    { wch: 14 },
+    { wch: 16 },
     { wch: 16 },
     { wch: 14 },
   ];
@@ -310,21 +329,32 @@ export async function exportRegistroCassaPdf(
     .reduce((sum, r) => sum + (r.importo || 0), 0);
   const saldo = totEntrate - totSpese;
 
-  const subtitle = `Periodo: ${periodo === 'tutti' ? 'Tutti i periodi' : periodo} | Stato: ${stato} | Entrate: € ${totEntrate.toFixed(2)} — Spese: € ${totSpese.toFixed(2)} — Saldo: € ${saldo.toFixed(2)}`;
+  const fmtEur = (n: number) => {
+    const parts = Math.abs(n).toFixed(2).split('.');
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `${n < 0 ? '- ' : ''}€ ${intPart},${parts[1]}`;
+  };
+
+  const subtitle = `Periodo: ${periodo === 'tutti' ? 'Tutti i periodi' : periodo} | Stato: ${stato} | Entrate: ${fmtEur(totEntrate)} — Spese: ${fmtEur(totSpese)} — Saldo: ${fmtEur(saldo)}`;
 
   await exportOfficialPdf({
     title: 'Registro Movimenti Piccola Cassa',
     subtitle,
-    head: ['Data', 'N° Scontrino', 'Nominativo', 'Tipo', 'Causale', 'Importo (€)', 'Stato'],
-    body: filtered.map((r) => [
-      r.data_movimento ? new Date(r.data_movimento).toLocaleDateString('it-IT') : '',
-      r.numero_scontrino || '-',
-      r.richiedente_nominativo || 'Segreteria',
-      r.tipo === 'entrata' ? 'Entrata' : 'Spesa',
-      r.causale || '-',
-      `${r.tipo === 'entrata' ? '+' : '-'} ${r.importo.toFixed(2)}`,
-      (r.stato || 'Approvato').toUpperCase(),
-    ]),
+    head: ['Data', 'N° Scontrino', 'Nominativo', 'Tipo', 'Causale', 'Entrata (€)', 'Uscita (€)', 'Stato'],
+    body: filtered.map((r) => {
+      const isEntrata = r.tipo === 'entrata';
+      const num = Math.round((Number(r.importo) || 0) * 100) / 100;
+      return [
+        r.data_movimento ? new Date(r.data_movimento).toLocaleDateString('it-IT') : '',
+        r.numero_scontrino || '-',
+        r.richiedente_nominativo || 'Segreteria',
+        isEntrata ? 'Entrata' : 'Spesa',
+        r.causale || '-',
+        isEntrata ? num : '',
+        !isEntrata ? num : '',
+        (r.stato || 'Approvato').toUpperCase(),
+      ];
+    }),
     fileName: `registro_cassa_${periodo}.pdf`,
     landscape: true,
   });
@@ -361,6 +391,15 @@ export async function exportAnagraficaDocentiXls(teachers: Teacher[] = []) {
     { wch: 14 },
     { wch: 14 },
   ];
+  // Formatta le colonne Lordo e Netto come valuta in SheetJS
+  for (const cellRef in ws) {
+    if (cellRef.startsWith('!')) continue;
+    const cell = ws[cellRef];
+    if (cell && cell.t === 'n') {
+      cell.z = '#,##0.00 €';
+    }
+  }
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Anagrafica Docenti');
   const d = new Date().toISOString().split('T')[0];
@@ -383,8 +422,8 @@ export async function exportAnagraficaDocentiPdf(teachers: Teacher[] = []) {
       LOCATION_LABELS[t.location] || t.location || '',
       CONTRACT_LABELS[t.contract] || t.contract || '',
       TIME_TYPE_LABELS[t.time_type] || t.time_type || '',
-      `€ ${(t.hourly_rate || 0).toFixed(2)}`,
-      `€ ${(t.net_rate || 0).toFixed(2)}`,
+      Number(t.hourly_rate || 0),
+      Number(t.net_rate || 0),
     ]),
     fileName: `anagrafica_docenti_${new Date().toISOString().split('T')[0]}.pdf`,
     landscape: false,
@@ -552,6 +591,15 @@ export async function exportSoleminisXls(teachers: Teacher[] = [], periodo: stri
     { wch: 12 },
     { wch: 16 },
   ];
+  // Applica formattazione valuta per le colonne di compenso
+  for (const cellRef in ws) {
+    if (cellRef.startsWith('!')) continue;
+    const cell = ws[cellRef];
+    if (cell && cell.t === 'n') {
+      cell.z = '#,##0.00 €;[Red]-#,##0.00 €';
+    }
+  }
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Comune Soleminis');
   const d = new Date().toISOString().split('T')[0];
@@ -566,15 +614,21 @@ export async function exportSoleminisPdf(teachers: Teacher[] = [], periodo: stri
     r['Cognome Nome'],
     r['Tipo Contratto'],
     `${r['Ore Svolte']} h`,
-    `€ ${Number(r['Lordo (€/h)']).toFixed(2)}`,
-    `€ ${Number(r['Totale Lordo (€)']).toFixed(2)}`,
+    Number(r['Lordo (€/h)']),
+    Number(r['Totale Lordo (€)']),
   ]);
 
-  body.push(['', 'TOTALE GENERALE', '', `${totOre} h`, '', `€ ${totLordo.toFixed(2)}`]);
+  body.push(['', 'TOTALE GENERALE', '', `${totOre} h`, '', totLordo]);
+
+  const fmtEur = (n: number) => {
+    const parts = Math.abs(n).toFixed(2).split('.');
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `${n < 0 ? '- ' : ''}€ ${intPart},${parts[1]}`;
+  };
 
   await exportOfficialPdf({
     title: 'Report Rendicontazione Docenti — Comune di Soleminis',
-    subtitle: `Periodo: ${periodo === 'tutti' ? 'Tutti i periodi' : periodo} — Totale Ore: ${totOre} h — Totale Compensi Lordi: € ${totLordo.toFixed(2)}`,
+    subtitle: `Periodo: ${periodo === 'tutti' ? 'Tutti i periodi' : periodo} — Totale Ore: ${totOre} h — Totale Compensi Lordi: ${fmtEur(totLordo)}`,
     head: ['Matricola', 'Cognome e Nome', 'Tipo Contratto', 'Ore Svolte', 'Lordo (€/h)', 'Totale Lordo (€)'],
     body,
     fileName: `comune_soleminis_${periodo}.pdf`,
@@ -675,9 +729,9 @@ export async function exportLezioniCampoReportPdf(
       y.excursion_date ? new Date(y.excursion_date).toLocaleDateString('it-IT') : '',
       y.docente || '-',
       (y.num_participants || 0) + (y.num_participants_mezzi_propri || 0),
-      `€ ${totRicavi.toFixed(2)}`,
-      `€ ${totCosti.toFixed(2)}`,
-      `€ ${saldo.toFixed(2)}`,
+      totRicavi,
+      totCosti,
+      saldo,
     ];
   });
 
@@ -691,12 +745,18 @@ export async function exportLezioniCampoReportPdf(
   const totCostiAll = safePayments.reduce((acc, p) => acc + (p.importo_pagato || 0), 0);
   const saldoAll = totRicaviAll - totCostiAll;
 
-  body.push(['', 'TOTALE GENERALE', '', '', '', `€ ${totRicaviAll.toFixed(2)}`, `€ ${totCostiAll.toFixed(2)}`, `€ ${saldoAll.toFixed(2)}`]);
+  body.push(['', 'TOTALE GENERALE', '', '', '', totRicaviAll, totCostiAll, saldoAll]);
+
+  const fmtEur = (n: number) => {
+    const parts = Math.abs(n).toFixed(2).split('.');
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `${n < 0 ? '- ' : ''}€ ${intPart},${parts[1]}`;
+  };
 
   await exportOfficialPdf({
     title: 'Riepilogo Economico Lezioni sul Campo ed Escursioni',
-    subtitle: `Totale Escursioni: ${safeExcursions.length} · Ricavi Totali: € ${totRicaviAll.toFixed(2)} · Costi: € ${totCostiAll.toFixed(2)} · Saldo: € ${saldoAll.toFixed(2)}`,
-    head: ['N°', 'Titolo Escursione', 'Data', 'Docente / Guida', 'Partecipanti', 'Ricavi Totali', 'Costi Totali', 'Saldo Netto'],
+    subtitle: `Totale Escursioni: ${safeExcursions.length} · Ricavi Totali: ${fmtEur(totRicaviAll)} · Costi: ${fmtEur(totCostiAll)} · Saldo: ${fmtEur(saldoAll)}`,
+    head: ['N°', 'Titolo Escursione', 'Data', 'Docente / Guida', 'Partecipanti', 'Ricavi Totali (€)', 'Costi Totali (€)', 'Saldo Netto (€)'],
     body,
     fileName: `escursioni_report_${new Date().toISOString().split('T')[0]}.pdf`,
     landscape: true,
@@ -1143,10 +1203,20 @@ export async function exportModelliMinisterialiXls(
     }));
 
   const wsA = XLSX.utils.json_to_sheet([...formatList(safeAttivo), { Voce: '--- PASSIVO ---', 'Esercizio Corrente (€)': '', 'Esercizio Precedente (€)': '' }, ...formatList(safePassivo)]);
+  for (const cellRef in wsA) {
+    if (cellRef.startsWith('!')) continue;
+    const cell = wsA[cellRef];
+    if (cell && cell.t === 'n') cell.z = '#,##0.00 €;[Red]-#,##0.00 €';
+  }
   wsA['!cols'] = [{ wch: 55 }, { wch: 22 }, { wch: 22 }];
   XLSX.utils.book_append_sheet(wb, wsA, 'Modello A - Stato Patr.');
 
   const wsB = XLSX.utils.json_to_sheet(formatList(safeRendiconto));
+  for (const cellRef in wsB) {
+    if (cellRef.startsWith('!')) continue;
+    const cell = wsB[cellRef];
+    if (cell && cell.t === 'n') cell.z = '#,##0.00 €;[Red]-#,##0.00 €';
+  }
   wsB['!cols'] = [{ wch: 55 }, { wch: 22 }, { wch: 22 }];
   XLSX.utils.book_append_sheet(wb, wsB, 'Modello B - Rendiconto');
 

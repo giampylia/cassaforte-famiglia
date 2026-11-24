@@ -175,6 +175,24 @@ export function drawOfficialPdfHeaderAndFooter(
   );
 }
 
+export function formatItalianCurrency(val: number): string {
+  if (isNaN(val)) return '€ 0,00';
+  const isNeg = val < 0;
+  const absVal = Math.abs(val);
+  const parts = absVal.toFixed(2).split('.');
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${isNeg ? '- ' : ''}€ ${intPart},${parts[1]}`;
+}
+
+export function formatItalianNumber(val: number, decimals: number = 2): string {
+  if (isNaN(val)) return '0,00';
+  const isNeg = val < 0;
+  const absVal = Math.abs(val);
+  const parts = absVal.toFixed(decimals).split('.');
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${isNeg ? '-' : ''}${intPart},${parts[1]}`;
+}
+
 export async function exportOfficialPdf(options: PdfExportOptions) {
   const { title, subtitle, head, body, fileName, landscape } = options;
 
@@ -192,10 +210,73 @@ export async function exportOfficialPdf(options: PdfExportOptions) {
   const logo = await getLogoDataUrl();
   const timestamp = new Date().toLocaleString('it-IT');
 
+  // Individua le colonne numeriche o di valuta per allinearle a destra
+  const columnStyles: Record<number, { halign: 'right' | 'left' | 'center' }> = {};
+  head.forEach((h, idx) => {
+    const lower = String(h || '').toLowerCase();
+    if (
+      lower.includes('€') ||
+      lower.includes('eur') ||
+      lower.includes('importo') ||
+      lower.includes('lordo') ||
+      lower.includes('netto') ||
+      lower.includes('tariffa') ||
+      lower.includes('saldo') ||
+      lower.includes('entrata') ||
+      lower.includes('uscita') ||
+      lower.includes('spesa') ||
+      lower.includes('ricavi') ||
+      lower.includes('costi') ||
+      lower.includes('compenso') ||
+      lower.includes('ore') ||
+      lower.includes('totale')
+    ) {
+      columnStyles[idx] = { halign: 'right' };
+    }
+  });
+
+  // Formatta le celle numeriche per la visualizzazione PDF
+  const formattedBody = body.map((row) =>
+    row.map((cell, colIdx) => {
+      if (cell === null || cell === undefined) return '';
+      const h = String(head[colIdx] || '').toLowerCase();
+      const isCurrencyCol =
+        h.includes('€') ||
+        h.includes('eur') ||
+        h.includes('importo') ||
+        h.includes('lordo') ||
+        h.includes('netto') ||
+        h.includes('tariffa') ||
+        h.includes('saldo') ||
+        h.includes('entrata') ||
+        h.includes('uscita') ||
+        h.includes('spesa') ||
+        h.includes('ricavi') ||
+        h.includes('costi');
+
+      if (typeof cell === 'number') {
+        if (isCurrencyCol) {
+          return formatItalianCurrency(cell);
+        }
+        return Number.isInteger(cell) ? String(cell) : formatItalianNumber(cell, 2);
+      }
+
+      // Se il valore è una stringa numerica come "14.99" in una colonna valuta
+      const strVal = String(cell).trim();
+      if (isCurrencyCol && /^[+-]?\d+(\.\d+)?$/.test(strVal)) {
+        const num = parseFloat(strVal);
+        if (!isNaN(num)) return formatItalianCurrency(num);
+      }
+
+      return strVal;
+    })
+  );
+
   doc.autoTable({
     startY: 38,
     head: [head],
-    body: body.map((row: (string | number)[]) => row.map((cell) => String(cell ?? ''))),
+    body: formattedBody,
+    columnStyles,
     styles: {
       fontSize: 9.5,
       cellPadding: 2.5,
@@ -242,13 +323,45 @@ export function exportCsv(
     fileName = typeof arg3 === 'string' ? arg3 : 'export.csv';
   }
 
-  const escapeCsv = (val: string | number) => {
-    const s = String(val ?? '').replace(/"/g, '""');
-    return s.includes(';') || s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
+  // Formatta ogni cella: i numeri vengono scritti con virgola decimale e SENZA apici,
+  // così Excel li riconosce nativamente come numeri calcolabili (somma, media, valuta).
+  const formatCellForCsv = (val: string | number | null | undefined): string => {
+    if (val === null || val === undefined || val === '') return '';
+    if (typeof val === 'number') {
+      if (isNaN(val)) return '';
+      if (Number.isInteger(val)) return String(val);
+      const parts = val.toFixed(2).split('.');
+      return `${parts[0]},${parts[1]}`;
+    }
+    const s = String(val).trim();
+    // Se la stringa è un numero puro (es. "14.99", "-30.87", "14,99")
+    if (/^[+-]?\d+([.,]\d+)?$/.test(s)) {
+      const num = parseFloat(s.replace(',', '.'));
+      if (!isNaN(num)) {
+        if (Number.isInteger(num) && !s.includes('.') && !s.includes(',')) {
+          return String(num);
+        }
+        const parts = num.toFixed(2).split('.');
+        return `${parts[0]},${parts[1]}`;
+      }
+    }
+    // Stringhe di testo: escape delle virgolette doppie e racchiuse tra virgolette se contengono delimitatori
+    const escaped = s.replace(/"/g, '""');
+    return escaped.includes(';') || escaped.includes('\n') || escaped.includes('\r') || escaped.includes('"')
+      ? `"${escaped}"`
+      : escaped;
   };
+
   const csvContent =
     '\uFEFF' +
-    [headers.map(escapeCsv).join(';'), ...rows.map((r) => r.map(escapeCsv).join(';'))].join('\r\n');
+    [
+      headers.map((h) => {
+        const s = String(h ?? '').replace(/"/g, '""');
+        return s.includes(';') || s.includes('\n') || s.includes('"') ? `"${s}"` : s;
+      }).join(';'),
+      ...rows.map((r) => r.map(formatCellForCsv).join(';')),
+    ].join('\r\n');
+
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

@@ -29,7 +29,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { CashMovement, getMemberParts } from '../data/initialData';
 import { isAmministrativoOrAdmin } from '../data/permissionsData';
-import { ASSOCIATION_LOGO_URL, exportCsv, exportOfficialPdf } from '../utils/soundAndPdf';
+import { ASSOCIATION_LOGO_URL, exportCsv, exportOfficialPdf, formatItalianCurrency, formatItalianNumber } from '../utils/soundAndPdf';
 
 // Controlla se un movimento è intestato all'utente autenticato (anche se inserito da altri)
 export function isMovementOfUser(m: CashMovement, user: any): boolean {
@@ -883,10 +883,10 @@ export const PiccolaCassaView: React.FC = () => {
         })`;
 
     const subtitle = isGlobal
-      ? `Saldo Iniziale: € ${cashOpeningBalance.toFixed(2)} · Versamenti (Pagati): +€ ${stats.totalEntrate.toFixed(2)} · Rimborsi (Pagati): -€ ${stats.totalSpese.toFixed(2)} · Saldo Cassa Effettivo: € ${stats.finalBalance.toFixed(2)}${
+      ? `Saldo Iniziale: ${formatItalianCurrency(cashOpeningBalance)} · Versamenti (Pagati): +${formatItalianCurrency(stats.totalEntrate)} · Rimborsi (Pagati): -${formatItalianCurrency(stats.totalSpese)} · Saldo Cassa Effettivo: ${formatItalianCurrency(stats.finalBalance)}${
           stats.pendingCountTotal > 0 ? ` · [${stats.pendingCountTotal} pratiche non a saldo]` : ''
         }`
-      : `Totale Liquidato: € ${myPaidTotal.toFixed(2)} · In Attesa / Lavorazione: € ${myPendingTotal.toFixed(2)}`;
+      : `Totale Liquidato: ${formatItalianCurrency(myPaidTotal)} · In Attesa / Lavorazione: ${formatItalianCurrency(myPendingTotal)}`;
 
     const fileName = isGlobal
       ? `registro_piccola_cassa_QU3_${todayIso}.pdf`
@@ -902,22 +902,26 @@ export const PiccolaCassaView: React.FC = () => {
         'Fruitore Rimborso',
         'Compilata Da',
         'Causale',
-        'Importo (€)',
+        'Entrata (€)',
+        'Uscita (€)',
         'Stato',
       ],
       body: visibleMovements.map((m) => {
         const bName = m.requester_name || `${m.first_name || ''} ${m.last_name || ''}`.trim();
         const cName = m.compiled_by_name || bName;
+        const isEntrata = m.entry_type === 'entrata';
+        const num = Math.round((Number(m.amount_requested) || 0) * 100) / 100;
         return [
           new Date(`${m.request_date}T12:00:00`).toLocaleDateString('it-IT'),
           m.receipt_date
             ? new Date(`${m.receipt_date}T12:00:00`).toLocaleDateString('it-IT')
             : '—',
-          m.entry_type === 'entrata' ? 'ENTRATA' : 'RIMBORSO',
+          isEntrata ? 'ENTRATA' : 'RIMBORSO',
           bName,
           cName !== bName ? `${cName} (a nome di ${bName})` : cName,
           m.category_name,
-          `${m.entry_type === 'entrata' ? '+' : '-'} € ${Number(m.amount_requested).toFixed(2)}`,
+          isEntrata ? num : '',
+          !isEntrata ? num : '',
           m.status === 'pagato' ? 'PAGATO' : `${m.status.toUpperCase()} (NON A SALDO)`,
         ];
       }),
@@ -942,23 +946,32 @@ export const PiccolaCassaView: React.FC = () => {
         'Pratica Compilata Da',
         'Causale',
         'Descrizione',
-        'Importo EUR',
+        'Entrata (€)',
+        'Uscita (€)',
+        'Importo Netto (€)',
         'Stato',
       ],
       visibleMovements.map((m) => {
         const bName = m.requester_name || `${m.first_name || ''} ${m.last_name || ''}`.trim();
         const cName = m.compiled_by_name || bName;
+        const isEntrata = m.entry_type === 'entrata';
+        const numVal = Math.round((Number(m.amount_requested) || 0) * 100) / 100;
+        const entrata = isEntrata ? numVal : 0;
+        const uscita = !isEntrata ? numVal : 0;
+        const netto = isEntrata ? numVal : -numVal;
         return [
           getAccountingYearForDate(m.request_date || m.receipt_date),
           m.request_date,
           m.receipt_date || '',
           m.receipt_number || '',
-          m.entry_type === 'entrata' ? 'Entrata' : 'Rimborso Spesa',
+          isEntrata ? 'Entrata / Versamento' : 'Rimborso Spesa',
           bName,
-          `${cName} a nome di ${bName}`,
+          cName !== bName ? `${cName} a nome di ${bName}` : cName,
           m.category_name,
           m.description || '',
-          Number(m.amount_requested).toFixed(2),
+          entrata,
+          uscita,
+          netto,
           m.status,
         ];
       }),
