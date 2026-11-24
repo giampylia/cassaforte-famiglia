@@ -9553,6 +9553,46 @@
       "amount": 5.5
     },
     {
+      "id": "b2178286-0999-4bb2-a820-23393cf6cba9",
+      "date": "2026-11-22",
+      "description": "VISITA NATURALISTICA BADDE SALIGHES",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 29
+    },
+    {
+      "id": "ce0a78fe-3e0a-4d25-ad50-49f4da97f08b",
+      "date": "2026-11-23",
+      "description": "BAR",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 2.5
+    },
+    {
+      "id": "4a1f4f4d-593a-40e1-ae9f-af35348c36d2",
+      "date": "2026-11-24",
+      "description": "REGALO CECILIA PARTE MIA BOBBYE E FRANCA (MI STANNO PRESTANDO I SOLDI E PAGO IO)",
+      "debitAccountCode": "6011",
+      "creditAccountCode": "4010",
+      "amount": 66
+    },
+    {
+      "id": "1c0395b6-33cb-43fa-b8be-098a277b1a47",
+      "date": "2026-11-24",
+      "description": "SALDO CEDOLARE SECCA",
+      "debitAccountCode": "6032",
+      "creditAccountCode": "4010",
+      "amount": 240
+    },
+    {
+      "id": "a128c53f-bb2b-47f2-836e-1b4886e17f20",
+      "date": "2026-11-24",
+      "description": "GITA NATURALISTICA BADDE SALIGHES",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 31.5
+    },
+    {
       "id": "1723e51c-0a65-455d-ae90-5358932ee133",
       "date": "2026-11-27",
       "description": "FATTURA ELETTRICA TISIDDU 46,77€",
