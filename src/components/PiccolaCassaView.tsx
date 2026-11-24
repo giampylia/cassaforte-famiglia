@@ -932,7 +932,6 @@ export const PiccolaCassaView: React.FC = () => {
       : `i_miei_rimborsi_QU3_${todayIso}.csv`;
 
     exportCsv(
-      fileName,
       [
         'Anno Contabile',
         'Data Richiesta',
@@ -962,7 +961,8 @@ export const PiccolaCassaView: React.FC = () => {
           Number(m.amount_requested).toFixed(2),
           m.status,
         ];
-      })
+      }),
+      fileName
     );
   };
 

@@ -221,14 +221,34 @@ export async function exportOfficialPdf(options: PdfExportOptions) {
   doc.save(fileName);
 }
 
-export function exportCsv(headers: string[], rows: (string | number)[][], fileName: string) {
+export function exportCsv(
+  arg1: string[] | string,
+  arg2: (string | number)[][] | string[],
+  arg3?: string | (string | number)[][]
+) {
+  let headers: string[];
+  let rows: (string | number)[][];
+  let fileName: string;
+
+  if (typeof arg1 === 'string') {
+    // Chiamata (fileName, headers, rows)
+    fileName = arg1;
+    headers = Array.isArray(arg2) ? (arg2 as string[]) : [];
+    rows = Array.isArray(arg3) ? (arg3 as (string | number)[][]) : [];
+  } else {
+    // Chiamata (headers, rows, fileName)
+    headers = Array.isArray(arg1) ? arg1 : [];
+    rows = Array.isArray(arg2) ? (arg2 as (string | number)[][]) : [];
+    fileName = typeof arg3 === 'string' ? arg3 : 'export.csv';
+  }
+
   const escapeCsv = (val: string | number) => {
     const s = String(val ?? '').replace(/"/g, '""');
-    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
+    return s.includes(';') || s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
   };
   const csvContent =
     '\uFEFF' +
-    [headers.map(escapeCsv).join(','), ...rows.map((r) => r.map(escapeCsv).join(','))].join('\n');
+    [headers.map(escapeCsv).join(';'), ...rows.map((r) => r.map(escapeCsv).join(';'))].join('\r\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
