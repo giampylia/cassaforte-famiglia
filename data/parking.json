@@ -1,16 +1,16 @@
 {
   "Giampy": {
     "active": {
-      "id": "park-20261121-183700-cavaro",
+      "id": "park-20261123-201648-cavaro10",
       "section": "parking",
       "user": "Giampy",
       "owner": "Giampy",
-      "lat": 39.2252545,
-      "lng": 9.1289067,
+      "lat": 39.22528,
+      "lng": 9.12888,
       "accuracy": 5,
-      "address": "Via Pietro Cavaro 9, Cagliari",
-      "addressShort": "Via Pietro Cavaro 9, Cagliari",
-      "timestamp": "2026-11-21T17:37:00.000Z",
+      "address": "Via Pietro Cavaro 10, Cagliari",
+      "addressShort": "Via Pietro Cavaro 10, Cagliari",
+      "timestamp": "2026-11-23T19:16:48.979Z",
       "trigger": "bluetooth_auto",
       "notes": "Nissan"
     },
