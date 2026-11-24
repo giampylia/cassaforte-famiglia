@@ -40,6 +40,7 @@ import {
   RolePermissionsMap,
   DEFAULT_ROLE_PERMISSIONS,
   computeUserSectionPermission,
+  isAmministrativoOrAdmin,
 } from '../data/permissionsData';
 import {
   Excursion,
@@ -179,6 +180,7 @@ interface AppContextType {
   isCDMember: boolean;
   isDidatticaMember: boolean;
   isSegreteriaMember: boolean;
+  isAmministrativoMember: boolean;
   activeSection: AppSection;
   setActiveSection: (sec: AppSection) => void;
   profiles: Profile[];
@@ -1856,6 +1858,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isProtectedSegreteriaMember(currentUser) ||
         (currentUser.roles &&
           currentUser.roles.some((r) => r.trim().toLowerCase() === 'segreteria')))
+  );
+
+  const isAmministrativoMember = Boolean(
+    currentUser &&
+      (isSuperAdmin ||
+        isAmministrativoOrAdmin(currentUser) ||
+        (currentUser.roles &&
+          currentUser.roles.some((r) => {
+            const clean = String(r).toLowerCase().trim();
+            return (
+              clean.includes('amministr') ||
+              clean === 'admin' ||
+              clean.includes('contabil') ||
+              clean.includes('tesorier')
+            );
+          })))
   );
 
   // Se l'utente autenticato ha il ruolo "Segreteria" (es. Nives Cocco 9999 o Josh Ronald Cocco 9998)
@@ -5259,6 +5277,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isCDMember,
         isDidatticaMember,
         isSegreteriaMember,
+        isAmministrativoMember,
         activeSection,
         setActiveSection,
         profiles,

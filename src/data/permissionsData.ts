@@ -335,13 +335,25 @@ export function isAmministrativoOrAdmin(
   } | null
 ): boolean {
   if (!user) return false;
-  if (user.is_super_admin || user.role === 'admin') return true;
+  if (user.is_super_admin) return true;
+  const cleanRole = String(user.role || '').trim().toLowerCase();
+  if (cleanRole === 'admin' || cleanRole === 'amministratore' || cleanRole === 'amministrativo') return true;
   const num = String(user.member_number || '').trim();
-  if (num === '2406' || num === '7726') return true;
+  if (num === '2406' || num === '7726' || num === '7796') return true;
   if (user.id === 'admin-2406' || user.id === 'admin-7726') return true;
   const roles = Array.isArray(user.roles) ? user.roles : [];
   return roles.some((r) => {
-    const clean = r.trim().toLowerCase();
-    return clean === 'amministrativo' || clean === 'amministratore' || clean === 'admin';
+    const clean = String(r || '').trim().toLowerCase();
+    return (
+      clean === 'amministrativo' ||
+      clean === 'amministratore' ||
+      clean === 'admin' ||
+      clean === 'amministrazione' ||
+      clean.includes('amministra') ||
+      clean === 'contabilità' ||
+      clean === 'contabilita' ||
+      clean === 'tesoriere' ||
+      clean === 'tesoreria'
+    );
   });
 }

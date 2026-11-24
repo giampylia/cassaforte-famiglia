@@ -36,12 +36,15 @@ export function isMovementOfUser(m: CashMovement, user: any): boolean {
   if (!user) return false;
   if (m.requester_id && m.requester_id === user.id) return true;
   if (m.user_id && m.user_id === user.id) return true;
+  if (m.compiled_by_id && m.compiled_by_id === user.id) return true;
   const userNum = String(user.member_number || '').trim();
   const mNum = String(m.member_number || '').trim();
   if (userNum && mNum && userNum === mNum) return true;
   const uName = (user.full_name || `${user.first_name || ''} ${user.last_name || ''}`).trim().toLowerCase();
   const rName = (m.requester_name || `${m.first_name || ''} ${m.last_name || ''}`).trim().toLowerCase();
+  const cName = (m.compiled_by_name || '').trim().toLowerCase();
   if (uName && rName && (uName === rName || rName.includes(uName) || uName.includes(rName))) return true;
+  if (uName && cName && (uName === cName || cName.includes(uName) || uName.includes(cName))) return true;
   return false;
 }
 
@@ -249,6 +252,7 @@ export const PiccolaCassaView: React.FC = () => {
   const {
     currentUser,
     isSuperAdmin,
+    isAmministrativoMember,
     profiles,
     expenseCategories,
     addExpenseCategory,
@@ -262,7 +266,11 @@ export const PiccolaCassaView: React.FC = () => {
     importCashMovements,
   } = useApp();
 
-  const isAdminOrAmministrativo = Boolean(isSuperAdmin || isAmministrativoOrAdmin(currentUser));
+  const isAdminOrAmministrativo = Boolean(
+    isSuperAdmin ||
+    isAmministrativoMember ||
+    isAmministrativoOrAdmin(currentUser)
+  );
 
   const todayIso = new Date().toISOString().slice(0, 10);
   const currentAccountingYear = useMemo(() => getAccountingYearForDate(todayIso), [todayIso]);
@@ -367,13 +375,14 @@ export const PiccolaCassaView: React.FC = () => {
 
   const filteredBeneficiaries = useMemo(() => {
     const q = beneficiarySearch.trim().toLowerCase();
+    const sourceList = isAdminOrAmministrativo ? profiles : eligibleBeneficiaries;
     if (!q) return eligibleBeneficiaries;
     const words = q.split(/\s+/).filter(Boolean);
-    return eligibleBeneficiaries.filter((p) => {
+    return sourceList.filter((p) => {
       const blob = `${p.member_number} ${p.full_name} ${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
       return words.every((w) => blob.includes(w));
     });
-  }, [eligibleBeneficiaries, beneficiarySearch]);
+  }, [isAdminOrAmministrativo, profiles, eligibleBeneficiaries, beneficiarySearch]);
 
   // Elenco Anni Contabili disponibili (1° Luglio – 30 Giugno)
   const availableAccountingYears = useMemo(() => {
@@ -555,7 +564,10 @@ export const PiccolaCassaView: React.FC = () => {
 
     let savedMov: CashMovement | null = null;
     if (editingMovementId) {
-      updateCashMovement(editingMovementId, {
+      const existing = cashMovements.find((m) => m.id === editingMovementId);
+      const newStatus = isAdminOrAmministrativo ? statusInput : (existing?.status || 'inviato');
+      const isNowPaid = newStatus === 'pagato';
+      const updatedFields: Partial<CashMovement> = {
         entry_type: entryType,
         requester_id: requesterId || currentUser?.id || 'cd-member',
         requester_name: finalRequesterName,
@@ -565,14 +577,30 @@ export const PiccolaCassaView: React.FC = () => {
         receipt_date: receiptDate || requestDate || todayIso,
         receipt_number: receiptNumber.trim() || undefined,
         amount_requested: Math.round(numericAmount * 100) / 100,
+        amount_paid: isNowPaid
+          ? Math.round(numericAmount * 100) / 100
+          : isAdminOrAmministrativo && statusInput !== 'pagato'
+          ? null
+          : existing?.amount_paid,
+        payment_date: isNowPaid
+          ? existing?.payment_date || receiptDate || requestDate || todayIso
+          : isAdminOrAmministrativo && statusInput !== 'pagato'
+          ? undefined
+          : existing?.payment_date,
         category_id: finalCategoryId,
         category_name: finalCategoryName,
         description: description.trim() || undefined,
-        status: isAdminOrAmministrativo ? statusInput : undefined,
+        status: newStatus,
         receipt_image_data: receiptImageData,
-      });
+      };
+      updateCashMovement(editingMovementId, updatedFields);
       showToast('✓ Movimento aggiornato correttamente.');
-      savedMov = cashMovements.find((m) => m.id === editingMovementId) || null;
+      savedMov = {
+        ...(existing || {}),
+        ...updatedFields,
+        id: editingMovementId,
+        created_at: existing?.created_at || new Date().toISOString(),
+      } as CashMovement;
     } else {
       savedMov = addCashMovement({
         entry_type: entryType,
