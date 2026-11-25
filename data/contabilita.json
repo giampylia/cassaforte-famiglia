@@ -9009,6 +9009,15 @@
       "amount": 202
     },
     {
+      "id": "7c8ded6a-c225-4b86-83a4-9fffa4ea75c2",
+      "date": "2026-10-20",
+      "description": "EMERGENCY",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 50,
+      "updatedAt": 1795614942755
+    },
+    {
       "id": "1f807493-de41-4732-b494-75bf303f0bb1",
       "date": "2026-10-21",
       "description": "LAMPADARIO BAGNO E VARIE",
@@ -9079,6 +9088,24 @@
       "debitAccountCode": "6010",
       "creditAccountCode": "4043",
       "amount": 27
+    },
+    {
+      "id": "a52e8fe7-d016-4e0d-a719-4e39796783e9",
+      "date": "2026-10-22",
+      "description": "WIND",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 30.49,
+      "updatedAt": 1795614942753
+    },
+    {
+      "id": "ae657aa1-b0fc-4443-9fcf-c53aeabc949a",
+      "date": "2026-10-22",
+      "description": "GIROTTO",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "5010",
+      "amount": 250,
+      "updatedAt": 1795614942754
     },
     {
       "id": "53d542ed-393d-4770-9501-d97081f313bd",
@@ -9273,6 +9300,15 @@
       "amount": 495.13
     },
     {
+      "id": "674eb751-8765-4854-b286-72c4291a0b62",
+      "date": "2026-11-02",
+      "description": "WIND",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 22.75,
+      "updatedAt": 1795614942752
+    },
+    {
       "id": "2476c761-1aa5-44be-844e-106b10a57fd9",
       "date": "2026-11-03",
       "description": "SPESA",
@@ -9343,6 +9379,15 @@
       "debitAccountCode": "4043",
       "creditAccountCode": "8020",
       "amount": 3959.92
+    },
+    {
+      "id": "6843f4df-c07a-402d-844b-9735fac94d23",
+      "date": "2026-11-06",
+      "description": "ADOBE",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 14.99,
+      "updatedAt": 1795614942751
     },
     {
       "id": "0d166335-9127-48bc-893e-d1c8f75af160",
@@ -9481,6 +9526,33 @@
       "amount": 6
     },
     {
+      "id": "cba32c0f-525b-4eb8-90c1-10a01c1ced87",
+      "date": "2026-11-16",
+      "description": "SIGHT SAVERS",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 5,
+      "updatedAt": 1795614942748
+    },
+    {
+      "id": "1ded8fb6-5b67-431a-af8e-f891d9bfafdf",
+      "date": "2026-11-16",
+      "description": "RATA TELEMACO",
+      "debitAccountCode": "6210",
+      "creditAccountCode": "4043",
+      "amount": 1000,
+      "updatedAt": 1795614942749
+    },
+    {
+      "id": "d2541f0a-f880-4bc7-b35a-27a6dc164f2a",
+      "date": "2026-11-16",
+      "description": "ONRENDER COM",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 5.49,
+      "updatedAt": 1795614942750
+    },
+    {
       "id": "f4ad7779-e1f4-4011-a5a6-7148db7814e8",
       "date": "2026-11-19",
       "description": "AFFITTO FEDERICO TORRESAGASTI",
@@ -9497,12 +9569,30 @@
       "amount": 2500
     },
     {
+      "id": "72e6b78e-5bdb-41f6-a64b-725970fcbdd8",
+      "date": "2026-11-19",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4043",
+      "amount": 30.64,
+      "updatedAt": 1795614942747
+    },
+    {
       "id": "262c0ff8-c574-4664-b1ab-1ef356c3e703",
       "date": "2026-11-20",
       "description": "IDS OTTOBRE NIDO DI MENNENNE",
       "debitAccountCode": "5100",
       "creditAccountCode": "4043",
       "amount": 28.6
+    },
+    {
+      "id": "85360532-9065-4159-a87a-14129099c916",
+      "date": "2026-11-20",
+      "description": "EMERGENCY",
+      "debitAccountCode": "5030",
+      "creditAccountCode": "4043",
+      "amount": 50,
+      "updatedAt": 1795614942746
     },
     {
       "id": "2f310730-9e2f-46bb-ad29-c62bdd342ffb",
@@ -9567,6 +9657,15 @@
       "debitAccountCode": "6010",
       "creditAccountCode": "4010",
       "amount": 2.5
+    },
+    {
+      "id": "8f272423-49e0-4a8c-9963-eca1d276b7fa",
+      "date": "2026-11-23",
+      "description": "WIND",
+      "debitAccountCode": "6080",
+      "creditAccountCode": "4043",
+      "amount": 30.49,
+      "updatedAt": 1795614942745
     },
     {
       "id": "4a1f4f4d-593a-40e1-ae9f-af35348c36d2",
@@ -9655,6 +9754,14 @@
       "debitAccountCode": "4071",
       "creditAccountCode": "4043",
       "amount": 0.92
+    },
+    {
+      "id": "958b666a-b85d-4a5b-a132-dab619bb6888",
+      "date": "2026-11-25",
+      "description": "BOLLETTA ACQUA",
+      "debitAccountCode": "6060",
+      "creditAccountCode": "4043",
+      "amount": 61.38
     },
     {
       "id": "1723e51c-0a65-455d-ae90-5358932ee133",
