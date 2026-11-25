@@ -16,6 +16,20 @@
     },
     "history": [
       {
+        "id": "park-1795007483157-gg95",
+        "section": "parking",
+        "user": "Giampy",
+        "owner": "Giampy",
+        "lat": 39.224953,
+        "lng": 9.1293873,
+        "accuracy": 5,
+        "address": "Via Genneruxi 1a, Casteddu/Cagliari",
+        "addressShort": "Via Genneruxi 1a, Casteddu/Cagliari",
+        "timestamp": "2026-11-18T13:11:23.157Z",
+        "trigger": "bluetooth_auto",
+        "notes": "Nissan"
+      },
+      {
         "id": "park-1794989033095-2h4j",
         "section": "parking",
         "user": "Giampy",

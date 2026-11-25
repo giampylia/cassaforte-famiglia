@@ -4,6 +4,7 @@ const url = require('url');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 const PORT = process.env.PORT || 8080;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -75,6 +76,7 @@ function saveVaultStore(data) {
     fs.writeFileSync(VAULT_FILE, JSON.stringify(data, null, 2), 'utf8');
     const dataVaultFile = path.join(__dirname, 'data', 'vault_store.json');
     fs.writeFileSync(dataVaultFile, JSON.stringify(data, null, 2), 'utf8');
+    if (typeof scheduleGitHubBackupPush === 'function') scheduleGitHubBackupPush('data/vault_store.json', data);
   } catch (e) {
     console.error('Error saving vault store:', e);
   }
@@ -111,6 +113,7 @@ function saveAcquistiStore(data) {
     fs.writeFileSync(ACQUISTI_FILE, JSON.stringify(data, null, 2), 'utf8');
     const dataAcquistiFile = path.join(__dirname, 'data', 'acquisti_store.json');
     fs.writeFileSync(dataAcquistiFile, JSON.stringify(data, null, 2), 'utf8');
+    if (typeof scheduleGitHubBackupPush === 'function') scheduleGitHubBackupPush('data/acquisti_store.json', data);
   } catch (e) {
     console.error('Error saving acquisti store:', e);
   }
@@ -147,6 +150,7 @@ function saveLavoriStore(data) {
     fs.writeFileSync(LAVORI_FILE, JSON.stringify(data, null, 2), 'utf8');
     const dataLavoriFile = path.join(__dirname, 'data', 'lavori_store.json');
     fs.writeFileSync(dataLavoriFile, JSON.stringify(data, null, 2), 'utf8');
+    if (typeof scheduleGitHubBackupPush === 'function') scheduleGitHubBackupPush('data/lavori_store.json', data);
   } catch (e) {
     console.error('Error saving lavori store:', e);
   }
@@ -215,6 +219,7 @@ function saveSpesaStore(data) {
     fs.writeFileSync(SPESA_FILE, JSON.stringify(data, null, 2), 'utf8');
     const dataSpesaFile = path.join(__dirname, 'data', 'spesa_store.json');
     fs.writeFileSync(dataSpesaFile, JSON.stringify(data, null, 2), 'utf8');
+    if (typeof scheduleGitHubBackupPush === 'function') scheduleGitHubBackupPush('data/spesa_store.json', data);
   } catch (e) {
     console.error('Error saving spesa store:', e);
   }
@@ -265,6 +270,7 @@ function saveParking(data) {
     fs.writeFileSync(PARKING_FILE, JSON.stringify(data, null, 2), 'utf8');
     const dataParkingFile = path.join(__dirname, 'data', 'parking.json');
     fs.writeFileSync(dataParkingFile, JSON.stringify(data, null, 2), 'utf8');
+    if (typeof scheduleGitHubBackupPush === 'function') scheduleGitHubBackupPush('data/parking.json', data);
   } catch (e) {
     console.error('Error saving parking store:', e);
   }
@@ -452,11 +458,17 @@ const CONTABILITA_DELETED_FILE = path.join(DATA_DIR, 'deleted_journal_ids.json')
 let inMemoryContabilita = null;
 let deletedJournalIds = new Set();
 
+const GITHUB_OWNER = 'giampylia';
+const GITHUB_REPO = 'cassaforte-famiglia';
+const GITHUB_BACKUP_BRANCH = 'backups';
+let githubRestorePromise = null;
+const githubPushTimers = {};
+
 function loadDeletedIds() {
   try {
     if (fs.existsSync(CONTABILITA_DELETED_FILE)) {
       const data = JSON.parse(fs.readFileSync(CONTABILITA_DELETED_FILE, 'utf8') || '[]');
-      if (Array.isArray(data)) deletedJournalIds = new Set(data);
+      if (Array.isArray(data)) deletedJournalIds = new Set(data.map(String));
     }
   } catch (e) {}
 }
@@ -465,7 +477,9 @@ loadDeletedIds();
 function saveDeletedIds() {
   try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(CONTABILITA_DELETED_FILE, JSON.stringify(Array.from(deletedJournalIds)), 'utf8');
+    const list = Array.from(deletedJournalIds);
+    fs.writeFileSync(CONTABILITA_DELETED_FILE, JSON.stringify(list), 'utf8');
+    scheduleGitHubBackupPush('data/deleted_journal_ids.json', list);
   } catch (e) {}
 }
 
@@ -487,7 +501,7 @@ function mergeContabilitaPayload(existing, incoming) {
   (incoming.budgetEntries || []).forEach(b => { if (b && b.accountCode) budgetMap.set(String(b.accountCode), b); });
   const mergedBudgets = Array.from(budgetMap.values());
 
-  // 3. Journal Entries merge (FONDAMENTALE: unisce smartphone e PC senza mai cancellare le registrazioni)
+  // 3. Journal Entries merge (preserva sempre tutte le registrazioni e protegge modifiche più recenti via updatedAt)
   const journalMap = new Map();
   (existing.journalEntries || []).forEach(e => {
     if (e && e.id && !deletedJournalIds.has(String(e.id))) {
@@ -496,11 +510,19 @@ function mergeContabilitaPayload(existing, incoming) {
   });
   (incoming.journalEntries || []).forEach(e => {
     if (e && e.id && !deletedJournalIds.has(String(e.id))) {
-      const prev = journalMap.get(String(e.id));
+      const id = String(e.id);
+      const prev = journalMap.get(id);
       if (!prev) {
-        journalMap.set(String(e.id), e);
+        journalMap.set(id, e);
       } else {
-        journalMap.set(String(e.id), { ...prev, ...e });
+        const prevTs = Number(prev.updatedAt || 0);
+        const incTs = Number(e.updatedAt || 0);
+        if (prevTs > incTs) {
+          // Non permettere che una sync vecchia o senza timestamp sovrascriva una modifica più recente
+          journalMap.set(id, prev);
+        } else {
+          journalMap.set(id, { ...prev, ...e });
+        }
       }
     }
   });
@@ -514,7 +536,9 @@ function mergeContabilitaPayload(existing, incoming) {
   return {
     accounts: mergedAccounts.length > 0 ? mergedAccounts : (existing.accounts || []),
     budgetEntries: mergedBudgets.length > 0 ? mergedBudgets : (existing.budgetEntries || []),
-    journalEntries: mergedJournal
+    journalEntries: mergedJournal.length === 0 && (existing.journalEntries || []).length > 0
+      ? existing.journalEntries
+      : mergedJournal
   };
 }
 
@@ -556,15 +580,241 @@ function saveContabilita(payload, forceOverwrite = false) {
     }
     inMemoryContabilita = toSave;
     fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(CONTABILITA_FILE, JSON.stringify(toSave, null, 2), 'utf8');
+    const serialized = JSON.stringify(toSave, null, 2);
+    fs.writeFileSync(CONTABILITA_FILE, serialized, 'utf8');
     try {
-      fs.writeFileSync(path.join(PUBLIC_DIR, 'contabilita-data.json'), JSON.stringify(toSave, null, 2), 'utf8');
+      fs.writeFileSync(path.join(PUBLIC_DIR, 'contabilita-data.json'), serialized, 'utf8');
+      const backupDir = path.join(DATA_DIR, 'backups');
+      if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+      fs.writeFileSync(path.join(backupDir, 'contabilita_latest.json'), serialized, 'utf8');
     } catch (e) {}
+    scheduleGitHubBackupPush('data/contabilita.json', toSave);
     return toSave;
   } catch (err) {
     console.error('[Contabilità] Errore salvataggio:', err.message);
     return false;
   }
+}
+
+function fetchRawGitHubJson(relPath, timeoutMs = 2500) {
+  return new Promise((resolve) => {
+    const rawUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BACKUP_BRANCH}/${relPath}?_t=${Date.now()}`;
+    const req = https.get(rawUrl, {
+      headers: { 'User-Agent': 'GPPApp-Recovery/1.0', 'Accept': 'application/json' },
+      timeout: timeoutMs
+    }, (res) => {
+      if (res.statusCode !== 200) {
+        res.resume();
+        return resolve(null);
+      }
+      let raw = '';
+      res.on('data', c => { raw += c; });
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(raw));
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+}
+
+function mergeSimpleItemsById(existingItems, backupItems) {
+  const map = new Map();
+  (existingItems || []).forEach(it => { if (it && it.id) map.set(String(it.id), it); });
+  (backupItems || []).forEach(it => {
+    if (it && it.id) {
+      const key = String(it.id);
+      const prev = map.get(key);
+      if (!prev) {
+        map.set(key, it);
+      } else {
+        const prevTs = new Date(prev.updatedAt || prev.timestamp || 0).getTime() || 0;
+        const bkpTs = new Date(it.updatedAt || it.timestamp || 0).getTime() || 0;
+        if (bkpTs > prevTs) map.set(key, { ...prev, ...it });
+      }
+    }
+  });
+  return Array.from(map.values());
+}
+
+function restoreFromGitHubBackupsOnce() {
+  if (githubRestorePromise) return githubRestorePromise;
+  githubRestorePromise = (async () => {
+    try {
+      const [delIds, remoteCont, remoteVault, remoteAcq, remoteLav, remoteSpesa, remotePark] = await Promise.all([
+        fetchRawGitHubJson('data/deleted_journal_ids.json'),
+        fetchRawGitHubJson('data/contabilita.json'),
+        fetchRawGitHubJson('data/vault_store.json'),
+        fetchRawGitHubJson('data/acquisti_store.json'),
+        fetchRawGitHubJson('data/lavori_store.json'),
+        fetchRawGitHubJson('data/spesa_store.json'),
+        fetchRawGitHubJson('data/parking.json')
+      ]);
+
+      if (Array.isArray(delIds) && delIds.length > 0) {
+        let changedDel = false;
+        delIds.forEach(id => {
+          const s = String(id);
+          if (!deletedJournalIds.has(s)) {
+            deletedJournalIds.add(s);
+            changedDel = true;
+          }
+        });
+        if (changedDel) saveDeletedIds();
+      }
+
+      if (remoteCont && Array.isArray(remoteCont.journalEntries) && remoteCont.journalEntries.length > 0) {
+        const current = loadContabilita();
+        const curIds = new Set((current.journalEntries || []).map(e => String(e.id)));
+        const hasNew = remoteCont.journalEntries.some(e => e && e.id && !deletedJournalIds.has(String(e.id)) && !curIds.has(String(e.id)));
+        if (hasNew || deletedJournalIds.size > 0) {
+          const merged = mergeContabilitaPayload(current, remoteCont);
+          if (merged.journalEntries.length !== (current.journalEntries || []).length || hasNew) {
+            inMemoryContabilita = merged;
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+            fs.writeFileSync(CONTABILITA_FILE, JSON.stringify(merged, null, 2), 'utf8');
+            try { fs.writeFileSync(path.join(PUBLIC_DIR, 'contabilita-data.json'), JSON.stringify(merged, null, 2), 'utf8'); } catch (e) {}
+            console.log(`[GITHUB RECOVERY] Ripristinata contabilità da branch backups: ${merged.journalEntries.length} movimenti`);
+          }
+        }
+      }
+
+      if (remoteVault && Array.isArray(remoteVault.items) && remoteVault.items.length > 0) {
+        const curV = getVaultStore();
+        const mergedV = mergeSimpleItemsById(curV.items, remoteVault.items);
+        if (mergedV.length > (curV.items || []).length) {
+          saveVaultStore({ items: mergedV, updatedAt: new Date().toISOString() });
+        }
+      }
+
+      if (remoteAcq && Array.isArray(remoteAcq.items) && remoteAcq.items.length > 0) {
+        const curA = getAcquistiStore();
+        const mergedA = mergeSimpleItemsById(curA.items, remoteAcq.items);
+        if (mergedA.length > (curA.items || []).length) {
+          saveAcquistiStore({ items: mergedA });
+        }
+      }
+
+      if (remoteLav && Array.isArray(remoteLav.items) && remoteLav.items.length > 0) {
+        const curL = getLavoriStore();
+        const mergedL = mergeSimpleItemsById(curL.items, remoteLav.items);
+        if (mergedL.length > (curL.items || []).length) {
+          saveLavoriStore({ items: mergedL });
+        }
+      }
+
+      if (remoteSpesa && Array.isArray(remoteSpesa.items) && remoteSpesa.items.length > 0) {
+        const curS = getSpesaStore();
+        const mergedS = mergeSimpleItemsById(curS.items, remoteSpesa.items);
+        if (mergedS.length > (curS.items || []).length) {
+          saveSpesaStore({ ...curS, items: mergedS });
+        }
+      }
+
+      if (remotePark && typeof remotePark === 'object') {
+        const curP = loadParking();
+        let changedP = false;
+        Object.keys(remotePark).forEach(u => {
+          const rUser = remotePark[u];
+          if (!rUser || typeof rUser !== 'object') return;
+          if (!curP[u]) curP[u] = { active: null, history: [] };
+          if (rUser.active) {
+            const rTs = new Date(rUser.active.timestamp || 0).getTime();
+            const cTs = curP[u].active ? new Date(curP[u].active.timestamp || 0).getTime() : 0;
+            if (rTs > cTs) {
+              if (curP[u].active) curP[u].history.unshift(curP[u].active);
+              curP[u].active = rUser.active;
+              changedP = true;
+            }
+          }
+          const combinedH = mergeSimpleItemsById(curP[u].history, rUser.history || []);
+          if (combinedH.length > curP[u].history.length) {
+            combinedH.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+            curP[u].history = combinedH.slice(0, 500);
+            changedP = true;
+          }
+        });
+        if (changedP) saveParking(curP);
+      }
+    } catch (err) {
+      console.warn('[GITHUB RECOVERY] Avviso ripristino:', err.message);
+    }
+  })();
+  return githubRestorePromise;
+}
+
+function githubApiRequest(apiPath, method = 'GET', bodyObj = null) {
+  return new Promise((resolve) => {
+    const token = process.env.GITHUB_TOKEN || process.env.GH_BACKUP_TOKEN;
+    if (!token) return resolve({ status: 0, skipped: true });
+    const body = bodyObj ? JSON.stringify(bodyObj) : null;
+    const headers = {
+      'User-Agent': 'GPPApp-Backup/1.0',
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json'
+    };
+    if (body) {
+      headers['Content-Type'] = 'application/json';
+      headers['Content-Length'] = Buffer.byteLength(body);
+    }
+    const req = https.request({
+      hostname: 'api.github.com',
+      path: apiPath,
+      method,
+      headers,
+      timeout: 8000
+    }, (res) => {
+      let raw = '';
+      res.on('data', c => { raw += c; });
+      res.on('end', () => {
+        try {
+          resolve({ status: res.statusCode, data: raw ? JSON.parse(raw) : null });
+        } catch (e) {
+          resolve({ status: res.statusCode, raw });
+        }
+      });
+    });
+    req.on('error', () => resolve({ status: 0 }));
+    req.on('timeout', () => { req.destroy(); resolve({ status: 0 }); });
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+async function pushFileToGitHubBackupBranch(relPath, dataObj) {
+  const token = process.env.GITHUB_TOKEN || process.env.GH_BACKUP_TOKEN;
+  if (!token) return;
+  try {
+    const apiPath = `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${relPath}`;
+    const existing = await githubApiRequest(`${apiPath}?ref=${GITHUB_BACKUP_BRANCH}`, 'GET');
+    const contentB64 = Buffer.from(JSON.stringify(dataObj, null, 2), 'utf8').toString('base64');
+    const payload = {
+      message: `auto-backup(${relPath}): ${new Date().toISOString()}`,
+      content: contentB64,
+      branch: GITHUB_BACKUP_BRANCH
+    };
+    if (existing.status === 200 && existing.data && existing.data.sha) {
+      payload.sha = existing.data.sha;
+    }
+    const putRes = await githubApiRequest(apiPath, 'PUT', payload);
+    if (putRes.status === 200 || putRes.status === 201) {
+      console.log(`[GITHUB BACKUP] Salvato in tempo reale su branch ${GITHUB_BACKUP_BRANCH}: ${relPath}`);
+    }
+  } catch (err) {
+    console.warn('[GITHUB BACKUP] Errore push:', err.message);
+  }
+}
+
+function scheduleGitHubBackupPush(relPath, dataObj) {
+  if (!process.env.GITHUB_TOKEN && !process.env.GH_BACKUP_TOKEN) return;
+  if (githubPushTimers[relPath]) clearTimeout(githubPushTimers[relPath]);
+  githubPushTimers[relPath] = setTimeout(() => {
+    pushFileToGitHubBackupBranch(relPath, dataObj);
+  }, 2000);
 }
 
 const MIME_TYPES = {
@@ -593,14 +843,41 @@ const CONTABILITA_ROUTES = new Set([
 const server = http.createServer(async (req, res) => {
   let reqPath = req.url.split('?')[0];
 
-  // Helper per inviare risposte JSON
-  const sendJson = (status, obj) => {
-    res.writeHead(status, {
+  // Helper per inviare risposte JSON (con GZIP e ETag opzionale per ridurre la banda)
+  const sendJson = (status, obj, opts = {}) => {
+    const jsonStr = JSON.stringify(obj);
+    if (opts && opts.etag) {
+      const clientTag = req.headers['if-none-match'];
+      if (clientTag && clientTag === opts.etag) {
+        res.writeHead(304, {
+          'ETag': opts.etag,
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache'
+        });
+        res.end();
+        return;
+      }
+    }
+    const headers = {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
-    });
-    res.end(JSON.stringify(obj));
+      'Cache-Control': opts && opts.etag ? 'no-cache' : 'no-store, no-cache, must-revalidate, max-age=0'
+    };
+    if (opts && opts.etag) headers['ETag'] = opts.etag;
+
+    const acceptEnc = String(req.headers['accept-encoding'] || '');
+    if (jsonStr.length > 1024 && acceptEnc.includes('gzip')) {
+      try {
+        const gz = zlib.gzipSync(jsonStr);
+        headers['Content-Encoding'] = 'gzip';
+        headers['Vary'] = 'Accept-Encoding';
+        res.writeHead(status, headers);
+        res.end(gz);
+        return;
+      } catch (e) {}
+    }
+    res.writeHead(status, headers);
+    res.end(jsonStr);
   };
 
   // 1. API Autenticazione & OTP
@@ -686,6 +963,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (reqPath === '/api/vault/list' && req.method === 'GET') {
+      await restoreFromGitHubBackupsOnce();
       const v = getVaultStore();
       return sendJson(200, { items: v.items || [] });
     }
@@ -726,6 +1004,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (reqPath === '/api/acquisti/list' && req.method === 'GET') {
+      await restoreFromGitHubBackupsOnce();
       const a = getAcquistiStore();
       return sendJson(200, { items: a.items || [] });
     }
@@ -766,6 +1045,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (reqPath === '/api/lavori/list' && req.method === 'GET') {
+      await restoreFromGitHubBackupsOnce();
       const l = getLavoriStore();
       return sendJson(200, { items: l.items || [] });
     }
@@ -806,6 +1086,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (reqPath === '/api/spesa/list' && req.method === 'GET') {
+      await restoreFromGitHubBackupsOnce();
       const s = getSpesaStore();
       return sendJson(200, s);
     }
@@ -851,6 +1132,7 @@ const server = http.createServer(async (req, res) => {
 
     // 1. GET /api/parking (Restituisce parcheggio attivo e storico dell'utente, sincronizzando da Famylia)
     if (reqPath === '/api/parking' && req.method === 'GET') {
+      await restoreFromGitHubBackupsOnce();
       const user = normalizeParkingUser(query.user || 'Giampy');
       syncParkingWithFamylia(user).finally(() => {
         const store = loadParking();
@@ -1135,9 +1417,21 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    await restoreFromGitHubBackupsOnce();
+
+    if (reqPath === '/api/contabilita/deleted-ids' && req.method === 'GET') {
+      return sendJson(200, { success: true, deletedIds: Array.from(deletedJournalIds) });
+    }
+
     if (req.method === 'GET') {
       const data = loadContabilita();
-      return sendJson(200, { success: true, data });
+      const deletedIds = Array.from(deletedJournalIds);
+      const etagHash = crypto
+        .createHash('sha1')
+        .update(JSON.stringify({ len: (data.journalEntries || []).length, j: data.journalEntries, del: deletedIds }))
+        .digest('hex')
+        .slice(0, 16);
+      return sendJson(200, { success: true, data, deletedIds }, { etag: `W/"cont_${etagHash}"` });
     }
 
     if (req.method === 'POST') {
@@ -1147,43 +1441,66 @@ const server = http.createServer(async (req, res) => {
         try {
           const payload = JSON.parse(body || '{}');
           if (reqPath === '/api/contabilita/add-entry') {
-            const current = loadContabilita();
+            const src = payload.entry || payload;
             const entry = {
-              id: payload.id || ('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+              id: src.id || ('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
                 const r = Math.random() * 16 | 0;
                 return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
               })),
-              date: payload.date || new Date().toISOString().split('T')[0],
-              description: String(payload.description || 'SPESA').trim().toUpperCase(),
-              debitAccountCode: String(payload.debitAccountCode || '6110'),
-              creditAccountCode: String(payload.creditAccountCode || '4043'),
-              amount: Number(payload.amount || 0)
+              date: src.date || new Date().toISOString().split('T')[0],
+              description: String(src.description || 'SPESA').trim().toUpperCase(),
+              debitAccountCode: String(src.debitAccountCode || '6110'),
+              creditAccountCode: String(src.creditAccountCode || '4043'),
+              amount: Number(src.amount || 0),
+              updatedAt: Number(src.updatedAt || Date.now())
             };
-            current.journalEntries = [...(current.journalEntries || []), entry].sort((a, b) => String(a.date).localeCompare(String(b.date)));
-            const saved = saveContabilita(current, false);
-            console.log(`[CONTABILITÀ GPP] Registrata spesa automatica: Dare ${entry.debitAccountCode} / Avere ${entry.creditAccountCode} €${entry.amount} (${entry.description})`);
-            return sendJson(200, { success: !!saved, entry, data: saved });
+            const saved = saveContabilita({ journalEntries: [entry] }, false);
+            console.log(`[CONTABILITÀ GPP] Registrato movimento: Dare ${entry.debitAccountCode} / Avere ${entry.creditAccountCode} €${entry.amount} (${entry.description})`);
+            return sendJson(200, { success: !!saved, entry, data: saved, deletedIds: Array.from(deletedJournalIds) });
+          }
+          if (reqPath === '/api/contabilita/update-entry') {
+            const src = payload.entry || payload;
+            if (!src || !src.id) {
+              return sendJson(400, { success: false, error: 'ID mancante' });
+            }
+            const entry = {
+              id: String(src.id),
+              date: src.date || new Date().toISOString().split('T')[0],
+              description: String(src.description || '').trim().toUpperCase(),
+              debitAccountCode: String(src.debitAccountCode || ''),
+              creditAccountCode: String(src.creditAccountCode || ''),
+              amount: Number(src.amount || 0),
+              updatedAt: Number(src.updatedAt || Date.now())
+            };
+            if (deletedJournalIds.has(entry.id)) {
+              deletedJournalIds.delete(entry.id);
+              saveDeletedIds();
+            }
+            const saved = saveContabilita({ journalEntries: [entry] }, false);
+            console.log(`[CONTABILITÀ GPP] Aggiornata registrazione ${entry.id}: €${entry.amount} (${entry.description})`);
+            return sendJson(200, { success: !!saved, entry, data: saved, deletedIds: Array.from(deletedJournalIds) });
           }
           if (reqPath === '/api/contabilita/delete-entry') {
             const current = loadContabilita();
-            const idToDelete = payload.id;
-            if (idToDelete) {
-              deletedJournalIds.add(String(idToDelete));
+            const ids = Array.isArray(payload.ids) ? payload.ids : (payload.id ? [payload.id] : []);
+            const idSet = new Set(ids.map(String));
+            if (idSet.size > 0) {
+              idSet.forEach(id => deletedJournalIds.add(id));
               saveDeletedIds();
-              current.journalEntries = (current.journalEntries || []).filter(e => String(e.id) !== String(idToDelete));
+              current.journalEntries = (current.journalEntries || []).filter(e => !idSet.has(String(e.id)));
               saveContabilita(current, true);
-              console.log(`[CONTABILITÀ GPP] Eliminata registrazione con ID: ${idToDelete}`);
+              console.log(`[CONTABILITÀ GPP] Eliminate registrazioni ID: ${Array.from(idSet).join(', ')}`);
             }
-            return sendJson(200, { success: true, data: current });
+            return sendJson(200, { success: true, data: current, deletedIds: Array.from(deletedJournalIds) });
           }
           if (reqPath === '/api/contabilita/sync-merge') {
             const saved = saveContabilita(payload, false);
             const count = saved && Array.isArray(saved.journalEntries) ? saved.journalEntries.length : 0;
             console.log(`[CONTABILITÀ GPP] Sincronizzazione bi-direzionale smartphone/PC completata. Totale registrazioni unite: ${count}`);
-            return sendJson(200, { success: !!saved, data: saved, totalEntries: count });
+            return sendJson(200, { success: !!saved, data: saved, totalEntries: count, deletedIds: Array.from(deletedJournalIds) });
           }
           const saved = saveContabilita(payload, false);
-          return sendJson(200, { success: !!saved, data: saved });
+          return sendJson(200, { success: !!saved, data: saved, deletedIds: Array.from(deletedJournalIds) });
         } catch (err) {
           return sendJson(400, { success: false, error: err.message });
         }
@@ -1294,6 +1611,8 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server App Giampy attivo su porta ${PORT}:`);
   console.log(`- Locale:    http://localhost:${PORT}`);
   console.log(`- Contabilità: http://localhost:${PORT}/avanzamento`);
+
+  restoreFromGitHubBackupsOnce();
 
   // Keep-Alive automatico ogni 10 minuti per evitare lo spegnimento (spin-down) su Render Free
   const RENDER_URL = process.env.RENDER_EXTERNAL_URL || 'https://giampylia.onrender.com';

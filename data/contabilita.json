@@ -8593,14 +8593,6 @@
       "amount": 0
     },
     {
-      "id": "642ac01d-cfde-4e22-8dbf-ea07004a2b37",
-      "date": "2026-09-29",
-      "description": "TARI ULASSAI",
-      "debitAccountCode": "6031",
-      "creditAccountCode": "4043",
-      "amount": 85.75
-    },
-    {
       "id": "6702e4fe-5610-4ae2-b7ce-109312e94df7",
       "date": "2026-09-29",
       "description": "RIMBORSO PARZIALE TY",
@@ -8647,6 +8639,14 @@
       "debitAccountCode": "6010",
       "creditAccountCode": "4010",
       "amount": 20
+    },
+    {
+      "id": "671f82ea-2b19-4fe9-890a-00b68b33c59f",
+      "date": "2026-09-29",
+      "description": "ANTICIPO MARCO STELLA",
+      "debitAccountCode": "4043",
+      "creditAccountCode": "8040",
+      "amount": 100
     },
     {
       "id": "0eb4392b-8330-4577-89eb-e4bc15dbcd89",
@@ -8799,6 +8799,14 @@
       "debitAccountCode": "6010",
       "creditAccountCode": "4010",
       "amount": 4
+    },
+    {
+      "id": "642ac01d-cfde-4e22-8dbf-ea07004a2b37",
+      "date": "2026-10-06",
+      "description": "TARI ULASSAI",
+      "debitAccountCode": "6031",
+      "creditAccountCode": "4043",
+      "amount": 85.75
     },
     {
       "id": "3f26c35b-0efa-42ca-90ee-4fa240ffbdd7",
@@ -9065,14 +9073,6 @@
       "amount": 2
     },
     {
-      "id": "262c0ff8-c574-4664-b1ab-1ef356c3e703",
-      "date": "2026-10-22",
-      "description": "IDS OTTOBRE NIDO DI MENNENNE",
-      "debitAccountCode": "5100",
-      "creditAccountCode": "4043",
-      "amount": 28.25
-    },
-    {
       "id": "f823d067-37a7-4703-a431-98755dbbbd94",
       "date": "2026-10-22",
       "description": "PIZZA",
@@ -9199,14 +9199,6 @@
       "debitAccountCode": "6053",
       "creditAccountCode": "4043",
       "amount": 190.5
-    },
-    {
-      "id": "671f82ea-2b19-4fe9-890a-00b68b33c59f",
-      "date": "2026-10-29",
-      "description": "ANTICIPO MARCO STELLA",
-      "debitAccountCode": "4043",
-      "creditAccountCode": "8040",
-      "amount": 100
     },
     {
       "id": "e675757c-79f2-488e-9eb6-d872d2d2b1d9",
@@ -9350,7 +9342,7 @@
       "description": "RATA 4 RITA",
       "debitAccountCode": "4043",
       "creditAccountCode": "8020",
-      "amount": 3959.02
+      "amount": 3959.92
     },
     {
       "id": "0d166335-9127-48bc-893e-d1c8f75af160",
@@ -9505,6 +9497,14 @@
       "amount": 2500
     },
     {
+      "id": "262c0ff8-c574-4664-b1ab-1ef356c3e703",
+      "date": "2026-11-20",
+      "description": "IDS OTTOBRE NIDO DI MENNENNE",
+      "debitAccountCode": "5100",
+      "creditAccountCode": "4043",
+      "amount": 28.6
+    },
+    {
       "id": "2f310730-9e2f-46bb-ad29-c62bdd342ffb",
       "date": "2026-11-21",
       "description": "CAUZIONE FEDERICO TORRESAGASTI",
@@ -9591,6 +9591,70 @@
       "debitAccountCode": "6010",
       "creditAccountCode": "4010",
       "amount": 31.5
+    },
+    {
+      "id": "b21c256e-05aa-44b2-921e-2554b610f17a",
+      "date": "2026-11-24",
+      "description": "FATTURA ELETTRICA CAVARO",
+      "debitAccountCode": "6053",
+      "creditAccountCode": "4043",
+      "amount": 95.07
+    },
+    {
+      "id": "e267e1c5-ebbd-4630-9bdf-05773761f67b",
+      "date": "2026-11-24",
+      "description": "FATTURA ELETTRICA MENNENNE",
+      "debitAccountCode": "6051",
+      "creditAccountCode": "4043",
+      "amount": 88.61
+    },
+    {
+      "id": "c779c91f-8a72-45e3-98d1-35e3bc63005f",
+      "date": "2026-11-24",
+      "description": "FATTURA ELETTRICA CAVARO 46,77",
+      "debitAccountCode": "6052",
+      "creditAccountCode": "4043",
+      "amount": 0
+    },
+    {
+      "id": "d131b85d-edb0-471f-b25c-1787240a4969",
+      "date": "2026-11-24",
+      "description": "FATTURA ELETTRICA CAVARO",
+      "debitAccountCode": "6050",
+      "creditAccountCode": "4043",
+      "amount": 76.38
+    },
+    {
+      "id": "0b82803c-4dfe-4720-b89c-107574358a9e",
+      "date": "2026-11-25",
+      "description": "MULTA PARCHEGGIO SOSTA VIETATA",
+      "debitAccountCode": "6040",
+      "creditAccountCode": "4043",
+      "amount": 29.64
+    },
+    {
+      "id": "86c1b4e8-1470-4696-bb0b-d2c8181e6497",
+      "date": "2026-11-25",
+      "description": "BOLLETTA TISIDDU",
+      "debitAccountCode": "6062",
+      "creditAccountCode": "4043",
+      "amount": 212.6
+    },
+    {
+      "id": "2fe382f7-07e5-41e3-b33b-7c9ee5a67bfb",
+      "date": "2026-11-25",
+      "description": "ABBANOA PRINCIPE",
+      "debitAccountCode": "6063",
+      "creditAccountCode": "4043",
+      "amount": 184.5
+    },
+    {
+      "id": "ab66cde0-95b0-4cbb-ad0b-4b42d9ee957d",
+      "date": "2026-11-25",
+      "description": "RENDER COM",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4043",
+      "amount": 0.92
     },
     {
       "id": "1723e51c-0a65-455d-ae90-5358932ee133",

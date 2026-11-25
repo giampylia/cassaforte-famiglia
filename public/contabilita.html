@@ -14,14 +14,9 @@
     <link rel="apple-touch-icon" href="/gpp-icon-512.png" />
     
     <script>
-      // Svuota immediatamente la cache del browser
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(regs => {
-          for (let r of regs) r.unregister();
-        });
-      }
-      if ('caches' in window) {
-        caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+      // Evita cache vecchie solo sui file HTML/CSS contabili senza deregistrare il Service Worker della PWA
+      if ('caches' in window && window.self === window.top) {
+        caches.keys().then(keys => keys.filter(k => k.includes('contabilita')).forEach(k => caches.delete(k)));
       }
     </script>
 
@@ -160,8 +155,37 @@
         const CACHE_KEY = 'giampycash_offline_cache';
         const ACCOUNTS_KEY = 'gpp_accounts';
         const BUDGETS_KEY = 'gpp_budgets';
+        const DELETED_KEY = 'gpp_deleted_journal_ids';
+        const PENDING_OPS_KEY = 'gpp_contabilita_pending_ops';
 
-        function collectLocalEntries() {
+        function getDeletedIdsSet(extraDeleted) {
+          const set = new Set();
+          try {
+            const raw = JSON.parse(localStorage.getItem(DELETED_KEY) || '[]');
+            if (Array.isArray(raw)) raw.forEach(id => set.add(String(id)));
+          } catch (e) {}
+          if (Array.isArray(extraDeleted)) {
+            extraDeleted.forEach(id => set.add(String(id)));
+          }
+          return set;
+        }
+
+        function saveDeletedIdsSet(set) {
+          try {
+            localStorage.setItem(DELETED_KEY, JSON.stringify(Array.from(set)));
+          } catch (e) {}
+        }
+
+        function mergeEntryPair(prev, inc) {
+          if (!prev) return inc;
+          const prevTs = Number(prev.updatedAt || 0);
+          const incTs = Number(inc.updatedAt || 0);
+          if (prevTs > incTs) return prev;
+          return Object.assign({}, prev, inc);
+        }
+
+        function collectLocalEntries(extraDeleted) {
+          const delSet = getDeletedIdsSet(extraDeleted);
           const map = new Map();
           const sources = [
             localStorage.getItem(VAULT_KEY),
@@ -179,28 +203,82 @@
               list.forEach(e => {
                 if (e && e.id) {
                   const id = String(e.id);
-                  if (!map.has(id)) {
-                    map.set(id, e);
-                  } else {
-                    map.set(id, Object.assign({}, map.get(id), e));
-                  }
+                  if (delSet.has(id)) return;
+                  map.set(id, mergeEntryPair(map.get(id), e));
                 }
               });
             } catch (err) {}
           });
-          return Array.from(map.values());
+          return Array.from(map.values()).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
         }
 
-        function persistToVault(entries) {
-          if (!Array.isArray(entries) || entries.length === 0) return;
+        function persistToVault(entries, extraDeleted) {
+          if (!Array.isArray(entries)) return;
           try {
-            const existing = collectLocalEntries();
+            const delSet = getDeletedIdsSet(extraDeleted);
+            saveDeletedIdsSet(delSet);
+            const existing = collectLocalEntries(Array.from(delSet));
             const map = new Map();
-            existing.forEach(e => { if (e && e.id) map.set(String(e.id), e); });
-            entries.forEach(e => { if (e && e.id) map.set(String(e.id), e); });
-            const merged = Array.from(map.values()).sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')));
+            existing.forEach(e => {
+              if (e && e.id && !delSet.has(String(e.id))) {
+                map.set(String(e.id), e);
+              }
+            });
+            entries.forEach(e => {
+              if (e && e.id) {
+                const id = String(e.id);
+                if (!delSet.has(id)) {
+                  map.set(id, mergeEntryPair(map.get(id), e));
+                }
+              }
+            });
+            const merged = Array.from(map.values()).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
             localStorage.setItem(VAULT_KEY, JSON.stringify(merged));
+            localStorage.setItem(JOURNAL_KEY, JSON.stringify(merged));
           } catch (e) {}
+        }
+
+        function removeLocalEntry(idToRemove) {
+          if (!idToRemove) return;
+          const idStr = String(idToRemove);
+          try {
+            const delSet = getDeletedIdsSet([idStr]);
+            saveDeletedIdsSet(delSet);
+            const filterList = (list) => Array.isArray(list) ? list.filter(e => e && String(e.id) !== idStr) : [];
+            const vault = filterList(JSON.parse(localStorage.getItem(VAULT_KEY) || '[]'));
+            localStorage.setItem(VAULT_KEY, JSON.stringify(vault));
+            const journal = filterList(JSON.parse(localStorage.getItem(JOURNAL_KEY) || '[]'));
+            localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal));
+            const cacheRaw = localStorage.getItem(CACHE_KEY);
+            if (cacheRaw) {
+              const cacheObj = JSON.parse(cacheRaw);
+              if (cacheObj && Array.isArray(cacheObj.journalEntries)) {
+                cacheObj.journalEntries = filterList(cacheObj.journalEntries);
+                localStorage.setItem(CACHE_KEY, JSON.stringify(cacheObj));
+              }
+            }
+          } catch (e) {}
+        }
+
+        function getPendingOps() {
+          try {
+            const arr = JSON.parse(localStorage.getItem(PENDING_OPS_KEY) || '[]');
+            return Array.isArray(arr) ? arr : [];
+          } catch (e) {
+            return [];
+          }
+        }
+
+        function savePendingOps(ops) {
+          try {
+            localStorage.setItem(PENDING_OPS_KEY, JSON.stringify(ops));
+          } catch (e) {}
+        }
+
+        function enqueuePendingOp(endpoint, payload) {
+          const ops = getPendingOps();
+          ops.push({ endpoint, payload, queuedAt: Date.now() });
+          savePendingOps(ops);
         }
 
         // Salva subito quanto attualmente noto nel vault
@@ -215,6 +293,7 @@
             toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999999;background:rgba(11,25,44,0.96);border:1px solid ' + (isSuccess ? '#10b981' : '#f59e0b') + ';color:#fff;padding:10px 18px;border-radius:14px;font-size:13px;font-family:system-ui,-apple-system,sans-serif;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,0.6);display:flex;align-items:center;gap:8px;backdrop-filter:blur(10px);transition:all 0.3s cubic-bezier(0.16,1,0.3,1);opacity:0;pointer-events:none;';
             document.body.appendChild(toast);
           }
+          toast.style.borderColor = isSuccess ? '#10b981' : '#f59e0b';
           toast.innerHTML = (isSuccess ? '✨ ' : '⚠️ ') + msg;
           toast.style.opacity = '1';
           toast.style.transform = 'translateX(-50%) translateY(0)';
@@ -226,28 +305,110 @@
           }, 4500);
         }
 
+        const _origFetch = window.fetch;
+
+        async function postWithRetry(endpoint, payload, maxAttempts = 2) {
+          let lastErr = null;
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+              const resp = await _origFetch.call(window, endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              if (resp.ok) {
+                const json = await resp.json().catch(() => null);
+                if (json && json.data && Array.isArray(json.data.journalEntries)) {
+                  persistToVault(json.data.journalEntries, json.deletedIds);
+                  localStorage.setItem(CACHE_KEY, JSON.stringify(json.data));
+                }
+                return { ok: true, json };
+              }
+              lastErr = new Error('HTTP ' + resp.status);
+            } catch (err) {
+              lastErr = err;
+            }
+            if (attempt < maxAttempts) {
+              await new Promise(r => setTimeout(r, 2000));
+            }
+          }
+          return { ok: false, error: lastErr };
+        }
+
+        let isFlushingOps = false;
+        async function flushPendingOps() {
+          if (isFlushingOps) return;
+          const ops = getPendingOps();
+          if (ops.length === 0) return;
+          isFlushingOps = true;
+          try {
+            const remaining = [];
+            let flushedCount = 0;
+            for (let i = 0; i < ops.length; i++) {
+              const op = ops[i];
+              const res = await postWithRetry(op.endpoint, op.payload, 1);
+              if (res.ok) {
+                flushedCount++;
+              } else {
+                remaining.push(...ops.slice(i));
+                break;
+              }
+            }
+            savePendingOps(remaining);
+            if (flushedCount > 0 && remaining.length === 0) {
+              showToast(`Inviati al Cloud ${flushedCount} movimenti in sospeso!`, true);
+            }
+          } finally {
+            isFlushingOps = false;
+          }
+        }
+
+        async function sendMutationReliable(endpoint, payload) {
+          await flushPendingOps();
+          const res = await postWithRetry(endpoint, payload, 2);
+          if (!res.ok) {
+            enqueuePendingOp(endpoint, payload);
+            showToast('Server momentaneamente non raggiungibile: movimento salvato su questo dispositivo, verrà inviato appena possibile.', false);
+          }
+          return res;
+        }
+
         async function syncWithServer() {
           try {
-            const res = await fetch('/api/contabilita');
-            if (!res.ok) return;
+            await flushPendingOps();
+            const res = await _origFetch.call(window, '/api/contabilita?_t=' + Date.now(), { cache: 'no-store' });
+            if (!res.ok) return null;
             const j = await res.json();
             const serverData = j && j.data ? j.data : null;
-            if (!serverData) return;
+            if (!serverData) return null;
+
+            const serverDeleted = Array.isArray(j.deletedIds) ? j.deletedIds : [];
+            const delSet = getDeletedIdsSet(serverDeleted);
+            saveDeletedIdsSet(delSet);
 
             const serverJournal = Array.isArray(serverData.journalEntries) ? serverData.journalEntries : [];
-            const serverIds = new Set(serverJournal.map(e => String(e.id)));
+            const serverMap = new Map();
+            serverJournal.forEach(e => {
+              if (e && e.id && !delSet.has(String(e.id))) serverMap.set(String(e.id), e);
+            });
 
-            const localEntries = collectLocalEntries();
-            const missingOnServer = localEntries.filter(e => !serverIds.has(String(e.id)));
+            const localEntries = collectLocalEntries(Array.from(delSet));
+            const missingOrNewerOnLocal = localEntries.filter(e => {
+              const id = String(e.id);
+              if (delSet.has(id)) return false;
+              const srv = serverMap.get(id);
+              if (!srv) return true;
+              return Number(e.updatedAt || 0) > Number(srv.updatedAt || 0);
+            });
 
-            if (missingOnServer.length > 0) {
-              console.log(`[GPP SYNC] Rilevate ${missingOnServer.length} registrazioni locali non presenti sul server. Unione in corso...`);
+            if (missingOrNewerOnLocal.length > 0) {
+              console.log(`[GPP SYNC] Rilevati ${missingOrNewerOnLocal.length} movimenti locali non sul server. Unione in corso...`);
               const payload = {
                 accounts: serverData.accounts,
                 budgetEntries: serverData.budgetEntries,
-                journalEntries: [...serverJournal, ...missingOnServer]
+                journalEntries: missingOrNewerOnLocal
               };
-              const postRes = await fetch('/api/contabilita/sync-merge', {
+              const postRes = await _origFetch.call(window, '/api/contabilita/sync-merge', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -255,35 +416,57 @@
               if (postRes.ok) {
                 const postJson = await postRes.json();
                 if (postJson && postJson.data && Array.isArray(postJson.data.journalEntries)) {
-                  persistToVault(postJson.data.journalEntries);
-                  localStorage.setItem(JOURNAL_KEY, JSON.stringify(postJson.data.journalEntries));
+                  persistToVault(postJson.data.journalEntries, postJson.deletedIds);
                   localStorage.setItem(CACHE_KEY, JSON.stringify(postJson.data));
-                  showToast(`Recuperate ${missingOnServer.length} registrazioni dallo smartphone e protette sul Cloud!`, true);
+                  showToast(`Recuperati ${missingOrNewerOnLocal.length} movimenti da questo dispositivo e salvati su Cloud!`, true);
                   try {
+                    if (typeof window.__gppRefreshContabilitaStore === 'function') {
+                      window.__gppRefreshContabilitaStore(postJson.data);
+                    }
                     window.parent.postMessage({ type: 'gpp-sync-updated', count: postJson.data.journalEntries.length }, '*');
                   } catch (e) {}
-                  return;
+                  return postJson.data;
                 }
               }
             } else {
-              persistToVault(serverJournal);
-              localStorage.setItem(JOURNAL_KEY, JSON.stringify(serverJournal));
+              persistToVault(serverJournal, serverDeleted);
+              localStorage.setItem(CACHE_KEY, JSON.stringify(serverData));
+              if (Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
+                localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(serverData.accounts));
+              }
+              if (Array.isArray(serverData.budgetEntries)) {
+                localStorage.setItem(BUDGETS_KEY, JSON.stringify(serverData.budgetEntries));
+              }
             }
+            return serverData;
           } catch (err) {
             console.warn('[GPP SYNC] Errore sincronizzazione:', err);
+            return null;
+          } finally {
+            try {
+              window.parent.postMessage({ type: 'gpp-sync-done' }, '*');
+            } catch (e) {}
           }
         }
 
-        // Esegui sincronizzazione all'avvio
-        syncWithServer();
+        // Esegui sincronizzazione all'avvio ed esponi la Promise per evitare race con React
+        window.__gppInitialSyncPromise = syncWithServer();
 
-        // Intercetta fetch per proteggere ogni nuova spesa o modifica
-        const _origFetch = window.fetch;
+        window.addEventListener('online', () => {
+          flushPendingOps().then(() => syncWithServer());
+        });
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            flushPendingOps();
+          }
+        });
+
+        // Intercetta fetch per proteggere comunque eventuali salvataggi bulk
         window.fetch = async function(...args) {
           const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
           const opt = args[1] || {};
 
-          if (url.includes('/api/contabilita') && opt.method === 'POST') {
+          if (url.includes('/api/contabilita') && opt.method === 'POST' && !url.includes('delete-entry')) {
             try {
               if (opt.body) {
                 const b = JSON.parse(opt.body);
@@ -299,8 +482,7 @@
               const clone = resp.clone();
               clone.json().then(data => {
                 if (data && data.data && Array.isArray(data.data.journalEntries)) {
-                  persistToVault(data.data.journalEntries);
-                  localStorage.setItem(JOURNAL_KEY, JSON.stringify(data.data.journalEntries));
+                  persistToVault(data.data.journalEntries, data.deletedIds);
                   localStorage.setItem(CACHE_KEY, JSON.stringify(data.data));
                 }
               }).catch(() => {});
@@ -313,18 +495,34 @@
         // Ascolta comandi dalla finestra genitore (index.html)
         window.addEventListener('message', function(ev) {
           if (ev.data && ev.data.action === 'sync-contabilita') {
-            syncWithServer().then(() => {
+            syncWithServer().then((syncedData) => {
               showToast('Sincronizzazione completata!', true);
-              setTimeout(() => location.reload(), 800);
+              if (syncedData && typeof window.__gppRefreshContabilitaStore === 'function') {
+                window.__gppRefreshContabilitaStore(syncedData);
+              }
+              try {
+                window.parent.postMessage({ type: 'gpp-sync-done' }, '*');
+              } catch (e) {}
             });
           }
         });
 
-        // Oggetto globale di supporto
+        // Oggetto globale di supporto condiviso con index-DjHMptbn.js
         window.gppContabilitaManager = {
+          collectLocalEntries,
+          persistToVault,
+          removeLocalEntry,
+          getDeletedIdsSet,
+          sendMutationReliable,
+          flushPendingOps,
+          showToast,
           syncNow: async function() {
-            await syncWithServer();
-            location.reload();
+            const d = await syncWithServer();
+            if (d && typeof window.__gppRefreshContabilitaStore === 'function') {
+              window.__gppRefreshContabilitaStore(d);
+            } else {
+              location.reload();
+            }
           },
           exportBackup: function() {
             const data = {
@@ -332,6 +530,7 @@
               journal: JSON.parse(localStorage.getItem(JOURNAL_KEY) || '[]'),
               accounts: JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]'),
               budgets: JSON.parse(localStorage.getItem(BUDGETS_KEY) || '[]'),
+              pendingOps: getPendingOps(),
               backupDate: new Date().toISOString()
             };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -346,6 +545,6 @@
     </script>
 
     <!-- Bundle Logico App Contabile -->
-    <script type="module" crossorigin src="/assets/index-DjHMptbn.js?v=20261117_fix_sections_v4"></script>
+    <script type="module" crossorigin src="/assets/index-DjHMptbn.js?v=20261125_persist_v5"></script>
   </body>
 </html>

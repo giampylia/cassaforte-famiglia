@@ -1,0 +1,133 @@
+name: Backup Live Data to GitHub
+
+on:
+  schedule:
+    - cron: '15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch live data and update backups branch
+        run: |
+          node -e '
+          const https = require("https");
+          const fs = require("fs");
+          const { execSync } = require("child_process");
+
+          function getJson(url) {
+            return new Promise((resolve) => {
+              const req = https.get(url, {
+                headers: { "Accept": "application/json", "Accept-Encoding": "gzip", "User-Agent": "GH-Backup/1.0" },
+                timeout: 25000
+              }, (res) => {
+                const chunks = [];
+                res.on("data", c => chunks.push(c));
+                res.on("end", () => {
+                  try {
+                    let buf = Buffer.concat(chunks);
+                    if (res.headers["content-encoding"] === "gzip") {
+                      buf = require("zlib").gunzipSync(buf);
+                    }
+                    if (res.statusCode !== 200) return resolve(null);
+                    resolve(JSON.parse(buf.toString("utf8")));
+                  } catch (e) { resolve(null); }
+                });
+              });
+              req.on("error", () => resolve(null));
+              req.on("timeout", () => { req.destroy(); resolve(null); });
+            });
+          }
+
+          (async () => {
+            const bases = ["https://giampy-app.onrender.com", "https://giampylia.onrender.com"];
+            let activeBase = null;
+            let cont = null;
+            for (const b of bases) {
+              const r = await getJson(b + "/api/contabilita");
+              if (r && r.success && r.data && Array.isArray(r.data.journalEntries) && r.data.journalEntries.length > 0) {
+                activeBase = b;
+                cont = r;
+                break;
+              }
+            }
+            if (!activeBase || !cont) {
+              console.log("No live active server responded with JSON; skipping backup without error.");
+              return;
+            }
+            console.log("Backing up from:", activeBase, "entries:", cont.data.journalEntries.length);
+
+            const [vault, acq, lav, spesa, parkG, parkTy, parkMiki] = await Promise.all([
+              getJson(activeBase + "/api/vault/list"),
+              getJson(activeBase + "/api/acquisti/list"),
+              getJson(activeBase + "/api/lavori/list"),
+              getJson(activeBase + "/api/spesa/list"),
+              getJson(activeBase + "/api/parking?user=Giampy"),
+              getJson(activeBase + "/api/parking?user=Ty"),
+              getJson(activeBase + "/api/parking?user=Miki")
+            ]);
+
+            try {
+              execSync("git fetch origin backups:backups", { stdio: "ignore" });
+              execSync("git checkout backups", { stdio: "inherit" });
+            } catch (e) {
+              execSync("git checkout -B backups", { stdio: "inherit" });
+            }
+            fs.mkdirSync("data", { recursive: true });
+
+            let prevCont = null;
+            try { prevCont = JSON.parse(fs.readFileSync("data/contabilita.json", "utf8")); } catch (e) {}
+            const prevLen = prevCont && Array.isArray(prevCont.journalEntries) ? prevCont.journalEntries.length : 0;
+            const delArr = Array.isArray(cont.deletedIds) ? cont.deletedIds : [];
+            if (cont.data.journalEntries.length >= prevLen || delArr.length > 0) {
+              fs.writeFileSync("data/contabilita.json", JSON.stringify({
+                accounts: cont.data.accounts,
+                budgetEntries: cont.data.budgetEntries,
+                journalEntries: cont.data.journalEntries
+              }, null, 2) + "\n");
+            }
+            if (delArr.length > 0) {
+              fs.writeFileSync("data/deleted_journal_ids.json", JSON.stringify(delArr, null, 2) + "\n");
+            }
+            if (vault && Array.isArray(vault.items)) {
+              fs.writeFileSync("data/vault_store.json", JSON.stringify({ items: vault.items, updatedAt: new Date().toISOString() }, null, 2) + "\n");
+            }
+            if (acq && Array.isArray(acq.items)) {
+              fs.writeFileSync("data/acquisti_store.json", JSON.stringify({ items: acq.items }, null, 2) + "\n");
+            }
+            if (lav && Array.isArray(lav.items)) {
+              fs.writeFileSync("data/lavori_store.json", JSON.stringify({ items: lav.items }, null, 2) + "\n");
+            }
+            if (spesa && Array.isArray(spesa.items)) {
+              fs.writeFileSync("data/spesa_store.json", JSON.stringify(spesa, null, 2) + "\n");
+            }
+            if (parkG && parkG.user) {
+              const pObj = {
+                Giampy: { active: parkG.active || null, history: parkG.history || [] },
+                Ty: { active: (parkTy && parkTy.active) || null, history: (parkTy && parkTy.history) || [] },
+                Miki: { active: (parkMiki && parkMiki.active) || null, history: (parkMiki && parkMiki.history) || [] }
+              };
+              fs.writeFileSync("data/parking.json", JSON.stringify(pObj, null, 2) + "\n");
+            }
+
+            const status = execSync("git status --porcelain data/").toString().trim();
+            if (!status) {
+              console.log("No changes to commit on backups branch.");
+              return;
+            }
+            execSync("git config user.name \"GPP Backup Bot\"", { stdio: "inherit" });
+            execSync("git config user.email \"backup-bot@users.noreply.github.com\"", { stdio: "inherit" });
+            execSync("git add data/", { stdio: "inherit" });
+            execSync("git commit -m \"backup: automatic live snapshot " + new Date().toISOString() + "\"", { stdio: "inherit" });
+            execSync("git push origin backups", { stdio: "inherit" });
+          })();
+          '
