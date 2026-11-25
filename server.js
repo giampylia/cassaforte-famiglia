@@ -250,6 +250,20 @@ function loadDb() {
           parsed.cashMovements = getSeedCashMovements();
           parsed.cashUpdatedAt = SEED_TIMESTAMP;
           modified = true;
+        } else {
+          const seedMovs = getSeedCashMovements();
+          const dbMovsMap = new Map(parsed.cashMovements.map((m) => [m.id, m]));
+          let addedSeed = false;
+          for (const sm of seedMovs) {
+            if (!dbMovsMap.has(sm.id)) {
+              dbMovsMap.set(sm.id, sm);
+              addedSeed = true;
+            }
+          }
+          if (addedSeed) {
+            parsed.cashMovements = Array.from(dbMovsMap.values());
+            modified = true;
+          }
         }
         if (typeof parsed.cashOpeningBalance !== 'number') {
           parsed.cashOpeningBalance = 500;
@@ -650,29 +664,54 @@ const server = http.createServer(async (req, res) => {
             incomingDb.profilesUpdatedAt = Math.max(existingProfTs, incomingProfTs);
           }
 
-          // Protezione Piccola Cassa: sincronizzazione temporale e preservazione del saldo
+          // Protezione Piccola Cassa: unione additiva permanente dei movimenti per evitare perdite cross-device
           const existingCashTs = Number(existingDb.cashUpdatedAt || 0);
           const incomingCashTs = Number(incomingDb.cashUpdatedAt || 0);
 
-          if (existingCashTs > incomingCashTs && Array.isArray(existingDb.cashMovements)) {
-            incomingDb.cashMovements = existingDb.cashMovements;
-            incomingDb.expenseCategories = existingDb.expenseCategories || incomingDb.expenseCategories;
-            incomingDb.cashOpeningBalance =
-              typeof existingDb.cashOpeningBalance === 'number'
-                ? existingDb.cashOpeningBalance
-                : incomingDb.cashOpeningBalance;
-            incomingDb.cashUpdatedAt = existingCashTs;
-          } else {
-            // Incoming è più recente o uguale: accetta modifiche ed eliminazioni
-            if (!Array.isArray(incomingDb.cashMovements) && Array.isArray(existingDb.cashMovements)) {
-              incomingDb.cashMovements = existingDb.cashMovements;
+          const mergedCashMap = new Map();
+          // 1. Preserva tutti i movimenti già presenti sul server
+          if (Array.isArray(existingDb.cashMovements)) {
+            for (const m of existingDb.cashMovements) {
+              if (m && m.id) mergedCashMap.set(m.id, m);
             }
-            if (!Array.isArray(incomingDb.expenseCategories) && Array.isArray(existingDb.expenseCategories)) {
-              incomingDb.expenseCategories = existingDb.expenseCategories;
+          }
+          // 2. Unisci i movimenti in arrivo dal client
+          if (Array.isArray(incomingDb.cashMovements)) {
+            for (const incomingM of incomingDb.cashMovements) {
+              if (incomingM && incomingM.id) {
+                const existingM = mergedCashMap.get(incomingM.id);
+                if (existingM) {
+                  // Se era già pagato sul server, non permettere regressioni accidentali
+                  if (existingM.status === 'pagato' && incomingM.status !== 'pagato') {
+                    mergedCashMap.set(incomingM.id, { ...incomingM, status: 'pagato' });
+                  } else {
+                    mergedCashMap.set(incomingM.id, { ...existingM, ...incomingM });
+                  }
+                } else {
+                  mergedCashMap.set(incomingM.id, incomingM);
+                }
+              }
             }
-            if (typeof incomingDb.cashOpeningBalance !== 'number' && typeof existingDb.cashOpeningBalance === 'number') {
-              incomingDb.cashOpeningBalance = existingDb.cashOpeningBalance;
-            }
+          }
+
+          // Se sono state registrate cancellazioni esplicite, rimuovile
+          const deletedCashIds = new Set([
+            ...(Array.isArray(existingDb.deletedCashMovementIds) ? existingDb.deletedCashMovementIds : []),
+            ...(Array.isArray(incomingDb.deletedCashMovementIds) ? incomingDb.deletedCashMovementIds : []),
+          ]);
+          for (const delId of deletedCashIds) {
+            mergedCashMap.delete(delId);
+          }
+
+          incomingDb.cashMovements = Array.from(mergedCashMap.values());
+          incomingDb.deletedCashMovementIds = Array.from(deletedCashIds);
+          incomingDb.cashUpdatedAt = Math.max(existingCashTs, incomingCashTs, Date.now());
+
+          if (!Array.isArray(incomingDb.expenseCategories) && Array.isArray(existingDb.expenseCategories)) {
+            incomingDb.expenseCategories = existingDb.expenseCategories;
+          }
+          if (typeof incomingDb.cashOpeningBalance !== 'number' && typeof existingDb.cashOpeningBalance === 'number') {
+            incomingDb.cashOpeningBalance = existingDb.cashOpeningBalance;
           }
 
           // Protezione Orario Lezioni: non sovrascrivere mai con dati più vecchi
@@ -947,21 +986,49 @@ const server = http.createServer(async (req, res) => {
         const incomingTs = Number(body.cashUpdatedAt || body.updatedAt || Date.now());
         const existingTs = Number(existingDb.cashUpdatedAt || 0);
 
-        if (incomingTs >= existingTs || !Array.isArray(existingDb.cashMovements)) {
-          if (incomingMovements !== null) {
-            existingDb.cashMovements = incomingMovements;
+        const mergedCashMap = new Map();
+        if (Array.isArray(existingDb.cashMovements)) {
+          for (const m of existingDb.cashMovements) {
+            if (m && m.id) mergedCashMap.set(m.id, m);
           }
-          if (incomingBalance !== null) {
-            existingDb.cashOpeningBalance = incomingBalance;
-          }
-          if (incomingCats !== null) {
-            existingDb.expenseCategories = incomingCats;
-          }
-          existingDb.cashUpdatedAt = incomingTs;
-          existingDb.updatedAt = new Date().toISOString();
-          saveDb(existingDb);
-          broadcastUpdate('STATE_SYNC', { db: existingDb, eventLabel: 'CASH_UPDATE' });
         }
+        if (Array.isArray(incomingMovements)) {
+          for (const incomingM of incomingMovements) {
+            if (incomingM && incomingM.id) {
+              const existingM = mergedCashMap.get(incomingM.id);
+              if (existingM) {
+                if (existingM.status === 'pagato' && incomingM.status !== 'pagato') {
+                  mergedCashMap.set(incomingM.id, { ...incomingM, status: 'pagato' });
+                } else {
+                  mergedCashMap.set(incomingM.id, { ...existingM, ...incomingM });
+                }
+              } else {
+                mergedCashMap.set(incomingM.id, incomingM);
+              }
+            }
+          }
+        }
+        const incomingDeletedIds = Array.isArray(body.deletedCashMovementIds) ? body.deletedCashMovementIds : [];
+        const allDeletedCashIds = new Set([
+          ...(Array.isArray(existingDb.deletedCashMovementIds) ? existingDb.deletedCashMovementIds : []),
+          ...incomingDeletedIds,
+        ]);
+        for (const delId of allDeletedCashIds) {
+          mergedCashMap.delete(delId);
+        }
+
+        existingDb.cashMovements = Array.from(mergedCashMap.values());
+        existingDb.deletedCashMovementIds = Array.from(allDeletedCashIds);
+        if (incomingBalance !== null) {
+          existingDb.cashOpeningBalance = incomingBalance;
+        }
+        if (incomingCats !== null) {
+          existingDb.expenseCategories = incomingCats;
+        }
+        existingDb.cashUpdatedAt = Math.max(incomingTs, existingTs, Date.now());
+        existingDb.updatedAt = new Date().toISOString();
+        saveDb(existingDb);
+        broadcastUpdate('STATE_SYNC', { db: existingDb, eventLabel: 'CASH_UPDATE' });
         sendJson(res, 200, {
           ok: true,
           count: Array.isArray(existingDb.cashMovements) ? existingDb.cashMovements.length : 0,

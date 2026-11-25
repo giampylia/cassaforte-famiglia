@@ -140,6 +140,7 @@ interface CloudDbSnapshot {
   profilesUpdatedAt?: number;
   expenseCategories?: ExpenseCategory[];
   cashMovements?: CashMovement[];
+  deletedCashMovementIds?: string[];
   cashOpeningBalance?: number;
   cashUpdatedAt?: number;
   lessons: Lesson[];
@@ -374,6 +375,7 @@ const STORAGE_KEYS = {
   ADMIN_DELETED_SEGRETERIA: 'quartimbra_admin_deleted_segreteria_v1',
   CATEGORIES: 'quartimbra_expense_categories_v4',
   CASH_MOVEMENTS: 'quartimbra_cash_movements_v4',
+  DELETED_CASH_IDS: 'quartimbra_deleted_cash_ids_v1',
   CASH_BALANCE: 'quartimbra_cash_opening_balance_v4',
   CASH_TS: 'quartimbra_cash_updated_at_v4',
   LESSONS: 'quartimbra_lessons_v3',
@@ -481,6 +483,19 @@ function getAdminDeleted7726(): boolean {
 
 function saveAdminDeleted7726(val: boolean): void {
   safeSetLocalStorage('quartimbra_admin_deleted_7726', val ? 'true' : 'false');
+}
+
+function getDeletedCashIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.DELETED_CASH_IDS);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDeletedCashIds(ids: Set<string>): void {
+  safeSetLocalStorage(STORAGE_KEYS.DELETED_CASH_IDS, JSON.stringify(Array.from(ids)));
 }
 
 function ensureDefaultRolesList(roles?: string[]): string[] {
@@ -942,19 +957,39 @@ function isCustomizedVideoNotices(notices: VideoNotice[]): boolean {
   return notices.some((n) => !seedIds.has(n.id) || (n.imageUrl && !n.imageUrl.startsWith('/assets/')));
 }
 
-// Riconciliazione movimenti di cassa: protegge i pagamenti già effettuati in locale dal regredire ad "in attesa"
-function reconcileCashMovements(localList: CashMovement[], remoteList: CashMovement[]): CashMovement[] {
-  if (!Array.isArray(remoteList) || remoteList.length === 0) return localList;
-  if (!Array.isArray(localList) || localList.length === 0) return remoteList;
+// Riconciliazione movimenti di cassa: unione additiva che preserva sia i movimenti remoti che quelli locali non ancora sincronizzati, e protegge i pagamenti dal regredire ad "in attesa"
+function reconcileCashMovements(
+  localList: CashMovement[],
+  remoteList: CashMovement[],
+  deletedIds?: Set<string>
+): CashMovement[] {
+  const del = deletedIds || getDeletedCashIds();
+  if (!Array.isArray(remoteList) || remoteList.length === 0) {
+    return (localList || []).filter((m) => m && m.id && !del.has(m.id));
+  }
+  if (!Array.isArray(localList) || localList.length === 0) {
+    return (remoteList || []).filter((m) => m && m.id && !del.has(m.id));
+  }
 
-  const localMap = new Map(localList.map((m) => [m.id, m]));
-  return remoteList.map((remoteM) => {
-    const localM = localMap.get(remoteM.id);
-    if (localM && localM.status === 'pagato' && remoteM.status !== 'pagato') {
-      return localM;
+  const mergedMap = new Map<string, CashMovement>();
+  // 1. Inserisci tutti i movimenti remoti (tranne quelli eliminati esplicitamente)
+  for (const rm of remoteList) {
+    if (rm && rm.id && !del.has(rm.id)) {
+      mergedMap.set(rm.id, rm);
     }
-    return remoteM;
-  });
+  }
+  // 2. Unisci i movimenti locali preservando quelli non ancora presenti sul server e proteggendo lo stato "pagato"
+  for (const lm of localList) {
+    if (lm && lm.id && !del.has(lm.id)) {
+      const existing = mergedMap.get(lm.id);
+      if (!existing) {
+        mergedMap.set(lm.id, lm);
+      } else if (lm.status === 'pagato' && existing.status !== 'pagato') {
+        mergedMap.set(lm.id, { ...existing, ...lm, status: 'pagato' });
+      }
+    }
+  }
+  return Array.from(mergedMap.values());
 }
 
 // 2406 corrisponde SEMPRE ed ESCLUSIVAMENTE al Super Admin (Amministratore)
@@ -3726,6 +3761,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         categories: finalCats,
         cashUpdatedAt: nowTs,
         updatedAt: nowTs,
+        deletedCashMovementIds: Array.from(getDeletedCashIds()),
       }),
     }).catch(() => {});
 
@@ -3735,6 +3771,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       profilesUpdatedAt: profilesUpdatedAtRef.current,
       expenseCategories: finalCats,
       cashMovements: nextMovements,
+      deletedCashMovementIds: Array.from(getDeletedCashIds()),
       cashOpeningBalance: finalBalance,
       cashUpdatedAt: nowTs,
       lessons: lessonsRef.current,
@@ -3798,6 +3835,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteCashMovement = (id: string) => {
     const nextMovements = cashMovementsRef.current.filter((m) => m.id !== id);
+    const delSet = getDeletedCashIds();
+    delSet.add(id);
+    saveDeletedCashIds(delSet);
     commitCashUpdate(nextMovements);
   };
 
