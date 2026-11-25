@@ -9684,14 +9684,6 @@
       "amount": 240
     },
     {
-      "id": "a128c53f-bb2b-47f2-836e-1b4886e17f20",
-      "date": "2026-11-24",
-      "description": "GITA NATURALISTICA BADDE SALIGHES",
-      "debitAccountCode": "6010",
-      "creditAccountCode": "4010",
-      "amount": 31.5
-    },
-    {
       "id": "b21c256e-05aa-44b2-921e-2554b610f17a",
       "date": "2026-11-24",
       "description": "FATTURA ELETTRICA CAVARO",
@@ -9762,6 +9754,24 @@
       "debitAccountCode": "6060",
       "creditAccountCode": "4043",
       "amount": 61.38
+    },
+    {
+      "id": "fc90cc58-4743-4bf3-bb2a-3bb8b1d706d7",
+      "date": "2026-11-25",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 2,
+      "updatedAt": 1795633042031
+    },
+    {
+      "id": "8d2ecccf-1655-4599-9a12-8b8fc4278fc3",
+      "date": "2026-11-25",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 2,
+      "updatedAt": 1795640083976
     },
     {
       "id": "1723e51c-0a65-455d-ae90-5358932ee133",

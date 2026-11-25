@@ -1,20 +1,48 @@
 {
   "Giampy": {
     "active": {
-      "id": "park-20261123-201648-cavaro10",
+      "id": "park-1795632683459-duos",
       "section": "parking",
       "user": "Giampy",
       "owner": "Giampy",
-      "lat": 39.22528,
-      "lng": 9.12888,
+      "lat": 39.2254325,
+      "lng": 9.1282752,
       "accuracy": 5,
-      "address": "Via Pietro Cavaro 10, Cagliari",
-      "addressShort": "Via Pietro Cavaro 10, Cagliari",
-      "timestamp": "2026-11-23T19:16:48.979Z",
+      "address": "Via Nicolò Machiavelli, Casteddu/Cagliari",
+      "addressShort": "Via Nicolò Machiavelli, Casteddu/Cagliari",
+      "timestamp": "2026-11-25T18:51:23.459Z",
       "trigger": "bluetooth_auto",
       "notes": "Nissan"
     },
     "history": [
+      {
+        "id": "park-1795632645355-3abx",
+        "section": "parking",
+        "user": "Giampy",
+        "owner": "Giampy",
+        "lat": 39.2254325,
+        "lng": 9.1282752,
+        "accuracy": 5,
+        "address": "Via Nicolò Machiavelli, Casteddu/Cagliari",
+        "addressShort": "Via Nicolò Machiavelli, Casteddu/Cagliari",
+        "timestamp": "2026-11-25T18:50:45.355Z",
+        "trigger": "bluetooth_auto",
+        "notes": "Nissan"
+      },
+      {
+        "id": "park-20261123-201648-cavaro10",
+        "section": "parking",
+        "user": "Giampy",
+        "owner": "Giampy",
+        "lat": 39.22528,
+        "lng": 9.12888,
+        "accuracy": 5,
+        "address": "Via Pietro Cavaro 10, Cagliari",
+        "addressShort": "Via Pietro Cavaro 10, Cagliari",
+        "timestamp": "2026-11-23T19:16:48.979Z",
+        "trigger": "bluetooth_auto",
+        "notes": "Nissan"
+      },
       {
         "id": "park-1795007483157-gg95",
         "section": "parking",
