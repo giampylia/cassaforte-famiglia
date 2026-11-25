@@ -251,11 +251,17 @@ function loadDb() {
           parsed.cashUpdatedAt = SEED_TIMESTAMP;
           modified = true;
         } else {
+          const KNOWN_PURGED_CASH_IDS = new Set(['cash-1794605410732', 'cash-1794605318018']);
+          let filtered = parsed.cashMovements.filter((m) => m && !KNOWN_PURGED_CASH_IDS.has(m.id));
+          if (filtered.length !== parsed.cashMovements.length) {
+            parsed.cashMovements = filtered;
+            modified = true;
+          }
           const seedMovs = getSeedCashMovements();
           const dbMovsMap = new Map(parsed.cashMovements.map((m) => [m.id, m]));
           let addedSeed = false;
           for (const sm of seedMovs) {
-            if (!dbMovsMap.has(sm.id)) {
+            if (!dbMovsMap.has(sm.id) && !KNOWN_PURGED_CASH_IDS.has(sm.id)) {
               dbMovsMap.set(sm.id, sm);
               addedSeed = true;
             }
@@ -694,8 +700,10 @@ const server = http.createServer(async (req, res) => {
             }
           }
 
-          // Se sono state registrate cancellazioni esplicite, rimuovile
+          // Se sono state registrate cancellazioni esplicite o record duplicati noti, rimuovili
           const deletedCashIds = new Set([
+            'cash-1794605410732',
+            'cash-1794605318018',
             ...(Array.isArray(existingDb.deletedCashMovementIds) ? existingDb.deletedCashMovementIds : []),
             ...(Array.isArray(incomingDb.deletedCashMovementIds) ? incomingDb.deletedCashMovementIds : []),
           ]);
@@ -1010,6 +1018,8 @@ const server = http.createServer(async (req, res) => {
         }
         const incomingDeletedIds = Array.isArray(body.deletedCashMovementIds) ? body.deletedCashMovementIds : [];
         const allDeletedCashIds = new Set([
+          'cash-1794605410732',
+          'cash-1794605318018',
           ...(Array.isArray(existingDb.deletedCashMovementIds) ? existingDb.deletedCashMovementIds : []),
           ...incomingDeletedIds,
         ]);
