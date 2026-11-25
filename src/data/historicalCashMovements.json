@@ -1660,24 +1660,5 @@
     "payment_date": "2026-11-13",
     "created_at": "2026-11-13T10:00:00.000Z",
     "category_id": "cat-17"
-  },
-  {
-    "id": "cash-1795592704682",
-    "requester_id": "u-cd-sotgiu",
-    "requester_name": "Maria Giovanna Sotgiu",
-    "compiled_by_id": "u-cd-sotgiu",
-    "compiled_by_name": "Maria Giovanna Sotgiu",
-    "member_number": "CD-SOTGIU",
-    "entry_type": "entrata",
-    "request_date": "2026-11-25",
-    "receipt_date": "2026-11-25",
-    "amount_requested": 120,
-    "amount_paid": 120,
-    "category_name": "Quote e Versamenti Soci",
-    "description": "Quota iscrizione socio",
-    "status": "inviato",
-    "signed_by_requester": true,
-    "signed_by_treasurer": false,
-    "created_at": "2026-11-25T07:45:04.682Z"
   }
 ]

@@ -250,9 +250,13 @@ function loadDb() {
           parsed.cashMovements = getSeedCashMovements();
           parsed.cashUpdatedAt = SEED_TIMESTAMP;
           modified = true;
-        } else {
-          const KNOWN_PURGED_CASH_IDS = new Set(['cash-1794605410732', 'cash-1794605318018']);
-          let filtered = parsed.cashMovements.filter((m) => m && !KNOWN_PURGED_CASH_IDS.has(m.id));
+          const deletedIds = new Set([
+            'cash-1794605410732',
+            'cash-1794605318018',
+            'cash-1795592704682',
+            ...(Array.isArray(parsed.deletedCashMovementIds) ? parsed.deletedCashMovementIds : []),
+          ]);
+          let filtered = parsed.cashMovements.filter((m) => m && !deletedIds.has(m.id));
           if (filtered.length !== parsed.cashMovements.length) {
             parsed.cashMovements = filtered;
             modified = true;
@@ -261,7 +265,7 @@ function loadDb() {
           const dbMovsMap = new Map(parsed.cashMovements.map((m) => [m.id, m]));
           let addedSeed = false;
           for (const sm of seedMovs) {
-            if (!dbMovsMap.has(sm.id) && !KNOWN_PURGED_CASH_IDS.has(sm.id)) {
+            if (!dbMovsMap.has(sm.id) && !deletedIds.has(sm.id)) {
               dbMovsMap.set(sm.id, sm);
               addedSeed = true;
             }
@@ -704,6 +708,7 @@ const server = http.createServer(async (req, res) => {
           const deletedCashIds = new Set([
             'cash-1794605410732',
             'cash-1794605318018',
+            'cash-1795592704682',
             ...(Array.isArray(existingDb.deletedCashMovementIds) ? existingDb.deletedCashMovementIds : []),
             ...(Array.isArray(incomingDb.deletedCashMovementIds) ? incomingDb.deletedCashMovementIds : []),
           ]);
@@ -963,11 +968,35 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 200, {
       ok: true,
       cashMovements: existingDb.cashMovements || [],
+      deletedCashMovementIds: existingDb.deletedCashMovementIds || [],
       cashOpeningBalance: typeof existingDb.cashOpeningBalance === 'number' ? existingDb.cashOpeningBalance : 500,
       expenseCategories: existingDb.expenseCategories || [],
       cashUpdatedAt: Number(existingDb.cashUpdatedAt || 0),
     });
     return;
+  }
+
+  // Endpoint per eliminazione atomica e immediata di un movimento
+  if (parsedUrl.startsWith('/api/cash/delete/') && req.method === 'POST') {
+    const idToDelete = decodeURIComponent(parsedUrl.replace('/api/cash/delete/', '').trim());
+    if (idToDelete) {
+      const existingDb = loadDb() || {};
+      existingDb.cashMovements = (existingDb.cashMovements || []).filter((m) => m && m.id !== idToDelete);
+      const delSet = new Set([
+        'cash-1794605410732',
+        'cash-1794605318018',
+        'cash-1795592704682',
+        ...(Array.isArray(existingDb.deletedCashMovementIds) ? existingDb.deletedCashMovementIds : []),
+        idToDelete,
+      ]);
+      existingDb.deletedCashMovementIds = Array.from(delSet);
+      existingDb.cashUpdatedAt = Date.now();
+      existingDb.updatedAt = new Date().toISOString();
+      saveDb(existingDb);
+      broadcastUpdate('STATE_SYNC', { db: existingDb, eventLabel: 'CASH_DELETE' });
+      sendJson(res, 200, { ok: true, deletedId: idToDelete, count: existingDb.cashMovements.length });
+      return;
+    }
   }
 
   if (parsedUrl === '/api/cash' && req.method === 'POST') {
@@ -1020,6 +1049,7 @@ const server = http.createServer(async (req, res) => {
         const allDeletedCashIds = new Set([
           'cash-1794605410732',
           'cash-1794605318018',
+          'cash-1795592704682',
           ...(Array.isArray(existingDb.deletedCashMovementIds) ? existingDb.deletedCashMovementIds : []),
           ...incomingDeletedIds,
         ]);

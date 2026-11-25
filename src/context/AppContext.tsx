@@ -485,7 +485,7 @@ function saveAdminDeleted7726(val: boolean): void {
   safeSetLocalStorage('quartimbra_admin_deleted_7726', val ? 'true' : 'false');
 }
 
-const KNOWN_PURGED_CASH_IDS = new Set(['cash-1794605410732', 'cash-1794605318018']);
+const KNOWN_PURGED_CASH_IDS = new Set(['cash-1794605410732', 'cash-1794605318018', 'cash-1795592704682']);
 
 function getDeletedCashIds(): Set<string> {
   try {
@@ -3859,6 +3859,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const delSet = getDeletedCashIds();
     delSet.add(id);
     saveDeletedCashIds(delSet);
+    try {
+      fetch('/api/cash/delete/' + encodeURIComponent(id), { method: 'POST' }).catch(() => {});
+    } catch {}
     commitCashUpdate(nextMovements);
   };
 
