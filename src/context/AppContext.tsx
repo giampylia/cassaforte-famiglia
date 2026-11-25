@@ -485,12 +485,18 @@ function saveAdminDeleted7726(val: boolean): void {
   safeSetLocalStorage('quartimbra_admin_deleted_7726', val ? 'true' : 'false');
 }
 
+const KNOWN_PURGED_CASH_IDS = new Set(['cash-1794605410732', 'cash-1794605318018']);
+
 function getDeletedCashIds(): Set<string> {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.DELETED_CASH_IDS);
-    return new Set(raw ? JSON.parse(raw) : []);
+    const parsed = new Set<string>(raw ? JSON.parse(raw) : []);
+    for (const id of KNOWN_PURGED_CASH_IDS) {
+      parsed.add(id);
+    }
+    return parsed;
   } catch {
-    return new Set();
+    return new Set(KNOWN_PURGED_CASH_IDS);
   }
 }
 
@@ -1648,7 +1654,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [cashMovements, setCashMovements] = useState<CashMovement[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CASH_MOVEMENTS);
-      return saved ? JSON.parse(saved) : INITIAL_CASH_MOVEMENTS;
+      const list: CashMovement[] = saved ? JSON.parse(saved) : INITIAL_CASH_MOVEMENTS;
+      const del = getDeletedCashIds();
+      return (Array.isArray(list) ? list : INITIAL_CASH_MOVEMENTS).filter((m) => m && m.id && !del.has(m.id));
     } catch {
       return INITIAL_CASH_MOVEMENTS;
     }
@@ -2274,7 +2282,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         safeSetLocalStorage(STORAGE_KEYS.CATEGORIES, JSON.stringify(db.expenseCategories));
       }
       if (Array.isArray(db.cashMovements)) {
-        const mergedMovements = reconcileCashMovements(cashMovementsRef.current, db.cashMovements);
+        const del = getDeletedCashIds();
+        if (Array.isArray(db.deletedCashMovementIds)) {
+          db.deletedCashMovementIds.forEach((id) => del.add(id));
+          saveDeletedCashIds(del);
+        }
+        const mergedMovements = reconcileCashMovements(cashMovementsRef.current, db.cashMovements, del);
         setCashMovements(mergedMovements);
         cashMovementsRef.current = mergedMovements;
         safeSetLocalStorage(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(mergedMovements));
@@ -2302,6 +2315,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     } else if (localCashTs > remoteCashTs) {
       shouldPushBackLocalProtected = true;
+    }
+
+    const currentDel = getDeletedCashIds();
+    if (cashMovementsRef.current.some((m) => m && currentDel.has(m.id))) {
+      const cleaned = cashMovementsRef.current.filter((m) => m && !currentDel.has(m.id));
+      setCashMovements(cleaned);
+      cashMovementsRef.current = cleaned;
+      safeSetLocalStorage(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(cleaned));
     }
 
     const remoteLessonsTs = Number(db.lessonsUpdatedAt || 0);
