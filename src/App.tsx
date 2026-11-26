@@ -54,7 +54,7 @@ const MainRouter: React.FC = () => {
     signOut,
   } = useApp();
 
-  const CURRENT_APP_VERSION = 'v89';
+  const CURRENT_APP_VERSION = 'v90';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
@@ -73,6 +73,10 @@ const MainRouter: React.FC = () => {
           await caches.delete(name);
         }
       }
+      await Promise.allSettled([
+        fetch('/', { cache: 'reload' }),
+        fetch('/app.bundle.js', { cache: 'reload' }),
+      ]);
       localStorage.removeItem('quartimbra_active_section');
     } catch {}
     const url = new URL(window.location.href);

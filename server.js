@@ -1366,7 +1366,9 @@ const server = http.createServer(async (req, res) => {
       ext === '.html' ||
       ext === '.webmanifest' ||
       baseName === 'sw.js' ||
-      baseName === 'index.html';
+      baseName === 'index.html' ||
+      baseName === 'app.bundle.js' ||
+      baseName === 'app.bundle.css';
 
     const cacheControl = isNoCache
       ? 'no-cache, no-store, must-revalidate, max-age=0'
