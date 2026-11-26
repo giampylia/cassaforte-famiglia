@@ -28,24 +28,40 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { CashMovement, getMemberParts } from '../data/initialData';
-import { isAmministrativoOrAdmin } from '../data/permissionsData';
+import { isPiccolaCassaFullAdmin, isPiccolaCassaAmministrativoViewer } from '../data/permissionsData';
 import { ASSOCIATION_LOGO_URL, exportCsv, exportOfficialPdf, formatItalianCurrency, formatItalianNumber } from '../utils/soundAndPdf';
 
-// Controlla se un movimento è intestato all'utente autenticato (anche se inserito da altri)
-export function isMovementOfUser(m: CashMovement, user: any): boolean {
-  if (!user) return false;
+// Controlla se l'utente autenticato è il fruitore / beneficiario della richiesta
+export function isBeneficiaryOfMovement(m: CashMovement, user: any): boolean {
+  if (!user || !m) return false;
   if (m.requester_id && m.requester_id === user.id) return true;
   if (m.user_id && m.user_id === user.id) return true;
-  if (m.compiled_by_id && m.compiled_by_id === user.id) return true;
   const userNum = String(user.member_number || '').trim();
   const mNum = String(m.member_number || '').trim();
   if (userNum && mNum && userNum === mNum) return true;
-  const uName = (user.full_name || `${user.first_name || ''} ${user.last_name || ''}`).trim().toLowerCase();
-  const rName = (m.requester_name || `${m.first_name || ''} ${m.last_name || ''}`).trim().toLowerCase();
-  const cName = (m.compiled_by_name || '').trim().toLowerCase();
-  if (uName && rName && (uName === rName || rName.includes(uName) || uName.includes(rName))) return true;
-  if (uName && cName && (uName === cName || cName.includes(uName) || uName.includes(cName))) return true;
+  const uName = (user.full_name || `${user.first_name || ''} ${user.last_name || ''}`).trim().replace(/\s+/g, ' ').toLowerCase();
+  const rName = (m.requester_name || `${m.first_name || ''} ${m.last_name || ''}`).trim().replace(/\s+/g, ' ').toLowerCase();
+  if (uName && rName && uName === rName) return true;
   return false;
+}
+
+// Controlla se la richiesta è stata effettivamente digitata / compilata dall'utente autenticato
+export function isCompiledByUser(m: CashMovement, user: any): boolean {
+  if (!user || !m) return false;
+  const uName = (user.full_name || `${user.first_name || ''} ${user.last_name || ''}`).trim().replace(/\s+/g, ' ').toLowerCase();
+  const cName = (m.compiled_by_name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  if (m.compiled_by_id || cName) {
+    if (m.compiled_by_id && m.compiled_by_id === user.id) return true;
+    if (uName && cName && uName === cName) return true;
+    return false;
+  }
+  return isBeneficiaryOfMovement(m, user);
+}
+
+// Controlla se un movimento riguarda l'utente autenticato (intestato a lui oppure digitato da lui per un altro socio)
+export function isMovementOfUser(m: CashMovement, user: any): boolean {
+  if (!user || !m) return false;
+  return isBeneficiaryOfMovement(m, user) || isCompiledByUser(m, user);
 }
 
 // Calcola l'Anno Contabile (dal 1° Luglio di ogni anno al 30 Giugno dell'anno successivo)
@@ -266,11 +282,15 @@ export const PiccolaCassaView: React.FC = () => {
     importCashMovements,
   } = useApp();
 
-  const isAdminOrAmministrativo = Boolean(
-    isSuperAdmin ||
-    isAmministrativoMember ||
-    isAmministrativoOrAdmin(currentUser)
-  );
+  // TIER 1: Solo Socio 7726 e Socio 2406 possono fare tutto (vedere tutto, modificare, cancellare, inserire, approvare, mettere in stato pagato)
+  const canFullManageCash = Boolean(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser));
+  // TIER 2: Socio Ruolo Amministrativo (es. 9996) può vedere tutte le richieste e digitare le sue, ma NON modificare, cancellare, approvare o pagare
+  const isAmministrativoViewer = Boolean(!canFullManageCash && isPiccolaCassaAmministrativoViewer(currentUser));
+  // Chi può vedere l'elenco completo di tutte le richieste (7726, 2406 e Ruolo Amministrativo 9996)
+  const canViewAllCash = Boolean(canFullManageCash || isAmministrativoViewer);
+  // Chi può scegliere anche altri soci come fruitori quando inserisce una richiesta:
+  // 7726 e 2406 + Altri Soci ("possono inserire le loro, o per altri soci"), mentre 9996 digita solo le sue
+  const canSelectOtherBeneficiaries = Boolean(canFullManageCash || !isAmministrativoViewer);
 
   const todayIso = new Date().toISOString().slice(0, 10);
   const currentAccountingYear = useMemo(() => getAccountingYearForDate(todayIso), [todayIso]);
@@ -319,7 +339,7 @@ export const PiccolaCassaView: React.FC = () => {
   // Modal Dettaglio / Stampa Ricevuta
   const [selectedMovement, setSelectedMovement] = useState<CashMovement | null>(null);
 
-  // Modal Gestione Causali & Saldo Iniziale (solo Super Admin 7796 Giampiero Pilia)
+  // Modal Gestione Causali & Saldo Iniziale (solo Socio 7726 e 2406)
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatDesc, setNewCatDesc] = useState('');
@@ -336,15 +356,15 @@ export const PiccolaCassaView: React.FC = () => {
   // Ricerca rapida del Fruitore del Rimborso senza dover scorrere tutto l'elenco
   const [beneficiarySearch, setBeneficiarySearch] = useState<string>('');
 
-  // Elenco soci selezionabili come fruitori del rimborso: SOLO chi ha un ruolo diverso da semplice "Socio"
-  // (es. CD, Amministratore, Amministrativo, Didattica, Viaggi, ecc.) + l'utente autenticato
+  // Elenco base suggerito quando la ricerca è vuota (utente autenticato in cima + CD/ruoli operativi + eventuale socio già selezionato)
   const eligibleBeneficiaries = useMemo(() => {
     const list = profiles.filter((p) => {
       if (currentUser && p.id === currentUser.id) return true;
+      if (requesterId && p.id === requesterId) return true;
       if (
         p.is_super_admin ||
+        p.member_number === '2406' ||
         p.member_number === '7726' ||
-        p.member_number === '7796' ||
         p.is_cd ||
         p.role === 'admin'
       ) {
@@ -371,18 +391,29 @@ export const PiccolaCassaView: React.FC = () => {
       if (currentUser && b.id === currentUser.id) return 1;
       return a.full_name.localeCompare(b.full_name, 'it', { sensitivity: 'base' });
     });
-  }, [profiles, currentUser, cashMovements]);
+  }, [profiles, currentUser, requesterId, cashMovements]);
 
+  // Cerca su TUTTI i soci dell'anagrafica quando si digita un nome, cognome o numero tessera
   const filteredBeneficiaries = useMemo(() => {
     const q = beneficiarySearch.trim().toLowerCase();
-    const sourceList = isAdminOrAmministrativo ? profiles : eligibleBeneficiaries;
     if (!q) return eligibleBeneficiaries;
     const words = q.split(/\s+/).filter(Boolean);
-    return sourceList.filter((p) => {
+    const matches = profiles.filter((p) => {
       const blob = `${p.member_number} ${p.full_name} ${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
       return words.every((w) => blob.includes(w));
     });
-  }, [isAdminOrAmministrativo, profiles, eligibleBeneficiaries, beneficiarySearch]);
+    return matches
+      .sort((a, b) => {
+        const aExactNum = String(a.member_number || '').trim().toLowerCase() === q;
+        const bExactNum = String(b.member_number || '').trim().toLowerCase() === q;
+        if (aExactNum && !bExactNum) return -1;
+        if (!aExactNum && bExactNum) return 1;
+        if (currentUser && a.id === currentUser.id) return -1;
+        if (currentUser && b.id === currentUser.id) return 1;
+        return a.full_name.localeCompare(b.full_name, 'it', { sensitivity: 'base' });
+      })
+      .slice(0, 150);
+  }, [profiles, eligibleBeneficiaries, beneficiarySearch, currentUser]);
 
   // Elenco Anni Contabili disponibili (1° Luglio – 30 Giugno)
   const availableAccountingYears = useMemo(() => {
@@ -402,8 +433,10 @@ export const PiccolaCassaView: React.FC = () => {
 
   // Apri form per nuova richiesta di rimborso o versamento
   const openNewForm = (type: 'spesa' | 'entrata') => {
+    const finalType: 'spesa' | 'entrata' = canFullManageCash ? type : 'spesa';
     setEditingMovementId(null);
-    setEntryType(type);
+    setEntryType(finalType);
+    setBeneficiarySearch('');
     // Preimposta il fruitore con chi si è autenticato, lasciando fisso sotto il nome del compilatore autenticato
     setRequesterId(currentUser?.id || '');
     setRequesterName(currentUser?.full_name || '');
@@ -414,20 +447,22 @@ export const PiccolaCassaView: React.FC = () => {
     setReceiptNumber('');
     setAmountInput('');
     const defaultCat =
-      type === 'entrata'
+      finalType === 'entrata'
         ? expenseCategories.find((c) => c.name.toLowerCase().includes('versamento'))?.id || ''
         : expenseCategories[0]?.id || '';
     setSelectedCategoryId(defaultCat);
     setCustomCategoryName('');
     setDescription('');
-    setStatusInput(type === 'entrata' && isAdminOrAmministrativo ? 'pagato' : 'inviato');
+    setStatusInput(finalType === 'entrata' && canFullManageCash ? 'pagato' : 'inviato');
     setReceiptImageData(undefined);
     setScanFeedback(null);
     setShowFormModal(true);
   };
 
-  // Apri form in modalità modifica
+  // Apri form in modalità modifica (solo Socio 7726 e 2406)
   const openEditForm = (mov: CashMovement) => {
+    if (!canFullManageCash) return;
+    setBeneficiarySearch('');
     const fallbackName =
       mov.requester_name ||
       `${mov.first_name || ''} ${mov.last_name || ''}`.trim() ||
@@ -556,37 +591,42 @@ export const PiccolaCassaView: React.FC = () => {
       finalCategoryName = found ? found.name : 'Generale';
     }
 
-    const selectedBeneficiary = profiles.find((p) => p.id === requesterId);
-    const finalRequesterName =
-      selectedBeneficiary?.full_name || requesterName.trim() || currentUser?.full_name || 'Socio CD';
-    const finalCompiledById = compiledById || currentUser?.id || '';
-    const finalCompiledByName = compiledByName || currentUser?.full_name || finalRequesterName;
+    const effectiveRequesterId = canSelectOtherBeneficiaries
+      ? requesterId || currentUser?.id || 'cd-member'
+      : currentUser?.id || 'cd-member';
+    const selectedBeneficiary = profiles.find((p) => p.id === effectiveRequesterId);
+    const finalRequesterName = canSelectOtherBeneficiaries
+      ? selectedBeneficiary?.full_name || requesterName.trim() || currentUser?.full_name || 'Socio'
+      : currentUser?.full_name || 'Socio';
+    const finalCompiledById = currentUser?.id || compiledById || '';
+    const finalCompiledByName = currentUser?.full_name || compiledByName || finalRequesterName;
+    const roundedAmount = Math.round(numericAmount * 100) / 100;
 
     let savedMov: CashMovement | null = null;
     if (editingMovementId) {
+      if (!canFullManageCash) return;
       const existing = cashMovements.find((m) => m.id === editingMovementId);
-      const newStatus = isAdminOrAmministrativo ? statusInput : (existing?.status || 'inviato');
+      const newStatus = statusInput;
       const isNowPaid = newStatus === 'pagato';
       const updatedFields: Partial<CashMovement> = {
         entry_type: entryType,
-        requester_id: requesterId || currentUser?.id || 'cd-member',
+        requester_id: effectiveRequesterId,
         requester_name: finalRequesterName,
-        compiled_by_id: finalCompiledById,
-        compiled_by_name: finalCompiledByName,
+        user_id: selectedBeneficiary?.id || effectiveRequesterId,
+        member_number:
+          selectedBeneficiary?.member_number ||
+          (effectiveRequesterId === currentUser?.id ? currentUser?.member_number : existing?.member_number),
+        compiled_by_id: existing?.compiled_by_id || finalCompiledById,
+        compiled_by_name: existing?.compiled_by_name || finalCompiledByName,
         request_date: requestDate || todayIso,
         receipt_date: receiptDate || requestDate || todayIso,
         receipt_number: receiptNumber.trim() || undefined,
-        amount_requested: Math.round(numericAmount * 100) / 100,
-        amount_paid: isNowPaid
-          ? Math.round(numericAmount * 100) / 100
-          : isAdminOrAmministrativo && statusInput !== 'pagato'
-          ? null
-          : existing?.amount_paid,
+        amount_requested: roundedAmount,
+        amount_paid: isNowPaid ? roundedAmount : null,
         payment_date: isNowPaid
           ? existing?.payment_date || receiptDate || requestDate || todayIso
-          : isAdminOrAmministrativo && statusInput !== 'pagato'
-          ? undefined
-          : existing?.payment_date,
+          : undefined,
+        signed_by_treasurer: isNowPaid,
         category_id: finalCategoryId,
         category_name: finalCategoryName,
         description: description.trim() || undefined,
@@ -602,24 +642,35 @@ export const PiccolaCassaView: React.FC = () => {
         created_at: existing?.created_at || new Date().toISOString(),
       } as CashMovement;
     } else {
+      const effectiveEntryType: 'spesa' | 'entrata' = canFullManageCash ? entryType : 'spesa';
+      const effectiveStatus: 'inviato' | 'approvato' | 'pagato' = canFullManageCash ? statusInput : 'inviato';
+      const isNowPaid = effectiveStatus === 'pagato';
       savedMov = addCashMovement({
-        entry_type: entryType,
-        requester_id: requesterId || currentUser?.id || 'cd-member',
+        entry_type: effectiveEntryType,
+        requester_id: effectiveRequesterId,
         requester_name: finalRequesterName,
+        user_id: selectedBeneficiary?.id || effectiveRequesterId,
+        member_number:
+          selectedBeneficiary?.member_number ||
+          (effectiveRequesterId === currentUser?.id ? currentUser?.member_number : undefined),
         compiled_by_id: finalCompiledById,
         compiled_by_name: finalCompiledByName,
         request_date: requestDate || todayIso,
         receipt_date: receiptDate || requestDate || todayIso,
         receipt_number: receiptNumber.trim() || undefined,
-        amount_requested: Math.round(numericAmount * 100) / 100,
+        amount_requested: roundedAmount,
+        amount_paid: isNowPaid ? roundedAmount : null,
+        payment_date: isNowPaid ? receiptDate || requestDate || todayIso : undefined,
+        signed_by_requester: true,
+        signed_by_treasurer: isNowPaid,
         category_id: finalCategoryId,
         category_name: finalCategoryName,
         description: description.trim() || undefined,
-        status: isAdminOrAmministrativo ? statusInput : 'inviato',
+        status: effectiveStatus,
         receipt_image_data: receiptImageData,
       });
       showToast(
-        entryType === 'spesa'
+        effectiveEntryType === 'spesa'
           ? '✓ Richiesta di rimborso registrata correttamente.'
           : '✓ Versamento in Piccola Cassa registrato correttamente.'
       );
@@ -642,15 +693,19 @@ export const PiccolaCassaView: React.FC = () => {
       finalCategoryName = found ? found.name : 'Generale';
     }
 
-    const selectedBeneficiary = profiles.find((p) => p.id === requesterId);
-    const finalRequesterName =
-      selectedBeneficiary?.full_name || requesterName.trim() || currentUser?.full_name || 'Socio';
+    const effectiveRequesterId = canSelectOtherBeneficiaries
+      ? requesterId || currentUser?.id || ''
+      : currentUser?.id || '';
+    const selectedBeneficiary = profiles.find((p) => p.id === effectiveRequesterId);
+    const finalRequesterName = canSelectOtherBeneficiaries
+      ? selectedBeneficiary?.full_name || requesterName.trim() || currentUser?.full_name || 'Socio'
+      : currentUser?.full_name || 'Socio';
     const finalCompiledByName = compiledByName || currentUser?.full_name || finalRequesterName;
 
     const draftMov: CashMovement = {
       id: editingMovementId || `Bozza_${new Date().toLocaleDateString('it-IT')}`,
-      entry_type: entryType,
-      requester_id: requesterId || currentUser?.id || '',
+      entry_type: canFullManageCash ? entryType : 'spesa',
+      requester_id: effectiveRequesterId,
       requester_name: finalRequesterName,
       compiled_by_id: compiledById || currentUser?.id || '',
       compiled_by_name: finalCompiledByName,
@@ -661,7 +716,7 @@ export const PiccolaCassaView: React.FC = () => {
       category_id: selectedCategoryId || null,
       category_name: finalCategoryName,
       description: description.trim() || undefined,
-      status: isAdminOrAmministrativo ? statusInput : (editingMovementId ? 'approvato' : 'inviato'),
+      status: canFullManageCash ? statusInput : 'inviato',
       created_at: new Date().toISOString(),
     };
 
@@ -669,7 +724,7 @@ export const PiccolaCassaView: React.FC = () => {
   };
 
   // Movimenti dell'Anno Contabile selezionato (1° Luglio – 30 Giugno) ordinati per data decrescente
-  // REGOLA: Se l'utente non è Amministratore o Ruolo Amministrativo, vede SOLO i movimenti a lui intestati (anche se digitati da altri).
+  // REGOLA: Solo 7726, 2406 e Ruolo Amministrativo (9996) vedono tutte le richieste; gli altri soci vedono SOLO le loro (intestate a loro o digitate da loro).
   const accountingYearMovements = useMemo(() => {
     let list =
       selectedAccountingYear === 'all'
@@ -677,7 +732,7 @@ export const PiccolaCassaView: React.FC = () => {
         : cashMovements.filter(
             (m) => getAccountingYearForDate(m.request_date || m.receipt_date) === selectedAccountingYear
           );
-    if (!isAdminOrAmministrativo) {
+    if (!canViewAllCash) {
       list = list.filter((m) => isMovementOfUser(m, currentUser));
     }
     return list.slice().sort((a, b) => {
@@ -686,12 +741,15 @@ export const PiccolaCassaView: React.FC = () => {
       if (dateA !== dateB) return dateB.localeCompare(dateA);
       return b.id.localeCompare(a.id);
     });
-  }, [cashMovements, selectedAccountingYear, isAdminOrAmministrativo, currentUser]);
+  }, [cashMovements, selectedAccountingYear, canViewAllCash, currentUser]);
 
   // Statistiche personali per i Soci non amministratori (visualizzate al posto del bilancio globale)
   const myPaidMovements = useMemo(
-    () => accountingYearMovements.filter((m) => m.entry_type === 'spesa' && m.status === 'pagato'),
-    [accountingYearMovements]
+    () =>
+      accountingYearMovements.filter(
+        (m) => m.entry_type === 'spesa' && m.status === 'pagato' && isBeneficiaryOfMovement(m, currentUser)
+      ),
+    [accountingYearMovements, currentUser]
   );
   const myPaidTotal = useMemo(
     () => myPaidMovements.reduce((acc, m) => acc + Number(m.amount_requested || 0), 0),
@@ -871,7 +929,7 @@ export const PiccolaCassaView: React.FC = () => {
 
   // Esporta PDF Registro Cassa o I Miei Rimborsi
   const handleExportRegisterPdf = () => {
-    const isGlobal = isAdminOrAmministrativo;
+    const isGlobal = canViewAllCash;
     const title = isGlobal
       ? `Registro Piccola Cassa — Anno Contabile ${
           selectedAccountingYear === 'all'
@@ -931,7 +989,7 @@ export const PiccolaCassaView: React.FC = () => {
   };
 
   const handleExportRegisterCsv = () => {
-    const fileName = isAdminOrAmministrativo
+    const fileName = canViewAllCash
       ? `piccola_cassa_QU3_${todayIso}.csv`
       : `i_miei_rimborsi_QU3_${todayIso}.csv`;
 
@@ -980,6 +1038,7 @@ export const PiccolaCassaView: React.FC = () => {
   };
 
   const handleImportCsvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canFullManageCash) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1131,7 +1190,7 @@ export const PiccolaCassaView: React.FC = () => {
           </div>
         )}
 
-        {/* BLOCCO 1: INTESTAZIONE + ANNO CONTABILE (1 LUGLIO - 30 GIUGNO) + 2 PULSANTI */}
+        {/* BLOCCO 1: INTESTAZIONE + ANNO CONTABILE (1 LUGLIO - 30 GIUGNO) + PULSANTI */}
         <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -1162,7 +1221,7 @@ export const PiccolaCassaView: React.FC = () => {
                 </select>
               </div>
 
-              {isAdminOrAmministrativo && (
+              {canFullManageCash && (
                 <>
                   <button
                     type="button"
@@ -1188,8 +1247,8 @@ export const PiccolaCassaView: React.FC = () => {
             </div>
           </div>
 
-          {/* Pulsanti principali: solo Admin e Amministrativo vedono Registra Versamento */}
-          {isAdminOrAmministrativo ? (
+          {/* Pulsanti principali: solo Socio 7726 e 2406 vedono Registra Versamento; tutti gli altri vedono Nuova Richiesta di Rimborso */}
+          {canFullManageCash ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <button
                 type="button"
@@ -1222,8 +1281,8 @@ export const PiccolaCassaView: React.FC = () => {
             </div>
           )}
 
-          {/* Riepilogo Saldo: globale per Admin/Amministrativo, personale per i singoli soci */}
-          {isAdminOrAmministrativo ? (
+          {/* Riepilogo Saldo: globale per 7726, 2406 e Ruolo Amministrativo (9996), personale per gli altri soci */}
+          {canViewAllCash ? (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
               <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3">
                 <span className="text-[11px] font-normal text-slate-500 block">
@@ -1340,7 +1399,7 @@ export const PiccolaCassaView: React.FC = () => {
                 <span>CSV</span>
               </button>
 
-              {isAdminOrAmministrativo && (
+              {canFullManageCash && (
                 <>
                   <input
                     ref={csvImportInputRef}
@@ -1367,8 +1426,7 @@ export const PiccolaCassaView: React.FC = () => {
           {visibleMovements.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm font-normal text-slate-500">
               Nessun movimento trovato per l&apos;anno contabile selezionato. Tocca{' '}
-              <strong>&quot;Richiesta di Rimborso&quot;</strong> o{' '}
-              <strong>&quot;Registra Versamento&quot;</strong> in alto per iniziare.
+              <strong>&quot;Nuova Richiesta di Rimborso&quot;</strong> in alto per iniziare.
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -1379,13 +1437,12 @@ export const PiccolaCassaView: React.FC = () => {
                   `${mov.first_name || ''} ${mov.last_name || ''}`.trim() ||
                   'Socio CD';
                 const compilerName = mov.compiled_by_name || beneficiaryName;
-                const isMine = isMovementOfUser(mov, currentUser);
-                const canEdit =
-                  isAdminOrAmministrativo ||
-                  (isMine && mov.entry_type === 'spesa' && mov.status !== 'pagato');
+                const canEdit = canFullManageCash;
                 const canDelete =
-                  isAdminOrAmministrativo ||
-                  (isMine && mov.entry_type === 'spesa' && mov.status !== 'pagato');
+                  canFullManageCash ||
+                  (!isAmministrativoViewer &&
+                    mov.status !== 'pagato' &&
+                    isCompiledByUser(mov, currentUser));
 
                 return (
                   <div
@@ -1493,7 +1550,7 @@ export const PiccolaCassaView: React.FC = () => {
                           </button>
                         )}
 
-                        {isAdminOrAmministrativo && mov.status === 'inviato' && (
+                        {canFullManageCash && mov.status === 'inviato' && (
                           <button
                             type="button"
                             onClick={() => {
@@ -1506,13 +1563,16 @@ export const PiccolaCassaView: React.FC = () => {
                           </button>
                         )}
 
-                        {isAdminOrAmministrativo && mov.status !== 'pagato' && (
+                        {canFullManageCash && mov.status !== 'pagato' && (
                           <button
                             type="button"
                             onClick={() => {
+                              const paidAmt = Math.round(Number(mov.amount_requested || 0) * 100) / 100;
                               updateCashMovement(mov.id, {
                                 status: 'pagato',
-                                payment_date: new Date().toISOString(),
+                                amount_paid: paidAmt,
+                                signed_by_treasurer: true,
+                                payment_date: todayIso,
                               });
                               showToast('✓ Movimento segnato come Pagato.');
                             }}
@@ -1576,33 +1636,35 @@ export const PiccolaCassaView: React.FC = () => {
               </button>
             </div>
 
-            {/* Scelta Tipo Operazione: Rimborso Spesa o Versamento */}
-            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
-              <button
-                type="button"
-                onClick={() => setEntryType('spesa')}
-                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs sm:text-sm font-normal transition ${
-                  entryType === 'spesa'
-                    ? 'bg-white text-rose-800 shadow-xs border border-rose-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <ArrowUpRight className="h-4 w-4" />
-                <span>Richiesta di Rimborso (Spesa)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setEntryType('entrata')}
-                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs sm:text-sm font-normal transition ${
-                  entryType === 'entrata'
-                    ? 'bg-white text-emerald-800 shadow-xs border border-emerald-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <ArrowDownLeft className="h-4 w-4" />
-                <span>Versamento (Entrata)</span>
-              </button>
-            </div>
+            {/* Scelta Tipo Operazione: riservata a Socio 7726 e 2406 */}
+            {canFullManageCash && (
+              <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
+                <button
+                  type="button"
+                  onClick={() => setEntryType('spesa')}
+                  className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs sm:text-sm font-normal transition ${
+                    entryType === 'spesa'
+                      ? 'bg-white text-rose-800 shadow-xs border border-rose-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <ArrowUpRight className="h-4 w-4" />
+                  <span>Richiesta di Rimborso (Spesa)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEntryType('entrata')}
+                  className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs sm:text-sm font-normal transition ${
+                    entryType === 'entrata'
+                      ? 'bg-white text-emerald-800 shadow-xs border border-emerald-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <ArrowDownLeft className="h-4 w-4" />
+                  <span>Versamento (Entrata)</span>
+                </button>
+              </div>
+            )}
 
             {/* BOX SCANNERIZZA SCONTRINO (OCR AUTOMATICO) */}
             <div className="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 p-4 space-y-3">
@@ -1722,22 +1784,24 @@ export const PiccolaCassaView: React.FC = () => {
 
             {/* FORM DATI */}
             <form onSubmit={handleSaveMovement} className="space-y-4">
-              {/* 1. In alto: Nome selezionabile del Fruitore del Rimborso (solo ruoli diversi da semplice Socio)
+              {/* 1. In alto: Nome selezionabile del Fruitore del Rimborso (per 7726, 2406 e Altri Soci; fisso per 9996)
                   2. Sotto: Fisso il nome di chi si è autenticato come compilatore della pratica a nome del fruitore */}
               <div className="space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5">
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-slate-700 flex items-center gap-1.5">
                     <User className="h-3.5 w-3.5 text-emerald-700" />
                     <span>
-                      {entryType === 'spesa'
-                        ? 'Fruitore del Rimborso (cerca per nome/tessera o scegli dall\'elenco dei ruoli diversi da Socio)'
-                        : 'Intestatario del Versamento (cerca per nome/tessera o scegli dall\'elenco dei ruoli diversi da Socio)'}
+                      {canSelectOtherBeneficiaries
+                        ? entryType === 'spesa'
+                          ? 'Fruitore del Rimborso (preimpostato su di te, oppure cerca un altro socio per nome o N° tessera)'
+                          : 'Intestatario del Versamento (cerca socio per nome o N° tessera)'
+                        : 'Fruitore del Rimborso'}
                     </span>
                   </label>
 
-                  {isAdminOrAmministrativo ? (
+                  {canSelectOtherBeneficiaries ? (
                     <>
-                      {/* Casella di ricerca rapida per trovare subito un singolo socio senza scorrere l'elenco */}
+                      {/* Casella di ricerca rapida su TUTTI i soci per nome, cognome o numero tessera */}
                       <div className="relative">
                         <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
@@ -1749,17 +1813,22 @@ export const PiccolaCassaView: React.FC = () => {
                             const q = val.trim().toLowerCase();
                             if (q) {
                               const words = q.split(/\s+/).filter(Boolean);
-                              const match = eligibleBeneficiaries.find((p) => {
-                                const blob = `${p.member_number} ${p.full_name} ${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
-                                return words.every((w) => blob.includes(w));
-                              });
+                              const exactCard = profiles.find(
+                                (p) => String(p.member_number || '').trim().toLowerCase() === q
+                              );
+                              const match =
+                                exactCard ||
+                                profiles.find((p) => {
+                                  const blob = `${p.member_number} ${p.full_name} ${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
+                                  return words.every((w) => blob.includes(w));
+                                });
                               if (match) {
                                 setRequesterId(match.id);
                                 setRequesterName(match.full_name);
                               }
                             }
                           }}
-                          placeholder="Cerca socio per nome, cognome o N° tessera..."
+                          placeholder="Per te lascia invariato, oppure cerca un altro socio per nome o N° tessera..."
                           className={`w-full h-10 rounded-xl pl-9 pr-8 text-xs sm:text-sm font-normal ${inputClass}`}
                         />
                         {beneficiarySearch && (
@@ -1785,7 +1854,9 @@ export const PiccolaCassaView: React.FC = () => {
                         required
                       >
                         {filteredBeneficiaries.length === 0 ? (
-                          <option value={requesterId}>{requesterName} (Nessun altro risultato per &quot;{beneficiarySearch}&quot;)</option>
+                          <option value={requesterId}>
+                            {requesterName} (Nessun altro risultato per &quot;{beneficiarySearch}&quot;)
+                          </option>
                         ) : (
                           filteredBeneficiaries.map((p) => {
                             const roleLabel = getMemberParts(p).primaryRole;
@@ -1815,7 +1886,9 @@ export const PiccolaCassaView: React.FC = () => {
                     <span className="font-normal text-emerald-800">
                       — ha compilato la pratica a nome di{' '}
                       <strong className="font-medium text-emerald-950">
-                        {requesterName || currentUser?.full_name}
+                        {canSelectOtherBeneficiaries
+                          ? requesterName || currentUser?.full_name
+                          : currentUser?.full_name || requesterName}
                       </strong>
                     </span>
                   </p>
@@ -1937,11 +2010,11 @@ export const PiccolaCassaView: React.FC = () => {
                 />
               </div>
 
-              {/* Stato Operazione (riservato ad Amministratore e Amministrativo) */}
-              {isAdminOrAmministrativo && (
+              {/* Stato Operazione (riservato ESCLUSIVAMENTE a Socio 7726 e 2406) */}
+              {canFullManageCash && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5">
                   <label className="text-xs font-medium text-amber-900 block mb-1.5">
-                    Stato Operazione (Controllo Amministrazione)
+                    Stato Operazione (Esclusivo Socio 7726 / 2406)
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {(
@@ -2148,7 +2221,7 @@ export const PiccolaCassaView: React.FC = () => {
               </button>
 
               <div className="flex flex-wrap items-center gap-2">
-                {isAdminOrAmministrativo && selectedMovement.status === 'inviato' && (
+                {canFullManageCash && selectedMovement.status === 'inviato' && (
                   <button
                     type="button"
                     onClick={() => {
@@ -2163,17 +2236,27 @@ export const PiccolaCassaView: React.FC = () => {
                   </button>
                 )}
 
-                {isAdminOrAmministrativo && selectedMovement.status !== 'pagato' && (
+                {canFullManageCash && selectedMovement.status !== 'pagato' && (
                   <button
                     type="button"
                     onClick={() => {
-                      const nowIso = new Date().toISOString();
+                      const paidAmt = Math.round(Number(selectedMovement.amount_requested || 0) * 100) / 100;
                       updateCashMovement(selectedMovement.id, {
                         status: 'pagato',
-                        payment_date: nowIso,
+                        amount_paid: paidAmt,
+                        signed_by_treasurer: true,
+                        payment_date: todayIso,
                       });
                       setSelectedMovement((prev) =>
-                        prev ? { ...prev, status: 'pagato', payment_date: nowIso } : null
+                        prev
+                          ? {
+                              ...prev,
+                              status: 'pagato',
+                              amount_paid: paidAmt,
+                              signed_by_treasurer: true,
+                              payment_date: todayIso,
+                            }
+                          : null
                       );
                       showToast('✓ Movimento segnato come Pagato e accreditato a saldo.');
                     }}
@@ -2184,38 +2267,39 @@ export const PiccolaCassaView: React.FC = () => {
                   </button>
                 )}
 
-                {(isAdminOrAmministrativo ||
-                  (isMovementOfUser(selectedMovement, currentUser) &&
-                    selectedMovement.entry_type === 'spesa' &&
-                    selectedMovement.status !== 'pagato')) && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const mov = selectedMovement;
+                {canFullManageCash && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const mov = selectedMovement;
+                      setSelectedMovement(null);
+                      openEditForm(mov);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 text-xs sm:text-sm font-normal text-slate-700"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    <span>Modifica</span>
+                  </button>
+                )}
+
+                {(canFullManageCash ||
+                  (!isAmministrativoViewer &&
+                    selectedMovement.status !== 'pagato' &&
+                    isCompiledByUser(selectedMovement, currentUser))) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Sei sicuro di voler eliminare questa richiesta?')) {
+                        deleteCashMovement(selectedMovement.id);
                         setSelectedMovement(null);
-                        openEditForm(mov);
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 text-xs sm:text-sm font-normal text-slate-700"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                      <span>Modifica</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (window.confirm('Sei sicuro di voler eliminare questa richiesta?')) {
-                          deleteCashMovement(selectedMovement.id);
-                          setSelectedMovement(null);
-                          showToast('Movimento eliminato.');
-                        }
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 px-3.5 py-2 text-xs sm:text-sm font-normal text-rose-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span>Elimina</span>
-                    </button>
-                  </>
+                        showToast('Movimento eliminato.');
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 px-3.5 py-2 text-xs sm:text-sm font-normal text-rose-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Elimina</span>
+                  </button>
                 )}
 
                 <button
@@ -2232,9 +2316,9 @@ export const PiccolaCassaView: React.FC = () => {
       )}
 
       {/* =====================================================================
-          MODAL GESTIONE CAUSALI
+          MODAL GESTIONE CAUSALI (Solo Socio 7726 e 2406)
          ===================================================================== */}
-      {showCategoriesModal && isAdminOrAmministrativo && (
+      {showCategoriesModal && canFullManageCash && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
           <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xl space-y-4 max-h-[88vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -2302,9 +2386,9 @@ export const PiccolaCassaView: React.FC = () => {
       )}
 
       {/* =====================================================================
-          MODAL SALDO INIZIALE (Solo Giampiero Pilia 7796)
+          MODAL SALDO INIZIALE (Solo Socio 7726 e 2406)
          ===================================================================== */}
-      {showOpeningBalanceModal && isAdminOrAmministrativo && (
+      {showOpeningBalanceModal && canFullManageCash && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
           <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">

@@ -142,15 +142,15 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsMap = {
   },
   piccola_cassa: {
     'Solo CD': 'edit',
-    'Socio': 'view',
-    'Segreteria': 'none',
+    'Socio': 'none',
+    'Segreteria': 'edit',
     'Amministrativo': 'edit',
-    'Didattica': 'none',
-    'Viaggi': 'none',
+    'Didattica': 'edit',
+    'Viaggi': 'edit',
     'Amministratore': 'edit',
-    'Biblioteca': 'none',
-    'Presidenza': 'view',
-    'LsC': 'none',
+    'Biblioteca': 'edit',
+    'Presidenza': 'edit',
+    'LsC': 'edit',
   },
   biblioteca: {
     'Solo CD': 'edit',
@@ -357,3 +357,52 @@ export function isAmministrativoOrAdmin(
     );
   });
 }
+
+/**
+ * TIER 1 PICCOLA CASSA: ESCLUSIVAMENTE Socio 7726 e Socio 2406.
+ * Possono fare tutto con le piccole spese: vedere tutto, modificare, cancellare, inserire,
+ * approvare e mettere in stato PAGATO.
+ */
+export function isPiccolaCassaFullAdmin(
+  user?: {
+    id?: string;
+    member_number?: string;
+    role?: string;
+    is_super_admin?: boolean;
+  } | null
+): boolean {
+  if (!user) return false;
+  const num = String(user.member_number || '').trim();
+  if (num === '2406' || num === '7726') return true;
+  if (user.id === 'admin-2406' || user.id === 'admin-7726') return true;
+  if (user.is_super_admin) return true;
+  return false;
+}
+
+/**
+ * TIER 2 PICCOLA CASSA: Socio Ruolo Amministrativo (es. 9996, ma NON 7726/2406).
+ * Può vedere tutte le richieste e digitare le sue,
+ * MA NON può cancellare, modificare, approvare o mettere in stato pagato.
+ */
+export function isPiccolaCassaAmministrativoViewer(
+  user?: {
+    id?: string;
+    member_number?: string;
+    role?: string;
+    is_super_admin?: boolean;
+    roles?: string[];
+  } | null
+): boolean {
+  if (!user) return false;
+  if (isPiccolaCassaFullAdmin(user)) return false;
+  const num = String(user.member_number || '').trim();
+  if (num === '9996') return true;
+  const cleanRole = String(user.role || '').trim().toLowerCase();
+  if (cleanRole === 'amministrativo') return true;
+  const roles = Array.isArray(user.roles) ? user.roles : [];
+  return roles.some((r) => {
+    const clean = String(r || '').trim().toLowerCase();
+    return clean === 'amministrativo';
+  });
+}
+

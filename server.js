@@ -361,22 +361,25 @@ function readJsonBody(req) {
 
 function sanitizeServerProfiles(profiles) {
   if (!Array.isArray(profiles)) return profiles;
-  let foundSuper = false;
+  let found2406 = false;
+  let found7726 = false;
   let found9999 = false;
   let found9998 = false;
 
-  const cleaned = profiles.map((p) => {
-    if (!p) return p;
+  const cleaned = [];
+  for (const p of profiles) {
+    if (!p) continue;
     const num = String(p.member_number || '').trim();
-    if (num === '7726' || num === '7796' || p.is_super_admin) {
-      foundSuper = true;
+    if (p.id === 'admin-2406' || num === '2406') {
+      if (found2406) continue;
+      found2406 = true;
       const cleanSuperRoles = Array.from(
         new Set(['Amministratore', ...((p.roles || []).filter((r) => r !== 'Socio' && r !== 'CD'))])
       );
-      return {
+      cleaned.push({
         ...p,
-        id: p.id && p.id !== 'admin-7796' ? p.id : 'admin-7726',
-        member_number: '7726',
+        id: 'admin-2406',
+        member_number: '2406',
         first_name: 'Giampiero',
         last_name: 'Pilia',
         full_name: 'Giampiero Pilia',
@@ -385,11 +388,31 @@ function sanitizeServerProfiles(profiles) {
         is_super_admin: true,
         is_cd: typeof p.is_cd === 'boolean' ? p.is_cd : true,
         roles: cleanSuperRoles,
-      };
+      });
+      continue;
+    }
+    if (p.id === 'admin-7726' || num === '7726' || num === '7796') {
+      if (found7726) continue;
+      found7726 = true;
+      cleaned.push({
+        ...p,
+        id: 'admin-7726',
+        member_number: '7726',
+        first_name: 'Giampiero',
+        last_name: 'Pilia',
+        full_name: 'Giampiero Pilia',
+        sede: p.sede || 'Quartu',
+        role: 'member',
+        is_super_admin: false,
+        is_cd: true,
+        roles: ['Amministrativo'],
+      });
+      continue;
     }
     if (num === '9999' || p.id === 'segreteria-9999') {
+      if (found9999) continue;
       found9999 = true;
-      return {
+      cleaned.push({
         ...p,
         id: p.id || 'segreteria-9999',
         member_number: '9999',
@@ -401,11 +424,13 @@ function sanitizeServerProfiles(profiles) {
         is_super_admin: false,
         is_cd: false,
         roles: ['Segreteria'],
-      };
+      });
+      continue;
     }
     if (num === '9998' || p.id === 'segreteria-9998') {
+      if (found9998) continue;
       found9998 = true;
-      return {
+      cleaned.push({
         ...p,
         id: p.id || 'segreteria-9998',
         member_number: '9998',
@@ -417,21 +442,22 @@ function sanitizeServerProfiles(profiles) {
         is_super_admin: false,
         is_cd: false,
         roles: ['Segreteria'],
-      };
+      });
+      continue;
     }
     const is_cd = typeof p.is_cd === 'boolean' ? p.is_cd : Boolean(Array.isArray(p.roles) && p.roles.includes('CD'));
     const cleanRoles = Array.isArray(p.roles) ? p.roles.filter((r) => r !== 'CD') : ['Socio'];
-    return {
+    cleaned.push({
       ...p,
       is_cd,
       roles: cleanRoles.length > 0 ? cleanRoles : ['Socio'],
-    };
-  });
+    });
+  }
 
-  if (!foundSuper) {
+  if (!found2406) {
     cleaned.unshift({
-      id: 'admin-7726',
-      member_number: '7726',
+      id: 'admin-2406',
+      member_number: '2406',
       first_name: 'Giampiero',
       last_name: 'Pilia',
       full_name: 'Giampiero Pilia',
@@ -440,6 +466,23 @@ function sanitizeServerProfiles(profiles) {
       is_super_admin: true,
       is_cd: true,
       roles: ['Amministratore'],
+      phone: '070 881234',
+      joined_year: 2018,
+    });
+  }
+
+  if (!found7726) {
+    cleaned.push({
+      id: 'admin-7726',
+      member_number: '7726',
+      first_name: 'Giampiero',
+      last_name: 'Pilia',
+      full_name: 'Giampiero Pilia',
+      sede: 'Quartu',
+      role: 'member',
+      is_super_admin: false,
+      is_cd: true,
+      roles: ['Amministrativo'],
       phone: '070 881234',
       joined_year: 2018,
     });

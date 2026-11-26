@@ -42,9 +42,13 @@ import {
   exportModelloBPdf,
   LOCATION_LABELS,
 } from '../data/reportData';
+import { isPiccolaCassaFullAdmin, isPiccolaCassaAmministrativoViewer } from '../data/permissionsData';
+import { isMovementOfUser } from './PiccolaCassaView';
 
 export const ReportView: React.FC = () => {
   const {
+    currentUser,
+    isSuperAdmin,
     cashMovements = [],
     excursions = [],
     excursionPayments = [],
@@ -55,7 +59,20 @@ export const ReportView: React.FC = () => {
     lezioniCampoPayments: legacyPayments,
   } = useApp();
 
-  const cassaRecords = Array.isArray(cashMovements) && cashMovements.length > 0 ? cashMovements : (Array.isArray(legacyCassa) ? legacyCassa : []);
+  const canViewAllCash = Boolean(
+    isSuperAdmin ||
+      isPiccolaCassaFullAdmin(currentUser) ||
+      isPiccolaCassaAmministrativoViewer(currentUser)
+  );
+  const rawCassaRecords =
+    Array.isArray(cashMovements) && cashMovements.length > 0
+      ? cashMovements
+      : Array.isArray(legacyCassa)
+      ? legacyCassa
+      : [];
+  const cassaRecords = canViewAllCash
+    ? rawCassaRecords
+    : rawCassaRecords.filter((m) => isMovementOfUser(m, currentUser));
   const lezioniCampo = Array.isArray(excursions) && excursions.length > 0 ? excursions : (Array.isArray(legacyLezioni) ? legacyLezioni : []);
   const lezioniCampoPayments = Array.isArray(excursionPayments) && excursionPayments.length > 0 ? excursionPayments : (Array.isArray(legacyPayments) ? legacyPayments : []);
   const safeBilanci = Array.isArray(bilanci) ? bilanci : [];

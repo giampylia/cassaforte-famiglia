@@ -41,6 +41,8 @@ import {
   DEFAULT_ROLE_PERMISSIONS,
   computeUserSectionPermission,
   isAmministrativoOrAdmin,
+  isPiccolaCassaFullAdmin,
+  isPiccolaCassaAmministrativoViewer,
 } from '../data/permissionsData';
 import {
   Excursion,
@@ -1919,8 +1921,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           })))
   );
 
-  // Se l'utente autenticato ha il ruolo "Segreteria" (es. Nives Cocco 9999 o Josh Ronald Cocco 9998)
-  // e non è Super Admin, può vedere SOLO Anagrafica Soci ed Eliminacode
+  // Se l'utente autenticato ha il ruolo "Segreteria", rispetta i permessi dinamici configurati in Autorizzazioni
   useEffect(() => {
     if (!currentUser) return;
     const isSegreteriaOnlyUser =
@@ -1930,14 +1931,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           currentUser.roles &&
             currentUser.roles.some((r) => r.trim().toLowerCase() === 'segreteria')
         ));
-    if (
-      isSegreteriaOnlyUser &&
-      activeSection !== 'anagrafica_soci' &&
-      activeSection !== 'eliminacode'
-    ) {
+    if (!isSegreteriaOnlyUser) return;
+    if (activeSection === 'menu') return;
+    if (activeSection === 'autorizzazioni') {
+      setActiveSection('eliminacode');
+      return;
+    }
+    const perm = computeUserSectionPermission(activeSection, currentUser, rolePermissions);
+    if (perm === 'none') {
       setActiveSection('eliminacode');
     }
-  }, [currentUser, isSuperAdmin, activeSection]);
+  }, [currentUser, isSuperAdmin, activeSection, rolePermissions]);
 
   const [fontScale, setFontScale] = useState<FontScale>(() => {
     return (localStorage.getItem(STORAGE_KEYS.FONT_SCALE) as FontScale) || 'large';
@@ -3811,11 +3815,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const setCashOpeningBalance = (amount: number) => {
+    if (!(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser))) return;
     const num = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
     commitCashUpdate(cashMovementsRef.current, num);
   };
 
   const addExpenseCategory = (name: string, description?: string) => {
+    if (!(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser))) return;
     const clean = name.trim();
     if (!clean) return;
     const newCat: ExpenseCategory = {
@@ -3829,18 +3835,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateExpenseCategory = (id: string, data: Partial<ExpenseCategory>) => {
+    if (!(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser))) return;
     const nextCats = expenseCategoriesRef.current.map((c) => (c.id === id ? { ...c, ...data } : c));
     commitCashUpdate(cashMovementsRef.current, undefined, nextCats);
   };
 
   const deleteExpenseCategory = (id: string) => {
+    if (!(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser))) return;
     const nextCats = expenseCategoriesRef.current.filter((c) => c.id !== id);
     commitCashUpdate(cashMovementsRef.current, undefined, nextCats);
   };
 
   const addCashMovement = (movementData: Omit<CashMovement, 'id' | 'created_at'>): CashMovement => {
+    const fullAdmin = Boolean(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser));
+    const ammViewer = !fullAdmin && isPiccolaCassaAmministrativoViewer(currentUser);
+    const sanitizedData: Omit<CashMovement, 'id' | 'created_at'> = fullAdmin
+      ? movementData
+      : {
+          ...movementData,
+          entry_type: 'spesa',
+          status: 'inviato',
+          amount_paid: null,
+          payment_date: undefined,
+          signed_by_treasurer: false,
+          compiled_by_id: currentUser?.id || movementData.compiled_by_id,
+          compiled_by_name: currentUser?.full_name || movementData.compiled_by_name,
+          ...(ammViewer && currentUser
+            ? {
+                requester_id: currentUser.id,
+                requester_name: currentUser.full_name,
+                user_id: currentUser.id,
+                member_number: currentUser.member_number,
+              }
+            : {}),
+        };
     const newMov: CashMovement = {
-      ...movementData,
+      ...sanitizedData,
       id: `cash-${Date.now()}`,
       created_at: new Date().toISOString(),
     };
@@ -3850,11 +3880,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateCashMovement = (id: string, data: Partial<CashMovement>) => {
+    if (!(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser))) return;
     const nextMovements = cashMovementsRef.current.map((m) => (m.id === id ? { ...m, ...data } : m));
     commitCashUpdate(nextMovements);
   };
 
   const deleteCashMovement = (id: string) => {
+    const fullAdmin = Boolean(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser));
+    if (!fullAdmin) {
+      if (!currentUser || isPiccolaCassaAmministrativoViewer(currentUser)) return;
+      const target = cashMovementsRef.current.find((m) => m.id === id);
+      if (!target || target.status === 'pagato') return;
+      const uName = (currentUser.full_name || `${currentUser.first_name || ''} ${currentUser.last_name || ''}`)
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      const cName = (target.compiled_by_name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+      const rName = (target.requester_name || `${target.first_name || ''} ${target.last_name || ''}`)
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      const compiledByCurrent =
+        target.compiled_by_id || cName
+          ? (Boolean(target.compiled_by_id) && target.compiled_by_id === currentUser.id) ||
+            Boolean(uName && cName && uName === cName)
+          : target.requester_id === currentUser.id || Boolean(uName && rName && uName === rName);
+      if (!compiledByCurrent) return;
+    }
+
     const nextMovements = cashMovementsRef.current.filter((m) => m.id !== id);
     const delSet = getDeletedCashIds();
     delSet.add(id);
@@ -3866,6 +3919,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const importCashMovements = (incoming: CashMovement[], replaceAll = false) => {
+    if (!(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser))) return;
     if (!Array.isArray(incoming) || incoming.length === 0) return;
     const combined = replaceAll ? incoming : [...incoming, ...cashMovementsRef.current];
     const seen = new Set<string>();
