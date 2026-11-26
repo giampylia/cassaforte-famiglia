@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { CashMovement, getMemberParts } from '../data/initialData';
-import { isPiccolaCassaFullAdmin, isPiccolaCassaAmministrativoViewer } from '../data/permissionsData';
+import { canAccessPiccolaCassa, isPiccolaCassaFullAdmin, isPiccolaCassaAmministrativoViewer } from '../data/permissionsData';
 import { ASSOCIATION_LOGO_URL, exportCsv, exportOfficialPdf, formatItalianCurrency, formatItalianNumber } from '../utils/soundAndPdf';
 
 // Controlla se l'utente autenticato è il fruitore / beneficiario della richiesta
@@ -284,13 +284,12 @@ export const PiccolaCassaView: React.FC = () => {
 
   // TIER 1: Solo Socio 7726 e Socio 2406 possono fare tutto (vedere tutto, modificare, cancellare, inserire, approvare, mettere in stato pagato)
   const canFullManageCash = Boolean(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser));
-  // TIER 2: Socio Ruolo Amministrativo (es. 9996) può vedere tutte le richieste e digitare le sue, ma NON modificare, cancellare, approvare o pagare
+  // TIER 2: Socio Ruolo Amministrativo (es. 9996) può vedere tutte le richieste e inserire per sé o altri Soci CD, ma NON modificare, cancellare, approvare o pagare
   const isAmministrativoViewer = Boolean(!canFullManageCash && isPiccolaCassaAmministrativoViewer(currentUser));
   // Chi può vedere l'elenco completo di tutte le richieste (7726, 2406 e Ruolo Amministrativo 9996)
   const canViewAllCash = Boolean(canFullManageCash || isAmministrativoViewer);
-  // Chi può scegliere anche altri soci come fruitori quando inserisce una richiesta:
-  // 7726 e 2406 + Altri Soci ("possono inserire le loro, o per altri soci"), mentre 9996 digita solo le sue
-  const canSelectOtherBeneficiaries = Boolean(canFullManageCash || !isAmministrativoViewer);
+  // Tutti gli abilitati (7726, 2406, Ruolo Amministrativo 9996 e Soci CD) possono inserire richieste per sé o per altri Soci CD
+  const canSelectOtherBeneficiaries = true;
 
   const todayIso = new Date().toISOString().slice(0, 10);
   const currentAccountingYear = useMemo(() => getAccountingYearForDate(todayIso), [todayIso]);
@@ -353,52 +352,40 @@ export const PiccolaCassaView: React.FC = () => {
     setTimeout(() => setFeedbackBanner(null), 4000);
   };
 
-  // Ricerca rapida del Fruitore del Rimborso senza dover scorrere tutto l'elenco
+  // Ricerca rapida del Fruitore del Rimborso
   const [beneficiarySearch, setBeneficiarySearch] = useState<string>('');
 
-  // Elenco base suggerito quando la ricerca è vuota (utente autenticato in cima + CD/ruoli operativi + eventuale socio già selezionato)
+  // Elenco soci abilitati alle richieste di rimborso: ESCLUSIVAMENTE i Soci CD (+ 2406/7726 e Ruolo Amministrativo 9996)
   const eligibleBeneficiaries = useMemo(() => {
-    const list = profiles.filter((p) => {
+    const rawList = profiles.filter((p) => {
       if (currentUser && p.id === currentUser.id) return true;
       if (requesterId && p.id === requesterId) return true;
-      if (
-        p.is_super_admin ||
-        p.member_number === '2406' ||
-        p.member_number === '7726' ||
-        p.is_cd ||
-        p.role === 'admin'
-      ) {
-        return true;
-      }
-      if (p.roles && p.roles.length > 0) {
-        return p.roles.some((r) => r.trim().toLowerCase() !== 'socio');
-      }
-      if (
-        cashMovements.some(
-          (m) =>
-            m.requester_id === p.id ||
-            m.user_id === p.id ||
-            (m.requester_name && m.requester_name.toLowerCase() === p.full_name.toLowerCase())
-        )
-      ) {
-        return true;
-      }
-      return false;
+      return canAccessPiccolaCassa(p);
     });
 
-    return [...list].sort((a, b) => {
+    // Evita di mostrare due volte Giampiero Pilia (2406 e 7726) mantenendo la tessera attiva o 7726
+    const has7726 = rawList.some((p) => String(p.member_number).trim() === '7726');
+    const deduped = rawList.filter((p) => {
+      if (String(p.member_number).trim() === '2406' && has7726) {
+        return (currentUser && p.id === currentUser.id) || (requesterId && p.id === requesterId);
+      }
+      return true;
+    });
+
+    return [...deduped].sort((a, b) => {
       if (currentUser && a.id === currentUser.id) return -1;
       if (currentUser && b.id === currentUser.id) return 1;
       return a.full_name.localeCompare(b.full_name, 'it', { sensitivity: 'base' });
     });
-  }, [profiles, currentUser, requesterId, cashMovements]);
+  }, [profiles, currentUser, requesterId]);
 
-  // Cerca su TUTTI i soci dell'anagrafica quando si digita un nome, cognome o numero tessera
+  // Cerca tra i Soci CD abilitati (o tutti i soci solo per Versamenti registrati da 7726/2406)
   const filteredBeneficiaries = useMemo(() => {
     const q = beneficiarySearch.trim().toLowerCase();
+    const pool = canFullManageCash && entryType === 'entrata' ? profiles : eligibleBeneficiaries;
     if (!q) return eligibleBeneficiaries;
     const words = q.split(/\s+/).filter(Boolean);
-    const matches = profiles.filter((p) => {
+    const matches = pool.filter((p) => {
       const blob = `${p.member_number} ${p.full_name} ${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
       return words.every((w) => blob.includes(w));
     });
@@ -413,7 +400,7 @@ export const PiccolaCassaView: React.FC = () => {
         return a.full_name.localeCompare(b.full_name, 'it', { sensitivity: 'base' });
       })
       .slice(0, 150);
-  }, [profiles, eligibleBeneficiaries, beneficiarySearch, currentUser]);
+  }, [canFullManageCash, entryType, profiles, eligibleBeneficiaries, beneficiarySearch, currentUser]);
 
   // Elenco Anni Contabili disponibili (1° Luglio – 30 Giugno)
   const availableAccountingYears = useMemo(() => {
@@ -1791,17 +1778,15 @@ export const PiccolaCassaView: React.FC = () => {
                   <label className="text-xs font-medium text-slate-700 flex items-center gap-1.5">
                     <User className="h-3.5 w-3.5 text-emerald-700" />
                     <span>
-                      {canSelectOtherBeneficiaries
-                        ? entryType === 'spesa'
-                          ? 'Fruitore del Rimborso (preimpostato su di te, oppure cerca un altro socio per nome o N° tessera)'
-                          : 'Intestatario del Versamento (cerca socio per nome o N° tessera)'
-                        : 'Fruitore del Rimborso'}
+                      {entryType === 'spesa'
+                        ? 'Fruitore del Rimborso (preimpostato su di te, oppure scegli un altro Socio CD)'
+                        : 'Intestatario del Versamento (cerca per nome o N° tessera)'}
                     </span>
                   </label>
 
                   {canSelectOtherBeneficiaries ? (
                     <>
-                      {/* Casella di ricerca rapida su TUTTI i soci per nome, cognome o numero tessera */}
+                      {/* Casella di ricerca rapida tra i Soci CD abilitati */}
                       <div className="relative">
                         <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
@@ -1812,13 +1797,17 @@ export const PiccolaCassaView: React.FC = () => {
                             setBeneficiarySearch(val);
                             const q = val.trim().toLowerCase();
                             if (q) {
+                              const pool =
+                                canFullManageCash && entryType === 'entrata'
+                                  ? profiles
+                                  : eligibleBeneficiaries;
                               const words = q.split(/\s+/).filter(Boolean);
-                              const exactCard = profiles.find(
+                              const exactCard = pool.find(
                                 (p) => String(p.member_number || '').trim().toLowerCase() === q
                               );
                               const match =
                                 exactCard ||
-                                profiles.find((p) => {
+                                pool.find((p) => {
                                   const blob = `${p.member_number} ${p.full_name} ${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
                                   return words.every((w) => blob.includes(w));
                                 });
@@ -1828,7 +1817,7 @@ export const PiccolaCassaView: React.FC = () => {
                               }
                             }
                           }}
-                          placeholder="Per te lascia invariato, oppure cerca un altro socio per nome o N° tessera..."
+                          placeholder="Per te lascia invariato, oppure cerca un altro Socio CD..."
                           className={`w-full h-10 rounded-xl pl-9 pr-8 text-xs sm:text-sm font-normal ${inputClass}`}
                         />
                         {beneficiarySearch && (

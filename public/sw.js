@@ -1,4 +1,4 @@
-const CACHE_NAME = 'q3-fast-v87';
+const CACHE_NAME = 'q3-fast-v88';
 const CORE_ASSETS = [
   '/',
   '/index.html',

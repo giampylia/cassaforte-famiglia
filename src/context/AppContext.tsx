@@ -41,6 +41,7 @@ import {
   DEFAULT_ROLE_PERMISSIONS,
   computeUserSectionPermission,
   isAmministrativoOrAdmin,
+  canAccessPiccolaCassa,
   isPiccolaCassaFullAdmin,
   isPiccolaCassaAmministrativoViewer,
 } from '../data/permissionsData';
@@ -3848,7 +3849,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addCashMovement = (movementData: Omit<CashMovement, 'id' | 'created_at'>): CashMovement => {
     const fullAdmin = Boolean(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser));
-    const ammViewer = !fullAdmin && isPiccolaCassaAmministrativoViewer(currentUser);
+    if (!fullAdmin && !canAccessPiccolaCassa(currentUser)) {
+      return {
+        ...movementData,
+        id: `cash-blocked-${Date.now()}`,
+        created_at: new Date().toISOString(),
+      };
+    }
     const sanitizedData: Omit<CashMovement, 'id' | 'created_at'> = fullAdmin
       ? movementData
       : {
@@ -3860,14 +3867,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           signed_by_treasurer: false,
           compiled_by_id: currentUser?.id || movementData.compiled_by_id,
           compiled_by_name: currentUser?.full_name || movementData.compiled_by_name,
-          ...(ammViewer && currentUser
-            ? {
-                requester_id: currentUser.id,
-                requester_name: currentUser.full_name,
-                user_id: currentUser.id,
-                member_number: currentUser.member_number,
-              }
-            : {}),
         };
     const newMov: CashMovement = {
       ...sanitizedData,
@@ -3888,7 +3887,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteCashMovement = (id: string) => {
     const fullAdmin = Boolean(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser));
     if (!fullAdmin) {
-      if (!currentUser || isPiccolaCassaAmministrativoViewer(currentUser)) return;
+      if (
+        !currentUser ||
+        !canAccessPiccolaCassa(currentUser) ||
+        isPiccolaCassaAmministrativoViewer(currentUser)
+      ) {
+        return;
+      }
       const target = cashMovementsRef.current.find((m) => m.id === id);
       if (!target || target.status === 'pagato') return;
       const uName = (currentUser.full_name || `${currentUser.first_name || ''} ${currentUser.last_name || ''}`)

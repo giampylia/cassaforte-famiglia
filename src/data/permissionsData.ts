@@ -275,7 +275,17 @@ export function normalizeRoleKey(role: string): ManagedRoleName {
  */
 export function computeUserSectionPermission(
   sectionKey: string,
-  user: { role?: string; is_super_admin?: boolean; is_cd?: boolean; roles?: string[] } | null | undefined,
+  user:
+    | {
+        id?: string;
+        member_number?: string;
+        role?: string;
+        is_super_admin?: boolean;
+        is_cd?: boolean;
+        roles?: string[];
+      }
+    | null
+    | undefined,
   permissionsMap?: RolePermissionsMap
 ): PermissionLevel {
   if (!user) return 'none';
@@ -283,6 +293,11 @@ export function computeUserSectionPermission(
   // L'Amministratore/SuperAdmin ha SEMPRE tutti i permessi
   if (user.is_super_admin || user.role === 'admin') {
     return 'edit';
+  }
+
+  // Piccola Cassa: accessibile esclusivamente a Socio 2406/7726, Ruolo Amministrativo (9996) e Soci CD
+  if (sectionKey === 'piccola_cassa') {
+    return canAccessPiccolaCassa(user) ? 'edit' : 'none';
   }
 
   const map = permissionsMap || DEFAULT_ROLE_PERMISSIONS;
@@ -381,7 +396,7 @@ export function isPiccolaCassaFullAdmin(
 
 /**
  * TIER 2 PICCOLA CASSA: Socio Ruolo Amministrativo (es. 9996, ma NON 7726/2406).
- * Può vedere tutte le richieste e digitare le sue,
+ * Può vedere tutte le richieste e inserire richieste per sé o per altri Soci CD,
  * MA NON può cancellare, modificare, approvare o mettere in stato pagato.
  */
 export function isPiccolaCassaAmministrativoViewer(
@@ -405,4 +420,27 @@ export function isPiccolaCassaAmministrativoViewer(
     return clean === 'amministrativo';
   });
 }
+
+/**
+ * Chi può accedere alla Piccola Cassa ed essere titolare di richieste di rimborso:
+ * ESCLUSIVAMENTE Socio 2406/7726, Ruolo Amministrativo (9996) e i Soci CD (is_cd === true).
+ */
+export function canAccessPiccolaCassa(
+  user?: {
+    id?: string;
+    member_number?: string;
+    role?: string;
+    is_super_admin?: boolean;
+    is_cd?: boolean;
+    roles?: string[];
+  } | null
+): boolean {
+  if (!user) return false;
+  return Boolean(
+    isPiccolaCassaFullAdmin(user) ||
+      isPiccolaCassaAmministrativoViewer(user) ||
+      user.is_cd
+  );
+}
+
 
