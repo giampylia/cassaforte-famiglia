@@ -54,7 +54,7 @@ const MainRouter: React.FC = () => {
     signOut,
   } = useApp();
 
-  const CURRENT_APP_VERSION = 'v88';
+  const CURRENT_APP_VERSION = 'v89';
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
 
@@ -153,6 +153,17 @@ const MainRouter: React.FC = () => {
       sublabel: 'Dashboard con Tasti Glass',
       icon: Home,
     },
+    ...(canSeePiccolaCassa
+      ? [
+          {
+            key: 'piccola_cassa' as const,
+            label: 'Piccola Cassa',
+            sublabel: 'Rimborsi, Versamenti e Scontrini',
+            icon: Wallet,
+            isBold: true,
+          },
+        ]
+      : []),
     ...(canSeeAnagraficaSoci
       ? [
           {
@@ -230,16 +241,6 @@ const MainRouter: React.FC = () => {
             label: 'Elimina Code',
             sublabel: 'Telecomando e Monitor Numeri PDF',
             icon: Monitor,
-          },
-        ]
-      : []),
-    ...(canSeePiccolaCassa
-      ? [
-          {
-            key: 'piccola_cassa' as const,
-            label: 'Piccola Cassa',
-            sublabel: 'Rimborsi, Versamenti e Scontrini',
-            icon: Wallet,
           },
         ]
       : []),
@@ -331,6 +332,7 @@ const MainRouter: React.FC = () => {
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeSection === item.key;
+                const isBoldItem = 'isBold' in item && Boolean(item.isBold);
                 return (
                   <button
                     key={item.key}
@@ -348,21 +350,29 @@ const MainRouter: React.FC = () => {
                     className={`w-full flex items-center justify-between gap-2.5 rounded-2xl px-3.5 py-3 text-left transition border ${
                       isActive
                         ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                        : isBoldItem
+                        ? 'bg-emerald-50/50 hover:bg-emerald-50 text-slate-900 border-emerald-200/80 hover:border-emerald-300'
                         : 'bg-white hover:bg-slate-50 text-slate-700 border-transparent hover:border-slate-200'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <Icon
-                        className={`h-5 w-5 shrink-0 stroke-[1.75] ${
+                        className={`h-5 w-5 shrink-0 ${isBoldItem ? 'stroke-[2.3]' : 'stroke-[1.75]'} ${
                           isActive ? 'text-white' : 'text-emerald-700'
                         }`}
                       />
                       <div className="min-w-0">
-                        <p className="text-sm font-medium leading-snug">{item.label}</p>
                         <p
-                          className={`text-[11px] font-normal leading-snug ${
-                            isActive ? 'text-emerald-100' : 'text-slate-500'
+                          className={`text-sm leading-snug ${
+                            isBoldItem ? 'font-extrabold tracking-tight' : 'font-medium'
                           }`}
+                        >
+                          {item.label}
+                        </p>
+                        <p
+                          className={`text-[11px] leading-snug ${
+                            isBoldItem ? 'font-semibold' : 'font-normal'
+                          } ${isActive ? 'text-emerald-100' : 'text-slate-500'}`}
                         >
                           {item.sublabel}
                         </p>

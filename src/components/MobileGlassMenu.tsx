@@ -127,8 +127,20 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
     }
   };
 
-  // Configurazione dinamica dei tasti autorizzati per il ruolo
-  const menuGridItems: MenuItemConfig[] = [
+  // Configurazione dinamica dei tasti autorizzati per il ruolo (Piccola Cassa in prima posizione)
+  const menuGridItems: (MenuItemConfig & { isBold?: boolean })[] = [
+    ...(canSeePiccolaCassa
+      ? [
+          {
+            key: 'piccola_cassa' as AppSection,
+            label: 'Piccola Cassa',
+            shortLabel: 'PICCOLA CASSA',
+            sublabel: 'Movimenti e Saldo',
+            icon: Wallet,
+            isBold: true,
+          },
+        ]
+      : []),
     ...(canSeeAnagraficaSoci
       ? [
           {
@@ -214,17 +226,6 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
             shortLabel: 'ELIMINA CODE',
             sublabel: 'Chiamata Turni',
             icon: Monitor,
-          },
-        ]
-      : []),
-    ...(canSeePiccolaCassa
-      ? [
-          {
-            key: 'piccola_cassa' as AppSection,
-            label: 'Piccola Cassa',
-            shortLabel: 'PICCOLA CASSA',
-            sublabel: 'Movimenti e Saldo',
-            icon: Wallet,
           },
         ]
       : []),
@@ -356,11 +357,19 @@ export const MobileGlassMenu: React.FC<MobileGlassMenuProps> = ({
                 >
                   {/* Icona a linea in bianco */}
                   <div className="relative flex items-center justify-center mb-1.5">
-                    <Icon className="h-8 w-8 sm:h-10 sm:w-10 text-white stroke-[1.6] drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform duration-200" />
+                    <Icon
+                      className={`h-8 w-8 sm:h-10 sm:w-10 text-white ${
+                        item.isBold ? 'stroke-[2.2]' : 'stroke-[1.6]'
+                      } drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform duration-200`}
+                    />
                   </div>
 
                   {/* Etichetta in maiuscolo centrata sotto l'icona */}
-                  <span className="text-[10px] sm:text-[11px] font-bold text-white tracking-wider uppercase leading-tight line-clamp-2 px-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                  <span
+                    className={`text-[10px] sm:text-[11px] ${
+                      item.isBold ? 'font-black text-emerald-100' : 'font-bold text-white'
+                    } tracking-wider uppercase leading-tight line-clamp-2 px-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]`}
+                  >
                     {item.shortLabel}
                   </span>
 
