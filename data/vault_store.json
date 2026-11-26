@@ -1,6 +1,20 @@
 {
   "items": [
     {
+      "id": "v_1795725313727_235",
+      "title": "FACEBOOK",
+      "username": "giampylia@gmail.com",
+      "encryptedPassword": {
+        "iv": "2007ecb613f12fc13be30a84",
+        "cipher": "cc7c8d624e074271b34bf7a06c01149cd130e56efd9ae5aa"
+      },
+      "encryptedPin": null,
+      "encryptedBmt": null,
+      "encryptedShopnl": null,
+      "encryptedNotes": null,
+      "createdAt": "26/11/2026"
+    },
+    {
       "id": "v_1795610051489_621",
       "title": "ABBANOA CAVARO",
       "username": "giampyabbanoaCAVARO",
@@ -33,8 +47,8 @@
       "title": "SPID",
       "username": "GIAMPY---",
       "encryptedPassword": {
-        "iv": "03179e26bc3e29af8af27143",
-        "cipher": "dcf76ad27a3d9f92c8387be20483094111b25d5ac079141c29"
+        "iv": "ca6e18b45343ea672355626e",
+        "cipher": "e31e861a359253def73f750ca2c74670ec2d3060b2eaa5e29f"
       },
       "encryptedPin": null,
       "encryptedBmt": null,
@@ -48,13 +62,22 @@
       "title": "CIE",
       "username": "giampylia@gmail.com",
       "encryptedPassword": {
-        "iv": "09b08ee1b8eebd119d894c1a",
-        "cipher": "e89e9ee006b361e3b214a801354fbccec9e9069cd9b66af0cf2351"
+        "iv": "8bffd4b6a98a44a6e5d43dc7",
+        "cipher": "8872c2fbb7420f08863ea7d72287836f3a68041c927bc7f2aa60c3"
       },
-      "encryptedPin": null,
-      "encryptedBmt": null,
+      "encryptedPin": {
+        "iv": "ed88dfe98f8a064ceac74cb1",
+        "cipher": "96930b4f7d5ac84caecc64d05102073b5375b150424963dd"
+      },
+      "encryptedBmt": {
+        "iv": "d91ff456365088a1b4210fa1",
+        "cipher": "6023edfcd9ebc4af7e3d8296923755c5e4fb4a5ef50e4173d073180f"
+      },
       "encryptedShopnl": null,
-      "encryptedNotes": null,
+      "encryptedNotes": {
+        "iv": "d47fa61140b07839898479cc",
+        "cipher": "e509803de6d2140317686565e9d5020c15590a1af021c48db32d31e61c05d274ee0c3176d3bb64f04387aef2f5417f29"
+      },
       "createdAt": "23/11/2026",
       "updatedAt": "25/11/2026"
     },
@@ -305,5 +328,5 @@
       "updatedAt": "2026-11-15T19:49:30.436Z"
     }
   ],
-  "updatedAt": "2026-11-26T15:06:13.819Z"
+  "updatedAt": "2026-11-26T23:47:58.709Z"
 }
