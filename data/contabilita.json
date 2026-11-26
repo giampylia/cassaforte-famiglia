@@ -9774,6 +9774,33 @@
       "updatedAt": 1795640083976
     },
     {
+      "id": "9bf9c7e0-38a4-4945-b889-e4fc9f8db782",
+      "date": "2026-11-26",
+      "description": "GASOLIO",
+      "debitAccountCode": "6041",
+      "creditAccountCode": "4010",
+      "amount": 40,
+      "updatedAt": 1795698306769
+    },
+    {
+      "id": "7b46e29c-1e96-417a-a419-51133180d9d9",
+      "date": "2026-11-26",
+      "description": "CASSAFORTE TESORERIA",
+      "debitAccountCode": "4071",
+      "creditAccountCode": "4010",
+      "amount": 120.6,
+      "updatedAt": 1795698593583
+    },
+    {
+      "id": "3346593f-ed7f-4d19-8f9f-eee279f2b410",
+      "date": "2026-11-26",
+      "description": "LED TERRARIO",
+      "debitAccountCode": "6010",
+      "creditAccountCode": "4010",
+      "amount": 9.4,
+      "updatedAt": 1795698614328
+    },
+    {
       "id": "1723e51c-0a65-455d-ae90-5358932ee133",
       "date": "2026-11-27",
       "description": "FATTURA ELETTRICA TISIDDU 46,77€",

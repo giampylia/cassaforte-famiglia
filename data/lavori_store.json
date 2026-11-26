@@ -3,7 +3,7 @@
     {
       "id": "lav_1794834344291_426",
       "title": "intonaco balcone",
-      "priority": 1,
+      "priority": null,
       "house": "G",
       "description": "",
       "priceType": "stimato",
@@ -11,14 +11,15 @@
       "coverage": "",
       "insertedDate": "2026-11-16",
       "purchaseDate": "",
+      "closedDate": "2026-11-19",
       "links": [],
       "photo": null,
-      "updatedAt": "2026-11-16T13:05:44.306Z"
+      "updatedAt": "2026-11-26T09:21:06.100Z"
     },
     {
       "id": "lav_1794834379804_808",
       "title": "base cucina",
-      "priority": 2,
+      "priority": null,
       "house": "G",
       "description": "",
       "priceType": "stimato",
@@ -26,9 +27,10 @@
       "coverage": "",
       "insertedDate": "2026-11-16",
       "purchaseDate": "",
+      "closedDate": "2026-11-19",
       "links": [],
       "photo": null,
-      "updatedAt": "2026-11-16T13:06:19.805Z"
+      "updatedAt": "2026-11-26T09:21:20.529Z"
     },
     {
       "id": "lav_1794834403454_783",
@@ -43,7 +45,8 @@
       "purchaseDate": "",
       "links": [],
       "photo": null,
-      "updatedAt": "2026-11-16T13:06:43.454Z"
+      "updatedAt": "2026-11-26T09:20:11.139Z",
+      "closedDate": "2026-11-26"
     },
     {
       "id": "lav_1794834429924_503",
@@ -59,6 +62,102 @@
       "links": [],
       "photo": null,
       "updatedAt": "2026-11-16T13:07:09.924Z"
+    },
+    {
+      "id": "lav_1795684795942_138",
+      "title": "anta porta finestra balcone",
+      "priority": null,
+      "house": "M",
+      "description": "",
+      "priceType": "stimato",
+      "price": "",
+      "coverage": "",
+      "insertedDate": "2026-11-26",
+      "purchaseDate": "",
+      "closedDate": null,
+      "links": [],
+      "photo": null,
+      "updatedAt": "2026-11-26T09:19:55.942Z"
+    },
+    {
+      "id": "lav_1795684913717_367",
+      "title": "scaffalatura cantina",
+      "priority": null,
+      "house": "A",
+      "description": "",
+      "priceType": "stimato",
+      "price": "",
+      "coverage": "",
+      "insertedDate": "2026-11-26",
+      "purchaseDate": "",
+      "closedDate": null,
+      "links": [],
+      "photo": null,
+      "updatedAt": "2026-11-26T09:21:53.717Z"
+    },
+    {
+      "id": "lav_1795684927591_980",
+      "title": "nicchia asciugatrice",
+      "priority": null,
+      "house": "A",
+      "description": "",
+      "priceType": "stimato",
+      "price": "",
+      "coverage": "",
+      "insertedDate": "2026-11-26",
+      "purchaseDate": "",
+      "closedDate": null,
+      "links": [],
+      "photo": null,
+      "updatedAt": "2026-11-26T09:22:07.591Z"
+    },
+    {
+      "id": "lav_1795684940814_556",
+      "title": "porta basculante garage",
+      "priority": null,
+      "house": "A",
+      "description": "",
+      "priceType": "stimato",
+      "price": "",
+      "coverage": "",
+      "insertedDate": "2026-11-26",
+      "purchaseDate": "",
+      "closedDate": null,
+      "links": [],
+      "photo": null,
+      "updatedAt": "2026-11-26T09:23:06.547Z"
+    },
+    {
+      "id": "lav_1795684951142_638",
+      "title": "forno elettrico",
+      "priority": null,
+      "house": "A",
+      "description": "",
+      "priceType": "stimato",
+      "price": "",
+      "coverage": "",
+      "insertedDate": "2026-11-26",
+      "purchaseDate": "",
+      "closedDate": null,
+      "links": [],
+      "photo": null,
+      "updatedAt": "2026-11-26T09:22:53.414Z"
+    },
+    {
+      "id": "lav_1795685020303_565",
+      "title": "sanificazione casa da muffa",
+      "priority": null,
+      "house": "P",
+      "description": "",
+      "priceType": "stimato",
+      "price": "",
+      "coverage": "",
+      "insertedDate": "2026-11-26",
+      "purchaseDate": "",
+      "closedDate": null,
+      "links": [],
+      "photo": null,
+      "updatedAt": "2026-11-26T09:23:40.303Z"
     }
   ]
 }
