@@ -2461,7 +2461,9 @@ export const PiccolaCassaView: React.FC = () => {
                                 )
                               ) {
                                 deleteExpenseCategory(cat.id);
-                                showToast('Causale eliminata.');
+                                if (editingCatId === cat.id) setEditingCatId(null);
+                                if (selectedCategoryId === cat.id) setSelectedCategoryId('');
+                                showToast('Causale eliminata definitivamente.');
                               }
                             }}
                             className="rounded-lg border border-rose-200 bg-white p-1.5 text-rose-600 hover:bg-rose-50"

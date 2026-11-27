@@ -240,38 +240,56 @@ function getSeedVideoNotices() {
 
 const SEED_TIMESTAMP = 1000; // Past epoch timestamp so seed/default data NEVER overwrites real user data
 
+function sanitizeServerExpenseCategories(categories, deletedCategoryIds) {
+  if (!Array.isArray(categories)) return [];
+  const delSet =
+    deletedCategoryIds instanceof Set
+      ? deletedCategoryIds
+      : new Set(Array.isArray(deletedCategoryIds) ? deletedCategoryIds : []);
+  const byId = new Map();
+  for (const cat of categories) {
+    if (cat && cat.id && !delSet.has(cat.id) && typeof cat.name === 'string' && cat.name.trim()) {
+      byId.set(cat.id, {
+        ...cat,
+        name: cat.name.trim(),
+        description: typeof cat.description === 'string' ? cat.description.trim() : '',
+        is_active: cat.is_active !== false,
+      });
+    }
+  }
+  return Array.from(byId.values()).sort((a, b) =>
+    (a.name || '').localeCompare(b.name || '', 'it', { sensitivity: 'base' })
+  );
+}
+
 function loadDb() {
   try {
     if (fs.existsSync(DB_FILE)) {
       const parsed = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
       let modified = false;
       if (parsed) {
+        const deletedIds = new Set([
+          'cash-1794605410732',
+          'cash-1794605318018',
+          'cash-1795592704682',
+          ...(Array.isArray(parsed.deletedCashMovementIds) ? parsed.deletedCashMovementIds : []),
+        ]);
         if (!Array.isArray(parsed.cashMovements)) {
-          parsed.cashMovements = getSeedCashMovements();
+          parsed.cashMovements = getSeedCashMovements().filter((m) => m && !deletedIds.has(m.id));
           parsed.cashUpdatedAt = SEED_TIMESTAMP;
           modified = true;
-          const deletedIds = new Set([
-            'cash-1794605410732',
-            'cash-1794605318018',
-            'cash-1795592704682',
-            ...(Array.isArray(parsed.deletedCashMovementIds) ? parsed.deletedCashMovementIds : []),
-          ]);
-          let filtered = parsed.cashMovements.filter((m) => m && !deletedIds.has(m.id));
+        } else {
+          const filtered = parsed.cashMovements.filter((m) => m && !deletedIds.has(m.id));
           if (filtered.length !== parsed.cashMovements.length) {
             parsed.cashMovements = filtered;
             modified = true;
           }
-          const seedMovs = getSeedCashMovements();
-          const dbMovsMap = new Map(parsed.cashMovements.map((m) => [m.id, m]));
-          let addedSeed = false;
-          for (const sm of seedMovs) {
-            if (!dbMovsMap.has(sm.id) && !deletedIds.has(sm.id)) {
-              dbMovsMap.set(sm.id, sm);
-              addedSeed = true;
-            }
-          }
-          if (addedSeed) {
-            parsed.cashMovements = Array.from(dbMovsMap.values());
+        }
+        if (Array.isArray(parsed.expenseCategories) && Array.isArray(parsed.deletedExpenseCategoryIds) && parsed.deletedExpenseCategoryIds.length > 0) {
+          const delCatSet = new Set(parsed.deletedExpenseCategoryIds);
+          const filteredCats = parsed.expenseCategories.filter((c) => c && !delCatSet.has(c.id));
+          if (filteredCats.length !== parsed.expenseCategories.length) {
+            parsed.expenseCategories = filteredCats;
             modified = true;
           }
         }
@@ -761,13 +779,33 @@ const server = http.createServer(async (req, res) => {
 
           incomingDb.cashMovements = Array.from(mergedCashMap.values());
           incomingDb.deletedCashMovementIds = Array.from(deletedCashIds);
-          incomingDb.cashUpdatedAt = Math.max(existingCashTs, incomingCashTs, Date.now());
+          incomingDb.cashUpdatedAt = Math.max(existingCashTs, incomingCashTs);
+
+          const deletedCatIds = new Set([
+            ...(Array.isArray(existingDb.deletedExpenseCategoryIds) ? existingDb.deletedExpenseCategoryIds : []),
+            ...(Array.isArray(incomingDb.deletedExpenseCategoryIds) ? incomingDb.deletedExpenseCategoryIds : []),
+          ]);
+          incomingDb.deletedExpenseCategoryIds = Array.from(deletedCatIds);
+          const existingCatTs = Number(existingDb.expenseCategoriesUpdatedAt || 0);
+          const incomingCatTs = Number(incomingDb.expenseCategoriesUpdatedAt || 0);
 
           if (
-            (existingCashTs > incomingCashTs || !Array.isArray(incomingDb.expenseCategories)) &&
+            (existingCatTs > incomingCatTs ||
+              (existingCatTs === 0 && existingCashTs > incomingCashTs) ||
+              !Array.isArray(incomingDb.expenseCategories)) &&
             Array.isArray(existingDb.expenseCategories)
           ) {
-            incomingDb.expenseCategories = existingDb.expenseCategories;
+            incomingDb.expenseCategories = sanitizeServerExpenseCategories(
+              existingDb.expenseCategories,
+              deletedCatIds
+            );
+            incomingDb.expenseCategoriesUpdatedAt = existingCatTs;
+          } else if (Array.isArray(incomingDb.expenseCategories)) {
+            incomingDb.expenseCategories = sanitizeServerExpenseCategories(
+              incomingDb.expenseCategories,
+              deletedCatIds
+            );
+            incomingDb.expenseCategoriesUpdatedAt = Math.max(existingCatTs, incomingCatTs);
           }
           if (typeof incomingDb.cashOpeningBalance !== 'number' && typeof existingDb.cashOpeningBalance === 'number') {
             incomingDb.cashOpeningBalance = existingDb.cashOpeningBalance;
@@ -1011,14 +1049,88 @@ const server = http.createServer(async (req, res) => {
   // Endpoint dedicato per il salvataggio immediato e indistruttibile della Piccola Cassa
   if (parsedUrl === '/api/cash' && req.method === 'GET') {
     const existingDb = loadDb() || {};
+    const delCatIds = Array.isArray(existingDb.deletedExpenseCategoryIds)
+      ? existingDb.deletedExpenseCategoryIds
+      : [];
+    const safeCats = Array.isArray(existingDb.expenseCategories)
+      ? sanitizeServerExpenseCategories(existingDb.expenseCategories, delCatIds)
+      : [];
     sendJson(res, 200, {
       ok: true,
       cashMovements: existingDb.cashMovements || [],
       deletedCashMovementIds: existingDb.deletedCashMovementIds || [],
       cashOpeningBalance: typeof existingDb.cashOpeningBalance === 'number' ? existingDb.cashOpeningBalance : 500,
-      expenseCategories: existingDb.expenseCategories || [],
+      expenseCategories: safeCats,
+      deletedExpenseCategoryIds: delCatIds,
+      expenseCategoriesUpdatedAt: Number(existingDb.expenseCategoriesUpdatedAt || 0),
       cashUpdatedAt: Number(existingDb.cashUpdatedAt || 0),
     });
+    return;
+  }
+
+  // Endpoint per eliminazione atomica e definitiva di una Causale Piccola Cassa
+  if (parsedUrl.startsWith('/api/cash/category/delete/') && req.method === 'POST') {
+    const idToDelete = decodeURIComponent(parsedUrl.replace('/api/cash/category/delete/', '').trim());
+    if (idToDelete) {
+      const existingDb = loadDb() || {};
+      const delCatSet = new Set([
+        ...(Array.isArray(existingDb.deletedExpenseCategoryIds) ? existingDb.deletedExpenseCategoryIds : []),
+        idToDelete,
+      ]);
+      existingDb.deletedExpenseCategoryIds = Array.from(delCatSet);
+      existingDb.expenseCategories = sanitizeServerExpenseCategories(
+        existingDb.expenseCategories || [],
+        delCatSet
+      );
+      const now = Date.now();
+      existingDb.expenseCategoriesUpdatedAt = now;
+      existingDb.cashUpdatedAt = now;
+      existingDb.updatedAt = new Date().toISOString();
+      saveDb(existingDb);
+      broadcastUpdate('STATE_SYNC', { db: existingDb, eventLabel: 'CATEGORY_DELETE' });
+      sendJson(res, 200, {
+        ok: true,
+        deletedCategoryId: idToDelete,
+        expenseCategories: existingDb.expenseCategories,
+        deletedExpenseCategoryIds: existingDb.deletedExpenseCategoryIds,
+        expenseCategoriesUpdatedAt: now,
+        cashUpdatedAt: now,
+      });
+      return;
+    }
+  }
+
+  // Endpoint per salvataggio atomico delle Causali Piccola Cassa (inserimento e modifica)
+  if (parsedUrl === '/api/cash/categories' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      if (body && Array.isArray(body.expenseCategories)) {
+        const existingDb = loadDb() || {};
+        const delCatSet = new Set([
+          ...(Array.isArray(existingDb.deletedExpenseCategoryIds) ? existingDb.deletedExpenseCategoryIds : []),
+          ...(Array.isArray(body.deletedExpenseCategoryIds) ? body.deletedExpenseCategoryIds : []),
+        ]);
+        existingDb.deletedExpenseCategoryIds = Array.from(delCatSet);
+        existingDb.expenseCategories = sanitizeServerExpenseCategories(body.expenseCategories, delCatSet);
+        const now = Math.max(Number(body.expenseCategoriesUpdatedAt || 0), Date.now());
+        existingDb.expenseCategoriesUpdatedAt = now;
+        existingDb.cashUpdatedAt = Math.max(Number(existingDb.cashUpdatedAt || 0), now);
+        existingDb.updatedAt = new Date().toISOString();
+        saveDb(existingDb);
+        broadcastUpdate('STATE_SYNC', { db: existingDb, eventLabel: 'CATEGORY_UPDATE' });
+        sendJson(res, 200, {
+          ok: true,
+          expenseCategories: existingDb.expenseCategories,
+          deletedExpenseCategoryIds: existingDb.deletedExpenseCategoryIds,
+          expenseCategoriesUpdatedAt: now,
+          cashUpdatedAt: existingDb.cashUpdatedAt,
+        });
+        return;
+      }
+      sendJson(res, 400, { ok: false, error: 'Causali non valide' });
+    } catch (e) {
+      sendJson(res, 400, { ok: false, error: e.message });
+    }
     return;
   }
 
@@ -1108,9 +1220,27 @@ const server = http.createServer(async (req, res) => {
         if (incomingBalance !== null) {
           existingDb.cashOpeningBalance = incomingBalance;
         }
-        if (incomingCats !== null) {
-          existingDb.expenseCategories = incomingCats;
+
+        const allDeletedCatIds = new Set([
+          ...(Array.isArray(existingDb.deletedExpenseCategoryIds) ? existingDb.deletedExpenseCategoryIds : []),
+          ...(Array.isArray(body.deletedExpenseCategoryIds) ? body.deletedExpenseCategoryIds : []),
+        ]);
+        existingDb.deletedExpenseCategoryIds = Array.from(allDeletedCatIds);
+        const existingCatTs = Number(existingDb.expenseCategoriesUpdatedAt || 0);
+        const incomingCatTs = Number(body.expenseCategoriesUpdatedAt || 0);
+
+        if (incomingCats !== null && (existingCatTs === 0 || incomingCatTs >= existingCatTs)) {
+          existingDb.expenseCategories = sanitizeServerExpenseCategories(incomingCats, allDeletedCatIds);
+          if (incomingCatTs > existingCatTs) {
+            existingDb.expenseCategoriesUpdatedAt = incomingCatTs;
+          }
+        } else if (Array.isArray(existingDb.expenseCategories)) {
+          existingDb.expenseCategories = sanitizeServerExpenseCategories(
+            existingDb.expenseCategories,
+            allDeletedCatIds
+          );
         }
+
         existingDb.cashUpdatedAt = Math.max(incomingTs, existingTs, Date.now());
         existingDb.updatedAt = new Date().toISOString();
         saveDb(existingDb);

@@ -142,6 +142,8 @@ interface CloudDbSnapshot {
   availableRoles?: string[];
   profilesUpdatedAt?: number;
   expenseCategories?: ExpenseCategory[];
+  deletedExpenseCategoryIds?: string[];
+  expenseCategoriesUpdatedAt?: number;
   cashMovements?: CashMovement[];
   deletedCashMovementIds?: string[];
   cashOpeningBalance?: number;
@@ -377,6 +379,8 @@ const STORAGE_KEYS = {
   PROTECTED_ANAGRAFICA: 'quartimbra_protected_anagrafica_backup_v1',
   ADMIN_DELETED_SEGRETERIA: 'quartimbra_admin_deleted_segreteria_v1',
   CATEGORIES: 'quartimbra_expense_categories_v4',
+  DELETED_CATEGORY_IDS: 'quartimbra_deleted_category_ids_v1',
+  CATEGORIES_TS: 'quartimbra_categories_ts_v1',
   CASH_MOVEMENTS: 'quartimbra_cash_movements_v4',
   DELETED_CASH_IDS: 'quartimbra_deleted_cash_ids_v1',
   CASH_BALANCE: 'quartimbra_cash_opening_balance_v4',
@@ -507,6 +511,41 @@ function saveDeletedCashIds(ids: Set<string>): void {
   safeSetLocalStorage(STORAGE_KEYS.DELETED_CASH_IDS, JSON.stringify(Array.from(ids)));
 }
 
+function getDeletedCategoryIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.DELETED_CATEGORY_IDS);
+    const arr = raw ? JSON.parse(raw) : [];
+    return new Set<string>(Array.isArray(arr) ? arr.map(String) : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function saveDeletedCategoryIds(ids: Set<string>): void {
+  safeSetLocalStorage(STORAGE_KEYS.DELETED_CATEGORY_IDS, JSON.stringify(Array.from(ids)));
+}
+
+function sanitizeClientExpenseCategories(
+  categories: ExpenseCategory[],
+  deletedIds?: Set<string>
+): ExpenseCategory[] {
+  const del = deletedIds || getDeletedCategoryIds();
+  const byId = new Map<string, ExpenseCategory>();
+  for (const cat of categories || []) {
+    if (cat && cat.id && !del.has(cat.id) && typeof cat.name === 'string' && cat.name.trim()) {
+      byId.set(cat.id, {
+        ...cat,
+        name: cat.name.trim(),
+        description: typeof cat.description === 'string' ? cat.description.trim() : '',
+        is_active: cat.is_active !== false,
+      });
+    }
+  }
+  return Array.from(byId.values()).sort((a, b) =>
+    (a.name || '').localeCompare(b.name || '', 'it', { sensitivity: 'base' })
+  );
+}
+
 function ensureDefaultRolesList(roles?: string[]): string[] {
   const base = Array.isArray(roles) && roles.length > 0 ? roles : DEFAULT_AVAILABLE_ROLES;
   return Array.from(new Set([...DEFAULT_AVAILABLE_ROLES, ...base])).filter((r) => r !== 'CD');
@@ -624,6 +663,7 @@ async function saveCashDataToIndexedDB(data: {
   movements: CashMovement[];
   openingBalance: number;
   categories: ExpenseCategory[];
+  categoriesUpdatedAt?: number;
   updatedAt: number;
 }): Promise<void> {
   const db = await openAnagraficaIdb();
@@ -646,6 +686,7 @@ async function loadCashDataFromIndexedDB(): Promise<{
   movements?: CashMovement[];
   openingBalance?: number;
   categories?: ExpenseCategory[];
+  categoriesUpdatedAt?: number;
   updatedAt?: number;
 } | null> {
   const db = await openAnagraficaIdb();
@@ -1645,12 +1686,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [expenseCategoriesUpdatedAt, setExpenseCategoriesUpdatedAt] = useState<number>(() => {
+    try {
+      return Number(localStorage.getItem(STORAGE_KEYS.CATEGORIES_TS) || 0);
+    } catch {
+      return 0;
+    }
+  });
+
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-      return saved ? JSON.parse(saved) : INITIAL_EXPENSE_CATEGORIES;
+      const parsed = saved ? JSON.parse(saved) : INITIAL_EXPENSE_CATEGORIES;
+      return sanitizeClientExpenseCategories(
+        Array.isArray(parsed) ? parsed : INITIAL_EXPENSE_CATEGORIES
+      );
     } catch {
-      return INITIAL_EXPENSE_CATEGORIES;
+      return sanitizeClientExpenseCategories(INITIAL_EXPENSE_CATEGORIES);
     }
   });
 
@@ -1980,6 +2032,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   cashOpeningBalanceRef.current = cashOpeningBalance;
   const expenseCategoriesRef = useRef<ExpenseCategory[]>(expenseCategories);
   expenseCategoriesRef.current = expenseCategories;
+  const expenseCategoriesUpdatedAtRef = useRef(expenseCategoriesUpdatedAt);
+  expenseCategoriesUpdatedAtRef.current = expenseCategoriesUpdatedAt;
   const lessonsRef = useRef<Lesson[]>(lessons);
   lessonsRef.current = lessons;
   const lessonsUpdatedAtRef = useRef(lessonsUpdatedAt);
@@ -2144,9 +2198,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const pushCloudSnapshot = async (snapshot: CloudDbSnapshot, eventLabel?: string) => {
+    const enrichedSnapshot: CloudDbSnapshot = {
+      ...snapshot,
+      deletedCashMovementIds: Array.from(getDeletedCashIds()),
+      deletedExpenseCategoryIds: Array.from(getDeletedCategoryIds()),
+      expenseCategoriesUpdatedAt:
+        typeof snapshot.expenseCategoriesUpdatedAt === 'number'
+          ? snapshot.expenseCategoriesUpdatedAt
+          : expenseCategoriesUpdatedAtRef.current,
+    };
+
     try {
       if (broadcastChannelRef.current) {
-        broadcastChannelRef.current.postMessage({ type: 'STATE_SYNC', db: snapshot });
+        broadcastChannelRef.current.postMessage({ type: 'STATE_SYNC', db: enrichedSnapshot });
       }
     } catch {
       // Ignore BroadcastChannel errors
@@ -2156,7 +2220,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const res = await fetch('/api/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ db: snapshot, eventLabel }),
+        body: JSON.stringify({ db: enrichedSnapshot, eventLabel }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -2278,21 +2342,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       shouldPushBackLocalProtected = true;
     }
 
+    // Unisci SEMPRE e immediatamente gli ID eliminati (sia movimenti che causali), indipendentemente dai timestamp
+    const delCash = getDeletedCashIds();
+    if (Array.isArray(db.deletedCashMovementIds) && db.deletedCashMovementIds.length > 0) {
+      let changedDelCash = false;
+      for (const id of db.deletedCashMovementIds) {
+        if (id && !delCash.has(id)) {
+          delCash.add(id);
+          changedDelCash = true;
+        }
+      }
+      if (changedDelCash) saveDeletedCashIds(delCash);
+    }
+
+    const delCat = getDeletedCategoryIds();
+    if (Array.isArray(db.deletedExpenseCategoryIds) && db.deletedExpenseCategoryIds.length > 0) {
+      let changedDelCat = false;
+      for (const id of db.deletedExpenseCategoryIds) {
+        if (id && !delCat.has(id)) {
+          delCat.add(id);
+          changedDelCat = true;
+        }
+      }
+      if (changedDelCat) saveDeletedCategoryIds(delCat);
+    }
+
+    const remoteCatTs = Number(db.expenseCategoriesUpdatedAt || 0);
+    const localCatTs = expenseCategoriesUpdatedAtRef.current;
     const remoteCashTs = Number(db.cashUpdatedAt || 0);
     const localCashTs = cashUpdatedAtRef.current;
-    if (remoteCashTs > localCashTs) {
-      if (Array.isArray(db.expenseCategories) && db.expenseCategories.length > 0) {
-        setExpenseCategories(db.expenseCategories);
-        expenseCategoriesRef.current = db.expenseCategories;
-        safeSetLocalStorage(STORAGE_KEYS.CATEGORIES, JSON.stringify(db.expenseCategories));
+
+    if (
+      Array.isArray(db.expenseCategories) &&
+      (remoteCatTs > localCatTs || (remoteCatTs === 0 && localCatTs === 0 && remoteCashTs > localCashTs))
+    ) {
+      const sanitizedCats = sanitizeClientExpenseCategories(db.expenseCategories, delCat);
+      setExpenseCategories(sanitizedCats);
+      expenseCategoriesRef.current = sanitizedCats;
+      safeSetLocalStorage(STORAGE_KEYS.CATEGORIES, JSON.stringify(sanitizedCats));
+      if (remoteCatTs > 0) {
+        setExpenseCategoriesUpdatedAt(remoteCatTs);
+        expenseCategoriesUpdatedAtRef.current = remoteCatTs;
+        safeSetLocalStorage(STORAGE_KEYS.CATEGORIES_TS, String(remoteCatTs));
       }
+    }
+
+    if (remoteCashTs > localCashTs) {
       if (Array.isArray(db.cashMovements)) {
-        const del = getDeletedCashIds();
-        if (Array.isArray(db.deletedCashMovementIds)) {
-          db.deletedCashMovementIds.forEach((id) => del.add(id));
-          saveDeletedCashIds(del);
-        }
-        const mergedMovements = reconcileCashMovements(cashMovementsRef.current, db.cashMovements, del);
+        const mergedMovements = reconcileCashMovements(cashMovementsRef.current, db.cashMovements, delCash);
         setCashMovements(mergedMovements);
         cashMovementsRef.current = mergedMovements;
         safeSetLocalStorage(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(mergedMovements));
@@ -2316,18 +2413,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         movements: cashMovementsRef.current,
         openingBalance: cashOpeningBalanceRef.current,
         categories: expenseCategoriesRef.current,
+        categoriesUpdatedAt: expenseCategoriesUpdatedAtRef.current,
         updatedAt: remoteCashTs || Date.now(),
       });
-    } else if (localCashTs > remoteCashTs) {
+    } else if (localCashTs > remoteCashTs || localCatTs > remoteCatTs) {
       shouldPushBackLocalProtected = true;
     }
 
-    const currentDel = getDeletedCashIds();
-    if (cashMovementsRef.current.some((m) => m && currentDel.has(m.id))) {
-      const cleaned = cashMovementsRef.current.filter((m) => m && !currentDel.has(m.id));
+    if (cashMovementsRef.current.some((m) => m && delCash.has(m.id))) {
+      const cleaned = cashMovementsRef.current.filter((m) => m && !delCash.has(m.id));
       setCashMovements(cleaned);
       cashMovementsRef.current = cleaned;
       safeSetLocalStorage(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(cleaned));
+    }
+
+    if (expenseCategoriesRef.current.some((c) => c && delCat.has(c.id))) {
+      const cleanedCats = sanitizeClientExpenseCategories(expenseCategoriesRef.current, delCat);
+      setExpenseCategories(cleanedCats);
+      expenseCategoriesRef.current = cleanedCats;
+      safeSetLocalStorage(STORAGE_KEYS.CATEGORIES, JSON.stringify(cleanedCats));
     }
 
     const remoteLessonsTs = Number(db.lessonsUpdatedAt || 0);
@@ -2706,12 +2810,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Piccola Cassa
         if (idbCash) {
           const idbTs = Number(idbCash.updatedAt || 0);
+          const idbCatTs = Number(idbCash.categoriesUpdatedAt || 0);
           if (
             idbTs > cashUpdatedAtRef.current ||
             (Array.isArray(idbCash.movements) && idbCash.movements.some((m) => m.status === 'pagato'))
           ) {
             if (Array.isArray(idbCash.movements)) {
-              const merged = reconcileCashMovements(cashMovementsRef.current, idbCash.movements);
+              const merged = reconcileCashMovements(
+                cashMovementsRef.current,
+                idbCash.movements,
+                getDeletedCashIds()
+              );
               cashMovementsRef.current = merged;
               setCashMovements(merged);
               safeSetLocalStorage(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(merged));
@@ -2721,10 +2830,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               setCashOpeningBalanceState(idbCash.openingBalance);
               safeSetLocalStorage(STORAGE_KEYS.CASH_BALANCE, String(idbCash.openingBalance));
             }
-            if (Array.isArray(idbCash.categories) && idbCash.categories.length > 0) {
-              expenseCategoriesRef.current = idbCash.categories;
-              setExpenseCategories(idbCash.categories);
-              safeSetLocalStorage(STORAGE_KEYS.CATEGORIES, JSON.stringify(idbCash.categories));
+            if (
+              Array.isArray(idbCash.categories) &&
+              idbCatTs >= expenseCategoriesUpdatedAtRef.current
+            ) {
+              const sanitizedIdbCats = sanitizeClientExpenseCategories(
+                idbCash.categories,
+                getDeletedCategoryIds()
+              );
+              expenseCategoriesRef.current = sanitizedIdbCats;
+              setExpenseCategories(sanitizedIdbCats);
+              safeSetLocalStorage(STORAGE_KEYS.CATEGORIES, JSON.stringify(sanitizedIdbCats));
+              if (idbCatTs > expenseCategoriesUpdatedAtRef.current) {
+                expenseCategoriesUpdatedAtRef.current = idbCatTs;
+                setExpenseCategoriesUpdatedAt(idbCatTs);
+                safeSetLocalStorage(STORAGE_KEYS.CATEGORIES_TS, String(idbCatTs));
+              }
             }
             const finalCashTs = Math.max(idbTs, cashUpdatedAtRef.current);
             cashUpdatedAtRef.current = finalCashTs;
@@ -3153,6 +3274,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       saveAnagraficaToIndexedDB(profiles, availableRoles, profilesUpdatedAt || Date.now());
     }
     safeSetLocalStorage(STORAGE_KEYS.CATEGORIES, JSON.stringify(expenseCategories));
+    safeSetLocalStorage(STORAGE_KEYS.CATEGORIES_TS, String(expenseCategoriesUpdatedAt));
     safeSetLocalStorage(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(cashMovements));
     safeSetLocalStorage(STORAGE_KEYS.CASH_BALANCE, String(cashOpeningBalance));
     safeSetLocalStorage(STORAGE_KEYS.CASH_TS, String(cashUpdatedAt));
@@ -3160,6 +3282,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       movements: cashMovements,
       openingBalance: cashOpeningBalance,
       categories: expenseCategories,
+      categoriesUpdatedAt: expenseCategoriesUpdatedAt,
       updatedAt: cashUpdatedAt || Date.now(),
     });
     safeSetLocalStorage(STORAGE_KEYS.LESSONS, JSON.stringify(lessons));
@@ -3182,6 +3305,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         availableRoles,
         profilesUpdatedAt,
         expenseCategories,
+        expenseCategoriesUpdatedAt,
         cashMovements,
         cashOpeningBalance,
         cashUpdatedAt,
@@ -3204,6 +3328,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     availableRoles,
     profilesUpdatedAt,
     expenseCategories,
+    expenseCategoriesUpdatedAt,
     cashMovements,
     cashOpeningBalance,
     cashUpdatedAt,
@@ -3751,27 +3876,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     nextCategories?: ExpenseCategory[]
   ) => {
     const nowTs = Date.now();
+    const delCash = getDeletedCashIds();
+    const delCat = getDeletedCategoryIds();
+    const cleanMovements = (nextMovements || []).filter((m) => m && m.id && !delCash.has(m.id));
     const finalBalance = typeof nextBalance === 'number' ? nextBalance : cashOpeningBalanceRef.current;
-    const finalCats = Array.isArray(nextCategories) ? nextCategories : expenseCategoriesRef.current;
-    cashMovementsRef.current = nextMovements;
+    const isCategoriesMutation = Array.isArray(nextCategories);
+    const finalCats = sanitizeClientExpenseCategories(
+      isCategoriesMutation ? nextCategories! : expenseCategoriesRef.current,
+      delCat
+    );
+    const finalCatTs = isCategoriesMutation ? nowTs : expenseCategoriesUpdatedAtRef.current;
+
+    cashMovementsRef.current = cleanMovements;
     cashOpeningBalanceRef.current = finalBalance;
     expenseCategoriesRef.current = finalCats;
     cashUpdatedAtRef.current = nowTs;
+    if (isCategoriesMutation) {
+      expenseCategoriesUpdatedAtRef.current = finalCatTs;
+      setExpenseCategoriesUpdatedAt(finalCatTs);
+      safeSetLocalStorage(STORAGE_KEYS.CATEGORIES_TS, String(finalCatTs));
+    }
 
-    setCashMovements(nextMovements);
+    setCashMovements(cleanMovements);
     setCashOpeningBalanceState(finalBalance);
     setExpenseCategories(finalCats);
     setCashUpdatedAt(nowTs);
 
-    safeSetLocalStorage(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(nextMovements));
+    safeSetLocalStorage(STORAGE_KEYS.CASH_MOVEMENTS, JSON.stringify(cleanMovements));
     safeSetLocalStorage(STORAGE_KEYS.CASH_BALANCE, String(finalBalance));
     safeSetLocalStorage(STORAGE_KEYS.CATEGORIES, JSON.stringify(finalCats));
     safeSetLocalStorage(STORAGE_KEYS.CASH_TS, String(nowTs));
 
     saveCashDataToIndexedDB({
-      movements: nextMovements,
+      movements: cleanMovements,
       openingBalance: finalBalance,
       categories: finalCats,
+      categoriesUpdatedAt: finalCatTs,
       updatedAt: nowTs,
     });
 
@@ -3779,15 +3919,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        cashMovements: nextMovements,
-        movements: nextMovements,
+        cashMovements: cleanMovements,
+        movements: cleanMovements,
         cashOpeningBalance: finalBalance,
         openingBalance: finalBalance,
         expenseCategories: finalCats,
         categories: finalCats,
+        expenseCategoriesUpdatedAt: finalCatTs,
+        deletedExpenseCategoryIds: Array.from(delCat),
         cashUpdatedAt: nowTs,
         updatedAt: nowTs,
-        deletedCashMovementIds: Array.from(getDeletedCashIds()),
+        deletedCashMovementIds: Array.from(delCash),
       }),
     }).catch(() => {});
 
@@ -3796,8 +3938,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       availableRoles: availableRolesRef.current,
       profilesUpdatedAt: profilesUpdatedAtRef.current,
       expenseCategories: finalCats,
-      cashMovements: nextMovements,
-      deletedCashMovementIds: Array.from(getDeletedCashIds()),
+      expenseCategoriesUpdatedAt: finalCatTs,
+      deletedExpenseCategoryIds: Array.from(delCat),
+      cashMovements: cleanMovements,
+      deletedCashMovementIds: Array.from(delCash),
       cashOpeningBalance: finalBalance,
       cashUpdatedAt: nowTs,
       lessons: lessonsRef.current,
@@ -3821,9 +3965,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     commitCashUpdate(cashMovementsRef.current, num);
   };
 
-  const sortCategoriesAlpha = (cats: ExpenseCategory[]) =>
-    [...cats].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'it', { sensitivity: 'base' }));
-
   const addExpenseCategory = (name: string, description?: string) => {
     if (!(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser))) return;
     const clean = name.trim();
@@ -3834,7 +3975,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: description?.trim() || '',
       is_active: true,
     };
-    const nextCats = sortCategoriesAlpha([...expenseCategoriesRef.current, newCat]);
+    const delCat = getDeletedCategoryIds();
+    const nextCats = sanitizeClientExpenseCategories([...expenseCategoriesRef.current, newCat], delCat);
+    const nowTs = Date.now();
+    try {
+      fetch('/api/cash/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          expenseCategories: nextCats,
+          deletedExpenseCategoryIds: Array.from(delCat),
+          expenseCategoriesUpdatedAt: nowTs,
+        }),
+      }).catch(() => {});
+    } catch {}
     commitCashUpdate(cashMovementsRef.current, undefined, nextCats);
   };
 
@@ -3846,15 +4000,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...(typeof data.description === 'string' ? { description: data.description.trim() } : {}),
     };
     if (typeof cleanedData.name === 'string' && !cleanedData.name) return;
-    const nextCats = sortCategoriesAlpha(
-      expenseCategoriesRef.current.map((c) => (c.id === id ? { ...c, ...cleanedData } : c))
+    const delCat = getDeletedCategoryIds();
+    const nextCats = sanitizeClientExpenseCategories(
+      expenseCategoriesRef.current.map((c) => (c.id === id ? { ...c, ...cleanedData } : c)),
+      delCat
     );
+    const nowTs = Date.now();
+    try {
+      fetch('/api/cash/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          expenseCategories: nextCats,
+          deletedExpenseCategoryIds: Array.from(delCat),
+          expenseCategoriesUpdatedAt: nowTs,
+        }),
+      }).catch(() => {});
+    } catch {}
     commitCashUpdate(cashMovementsRef.current, undefined, nextCats);
   };
 
   const deleteExpenseCategory = (id: string) => {
     if (!(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser))) return;
-    const nextCats = sortCategoriesAlpha(expenseCategoriesRef.current.filter((c) => c.id !== id));
+    if (!id) return;
+    const delCat = getDeletedCategoryIds();
+    delCat.add(id);
+    saveDeletedCategoryIds(delCat);
+    const nextCats = sanitizeClientExpenseCategories(
+      expenseCategoriesRef.current.filter((c) => c.id !== id),
+      delCat
+    );
+    try {
+      fetch('/api/cash/category/delete/' + encodeURIComponent(id), { method: 'POST' }).catch(() => {});
+    } catch {}
     commitCashUpdate(cashMovementsRef.current, undefined, nextCats);
   };
 
@@ -3912,18 +4090,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .trim()
         .replace(/\s+/g, ' ')
         .toLowerCase();
+      const userNum = String(currentUser.member_number || '').trim();
+      const mNum = String(target.member_number || '').trim();
       const compiledByCurrent =
         target.compiled_by_id || cName
           ? (Boolean(target.compiled_by_id) && target.compiled_by_id === currentUser.id) ||
             Boolean(uName && cName && uName === cName)
-          : target.requester_id === currentUser.id || Boolean(uName && rName && uName === rName);
+          : target.requester_id === currentUser.id ||
+            (Boolean(target.user_id) && target.user_id === currentUser.id) ||
+            Boolean(userNum && mNum && userNum === mNum) ||
+            Boolean(uName && rName && uName === rName);
       if (!compiledByCurrent) return;
     }
 
-    const nextMovements = cashMovementsRef.current.filter((m) => m.id !== id);
     const delSet = getDeletedCashIds();
     delSet.add(id);
     saveDeletedCashIds(delSet);
+    const nextMovements = cashMovementsRef.current.filter((m) => m.id !== id);
     try {
       fetch('/api/cash/delete/' + encodeURIComponent(id), { method: 'POST' }).catch(() => {});
     } catch {}
