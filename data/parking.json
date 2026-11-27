@@ -1,20 +1,34 @@
 {
   "Giampy": {
     "active": {
-      "id": "park-1795693889592-gxz0",
+      "id": "park-1795780446523-2hhh",
       "section": "parking",
       "user": "Giampy",
       "owner": "Giampy",
-      "lat": 39.2754905,
-      "lng": 9.0558995,
+      "lat": 39.2254153,
+      "lng": 9.128596,
       "accuracy": 5,
-      "address": "Via San Giorgio, Assèmini/Assemini",
-      "addressShort": "Via San Giorgio, Assèmini/Assemini",
-      "timestamp": "2026-11-26T11:51:29.592Z",
+      "address": "Via Pietro Cavaro 17, Cagliari",
+      "addressShort": "Via Pietro Cavaro 17, Cagliari",
+      "timestamp": "2026-11-27T11:54:06.523Z",
       "trigger": "bluetooth_auto",
       "notes": "Nissan"
     },
     "history": [
+      {
+        "id": "park-1795693889592-gxz0",
+        "section": "parking",
+        "user": "Giampy",
+        "owner": "Giampy",
+        "lat": 39.2754905,
+        "lng": 9.0558995,
+        "accuracy": 5,
+        "address": "Via San Giorgio, Assèmini/Assemini",
+        "addressShort": "Via San Giorgio, Assèmini/Assemini",
+        "timestamp": "2026-11-26T11:51:29.592Z",
+        "trigger": "bluetooth_auto",
+        "notes": "Nissan"
+      },
       {
         "id": "park-1795691655131-s5u2",
         "section": "parking",

@@ -9809,6 +9809,15 @@
       "amount": 0
     },
     {
+      "id": "0fdee88c-874f-49e0-9b97-395841746536",
+      "date": "2026-11-27",
+      "description": "SPESA",
+      "debitAccountCode": "6110",
+      "creditAccountCode": "4010",
+      "amount": 13,
+      "updatedAt": 1795803897113
+    },
+    {
       "id": "180c4c2e-525f-4d53-ab38-e41cc526c159",
       "date": "2026-12-31",
       "description": "CHIUSURA DEL CONTO PER SEMPLIFICAZIONE",
