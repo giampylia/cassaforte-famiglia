@@ -3860,7 +3860,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ? movementData
       : {
           ...movementData,
-          entry_type: 'spesa',
+          entry_type: movementData.entry_type === 'entrata' ? 'entrata' : 'spesa',
           status: 'inviato',
           amount_paid: null,
           payment_date: undefined,

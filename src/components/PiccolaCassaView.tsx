@@ -420,9 +420,8 @@ export const PiccolaCassaView: React.FC = () => {
 
   // Apri form per nuova richiesta di rimborso o versamento
   const openNewForm = (type: 'spesa' | 'entrata') => {
-    const finalType: 'spesa' | 'entrata' = canFullManageCash ? type : 'spesa';
     setEditingMovementId(null);
-    setEntryType(finalType);
+    setEntryType(type);
     setBeneficiarySearch('');
     // Preimposta il fruitore con chi si è autenticato, lasciando fisso sotto il nome del compilatore autenticato
     setRequesterId(currentUser?.id || '');
@@ -434,13 +433,13 @@ export const PiccolaCassaView: React.FC = () => {
     setReceiptNumber('');
     setAmountInput('');
     const defaultCat =
-      finalType === 'entrata'
+      type === 'entrata'
         ? expenseCategories.find((c) => c.name.toLowerCase().includes('versamento'))?.id || ''
         : expenseCategories[0]?.id || '';
     setSelectedCategoryId(defaultCat);
     setCustomCategoryName('');
     setDescription('');
-    setStatusInput(finalType === 'entrata' && canFullManageCash ? 'pagato' : 'inviato');
+    setStatusInput(type === 'entrata' && canFullManageCash ? 'pagato' : 'inviato');
     setReceiptImageData(undefined);
     setScanFeedback(null);
     setShowFormModal(true);
@@ -629,7 +628,7 @@ export const PiccolaCassaView: React.FC = () => {
         created_at: existing?.created_at || new Date().toISOString(),
       } as CashMovement;
     } else {
-      const effectiveEntryType: 'spesa' | 'entrata' = canFullManageCash ? entryType : 'spesa';
+      const effectiveEntryType: 'spesa' | 'entrata' = entryType;
       const effectiveStatus: 'inviato' | 'approvato' | 'pagato' = canFullManageCash ? statusInput : 'inviato';
       const isNowPaid = effectiveStatus === 'pagato';
       savedMov = addCashMovement({
@@ -691,7 +690,7 @@ export const PiccolaCassaView: React.FC = () => {
 
     const draftMov: CashMovement = {
       id: editingMovementId || `Bozza_${new Date().toLocaleDateString('it-IT')}`,
-      entry_type: canFullManageCash ? entryType : 'spesa',
+      entry_type: entryType,
       requester_id: effectiveRequesterId,
       requester_name: finalRequesterName,
       compiled_by_id: compiledById || currentUser?.id || '',
@@ -711,7 +710,7 @@ export const PiccolaCassaView: React.FC = () => {
   };
 
   // Movimenti dell'Anno Contabile selezionato (1° Luglio – 30 Giugno) ordinati per data decrescente
-  // REGOLA: Solo 7726, 2406 e Ruolo Amministrativo (9996) vedono tutte le richieste; gli altri soci vedono SOLO le loro (intestate a loro o digitate da loro).
+  // REGOLA: Solo 7726, 2406 e Ruolo Amministrativo (9996) vedono tutte le richieste; gli altri soci CD vedono SOLO le loro (intestate a loro o digitate da loro).
   const accountingYearMovements = useMemo(() => {
     let list =
       selectedAccountingYear === 'all'
@@ -730,7 +729,7 @@ export const PiccolaCassaView: React.FC = () => {
     });
   }, [cashMovements, selectedAccountingYear, canViewAllCash, currentUser]);
 
-  // Statistiche personali per i Soci non amministratori (visualizzate al posto del bilancio globale)
+  // Statistiche personali per i Soci CD (visualizzate al posto del bilancio globale)
   const myPaidMovements = useMemo(
     () =>
       accountingYearMovements.filter(
@@ -742,8 +741,16 @@ export const PiccolaCassaView: React.FC = () => {
     () => myPaidMovements.reduce((acc, m) => acc + Number(m.amount_requested || 0), 0),
     [myPaidMovements]
   );
+  const myDepositsPaidMovements = useMemo(
+    () => accountingYearMovements.filter((m) => m.entry_type === 'entrata' && m.status === 'pagato'),
+    [accountingYearMovements]
+  );
+  const myDepositsPaidTotal = useMemo(
+    () => myDepositsPaidMovements.reduce((acc, m) => acc + Number(m.amount_requested || 0), 0),
+    [myDepositsPaidMovements]
+  );
   const myPendingMovements = useMemo(
-    () => accountingYearMovements.filter((m) => m.entry_type === 'spesa' && m.status !== 'pagato'),
+    () => accountingYearMovements.filter((m) => m.status !== 'pagato'),
     [accountingYearMovements]
   );
   const myPendingTotal = useMemo(
@@ -1234,41 +1241,28 @@ export const PiccolaCassaView: React.FC = () => {
             </div>
           </div>
 
-          {/* Pulsanti principali: solo Socio 7726 e 2406 vedono Registra Versamento; tutti gli altri vedono Nuova Richiesta di Rimborso */}
-          {canFullManageCash ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => openNewForm('spesa')}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 py-3.5 px-4 text-base font-medium text-white shadow-xs transition active:scale-[0.99]"
-              >
-                <Plus className="h-5 w-5" />
-                <span>Richiesta di Rimborso</span>
-              </button>
+          {/* Pulsanti principali: tutti i Soci CD abilitati, Ruolo Amministrativo e 7726/2406 possono inserire sia Rimborsi sia Versamenti */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => openNewForm('spesa')}
+              className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 py-3.5 px-4 text-base font-medium text-white shadow-xs transition active:scale-[0.99]"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Richiesta di Rimborso</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => openNewForm('entrata')}
-                className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-700 bg-emerald-50 hover:bg-emerald-100 py-3.5 px-4 text-base font-medium text-emerald-900 transition active:scale-[0.99]"
-              >
-                <ArrowDownLeft className="h-5 w-5 text-emerald-700" />
-                <span>Registra Versamento</span>
-              </button>
-            </div>
-          ) : (
-            <div>
-              <button
-                type="button"
-                onClick={() => openNewForm('spesa')}
-                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 py-3.5 px-4 text-base font-medium text-white shadow-xs transition active:scale-[0.99]"
-              >
-                <Plus className="h-5 w-5" />
-                <span>Nuova Richiesta di Rimborso</span>
-              </button>
-            </div>
-          )}
+            <button
+              type="button"
+              onClick={() => openNewForm('entrata')}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-700 bg-emerald-50 hover:bg-emerald-100 py-3.5 px-4 text-base font-medium text-emerald-900 transition active:scale-[0.99]"
+            >
+              <ArrowDownLeft className="h-5 w-5 text-emerald-700" />
+              <span>Registra Versamento</span>
+            </button>
+          </div>
 
-          {/* Riepilogo Saldo: globale per 7726, 2406 e Ruolo Amministrativo (9996), personale per gli altri soci */}
+          {/* Riepilogo Saldo: globale per 7726, 2406 e Ruolo Amministrativo (9996), personale per gli altri Soci CD */}
           {canViewAllCash ? (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
               <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3">
@@ -1319,18 +1313,27 @@ export const PiccolaCassaView: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
               <div className="rounded-2xl bg-emerald-50/80 border border-emerald-200 p-3.5">
                 <span className="text-xs font-normal text-emerald-800 block">I Miei Rimborsi Ricevuti</span>
                 <span className="text-lg sm:text-xl font-medium text-emerald-700 tabular-nums">
                   € {myPaidTotal.toFixed(2)}
                 </span>
                 <span className="text-[11px] text-emerald-600 block mt-0.5">
-                  {myPaidMovements.length} {myPaidMovements.length === 1 ? 'pratica liquidata' : 'pratiche liquidate'}
+                  {myPaidMovements.length} {myPaidMovements.length === 1 ? 'rimborso liquidato' : 'rimborsi liquidati'}
+                </span>
+              </div>
+              <div className="rounded-2xl bg-teal-50/80 border border-teal-200 p-3.5">
+                <span className="text-xs font-normal text-teal-800 block">I Miei Versamenti Confermati</span>
+                <span className="text-lg sm:text-xl font-medium text-teal-700 tabular-nums">
+                  € {myDepositsPaidTotal.toFixed(2)}
+                </span>
+                <span className="text-[11px] text-teal-600 block mt-0.5">
+                  {myDepositsPaidMovements.length} {myDepositsPaidMovements.length === 1 ? 'versamento a saldo' : 'versamenti a saldo'}
                 </span>
               </div>
               <div className="rounded-2xl bg-amber-50/80 border border-amber-200 p-3.5">
-                <span className="text-xs font-normal text-amber-800 block">Richieste in Lavorazione / Attesa</span>
+                <span className="text-xs font-normal text-amber-800 block">Pratiche in Lavorazione / Attesa</span>
                 <span className="text-lg sm:text-xl font-medium text-amber-800 tabular-nums">
                   € {myPendingTotal.toFixed(2)}
                 </span>
@@ -1623,35 +1626,33 @@ export const PiccolaCassaView: React.FC = () => {
               </button>
             </div>
 
-            {/* Scelta Tipo Operazione: riservata a Socio 7726 e 2406 */}
-            {canFullManageCash && (
-              <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
-                <button
-                  type="button"
-                  onClick={() => setEntryType('spesa')}
-                  className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs sm:text-sm font-normal transition ${
-                    entryType === 'spesa'
-                      ? 'bg-white text-rose-800 shadow-xs border border-rose-200'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <ArrowUpRight className="h-4 w-4" />
-                  <span>Richiesta di Rimborso (Spesa)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEntryType('entrata')}
-                  className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs sm:text-sm font-normal transition ${
-                    entryType === 'entrata'
-                      ? 'bg-white text-emerald-800 shadow-xs border border-emerald-200'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <ArrowDownLeft className="h-4 w-4" />
-                  <span>Versamento (Entrata)</span>
-                </button>
-              </div>
-            )}
+            {/* Scelta Tipo Operazione: Rimborso Spesa o Versamento */}
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
+              <button
+                type="button"
+                onClick={() => setEntryType('spesa')}
+                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs sm:text-sm font-normal transition ${
+                  entryType === 'spesa'
+                    ? 'bg-white text-rose-800 shadow-xs border border-rose-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ArrowUpRight className="h-4 w-4" />
+                <span>Richiesta di Rimborso (Spesa)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEntryType('entrata')}
+                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs sm:text-sm font-normal transition ${
+                  entryType === 'entrata'
+                    ? 'bg-white text-emerald-800 shadow-xs border border-emerald-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ArrowDownLeft className="h-4 w-4" />
+                <span>Versamento (Entrata)</span>
+              </button>
+            </div>
 
             {/* BOX SCANNERIZZA SCONTRINO (OCR AUTOMATICO) */}
             <div className="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 p-4 space-y-3">
