@@ -763,7 +763,10 @@ const server = http.createServer(async (req, res) => {
           incomingDb.deletedCashMovementIds = Array.from(deletedCashIds);
           incomingDb.cashUpdatedAt = Math.max(existingCashTs, incomingCashTs, Date.now());
 
-          if (!Array.isArray(incomingDb.expenseCategories) && Array.isArray(existingDb.expenseCategories)) {
+          if (
+            (existingCashTs > incomingCashTs || !Array.isArray(incomingDb.expenseCategories)) &&
+            Array.isArray(existingDb.expenseCategories)
+          ) {
             incomingDb.expenseCategories = existingDb.expenseCategories;
           }
           if (typeof incomingDb.cashOpeningBalance !== 'number' && typeof existingDb.cashOpeningBalance === 'number') {

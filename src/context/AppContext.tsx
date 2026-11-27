@@ -3821,6 +3821,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     commitCashUpdate(cashMovementsRef.current, num);
   };
 
+  const sortCategoriesAlpha = (cats: ExpenseCategory[]) =>
+    [...cats].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'it', { sensitivity: 'base' }));
+
   const addExpenseCategory = (name: string, description?: string) => {
     if (!(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser))) return;
     const clean = name.trim();
@@ -3831,19 +3834,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: description?.trim() || '',
       is_active: true,
     };
-    const nextCats = [...expenseCategoriesRef.current, newCat];
+    const nextCats = sortCategoriesAlpha([...expenseCategoriesRef.current, newCat]);
     commitCashUpdate(cashMovementsRef.current, undefined, nextCats);
   };
 
   const updateExpenseCategory = (id: string, data: Partial<ExpenseCategory>) => {
     if (!(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser))) return;
-    const nextCats = expenseCategoriesRef.current.map((c) => (c.id === id ? { ...c, ...data } : c));
+    const cleanedData: Partial<ExpenseCategory> = {
+      ...data,
+      ...(typeof data.name === 'string' ? { name: data.name.trim() } : {}),
+      ...(typeof data.description === 'string' ? { description: data.description.trim() } : {}),
+    };
+    if (typeof cleanedData.name === 'string' && !cleanedData.name) return;
+    const nextCats = sortCategoriesAlpha(
+      expenseCategoriesRef.current.map((c) => (c.id === id ? { ...c, ...cleanedData } : c))
+    );
     commitCashUpdate(cashMovementsRef.current, undefined, nextCats);
   };
 
   const deleteExpenseCategory = (id: string) => {
     if (!(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser))) return;
-    const nextCats = expenseCategoriesRef.current.filter((c) => c.id !== id);
+    const nextCats = sortCategoriesAlpha(expenseCategoriesRef.current.filter((c) => c.id !== id));
     commitCashUpdate(cashMovementsRef.current, undefined, nextCats);
   };
 

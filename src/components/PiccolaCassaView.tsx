@@ -268,10 +268,10 @@ export const PiccolaCassaView: React.FC = () => {
   const {
     currentUser,
     isSuperAdmin,
-    isAmministrativoMember,
     profiles,
     expenseCategories,
     addExpenseCategory,
+    updateExpenseCategory,
     deleteExpenseCategory,
     cashMovements,
     cashOpeningBalance,
@@ -282,9 +282,18 @@ export const PiccolaCassaView: React.FC = () => {
     importCashMovements,
   } = useApp();
 
+  // Causali sempre ordinate rigorosamente in ordine alfabetico (A-Z)
+  const sortedExpenseCategories = useMemo(
+    () =>
+      [...expenseCategories].sort((a, b) =>
+        (a.name || '').localeCompare(b.name || '', 'it', { sensitivity: 'base' })
+      ),
+    [expenseCategories]
+  );
+
   // TIER 1: Solo Socio 7726 e Socio 2406 possono fare tutto (vedere tutto, modificare, cancellare, inserire, approvare, mettere in stato pagato)
   const canFullManageCash = Boolean(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser));
-  // TIER 2: Socio Ruolo Amministrativo (es. 9996) può vedere tutte le richieste e inserire per sé o altri Soci CD, ma NON modificare, cancellare, approvare o pagare
+  // TIER 2: Socio Ruolo Amministrativo (es. 9996) può vedere tutte le richieste e inserire per sé o altri Soci CD
   const isAmministrativoViewer = Boolean(!canFullManageCash && isPiccolaCassaAmministrativoViewer(currentUser));
   // Chi può vedere l'elenco completo di tutte le richieste (7726, 2406 e Ruolo Amministrativo 9996)
   const canViewAllCash = Boolean(canFullManageCash || isAmministrativoViewer);
@@ -342,6 +351,9 @@ export const PiccolaCassaView: React.FC = () => {
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatDesc, setNewCatDesc] = useState('');
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editingCatName, setEditingCatName] = useState('');
+  const [editingCatDesc, setEditingCatDesc] = useState('');
   const [showOpeningBalanceModal, setShowOpeningBalanceModal] = useState(false);
   const [openingBalanceInput, setOpeningBalanceInput] = useState(String(cashOpeningBalance));
 
@@ -432,10 +444,13 @@ export const PiccolaCassaView: React.FC = () => {
     setReceiptDate(todayIso);
     setReceiptNumber('');
     setAmountInput('');
+    const activeSortedCats = sortedExpenseCategories.filter((c) => c.is_active);
     const defaultCat =
       type === 'entrata'
-        ? expenseCategories.find((c) => c.name.toLowerCase().includes('versamento'))?.id || ''
-        : expenseCategories[0]?.id || '';
+        ? activeSortedCats.find((c) => c.name.toLowerCase().includes('versamento'))?.id ||
+          activeSortedCats[0]?.id ||
+          ''
+        : activeSortedCats[0]?.id || '';
     setSelectedCategoryId(defaultCat);
     setCustomCategoryName('');
     setDescription('');
@@ -1961,7 +1976,7 @@ export const PiccolaCassaView: React.FC = () => {
                   required
                 >
                   <option value="">Seleziona una causale...</option>
-                  {expenseCategories
+                  {sortedExpenseCategories
                     .filter((c) => c.is_active)
                     .map((cat) => (
                       <option key={cat.id} value={cat.id}>
@@ -2311,62 +2326,155 @@ export const PiccolaCassaView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h2 className="text-lg font-medium text-slate-900">
-                  Gestione Causali Menu a Tendina
+                  Gestione Causali (Ordine Alfabetico A–Z)
                 </h2>
                 <p className="text-xs font-normal text-slate-500">
-                  Aggiungi o rimuovi le causali disponibili per i rimborsi e versamenti del CD
+                  Inserisci, modifica o elimina le causali del menu a tendina
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setShowCategoriesModal(false)}
+                onClick={() => {
+                  setEditingCatId(null);
+                  setShowCategoriesModal(false);
+                }}
                 className="rounded-xl p-2 text-slate-400 hover:bg-slate-100"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="flex gap-2">
+            {/* Inserimento nuova causale */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newCatName.trim()) return;
+                addExpenseCategory(newCatName, newCatDesc);
+                setNewCatName('');
+                setNewCatDesc('');
+                showToast('✓ Nuova causale inserita in ordine alfabetico.');
+              }}
+              className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-3 space-y-2"
+            >
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Nuova causale (es. Acquisto toner)"
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  className={`flex-1 h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
+                />
+                <button
+                  type="submit"
+                  className="h-10 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 text-xs sm:text-sm font-medium text-white flex items-center gap-1.5 shrink-0"
+                >
+                  <Plus className="h-4 w-4" /> Inserisci
+                </button>
+              </div>
               <input
                 type="text"
-                placeholder="Nuova causale (es. Acquisto toner)"
-                value={newCatName}
-                onChange={(e) => setNewCatName(e.target.value)}
-                className={`flex-1 h-10 rounded-xl px-3 text-sm font-normal ${inputClass}`}
+                placeholder="Descrizione facoltativa (opzionale)..."
+                value={newCatDesc}
+                onChange={(e) => setNewCatDesc(e.target.value)}
+                className={`w-full h-9 rounded-xl px-3 text-xs font-normal ${inputClass}`}
               />
-              <button
-                type="button"
-                onClick={() => {
-                  if (!newCatName.trim()) return;
-                  addExpenseCategory(newCatName, newCatDesc);
-                  setNewCatName('');
-                  setNewCatDesc('');
-                }}
-                className="h-10 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 text-xs sm:text-sm font-normal text-white flex items-center gap-1.5"
-              >
-                <Plus className="h-4 w-4" /> Aggiungi
-              </button>
-            </div>
+            </form>
 
+            {/* Elenco Causali in Ordine Alfabetico con Modifica e Cancella */}
             <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
-              {expenseCategories.map((cat) => (
-                <div key={cat.id} className="flex items-center justify-between p-3 text-sm">
-                  <div>
-                    <p className="font-medium text-slate-800">{cat.name}</p>
-                    {cat.description && (
-                      <p className="text-xs font-normal text-slate-500">{cat.description}</p>
+              {sortedExpenseCategories.map((cat) => {
+                const isEditingThis = editingCatId === cat.id;
+                return (
+                  <div key={cat.id} className="p-3 text-sm">
+                    {isEditingThis ? (
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={editingCatName}
+                          onChange={(e) => setEditingCatName(e.target.value)}
+                          placeholder="Nome causale"
+                          className={`w-full h-10 rounded-xl px-3 text-sm font-medium ${inputClass}`}
+                          autoFocus
+                        />
+                        <input
+                          type="text"
+                          value={editingCatDesc}
+                          onChange={(e) => setEditingCatDesc(e.target.value)}
+                          placeholder="Descrizione (opzionale)"
+                          className={`w-full h-9 rounded-xl px-3 text-xs font-normal ${inputClass}`}
+                        />
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingCatId(null)}
+                            className="h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 text-xs font-normal text-slate-600"
+                          >
+                            Annulla
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!editingCatName.trim()) return;
+                              updateExpenseCategory(cat.id, {
+                                name: editingCatName.trim(),
+                                description: editingCatDesc.trim(),
+                              });
+                              setEditingCatId(null);
+                              showToast('✓ Causale modificata.');
+                            }}
+                            className="h-9 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 text-xs font-medium text-white inline-flex items-center gap-1"
+                          >
+                            <Check className="h-3.5 w-3.5" /> Salva
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-800 truncate">{cat.name}</p>
+                          {cat.description && (
+                            <p className="text-xs font-normal text-slate-500 truncate">
+                              {cat.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCatId(cat.id);
+                              setEditingCatName(cat.name || '');
+                              setEditingCatDesc(cat.description || '');
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 text-xs font-normal text-emerald-800"
+                            title="Modifica causale"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                            <span>Modifica</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Sei sicuro di voler eliminare la causale "${cat.name}"?`
+                                )
+                              ) {
+                                deleteExpenseCategory(cat.id);
+                                showToast('Causale eliminata.');
+                              }
+                            }}
+                            className="rounded-lg border border-rose-200 bg-white p-1.5 text-rose-600 hover:bg-rose-50"
+                            title="Elimina causale"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => deleteExpenseCategory(cat.id)}
-                    className="rounded-lg border border-rose-200 p-1.5 text-rose-600 hover:bg-rose-50"
-                    title="Elimina causale"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
