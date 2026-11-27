@@ -3887,11 +3887,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteCashMovement = (id: string) => {
     const fullAdmin = Boolean(isSuperAdmin || isPiccolaCassaFullAdmin(currentUser));
     if (!fullAdmin) {
-      if (
-        !currentUser ||
-        !canAccessPiccolaCassa(currentUser) ||
-        isPiccolaCassaAmministrativoViewer(currentUser)
-      ) {
+      if (!currentUser || !canAccessPiccolaCassa(currentUser)) {
         return;
       }
       const target = cashMovementsRef.current.find((m) => m.id === id);

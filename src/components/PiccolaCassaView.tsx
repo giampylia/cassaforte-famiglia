@@ -1430,9 +1430,7 @@ export const PiccolaCassaView: React.FC = () => {
                 const canEdit = canFullManageCash;
                 const canDelete =
                   canFullManageCash ||
-                  (!isAmministrativoViewer &&
-                    mov.status !== 'pagato' &&
-                    isCompiledByUser(mov, currentUser));
+                  (mov.status !== 'pagato' && isCompiledByUser(mov, currentUser));
 
                 return (
                   <div
@@ -2273,8 +2271,7 @@ export const PiccolaCassaView: React.FC = () => {
                 )}
 
                 {(canFullManageCash ||
-                  (!isAmministrativoViewer &&
-                    selectedMovement.status !== 'pagato' &&
+                  (selectedMovement.status !== 'pagato' &&
                     isCompiledByUser(selectedMovement, currentUser))) && (
                   <button
                     type="button"
