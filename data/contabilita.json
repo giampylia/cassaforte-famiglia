@@ -9806,7 +9806,8 @@
       "description": "FATTURA ELETTRICA TISIDDU 46,77€",
       "debitAccountCode": "6052",
       "creditAccountCode": "4043",
-      "amount": 0
+      "amount": 46.77,
+      "updatedAt": 1795807733454
     },
     {
       "id": "0fdee88c-874f-49e0-9b97-395841746536",
@@ -9814,8 +9815,8 @@
       "description": "SPESA",
       "debitAccountCode": "6110",
       "creditAccountCode": "4010",
-      "amount": 13,
-      "updatedAt": 1795803897113
+      "amount": 18.5,
+      "updatedAt": 1795809618346
     },
     {
       "id": "180c4c2e-525f-4d53-ab38-e41cc526c159",
