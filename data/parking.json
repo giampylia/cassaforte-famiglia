@@ -1,20 +1,34 @@
 {
   "Giampy": {
     "active": {
-      "id": "park-1795815786490-5xun",
+      "id": "park-1795860426820-9k2l",
       "section": "parking",
       "user": "Giampy",
       "owner": "Giampy",
-      "lat": 39.2263735,
-      "lng": 9.1277138,
+      "lat": 39.2282681,
+      "lng": 9.1206342,
       "accuracy": 5,
-      "address": "Via Gioviano Pontano, Casteddu/Cagliari",
-      "addressShort": "Via Gioviano Pontano, Casteddu/Cagliari",
-      "timestamp": "2026-11-27T21:43:06.490Z",
+      "address": "Via Giudice Guglielmo 18, Cagliari",
+      "addressShort": "Via Giudice Guglielmo 18, Cagliari",
+      "timestamp": "2026-11-28T10:07:06.820Z",
       "trigger": "bluetooth_auto",
       "notes": "Nissan"
     },
     "history": [
+      {
+        "id": "park-1795815786490-5xun",
+        "section": "parking",
+        "user": "Giampy",
+        "owner": "Giampy",
+        "lat": 39.2263735,
+        "lng": 9.1277138,
+        "accuracy": 5,
+        "address": "Via Gioviano Pontano, Casteddu/Cagliari",
+        "addressShort": "Via Gioviano Pontano, Casteddu/Cagliari",
+        "timestamp": "2026-11-27T21:43:06.490Z",
+        "trigger": "bluetooth_auto",
+        "notes": "Nissan"
+      },
       {
         "id": "park-1795815157568-s0kf",
         "section": "parking",
